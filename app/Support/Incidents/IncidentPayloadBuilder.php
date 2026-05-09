@@ -188,21 +188,29 @@ class IncidentPayloadBuilder
             ->values();
         $currentCallSession = $sortedCallSessions->last();
 
+        $publicUser = $incident->caller ? [
+            'id' => $incident->caller->id,
+            'name' => $incident->caller->name,
+            'avatar' => $incident->caller->avatar,
+            'mobile' => $incident->caller->mobile,
+        ] : null;
+        $publicUserLocation = $this->serializeCallerLocation($incident);
+
         return [
             'id' => $incident->id,
             'display_id' => str_pad((string) $incident->id, 6, '0', STR_PAD_LEFT),
+            'citizen_id' => $incident->caller_id,
             'caller_id' => $incident->caller_id,
-            'caller' => $incident->caller ? [
-                'id' => $incident->caller->id,
-                'name' => $incident->caller->name,
-                'avatar' => $incident->caller->avatar,
-                'mobile' => $incident->caller->mobile,
-            ] : null,
+            'citizen' => $publicUser,
+            'caller' => $publicUser,
+            'actual_citizen_name' => $incident->actual_caller_name,
+            'actual_citizen_relationship' => $incident->actual_caller_relationship,
             'actual_caller_name' => $incident->actual_caller_name,
             'actual_caller_relationship' => $incident->actual_caller_relationship,
             'latitude' => $incident->latitude,
             'longitude' => $incident->longitude,
-            'caller_location' => $this->serializeCallerLocation($incident),
+            'citizen_location' => $publicUserLocation,
+            'caller_location' => $publicUserLocation,
             'location' => $incident->location,
             'location_road' => $incident->location_road,
             'location_suburb' => $incident->location_suburb,
@@ -451,6 +459,7 @@ class IncidentPayloadBuilder
         return [
             'id' => $session->id,
             'incident_id' => $session->incident_id,
+            'citizen_id' => $session->caller_id,
             'caller_id' => $session->caller_id,
             'status' => $session->status->value,
             'outcome' => $session->outcome?->value,

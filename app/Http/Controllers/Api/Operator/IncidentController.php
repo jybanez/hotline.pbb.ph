@@ -40,46 +40,7 @@ class IncidentController extends Controller
             ->when($statuses !== [], fn ($query) => $query->whereIn('status', $statuses))
             ->latest('id')
             ->get()
-            ->map(fn (Incident $incident) => [
-                'id' => $incident->id,
-                'display_id' => str_pad((string) $incident->id, 6, '0', STR_PAD_LEFT),
-                'caller_avatar' => $incident->caller?->avatar,
-                'actual_caller_name' => $incident->actual_caller_name,
-                'status' => $incident->status->value,
-                'latitude' => $incident->latitude,
-                'longitude' => $incident->longitude,
-                'caller_location' => $incident->latitude !== null && $incident->longitude !== null ? [
-                    'latitude' => (float) $incident->latitude,
-                    'longitude' => (float) $incident->longitude,
-                    'accuracy' => $incident->caller_location_accuracy === null ? null : (float) $incident->caller_location_accuracy,
-                    'altitude' => $incident->caller_altitude === null ? null : (float) $incident->caller_altitude,
-                    'altitude_accuracy' => $incident->caller_altitude_accuracy === null ? null : (float) $incident->caller_altitude_accuracy,
-                    'heading' => $incident->caller_heading === null ? null : (float) $incident->caller_heading,
-                    'heading_source' => $incident->caller_heading_source,
-                    'captured_at' => $incident->caller_location_captured_at?->toIso8601String(),
-                ] : null,
-                'called_at' => $incident->called_at?->toIso8601String(),
-                'resolved_at' => $incident->resolved_at?->toIso8601String(),
-                'created_at' => $incident->created_at?->toIso8601String(),
-                'updated_at' => $incident->updated_at?->toIso8601String(),
-                'team_assignments' => $incident->teamAssignments
-                    ->sortBy('assigned_at')
-                    ->map(fn ($assignment) => [
-                        'id' => $assignment->id,
-                        'incident_id' => $assignment->incident_id,
-                        'team_id' => $assignment->team_id,
-                        'team' => $assignment->team ? [
-                            'id' => $assignment->team->id,
-                            'name' => $assignment->team->name,
-                        ] : null,
-                        'status' => $assignment->status,
-                        'contact_person' => $assignment->contact_person,
-                        'assigned_at' => $assignment->assigned_at?->toIso8601String(),
-                        'updated_at' => $assignment->updated_at?->toIso8601String(),
-                    ])
-                    ->values()
-                    ->all(),
-            ])
+            ->map(fn (Incident $incident) => $this->serializeIncidentSummary($incident))
             ->values()
             ->all();
 
@@ -140,11 +101,13 @@ class IncidentController extends Controller
         abort_unless((int) $incident->operator_id === (int) $request->user()->id, 404);
 
         $validated = $request->validate([
-            'actual_caller_name' => ['required', 'string', 'max:255'],
+            'actual_citizen_name' => ['nullable', 'required_without:actual_caller_name', 'string', 'max:255'],
+            'actual_citizen_relationship' => ['nullable', 'string', 'max:255'],
+            'actual_caller_name' => ['nullable', 'required_without:actual_citizen_name', 'string', 'max:255'],
             'actual_caller_relationship' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $incident->fill($validated)->save();
+        $incident->forceFill($this->normalizedActualCallerUpdates($validated))->save();
 
         return response()->json([
             'ok' => true,
@@ -157,16 +120,15 @@ class IncidentController extends Controller
         abort_unless((int) $incident->operator_id === (int) $request->user()->id, 404);
 
         $validated = $request->validate([
-            'actual_caller_name' => ['required', 'string', 'max:255'],
+            'actual_citizen_name' => ['nullable', 'required_without:actual_caller_name', 'string', 'max:255'],
+            'actual_citizen_relationship' => ['nullable', 'string', 'max:255'],
+            'actual_caller_name' => ['nullable', 'required_without:actual_citizen_name', 'string', 'max:255'],
             'actual_caller_relationship' => ['nullable', 'string', 'max:255'],
             ...$this->callerAddressValidationRules(),
         ]);
 
         $incident->forceFill([
-            'actual_caller_name' => trim((string) $validated['actual_caller_name']),
-            'actual_caller_relationship' => isset($validated['actual_caller_relationship'])
-                ? trim((string) $validated['actual_caller_relationship']) ?: null
-                : null,
+            ...$this->normalizedActualCallerUpdates($validated),
             ...$this->normalizedCallerAddressUpdates($validated),
         ])->save();
 
@@ -455,6 +417,75 @@ class IncidentController extends Controller
             'resource_type_id' => $resourceType->id,
             'resource' => $resource ? $this->incidentPayloads->serializeWorkbenchIncidentResourceNeeded($resource) : null,
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function serializeIncidentSummary(Incident $incident): array
+    {
+        $location = $incident->latitude !== null && $incident->longitude !== null ? [
+            'latitude' => (float) $incident->latitude,
+            'longitude' => (float) $incident->longitude,
+            'accuracy' => $incident->caller_location_accuracy === null ? null : (float) $incident->caller_location_accuracy,
+            'altitude' => $incident->caller_altitude === null ? null : (float) $incident->caller_altitude,
+            'altitude_accuracy' => $incident->caller_altitude_accuracy === null ? null : (float) $incident->caller_altitude_accuracy,
+            'heading' => $incident->caller_heading === null ? null : (float) $incident->caller_heading,
+            'heading_source' => $incident->caller_heading_source,
+            'captured_at' => $incident->caller_location_captured_at?->toIso8601String(),
+        ] : null;
+
+        return [
+            'id' => $incident->id,
+            'display_id' => str_pad((string) $incident->id, 6, '0', STR_PAD_LEFT),
+            'citizen_id' => $incident->caller_id,
+            'caller_id' => $incident->caller_id,
+            'citizen_avatar' => $incident->caller?->avatar,
+            'caller_avatar' => $incident->caller?->avatar,
+            'actual_citizen_name' => $incident->actual_caller_name,
+            'actual_caller_name' => $incident->actual_caller_name,
+            'status' => $incident->status->value,
+            'latitude' => $incident->latitude,
+            'longitude' => $incident->longitude,
+            'citizen_location' => $location,
+            'caller_location' => $location,
+            'called_at' => $incident->called_at?->toIso8601String(),
+            'resolved_at' => $incident->resolved_at?->toIso8601String(),
+            'created_at' => $incident->created_at?->toIso8601String(),
+            'updated_at' => $incident->updated_at?->toIso8601String(),
+            'team_assignments' => $incident->teamAssignments
+                ->sortBy('assigned_at')
+                ->map(fn ($assignment) => [
+                    'id' => $assignment->id,
+                    'incident_id' => $assignment->incident_id,
+                    'team_id' => $assignment->team_id,
+                    'team' => $assignment->team ? [
+                        'id' => $assignment->team->id,
+                        'name' => $assignment->team->name,
+                    ] : null,
+                    'status' => $assignment->status,
+                    'contact_person' => $assignment->contact_person,
+                    'assigned_at' => $assignment->assigned_at?->toIso8601String(),
+                    'updated_at' => $assignment->updated_at?->toIso8601String(),
+                ])
+                ->values()
+                ->all(),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     * @return array<string, string|null>
+     */
+    private function normalizedActualCallerUpdates(array $validated): array
+    {
+        $name = $validated['actual_citizen_name'] ?? $validated['actual_caller_name'];
+        $relationship = $validated['actual_citizen_relationship'] ?? $validated['actual_caller_relationship'] ?? null;
+
+        return [
+            'actual_caller_name' => trim((string) $name),
+            'actual_caller_relationship' => is_string($relationship) ? trim($relationship) ?: null : null,
+        ];
     }
 
     /**

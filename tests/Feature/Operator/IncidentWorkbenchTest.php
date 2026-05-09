@@ -350,10 +350,12 @@ class IncidentWorkbenchTest extends TestCase
 
         $this->actingAs($operator)
             ->postJson("/api/operator/incidents/{$incidentId}/actual-citizen", [
-                'actual_caller_name' => 'Juan Dela Cruz',
-                'actual_caller_relationship' => 'Brother',
+                'actual_citizen_name' => 'Juan Dela Cruz',
+                'actual_citizen_relationship' => 'Brother',
             ])
             ->assertOk()
+            ->assertJsonPath('incident.actual_citizen_name', 'Juan Dela Cruz')
+            ->assertJsonPath('incident.actual_citizen_relationship', 'Brother')
             ->assertJsonPath('incident.actual_caller_name', 'Juan Dela Cruz')
             ->assertJsonPath('incident.actual_caller_relationship', 'Brother');
 
@@ -377,6 +379,8 @@ class IncidentWorkbenchTest extends TestCase
                 'source' => 'test',
             ])
             ->assertOk()
+            ->assertJsonPath('incident.citizen_location.latitude', 10.3157)
+            ->assertJsonPath('incident.citizen_location.longitude', 123.8854)
             ->assertJsonPath('incident.caller_location.latitude', 10.3157)
             ->assertJsonPath('incident.caller_location.longitude', 123.8854);
 
@@ -426,6 +430,56 @@ class IncidentWorkbenchTest extends TestCase
                     && (int) ($context['user_id'] ?? 0) === (int) $operator->id
                     && ($context['user_role'] ?? null) === UserRole::Operator->value
             ));
+    }
+
+    public function test_operator_incident_payload_includes_citizen_aliases(): void
+    {
+        $citizen = User::factory()->create([
+            'role' => UserRole::Citizen,
+        ]);
+
+        $operator = User::factory()->create([
+            'role' => UserRole::Operator,
+        ]);
+
+        $incidentId = DB::table('incidents')->insertGetId([
+            'caller_id' => $citizen->id,
+            'actual_caller_name' => 'Maria Santos',
+            'actual_caller_relationship' => 'Self',
+            'operator_id' => $operator->id,
+            'status' => IncidentStatus::Active->value,
+            'alert_level' => 'Normal',
+            'latitude' => 10.3157,
+            'longitude' => 123.8854,
+            'caller_location_accuracy' => 12,
+            'called_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($operator)
+            ->getJson('/api/operator/incidents')
+            ->assertOk()
+            ->assertJsonPath('items.0.citizen_id', $citizen->id)
+            ->assertJsonPath('items.0.caller_id', $citizen->id)
+            ->assertJsonPath('items.0.actual_citizen_name', 'Maria Santos')
+            ->assertJsonPath('items.0.actual_caller_name', 'Maria Santos')
+            ->assertJsonPath('items.0.citizen_location.latitude', 10.3157)
+            ->assertJsonPath('items.0.caller_location.latitude', 10.3157);
+
+        $this->actingAs($operator)
+            ->getJson("/api/operator/incidents/{$incidentId}")
+            ->assertOk()
+            ->assertJsonPath('citizen_id', $citizen->id)
+            ->assertJsonPath('caller_id', $citizen->id)
+            ->assertJsonPath('citizen.id', $citizen->id)
+            ->assertJsonPath('caller.id', $citizen->id)
+            ->assertJsonPath('actual_citizen_name', 'Maria Santos')
+            ->assertJsonPath('actual_caller_name', 'Maria Santos')
+            ->assertJsonPath('actual_citizen_relationship', 'Self')
+            ->assertJsonPath('actual_caller_relationship', 'Self')
+            ->assertJsonPath('citizen_location.latitude', 10.3157)
+            ->assertJsonPath('caller_location.latitude', 10.3157);
     }
 
     public function test_operator_can_update_initial_intake_fields_in_one_request(): void
