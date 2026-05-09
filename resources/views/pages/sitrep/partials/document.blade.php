@@ -190,8 +190,8 @@
         </div>
         <div class="sitrep-metrics is-compact">
             <div class="sitrep-metric">
-                <span>Callers assisted</span>
-                <strong>{{ $population['callers_assisted'] ?? 0 }}</strong>
+                <span>Citizens assisted</span>
+                <strong>{{ $population['citizens_assisted'] ?? $population['callers_assisted'] ?? 0 }}</strong>
             </div>
             <div class="sitrep-metric">
                 <span>Reported numeric total</span>

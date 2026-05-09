@@ -146,6 +146,7 @@ class SitrepGenerationService
             'team_assignments' => $teamAssignments,
             'resource_needs' => $resourceRows,
             'field_details' => $fieldDetails,
+            'citizen_locations' => $callerLocations,
             'caller_locations' => $callerLocations,
             'type_rows' => $typeRows,
             'type_counts' => $typeRows->countBy('name')->sortDesc(),
@@ -186,7 +187,7 @@ class SitrepGenerationService
         };
 
         $watchItems = collect([
-            $missingLocations > 0 ? sprintf('Caller location unavailable for %d incident%s.', $missingLocations, $missingLocations === 1 ? '' : 's') : null,
+            $missingLocations > 0 ? sprintf('Citizen location unavailable for %d incident%s.', $missingLocations, $missingLocations === 1 ? '' : 's') : null,
             $blockedAssignments > 0 ? sprintf('%d assignment%s still open.', $blockedAssignments, $blockedAssignments === 1 ? '' : 's') : null,
             $criticalNeeds > 0 ? sprintf('%d requested resource unit%s still need review.', $criticalNeeds, $criticalNeeds === 1 ? '' : 's') : null,
         ])->filter()->values()->all();
@@ -259,8 +260,11 @@ class SitrepGenerationService
         $numericTotal = collect($items)
             ->sum(fn (array $item) => is_numeric($item['value']) ? (float) $item['value'] : 0);
 
+        $assisted = $context['incidents']->pluck('caller_id')->filter()->unique()->count();
+
         return [
-            'callers_assisted' => $context['incidents']->pluck('caller_id')->filter()->unique()->count(),
+            'citizens_assisted' => $assisted,
+            'callers_assisted' => $assisted,
             'items' => $items,
             'numeric_total' => $numericTotal,
             'empty_state' => count($items) === 0 ? 'No population fields have been reported for this period.' : null,
@@ -330,8 +334,8 @@ class SitrepGenerationService
         if ($missingLocations > 0) {
             $items[] = [
                 'type' => 'missing_location',
-                'title' => 'Caller location unavailable',
-                'body' => sprintf('%d incident%s do not have caller coordinates.', $missingLocations, $missingLocations === 1 ? '' : 's'),
+                'title' => 'Citizen location unavailable',
+                'body' => sprintf('%d incident%s do not have citizen coordinates.', $missingLocations, $missingLocations === 1 ? '' : 's'),
                 'public_visible' => true,
             ];
         }
@@ -369,6 +373,7 @@ class SitrepGenerationService
 
         return [
             'global_note' => 'Generated from current Hotline incident data. Unconfigured fields and missing values are reported as data-quality notes.',
+            'missing_citizen_location_count' => $missingLocations,
             'missing_caller_location_count' => $missingLocations,
             'incidents_without_type_count' => $withoutTypes,
             'incidents_without_assignment_count' => $withoutAssignments,
@@ -396,6 +401,7 @@ class SitrepGenerationService
     private function buildPrivacyRedactions(): array
     {
         return [
+            'citizen_phone_numbers' => 'redacted',
             'caller_phone_numbers' => 'redacted',
             'raw_chat_transcript' => 'omitted',
             'exact_coordinates' => 'omitted from public report',
