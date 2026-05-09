@@ -75,7 +75,7 @@ From the playbook and README, the most relevant existing Helper surfaces are:
 
 ## Mapping By Hotline Surface
 
-### 1. Caller Surface
+### 1. Citizen Surface
 
 Current intent:
 - citizen on barangay Wi-Fi
@@ -93,12 +93,18 @@ Use Helper directly for:
 - shared shell, badges, labels, cards, buttons via shared UI CSS primitives
 
 Hotline app-owned adapters:
-- `callerBootstrapAdapter()`
-- `startCallAdapter()`
-- `reconnectCallAdapter()`
+- `citizenBootstrapAdapter()`
+- `startCitizenCallAdapter()`
+- `reconnectCitizenCallAdapter()`
 - `sendMessageAdapter()`
 - `uploadMediaAdapter()`
 - `incidentBootstrapNormalization()`
+
+Temporary caller-to-citizen compatibility:
+- `callerBootstrapAdapter()` remains a legacy alias for `citizenBootstrapAdapter()` until the refactor is complete
+- `startCallAdapter()` remains a legacy alias for `startCitizenCallAdapter()` until the refactor is complete
+- `reconnectCallAdapter()` remains a legacy alias for `reconnectCitizenCallAdapter()` until the refactor is complete
+- Helper-facing adapter payloads should emit canonical `citizen` / `citizen_id` / `citizen_name` fields and accept legacy `caller` / `caller_id` / `caller_name` fields during the compatibility window
 
 App-owned logic:
 - whether a citizen can start a new report
@@ -107,7 +113,7 @@ App-owned logic:
 - offline session behavior
 
 Likely Helper gap:
-- a reusable caller-side local-hub “connection status / local hub available / upstream unavailable” panel
+- a reusable citizen-side local-hub “connection status / local hub available / upstream unavailable” panel
 
 Recommendation:
 - propose a generic connectivity banner/panel only if it is needed across multiple PBB apps

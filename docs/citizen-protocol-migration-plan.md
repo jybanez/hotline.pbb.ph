@@ -216,9 +216,9 @@ Phase 2 work:
 ### Helper Contracts
 
 Known Helper-facing caller concepts:
-- `callerBootstrapAdapter()`
-- `startCallAdapter()`
-- `reconnectCallAdapter()`
+- canonical `citizenBootstrapAdapter()` with temporary `callerBootstrapAdapter()` alias
+- canonical `startCitizenCallAdapter()` with temporary `startCallAdapter()` alias
+- canonical `reconnectCitizenCallAdapter()` with temporary `reconnectCallAdapter()` alias
 - chat copy such as "Reply to caller..."
 - empty-state copy such as "Caller chat remains visible..."
 - Helper media viewer/call-session inputs using `peer_role`
