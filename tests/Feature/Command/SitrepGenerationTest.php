@@ -54,7 +54,12 @@ class SitrepGenerationTest extends TestCase
             ->assertJsonPath('sitrep.situation.multi_type_incident_count', 1)
             ->assertJsonPath('sitrep.needs.total_quantity_requested', 3)
             ->assertJsonPath('sitrep.needs.items.0.resource', 'Rescue Boat')
+            ->assertJsonPath('sitrep.population.citizens_assisted', 1)
+            ->assertJsonPath('sitrep.population.callers_assisted', 1)
             ->assertJsonPath('sitrep.population.numeric_total', 5)
+            ->assertJsonPath('sitrep.data_quality.missing_citizen_location_count', 0)
+            ->assertJsonPath('sitrep.data_quality.missing_caller_location_count', 0)
+            ->assertJsonPath('sitrep.privacy_redactions.citizen_phone_numbers', 'redacted')
             ->assertJsonPath('sitrep.privacy_redactions.caller_phone_numbers', 'redacted');
 
         $this->assertDatabaseHas('sitrep_reports', [

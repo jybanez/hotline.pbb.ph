@@ -111,10 +111,10 @@ Legend:
 - [x] Add canonical `actual_citizen_name` request/response support.
 - [x] Add canonical `actual_citizen_relationship` request/response support.
 - [x] Add canonical `citizen_location` beside legacy `caller_location`.
-- [ ] Add canonical `citizen_locations` beside legacy `caller_locations`.
+- [x] Add canonical `citizen_locations` beside legacy `caller_locations`.
 - [ ] Add canonical `missing_citizen_location_count` beside legacy `missing_caller_location_count`.
-- [ ] Add canonical `citizen_phone_numbers` beside legacy `caller_phone_numbers`.
-- [ ] Add canonical `citizens_assisted` beside legacy `callers_assisted`.
+- [x] Add canonical `citizen_phone_numbers` beside legacy `caller_phone_numbers`.
+- [x] Add canonical `citizens_assisted` beside legacy `callers_assisted`.
 - [~] Accept both citizen and caller request fields during compatibility.
 - [~] Define conflict behavior when both citizen and caller request fields are provided.
 - [x] Add serialization tests for citizen canonical fields.
@@ -196,12 +196,12 @@ Legend:
 
 ## Reports and SITREP
 
-- [ ] Add citizen-facing report label for callers assisted.
-- [ ] Add `citizens_assisted` beside `callers_assisted` if report payloads are consumed externally.
-- [ ] Add `citizen_locations` beside `caller_locations` if report payloads are consumed externally.
-- [ ] Add `missing_citizen_location_count` beside `missing_caller_location_count`.
-- [ ] Add `citizen_phone_numbers` redaction key beside `caller_phone_numbers` if needed.
-- [ ] Update generated SITREP prose from caller to citizen where user-facing.
+- [x] Add citizen-facing report label for callers assisted.
+- [x] Add `citizens_assisted` beside `callers_assisted` if report payloads are consumed externally.
+- [x] Add `citizen_locations` beside `caller_locations` if report payloads are consumed externally.
+- [x] Add `missing_citizen_location_count` beside `missing_caller_location_count`.
+- [x] Add `citizen_phone_numbers` redaction key beside `caller_phone_numbers` if needed.
+- [x] Update generated SITREP prose from caller to citizen where user-facing.
 - [ ] Keep historical or schema-specific caller terms where required.
 - [ ] Add SITREP tests for citizen-facing output.
 
