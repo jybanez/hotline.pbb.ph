@@ -8,6 +8,7 @@ import { createRealtimeOperatorMediaChunkTransport } from '../media/transports/r
 import { createDashboardMap } from '../maps/dashboardMap.js';
 import { createWorkbenchLocationMap } from '../maps/workbenchLocationMap.js';
 import { buildAppEventPublishPayload, buildPresencePublishPayload, buildPresenceSubscribePayload, buildRoomJoinPayload, listPresenceRosterItems, parseRealtimeEnvelope, reducePresenceRosterEvent, RealtimeSocketClient } from '../../../../realtime/resources/js/sdk/index.js';
+import { citizenEventType, legacyCallerEventType, withCitizenRealtimePayloadAliases } from '../realtime/citizenEvents.js';
 
 const CALL_DISCOVERY_ROOM = 'presence.global.hotline';
 const INCIDENT_MEDIA_ROOM_PREFIX = 'hotline.media.incident.';
@@ -89,7 +90,7 @@ function publishOperatorCallFlow(eventType, payload = {}) {
     return client.sendRequest(
         'app.event.publish',
         CALL_DISCOVERY_ROOM,
-        buildAppEventPublishPayload(eventType, payload),
+        buildAppEventPublishPayload(citizenEventType(eventType), withCitizenRealtimePayloadAliases(payload)),
     );
 }
 
@@ -1105,11 +1106,9 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                     });
                     return;
                 }
-                const eventType = String(envelope?.type ?? '').trim();
+                const eventType = legacyCallerEventType(envelope?.type);
                 const eventRoom = String(envelope?.room ?? '').trim();
-                const payload = envelope?.payload && typeof envelope.payload === 'object'
-                    ? envelope.payload
-                    : {};
+                const payload = withCitizenRealtimePayloadAliases(envelope?.payload);
 
                 if (eventRoom === CALL_DISCOVERY_ROOM && eventType === 'presence.state.event') {
                     syncOperatorTransferPresenceRoster(envelope);
