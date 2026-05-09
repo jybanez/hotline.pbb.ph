@@ -7,7 +7,13 @@ use App\Http\Controllers\Api\Citizen\ReconnectController;
 use Illuminate\Support\Facades\Route;
 
 foreach (['citizen', 'caller'] as $prefix) {
-    Route::middleware(['auth', 'role:'.$prefix])->prefix('/'.$prefix)->group(function (): void {
+    $middleware = ['auth', 'role:'.$prefix];
+
+    if ($prefix === 'caller') {
+        $middleware[] = 'legacy.caller:public-api';
+    }
+
+    Route::middleware($middleware)->prefix('/'.$prefix)->group(function (): void {
         Route::get('/home', [HomeController::class, 'show']);
         Route::post('/call-attempts', [CallAttemptController::class, 'store']);
         Route::post('/call-attempts/{attempt}/cancel', [CallAttemptController::class, 'cancel']);
