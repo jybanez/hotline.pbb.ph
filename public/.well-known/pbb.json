@@ -1,0 +1,18 @@
+{
+  "contract_version": "1",
+  "app_code": "hq",
+  "name": "PBB HQ",
+  "app_kind": "laravel-browser-app",
+  "launch_path": "/",
+  "health_url": "/up",
+  "access_check_url": "/api/workspace/user-access",
+  "embeddable": true,
+  "icon": "app-window",
+  "category": "Registry",
+  "service_auth_type": "bearer",
+  "preferred_window": {
+    "width": 1440,
+    "height": 900
+  },
+  "workspace_notes": "HQ is an embeddable Laravel browser app with modal login, fetched bootstrap, helper-owned overlays, and a bearer-protected Workspace access-check endpoint."
+}

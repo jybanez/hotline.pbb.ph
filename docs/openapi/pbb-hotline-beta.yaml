@@ -1,0 +1,2628 @@
+openapi: 3.1.0
+info:
+  title: PBB Hotline Beta API
+  version: 0.1.0-draft
+  summary: Phase 1 API draft for PBB Hotline Beta aligned to the current inventory.
+servers:
+  - url: https://hotline.pbb.ph
+tags:
+  - name: Public
+  - name: Auth
+  - name: Account
+  - name: Caller
+  - name: Operator
+  - name: Messaging
+  - name: Media
+  - name: Admin
+  - name: Realtime
+paths:
+  /api/bootstrap:
+    get:
+      tags: [Public]
+      summary: Bootstrap current app state
+      responses:
+        '200':
+          description: Bootstrap payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BootstrapResponse'
+
+  /api/public/alert-level:
+    get:
+      tags: [Public]
+      summary: Get current public alert level
+      responses:
+        '200':
+          description: Current alert level
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicAlertLevelResponse'
+
+  /api/login:
+    post:
+      tags: [Auth]
+      summary: Login with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSuccessResponse'
+        '422':
+          description: Validation or auth failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+
+  /api/logout:
+    post:
+      tags: [Auth]
+      summary: Logout current user
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Logout success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BasicOkResponse'
+
+  /api/reauth:
+    post:
+      tags: [Auth]
+      summary: Re-authenticate expired session context
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Re-auth success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSuccessResponse'
+        '422':
+          description: Validation or auth failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+
+  /api/session/ping:
+    get:
+      tags: [Auth]
+      summary: Authenticated near-expiry session keepalive ping
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Session touched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionPingResponse'
+        '401':
+          description: Session no longer valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/user:
+    get:
+      tags: [Account]
+      summary: Get current authenticated user
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+    post:
+      tags: [Account]
+      summary: Update current authenticated account
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAccountRequest'
+      responses:
+        '200':
+          description: Updated current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '422':
+          description: Validation failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+
+  /api/user/password:
+    post:
+      tags: [Account]
+      summary: Update current authenticated user password
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: Password updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BasicOkResponse'
+        '422':
+          description: Validation failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+
+  /api/caller/home:
+    get:
+      tags: [Caller]
+      summary: Get caller home state
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Caller home payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallerHomeResponse'
+
+  /api/caller/call-attempts:
+    post:
+      tags: [Caller]
+      summary: Start a new call attempt
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCallAttemptRequest'
+      responses:
+        '200':
+          description: Call attempt started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallAttempt'
+        '409':
+          description: Blocked by current caller state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/caller/call-attempts/{attempt}/cancel:
+    post:
+      tags: [Caller]
+      summary: Cancel an unanswered new call attempt
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AttemptId'
+      responses:
+        '200':
+          description: Call attempt cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallAttempt'
+        '409':
+          description: Call attempt can no longer be cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/caller/incidents/current:
+    get:
+      tags: [Caller]
+      summary: Get current open caller incident
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Current incident payload or null
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Incident'
+                nullable: true
+
+  /api/caller/incidents/history:
+    get:
+      tags: [Caller]
+      summary: Get caller incident history excluding the current open incident
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Caller incident history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallerIncidentHistoryResponse'
+
+  /api/caller/incidents/{incident}:
+    get:
+      tags: [Caller]
+      summary: Get one caller-visible incident view
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IncidentId'
+      responses:
+        '200':
+          description: Caller incident payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+
+  /api/caller/incidents/{incident}/reconnect:
+    post:
+      tags: [Caller]
+      summary: Request reconnect to the assigned operator
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IncidentId'
+      responses:
+        '200':
+          description: Reconnect request accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallSession'
+        '409':
+          description: Reconnect blocked by operator state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/caller/call-sessions/{callSession}/cancel:
+    post:
+      tags: [Caller]
+      summary: Cancel an unanswered reconnect call session
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CallSessionId'
+      responses:
+        '200':
+          description: Reconnect call session cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallSession'
+        '409':
+          description: Call session can no longer be cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/operator/dashboard:
+    get:
+      tags: [Operator]
+      summary: Get operator dashboard payload
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Operator dashboard payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperatorDashboardResponse'
+
+  /api/operator/incidents:
+    get:
+      tags: [Operator]
+      summary: Get operator incident list feed
+      security:
+        - sessionAuth: []
+      parameters:
+        - in: query
+          name: status
+          required: false
+          schema:
+            type: string
+          description: Comma-separated incident statuses, such as `active,deferred`.
+      responses:
+        '200':
+          description: Operator incident list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperatorIncidentListResponse'
+
+  /api/operator/incidents/{incident}:
+    get:
+      tags: [Operator]
+      summary: Get full operator workbench payload
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IncidentId'
+      responses:
+        '200':
+          description: Incident workbench payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+        '403':
+          description: Operator may no longer open this incident
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Incident no longer available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/operator/call-attempt-operator-attempts/{attempt}/answer:
+    post:
+      tags: [Operator]
+      summary: Answer a routed new call operator attempt
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AttemptId'
+      responses:
+        '200':
+          description: New call answered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnswerCallAttemptResponse'
+        '409':
+          description: Attempt can no longer be answered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/operator/call-attempt-operator-attempts/{attempt}/decline:
+    post:
+      tags: [Operator]
+      summary: Decline an unanswered incoming new call
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AttemptId'
+      responses:
+        '200':
+          description: Attempt declined
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BasicOkResponse'
+        '409':
+          description: Attempt can no longer be declined
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/operator/call-sessions/{callSession}/answer:
+    post:
+      tags: [Operator]
+      summary: Answer reconnect call session request
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CallSessionId'
+      responses:
+        '200':
+          description: Reconnect answered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallSession'
+        '409':
+          description: Call session can no longer be answered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/operator/call-sessions/{callSession}/hangup:
+    post:
+      tags: [Operator]
+      summary: End a live call
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CallSessionId'
+      responses:
+        '200':
+          description: Call session ended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallSession'
+        '409':
+          description: Call session can no longer be ended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/operator/call-sessions/{callSession}/mute:
+    post:
+      tags: [Operator]
+      summary: Update operator mute state for a live call
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CallSessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CallSessionMuteRequest'
+      responses:
+        '200':
+          description: Mute state updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BasicOkResponse'
+        '409':
+          description: Mute state cannot be changed in the current call state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/operator/incidents/{incident}/status:
+    post:
+      tags: [Operator]
+      summary: Move incident status
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IncidentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IncidentStatusUpdateRequest'
+      responses:
+        '200':
+          description: Updated incident
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+        '409':
+          description: Status change blocked by business rule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/operator/incidents/{incident}/actual-caller:
+    post:
+      tags: [Operator]
+      summary: Update actual caller fields
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IncidentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActualCallerUpdateRequest'
+      responses:
+        '200':
+          description: Updated incident
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+
+  /api/operator/incidents/{incident}/other-details:
+    post:
+      tags: [Operator]
+      summary: Update incident other details
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IncidentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OtherDetailsUpdateRequest'
+      responses:
+        '200':
+          description: Updated incident
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+
+  /api/operator/incidents/{incident}/incident-type-details:
+    post:
+      tags: [Operator]
+      summary: Create or update grouped incident type details
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IncidentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IncidentTypeDetailsUpsertRequest'
+      responses:
+        '200':
+          description: Updated incident type details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentTypeDetailsUpsertResponse'
+
+  /api/operator/incidents/{incident}/transfers:
+    post:
+      tags: [Operator]
+      summary: Request incident transfer
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IncidentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTransferRequest'
+      responses:
+        '200':
+          description: Transfer created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transfer'
+        '409':
+          description: Transfer cannot be created in the current state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/operator/transfers/{transfer}/accept:
+    post:
+      tags: [Operator]
+      summary: Accept transfer
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TransferId'
+      responses:
+        '200':
+          description: Transfer accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transfer'
+        '409':
+          description: Transfer can no longer be accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/operator/transfers/{transfer}/reject:
+    post:
+      tags: [Operator]
+      summary: Reject transfer
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TransferId'
+      responses:
+        '200':
+          description: Transfer rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transfer'
+        '409':
+          description: Transfer can no longer be rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/operator/incidents/{incident}/team-assignments:
+    post:
+      tags: [Operator]
+      summary: Assign a team to an incident
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IncidentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTeamAssignmentRequest'
+      responses:
+        '200':
+          description: Team assignment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamAssignment'
+
+  /api/operator/team-assignments/{assignment}:
+    post:
+      tags: [Operator]
+      summary: Update one team assignment
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AssignmentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTeamAssignmentRequest'
+      responses:
+        '200':
+          description: Team assignment updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamAssignment'
+    delete:
+      tags: [Operator]
+      summary: Delete assignment only when canceling from the initial Assigned state
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AssignmentId'
+      responses:
+        '200':
+          description: Team assignment deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BasicOkResponse'
+        '409':
+          description: Team assignment cannot be deleted in the current state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/incidents/{incident}/messages:
+    get:
+      tags: [Messaging]
+      summary: Get incident chat history
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IncidentId'
+      responses:
+        '200':
+          description: Incident messages
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageListResponse'
+    post:
+      tags: [Messaging]
+      summary: Create incident message during live call
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IncidentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMessageRequest'
+      responses:
+        '200':
+          description: Message created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '409':
+          description: Messaging currently blocked by live-call rules
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/incidents/{incident}/message-attachments:
+    post:
+      tags: [Messaging]
+      summary: Finalize persisted message attachment metadata
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IncidentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMessageAttachmentRequest'
+      responses:
+        '200':
+          description: Message attachment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageAttachment'
+
+  /api/incidents/{incident}/media:
+    get:
+      tags: [Media]
+      summary: Get incident-level merged media chronology
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IncidentId'
+      responses:
+        '200':
+          description: Incident media chronology
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaListResponse'
+
+  /api/media/assembly/complete:
+    post:
+      tags: [Media]
+      summary: Finalize merged media availability from internal background work
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MediaAssemblyCompleteRequest'
+      responses:
+        '200':
+          description: Media assembly completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BasicOkResponse'
+
+  /api/admin/summary:
+    get:
+      tags: [Admin]
+      summary: Get admin landing summary
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Admin summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSummaryResponse'
+
+  /api/admin/users:
+    get:
+      tags: [Admin]
+      summary: List users
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Users list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserListResponse'
+    post:
+      tags: [Admin]
+      summary: Create user
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserUpsertRequest'
+      responses:
+        '200':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /api/admin/users/{user}:
+    get:
+      tags: [Admin]
+      summary: Get one user
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: User detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+    post:
+      tags: [Admin]
+      summary: Update user
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserUpsertRequest'
+      responses:
+        '200':
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+    delete:
+      tags: [Admin]
+      summary: Delete user
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: User deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BasicOkResponse'
+        '409':
+          description: Delete blocked by existing references
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/admin/incident-categories:
+    get:
+      tags: [Admin]
+      summary: List incident categories
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Incident categories
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentCategoryListResponse'
+    post:
+      tags: [Admin]
+      summary: Create incident category
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IncidentCategoryUpsertRequest'
+      responses:
+        '200':
+          description: Incident category created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentCategory'
+
+  /api/admin/incident-categories/{category}:
+    post:
+      tags: [Admin]
+      summary: Update incident category
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CategoryId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IncidentCategoryUpsertRequest'
+      responses:
+        '200':
+          description: Incident category updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentCategory'
+    delete:
+      tags: [Admin]
+      summary: Delete incident category
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CategoryId'
+      responses:
+        '200':
+          description: Incident category deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BasicOkResponse'
+        '409':
+          description: Delete blocked by existing references
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/admin/incident-types:
+    get:
+      tags: [Admin]
+      summary: List incident types
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Incident types
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentTypeListResponse'
+    post:
+      tags: [Admin]
+      summary: Create incident type
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IncidentTypeUpsertRequest'
+      responses:
+        '200':
+          description: Incident type created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentType'
+
+  /api/admin/incident-types/{type}:
+    post:
+      tags: [Admin]
+      summary: Update incident type
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TypeId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IncidentTypeUpsertRequest'
+      responses:
+        '200':
+          description: Incident type updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentType'
+    delete:
+      tags: [Admin]
+      summary: Delete incident type
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TypeId'
+      responses:
+        '200':
+          description: Incident type deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BasicOkResponse'
+        '409':
+          description: Delete blocked by existing references
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/admin/incident-type-fields:
+    get:
+      tags: [Admin]
+      summary: List incident type fields
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Incident type fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentTypeFieldListResponse'
+    post:
+      tags: [Admin]
+      summary: Create incident type field
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IncidentTypeFieldUpsertRequest'
+      responses:
+        '200':
+          description: Incident type field created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentTypeFieldDefinition'
+
+  /api/admin/incident-type-fields/{field}:
+    post:
+      tags: [Admin]
+      summary: Update incident type field
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/FieldId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IncidentTypeFieldUpsertRequest'
+      responses:
+        '200':
+          description: Incident type field updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentTypeFieldDefinition'
+    delete:
+      tags: [Admin]
+      summary: Delete incident type field
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/FieldId'
+      responses:
+        '200':
+          description: Incident type field deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BasicOkResponse'
+        '409':
+          description: Delete blocked by existing references
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/admin/team-categories:
+    get:
+      tags: [Admin]
+      summary: List team categories
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Team categories
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamCategoryListResponse'
+    post:
+      tags: [Admin]
+      summary: Create team category
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamCategoryUpsertRequest'
+      responses:
+        '200':
+          description: Team category created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamCategory'
+
+  /api/admin/team-categories/{category}:
+    post:
+      tags: [Admin]
+      summary: Update team category
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CategoryId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamCategoryUpsertRequest'
+      responses:
+        '200':
+          description: Team category updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamCategory'
+    delete:
+      tags: [Admin]
+      summary: Delete team category
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CategoryId'
+      responses:
+        '200':
+          description: Team category deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BasicOkResponse'
+        '409':
+          description: Delete blocked by existing references
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/admin/teams:
+    get:
+      tags: [Admin]
+      summary: List teams
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Teams
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamListResponse'
+    post:
+      tags: [Admin]
+      summary: Create team
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamUpsertRequest'
+      responses:
+        '200':
+          description: Team created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Team'
+
+  /api/admin/teams/{team}:
+    post:
+      tags: [Admin]
+      summary: Update team
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TeamId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamUpsertRequest'
+      responses:
+        '200':
+          description: Team updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Team'
+    delete:
+      tags: [Admin]
+      summary: Delete team
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TeamId'
+      responses:
+        '200':
+          description: Team deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BasicOkResponse'
+        '409':
+          description: Delete blocked by existing references
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/admin/resource-type-categories:
+    get:
+      tags: [Admin]
+      summary: List resource type categories
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Resource type categories
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceTypeCategoryListResponse'
+    post:
+      tags: [Admin]
+      summary: Create resource type category
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceTypeCategoryUpsertRequest'
+      responses:
+        '200':
+          description: Resource type category created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceTypeCategory'
+
+  /api/admin/resource-type-categories/{resourceTypeCategory}:
+    post:
+      tags: [Admin]
+      summary: Update resource type category
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceTypeCategoryId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceTypeCategoryUpsertRequest'
+      responses:
+        '200':
+          description: Resource type category updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceTypeCategory'
+    delete:
+      tags: [Admin]
+      summary: Delete resource type category
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceTypeCategoryId'
+      responses:
+        '200':
+          description: Resource type category deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BasicOkResponse'
+        '409':
+          description: Delete blocked by existing references
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/admin/resource-types:
+    get:
+      tags: [Admin]
+      summary: List resource types
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Resource types
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceTypeListResponse'
+    post:
+      tags: [Admin]
+      summary: Create resource type
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceTypeUpsertRequest'
+      responses:
+        '200':
+          description: Resource type created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceType'
+
+  /api/admin/resource-types/{resourceType}:
+    post:
+      tags: [Admin]
+      summary: Update resource type
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceTypeId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceTypeUpsertRequest'
+      responses:
+        '200':
+          description: Resource type updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceType'
+    delete:
+      tags: [Admin]
+      summary: Delete resource type
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceTypeId'
+      responses:
+        '200':
+          description: Resource type deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BasicOkResponse'
+        '409':
+          description: Delete blocked by existing references
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/admin/settings:
+    get:
+      tags: [Admin]
+      summary: Get admin-editable settings
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Current settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingListResponse'
+    post:
+      tags: [Admin]
+      summary: Update admin-editable settings
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SettingListResponse'
+      responses:
+        '200':
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingListResponse'
+
+  /api/realtime/admission/caller:
+    post:
+      tags: [Realtime]
+      summary: Issue caller-side Realtime admission
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RealtimeAdmissionRequest'
+      responses:
+        '200':
+          description: Caller admission payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RealtimeAdmissionResponse'
+
+  /api/realtime/admission/operator:
+    post:
+      tags: [Realtime]
+      summary: Issue operator-side Realtime admission
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RealtimeAdmissionRequest'
+      responses:
+        '200':
+          description: Operator admission payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RealtimeAdmissionResponse'
+
+components:
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: laravel_session
+
+  parameters:
+    IncidentId:
+      in: path
+      name: incident
+      required: true
+      schema:
+        type: integer
+    AttemptId:
+      in: path
+      name: attempt
+      required: true
+      schema:
+        type: integer
+    CallSessionId:
+      in: path
+      name: callSession
+      required: true
+      schema:
+        type: integer
+    TransferId:
+      in: path
+      name: transfer
+      required: true
+      schema:
+        type: integer
+    AssignmentId:
+      in: path
+      name: assignment
+      required: true
+      schema:
+        type: integer
+    UserId:
+      in: path
+      name: user
+      required: true
+      schema:
+        type: integer
+    CategoryId:
+      in: path
+      name: category
+      required: true
+      schema:
+        type: integer
+    TypeId:
+      in: path
+      name: type
+      required: true
+      schema:
+        type: integer
+    FieldId:
+      in: path
+      name: field
+      required: true
+      schema:
+        type: integer
+    TeamId:
+      in: path
+      name: team
+      required: true
+      schema:
+        type: integer
+    ResourceTypeId:
+      in: path
+      name: resourceType
+      required: true
+      schema:
+        type: integer
+    ResourceTypeCategoryId:
+      in: path
+      name: resourceTypeCategory
+      required: true
+      schema:
+        type: integer
+
+  schemas:
+    BasicOkResponse:
+      type: object
+      properties:
+        ok: { type: boolean, const: true }
+        message: { type: string }
+      required: [ok, message]
+
+    ErrorResponse:
+      type: object
+      properties:
+        message: { type: string }
+        code: { type: string, nullable: true }
+        details:
+          oneOf:
+            - type: object
+            - type: array
+              items: {}
+            - type: string
+          nullable: true
+      required: [message]
+
+    ValidationErrorResponse:
+      type: object
+      properties:
+        message: { type: string }
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+      required: [message, errors]
+
+    LoginRequest:
+      type: object
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+      required: [email, password]
+
+    UpdateAccountRequest:
+      type: object
+      properties:
+        name: { type: string }
+        email: { type: string, format: email }
+        mobile: { type: string }
+        avatar: { type: string, nullable: true }
+      required: [name, email, mobile]
+
+    ChangePasswordRequest:
+      type: object
+      properties:
+        current_password: { type: string }
+        new_password: { type: string }
+        confirm_password: { type: string }
+      required: [current_password, new_password, confirm_password]
+
+    User:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        avatar: { type: string, nullable: true }
+        mobile: { type: string }
+        email: { type: string, format: email }
+        role:
+          type: string
+          enum: [caller, operator, command, admin]
+        status:
+          type: string
+          enum: [active, suspended, disabled, pending]
+        last_login_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+      required: [id, name, mobile, email, role, status, created_at, updated_at]
+
+    AuthSuccessResponse:
+      type: object
+      properties:
+        ok: { type: boolean, const: true }
+        user: { $ref: '#/components/schemas/User' }
+      required: [ok, user]
+
+    SessionPingResponse:
+      type: object
+      properties:
+        ok: { type: boolean, const: true }
+        data:
+          type: object
+          properties:
+            csrf_token: { type: string, nullable: true }
+            touched_at: { type: string, format: date-time }
+          required: [touched_at]
+      required: [ok, data]
+
+    BootstrapResponse:
+      type: object
+      properties:
+        authenticated: { type: boolean }
+        user:
+          allOf:
+            - $ref: '#/components/schemas/User'
+          nullable: true
+        alert_level:
+          type: string
+          enum: [Normal, Elevated, Critical]
+        alert_level_description: { type: string }
+      required: [authenticated, alert_level]
+
+    PublicAlertLevelResponse:
+      type: object
+      properties:
+        alert_level:
+          type: string
+          enum: [Normal, Elevated, Critical]
+        description: { type: string }
+      required: [alert_level, description]
+
+    CallerSummary:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        avatar: { type: string, nullable: true }
+        mobile: { type: string }
+      required: [id, name, mobile]
+
+    OperatorSummary:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        level: { type: string, nullable: true }
+        avatar: { type: string, nullable: true }
+      required: [id, name]
+
+    CallerAvailability:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [green, yellow, red]
+        service_reachable: { type: boolean }
+        call_service_ready: { type: boolean }
+        available_operator_count: { type: integer, minimum: 0 }
+      required: [status, service_reachable, call_service_ready, available_operator_count]
+
+    CallerIncidentSummary:
+      type: object
+      properties:
+        id: { type: integer }
+        display_id: { type: string }
+        status:
+          type: string
+          enum: [Active, Deferred, Discarded, Resolved]
+        created_at: { type: string, format: date-time }
+      required: [id, display_id, status, created_at]
+
+    CallerIncidentHistoryResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CallerIncidentSummary'
+      required: [items]
+
+    CallerHomeResponse:
+      type: object
+      properties:
+        current_open_incident:
+          allOf:
+            - $ref: '#/components/schemas/CallerIncidentSummary'
+          nullable: true
+        recent_incidents:
+          type: array
+          items:
+            $ref: '#/components/schemas/CallerIncidentSummary'
+        availability:
+          $ref: '#/components/schemas/CallerAvailability'
+        alert_level:
+          type: string
+          enum: [Normal, Elevated, Critical]
+        call_hold_seconds: { type: integer }
+      required: [current_open_incident, recent_incidents, availability, alert_level, call_hold_seconds]
+
+    CreateCallAttemptRequest:
+      type: object
+      properties:
+        latitude: { type: number, nullable: true }
+        longitude: { type: number, nullable: true }
+
+    CallAttempt:
+      type: object
+      properties:
+        id: { type: integer }
+        caller_id: { type: integer }
+        incident_id: { type: integer, nullable: true }
+        answered_by_operator_id: { type: integer, nullable: true }
+        status:
+          type: string
+          enum: [calling, ended]
+        outcome:
+          type: string
+          enum: [answered, timed_out, declined_by_operator, cancelled_by_caller, ended_by_operator, ended_by_caller]
+        caller_latitude: { type: number, nullable: true }
+        caller_longitude: { type: number, nullable: true }
+        started_at: { type: string, format: date-time }
+        ended_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+      required: [id, caller_id, status, outcome, started_at, created_at, updated_at]
+
+    CallParticipant:
+      type: object
+      properties:
+        id: { type: integer }
+        call_session_id: { type: integer }
+        user_id: { type: integer }
+        participant_role:
+          type: string
+          enum: [caller, operator]
+        joined_at: { type: string, format: date-time }
+        left_at: { type: string, format: date-time, nullable: true }
+      required: [id, call_session_id, user_id, participant_role, joined_at]
+
+    CallSession:
+      type: object
+      properties:
+        id: { type: integer }
+        incident_id: { type: integer }
+        caller_id: { type: integer }
+        status:
+          type: string
+          enum: [calling, in_progress, ended]
+        outcome:
+          type: string
+          enum: [answered, timed_out, declined_by_operator, cancelled_by_caller, ended_by_operator, ended_by_caller]
+        started_at: { type: string, format: date-time }
+        answered_at: { type: string, format: date-time, nullable: true }
+        ended_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        participants:
+          type: array
+          items:
+            $ref: '#/components/schemas/CallParticipant'
+      required: [id, incident_id, caller_id, status, outcome, started_at, created_at, updated_at]
+
+    Transfer:
+      type: object
+      properties:
+        id: { type: integer }
+        incident_id: { type: integer }
+        from_operator_id: { type: integer }
+        to_operator_id: { type: integer }
+        reason: { type: string }
+        status: { type: string }
+        requested_at: { type: string, format: date-time }
+        accepted_at: { type: string, format: date-time, nullable: true }
+        rejected_at: { type: string, format: date-time, nullable: true }
+        cancelled_at: { type: string, format: date-time, nullable: true }
+        completed_at: { type: string, format: date-time, nullable: true }
+      required: [id, incident_id, from_operator_id, to_operator_id, reason, status, requested_at]
+
+    MessageAttachment:
+      type: object
+      properties:
+        id: { type: integer }
+        message_id: { type: integer }
+        type: { type: string }
+        mime_type: { type: string }
+        original_filename: { type: string }
+        stored_path: { type: string }
+        file_size: { type: integer }
+        thumbnail_path: { type: string, nullable: true }
+        uploaded_by: { type: integer }
+        created_at: { type: string, format: date-time }
+      required: [id, message_id, type, mime_type, original_filename, stored_path, file_size, uploaded_by, created_at]
+
+    Message:
+      type: object
+      properties:
+        id: { type: integer }
+        incident_id: { type: integer }
+        sender_id: { type: integer }
+        sender_role:
+          type: string
+          enum: [caller, operator, system]
+        sender_name: { type: string }
+        sender_avatar: { type: string, nullable: true }
+        body: { type: string }
+        type:
+          type: string
+          enum: [message, system]
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/MessageAttachment'
+        created_at: { type: string, format: date-time }
+      required: [id, incident_id, sender_id, sender_role, sender_name, body, type, attachments, created_at]
+
+    MediaRecord:
+      type: object
+      properties:
+        id: { type: integer }
+        incident_id: { type: integer }
+        call_session_id: { type: integer }
+        type:
+          type: string
+          enum: [audio_peer, caller_video]
+        peer_user_id: { type: integer, nullable: true }
+        peer_role: { type: string, nullable: true }
+        peer_label: { type: string, nullable: true }
+        path: { type: string }
+        duration_seconds: { type: integer, nullable: true }
+        metadata:
+          type: object
+          additionalProperties: true
+        created_at: { type: string, format: date-time }
+        available_at: { type: string, format: date-time, nullable: true }
+      required: [id, incident_id, call_session_id, type, path, created_at]
+
+    IncidentResourceNeeded:
+      type: object
+      properties:
+        resource_type_id: { type: integer }
+        resource_name: { type: string }
+        quantity_required: { type: integer }
+        notes: { type: string, nullable: true }
+      required: [resource_type_id, resource_name, quantity_required]
+
+    IncidentTypeDetail:
+      type: object
+      properties:
+        id: { type: integer }
+        incident_id: { type: integer }
+        incident_type_id: { type: integer }
+        field_id: { type: integer }
+        field_label: { type: string }
+        field_key: { type: string }
+        field_value: {}
+        input_type: { type: string }
+        options:
+          type: array
+          items: {}
+        unit: { type: string, nullable: true }
+        placeholder: { type: string, nullable: true }
+        is_required: { type: boolean }
+        sort_order: { type: integer }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+      required: [id, incident_id, incident_type_id, field_id, field_label, field_key, field_value, input_type, is_required, sort_order, created_at, updated_at]
+
+    TeamResourceInventory:
+      type: object
+      properties:
+        id: { type: integer }
+        team_id: { type: integer }
+        resource_type_id: { type: integer }
+        resource_name: { type: string }
+        quantity_available: { type: integer }
+        created_at: { type: string, format: date-time }
+      required: [id, team_id, resource_type_id, resource_name, quantity_available, created_at]
+
+    Team:
+      type: object
+      properties:
+        id: { type: integer }
+        team_category_id: { type: integer, nullable: true }
+        category: { type: string, nullable: true }
+        name: { type: string }
+        status: { type: string }
+        created_at: { type: string, format: date-time }
+        resources:
+          type: array
+          items:
+            $ref: '#/components/schemas/TeamResourceInventory'
+      required: [id, name, status, created_at, resources]
+
+    TeamAssignment:
+      type: object
+      properties:
+        id: { type: integer }
+        incident_id: { type: integer }
+        team_id: { type: integer }
+        team: { $ref: '#/components/schemas/Team' }
+        assigned_by_operator_id: { type: integer }
+        status:
+          type: string
+          enum: [Assigned, Requested, Accepted, En-route, On-Scene, Completed, Cancelled]
+        contact_person: { type: string, nullable: true }
+        cancelled_from_status: { type: string, nullable: true }
+        cancel_reason_code: { type: string, nullable: true }
+        cancelled_by_operator_id: { type: integer, nullable: true }
+        allocated_resources:
+          type: array
+          items:
+            type: object
+            properties:
+              resource_type_id: { type: integer }
+              quantity_allocated: { type: integer }
+            required: [resource_type_id, quantity_allocated]
+        assigned_at: { type: string, format: date-time, nullable: true }
+        accepted_at: { type: string, format: date-time, nullable: true }
+        enroute_at: { type: string, format: date-time, nullable: true }
+        arrived_at: { type: string, format: date-time, nullable: true }
+        completed_at: { type: string, format: date-time, nullable: true }
+        cancelled_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+      required: [id, incident_id, team_id, team, assigned_by_operator_id, status, allocated_resources, created_at, updated_at]
+
+    Incident:
+      type: object
+      properties:
+        id: { type: integer }
+        display_id: { type: string }
+        caller_id: { type: integer }
+        caller: { $ref: '#/components/schemas/CallerSummary' }
+        actual_caller_name: { type: string }
+        actual_caller_relationship: { type: string }
+        latitude: { type: number, nullable: true }
+        longitude: { type: number, nullable: true }
+        location: { type: string, nullable: true }
+        location_road: { type: string, nullable: true }
+        location_suburb: { type: string, nullable: true }
+        location_barangay: { type: string, nullable: true }
+        location_citymunicipality: { type: string, nullable: true }
+        location_country: { type: string, nullable: true }
+        operator_id: { type: integer }
+        operator: { $ref: '#/components/schemas/OperatorSummary' }
+        status:
+          type: string
+          enum: [Active, Deferred, Discarded, Resolved]
+        alert_level:
+          type: string
+          enum: [Normal, Elevated, Critical]
+        called_at: { type: string, format: date-time, nullable: true }
+        resolved_at: { type: string, format: date-time, nullable: true }
+        other_details: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        call_history:
+          type: array
+          items:
+            $ref: '#/components/schemas/CallSession'
+        transfer_history:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transfer'
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        media:
+          type: array
+          items:
+            $ref: '#/components/schemas/MediaRecord'
+        incident_type_details:
+          type: array
+          items:
+            $ref: '#/components/schemas/IncidentTypeDetail'
+        incident_resources_needed:
+          type: array
+          items:
+            $ref: '#/components/schemas/IncidentResourceNeeded'
+        team_assignments:
+          type: array
+          items:
+            $ref: '#/components/schemas/TeamAssignment'
+      required: [id, display_id, caller_id, caller, actual_caller_name, actual_caller_relationship, operator_id, operator, status, alert_level, created_at, updated_at, call_history, transfer_history, messages, media, incident_type_details, incident_resources_needed, team_assignments]
+
+    IncidentListItem:
+      type: object
+      properties:
+        id: { type: integer }
+        display_id: { type: string }
+        caller_avatar: { type: string, nullable: true }
+        actual_caller_name: { type: string }
+        status:
+          type: string
+          enum: [Active, Deferred, Discarded, Resolved]
+        created_at: { type: string, format: date-time }
+      required: [id, display_id, actual_caller_name, status, created_at]
+
+    ActivityLogItem:
+      type: object
+      properties:
+        id: { type: integer }
+        incident_id: { type: integer, nullable: true }
+        action_type: { type: string }
+        message: { type: string }
+        actor: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+      required: [id, action_type, message, created_at]
+
+    StatChip:
+      type: object
+      properties:
+        key: { type: string }
+        label: { type: string }
+        value:
+          oneOf:
+            - { type: string }
+            - { type: integer }
+            - { type: number }
+        tone: { type: string, nullable: true }
+      required: [key, label, value]
+
+    MapMarkerItem:
+      type: object
+      properties:
+        incident_id: { type: integer }
+        status:
+          type: string
+          enum: [Active, Deferred, Discarded, Resolved]
+        latitude: { type: number }
+        longitude: { type: number }
+        display_id: { type: string }
+      required: [incident_id, status, latitude, longitude, display_id]
+
+    OperatorDashboardResponse:
+      type: object
+      properties:
+        alert_level:
+          type: string
+          enum: [Normal, Elevated, Critical]
+        operator_runtime_state:
+          type: string
+          enum: [offline, available, engaged, transferring, reauth_required]
+        active_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/IncidentListItem'
+        archived_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/IncidentListItem'
+        map_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MapMarkerItem'
+        activity_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActivityLogItem'
+        stat_chips:
+          type: array
+          items:
+            $ref: '#/components/schemas/StatChip'
+      required: [alert_level, operator_runtime_state]
+
+    OperatorIncidentListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/IncidentListItem'
+      required: [items]
+
+    AnswerCallAttemptResponse:
+      type: object
+      properties:
+        incident:
+          $ref: '#/components/schemas/Incident'
+        call_session:
+          $ref: '#/components/schemas/CallSession'
+      required: [incident, call_session]
+
+    CallSessionMuteRequest:
+      type: object
+      properties:
+        muted: { type: boolean }
+      required: [muted]
+
+    IncidentStatusUpdateRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [Deferred, Discarded, Resolved]
+      required: [status]
+
+    ActualCallerUpdateRequest:
+      type: object
+      properties:
+        actual_caller_name: { type: string }
+        actual_caller_relationship: { type: string }
+      required: [actual_caller_name, actual_caller_relationship]
+
+    OtherDetailsUpdateRequest:
+      type: object
+      properties:
+        other_details: { type: string }
+      required: [other_details]
+
+    IncidentTypeDetailInput:
+      type: object
+      properties:
+        incident_type_id: { type: integer }
+        field_id: { type: integer }
+        field_value: {}
+      required: [incident_type_id, field_id, field_value]
+
+    IncidentTypeDetailsUpsertRequest:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/IncidentTypeDetailInput'
+      required: [items]
+
+    IncidentTypeDetailsUpsertResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/IncidentTypeDetail'
+      required: [items]
+
+    CreateTransferRequest:
+      type: object
+      properties:
+        to_operator_id: { type: integer }
+        reason: { type: string }
+      required: [to_operator_id, reason]
+
+    CreateTeamAssignmentRequest:
+      type: object
+      properties:
+        team_id: { type: integer }
+        allocated_resources:
+          type: array
+          items:
+            type: object
+            properties:
+              resource_type_id: { type: integer }
+              quantity_allocated: { type: integer }
+            required: [resource_type_id, quantity_allocated]
+      required: [team_id]
+
+    UpdateTeamAssignmentRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [Assigned, Requested, Accepted, En-route, On-Scene, Completed, Cancelled]
+        contact_person: { type: string, nullable: true }
+        cancel_reason_code: { type: string, nullable: true }
+        allocated_resources:
+          type: array
+          items:
+            type: object
+            properties:
+              resource_type_id: { type: integer }
+              quantity_allocated: { type: integer }
+            required: [resource_type_id, quantity_allocated]
+
+    CreateMessageRequest:
+      type: object
+      properties:
+        body: { type: string }
+      required: [body]
+
+    CreateMessageAttachmentRequest:
+      type: object
+      properties:
+        message_id: { type: integer }
+        type: { type: string }
+        mime_type: { type: string }
+        original_filename: { type: string }
+        stored_path: { type: string }
+        file_size: { type: integer }
+        thumbnail_path: { type: string, nullable: true }
+      required: [message_id, type, mime_type, original_filename, stored_path, file_size]
+
+    MessageListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+      required: [items]
+
+    MediaListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MediaRecord'
+      required: [items]
+
+    MediaAssemblyCompleteRequest:
+      type: object
+      properties:
+        incident_id: { type: integer }
+        call_session_id: { type: integer }
+        media_ids:
+          type: array
+          items: { type: integer }
+      required: [incident_id, call_session_id]
+
+    SettingItem:
+      type: object
+      properties:
+        key: { type: string }
+        value:
+          oneOf:
+            - { type: string }
+            - { type: integer }
+            - { type: number }
+            - { type: boolean }
+      required: [key, value]
+
+    SettingListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SettingItem'
+      required: [items]
+
+    AdminSummaryResponse:
+      type: object
+      properties:
+        alert_level:
+          type: string
+          enum: [Normal, Elevated, Critical]
+        counts:
+          type: object
+          properties:
+            users: { type: integer }
+            teams: { type: integer }
+            incident_types: { type: integer }
+            resource_types: { type: integer }
+          required: [users, teams, incident_types, resource_types]
+      required: [alert_level, counts]
+
+    AdminUserUpsertRequest:
+      type: object
+      properties:
+        name: { type: string }
+        email: { type: string, format: email }
+        mobile: { type: string }
+        avatar: { type: string, nullable: true }
+        role:
+          type: string
+          enum: [caller, operator, command, admin]
+        status:
+          type: string
+          enum: [active, suspended, disabled, pending]
+        password: { type: string, nullable: true }
+      required: [name, email, mobile, role, status]
+
+    UserListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+      required: [items]
+
+    IncidentCategory:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        sort_order: { type: integer }
+        created_at: { type: string, format: date-time }
+      required: [id, name, sort_order, created_at]
+
+    IncidentCategoryUpsertRequest:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: string, nullable: true }
+        sort_order: { type: integer }
+      required: [name]
+
+    IncidentCategoryListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/IncidentCategory'
+      required: [items]
+
+    IncidentType:
+      type: object
+      properties:
+        id: { type: integer }
+        incident_category_id: { type: integer }
+        category_name: { type: string, nullable: true }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        default_required_resources:
+          type: array
+          items:
+            $ref: '#/components/schemas/IncidentResourceNeeded'
+        created_at: { type: string, format: date-time }
+      required: [id, incident_category_id, name, default_required_resources, created_at]
+
+    IncidentTypeUpsertRequest:
+      type: object
+      properties:
+        incident_category_id: { type: integer }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        default_required_resources:
+          type: array
+          items:
+            $ref: '#/components/schemas/IncidentResourceNeeded'
+      required: [incident_category_id, name]
+
+    IncidentTypeListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/IncidentType'
+      required: [items]
+
+    IncidentTypeFieldDefinition:
+      type: object
+      properties:
+        id: { type: integer }
+        incident_type_id: { type: integer }
+        field_key: { type: string }
+        field_label: { type: string }
+        input_type: { type: string }
+        options:
+          type: array
+          items: {}
+        default_value: {}
+        placeholder: { type: string, nullable: true }
+        unit: { type: string, nullable: true }
+        is_required: { type: boolean }
+        sort_order: { type: integer }
+        min: { type: number, nullable: true }
+        max: { type: number, nullable: true }
+        step: { type: number, nullable: true }
+        created_at: { type: string, format: date-time }
+      required: [id, incident_type_id, field_key, field_label, input_type, is_required, sort_order, created_at]
+
+    IncidentTypeFieldUpsertRequest:
+      type: object
+      properties:
+        incident_type_id: { type: integer }
+        field_key: { type: string }
+        field_label: { type: string }
+        input_type: { type: string }
+        options:
+          type: array
+          items: {}
+        default_value: {}
+        placeholder: { type: string, nullable: true }
+        unit: { type: string, nullable: true }
+        is_required: { type: boolean }
+        sort_order: { type: integer }
+        min: { type: number, nullable: true }
+        max: { type: number, nullable: true }
+        step: { type: number, nullable: true }
+      required: [incident_type_id, field_key, field_label, input_type, is_required]
+
+    IncidentTypeFieldListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/IncidentTypeFieldDefinition'
+      required: [items]
+
+    TeamCategory:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        sort_order: { type: integer }
+        created_at: { type: string, format: date-time }
+      required: [id, name, sort_order, created_at]
+
+    TeamCategoryUpsertRequest:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: string, nullable: true }
+        sort_order: { type: integer }
+      required: [name]
+
+    TeamCategoryListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TeamCategory'
+      required: [items]
+
+    TeamUpsertRequest:
+      type: object
+      properties:
+        team_category_id: { type: integer, nullable: true }
+        name: { type: string }
+        status: { type: string }
+        resources:
+          type: array
+          items:
+            $ref: '#/components/schemas/TeamResourceInventory'
+      required: [name, status]
+
+    TeamListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Team'
+      required: [items]
+
+    ResourceTypeCategory:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        sort_order: { type: integer }
+        created_at: { type: string, format: date-time }
+      required: [id, name, sort_order]
+
+    ResourceTypeCategoryUpsertRequest:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: string, nullable: true }
+        sort_order: { type: integer }
+      required: [name]
+
+    ResourceTypeCategoryListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResourceTypeCategory'
+      required: [items]
+
+    ResourceType:
+      type: object
+      properties:
+        id: { type: integer }
+        category_id: { type: integer }
+        category:
+          $ref: '#/components/schemas/ResourceTypeCategory'
+        name: { type: string }
+        unit_label: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+      required: [id, category_id, name, created_at]
+
+    ResourceTypeUpsertRequest:
+      type: object
+      properties:
+        category_id: { type: integer }
+        name: { type: string }
+        unit_label: { type: string, nullable: true }
+      required: [category_id, name]
+
+    ResourceTypeListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResourceType'
+      required: [items]
+
+    RealtimeAdmissionRequest:
+      type: object
+      properties:
+        context_type:
+          type: string
+          enum: [incident_chat, call_session, dashboard_presence]
+        context_id: { type: integer }
+      required: [context_type, context_id]
+
+    RealtimeAdmissionResponse:
+      type: object
+      properties:
+        token: { type: string }
+        rooms:
+          type: array
+          items: { type: string }
+        capabilities:
+          type: array
+          items: { type: string }
+      required: [token, rooms, capabilities]
