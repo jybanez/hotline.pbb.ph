@@ -10,7 +10,7 @@ renderSurface('citizen').then(() => {
 });
 
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/caller-sw.js', { scope: '/' }).catch((error) => {
+    navigator.serviceWorker.register('/citizen-sw.js', { scope: '/' }).catch((error) => {
         console.warn('Citizen service worker registration failed.', error);
     });
 }
