@@ -61,3 +61,33 @@ export function isLegacyCallerRealtimeEvent(eventType) {
         String(eventType ?? '').trim(),
     );
 }
+
+export function withCitizenRealtimePayloadAliases(payload = {}) {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+        return {};
+    }
+
+    const aliases = { ...payload };
+
+    aliasValue(aliases, 'caller_id', 'citizen_id');
+    aliasValue(aliases, 'caller_name', 'citizen_name');
+    aliasValue(aliases, 'caller_avatar', 'citizen_avatar');
+    aliasValue(aliases, 'caller_location', 'citizen_location');
+    aliasValue(aliases, 'caller_latitude', 'citizen_latitude');
+    aliasValue(aliases, 'caller_longitude', 'citizen_longitude');
+
+    return aliases;
+}
+
+function aliasValue(target, legacyKey, citizenKey) {
+    const legacyValue = target[legacyKey];
+    const citizenValue = target[citizenKey];
+
+    if (citizenValue === undefined && legacyValue !== undefined) {
+        target[citizenKey] = legacyValue;
+    }
+
+    if (legacyValue === undefined && citizenValue !== undefined) {
+        target[legacyKey] = citizenValue;
+    }
+}

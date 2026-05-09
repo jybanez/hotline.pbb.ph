@@ -157,12 +157,12 @@ Legend:
 - [x] Define citizen equivalent for `caller.call.ready`.
 - [x] Define citizen equivalent for `caller.location.updated`.
 - [x] Define citizen equivalents for `caller.reconnect.*`.
-- [ ] Update citizen client to publish canonical citizen events.
-- [ ] Update citizen client to listen for citizen events.
-- [ ] Update operator client to publish canonical citizen events where Hotline owns publication.
-- [ ] Update operator client to listen for citizen events.
-- [ ] Update Realtime payload fields from `caller_id` to include `citizen_id`.
-- [ ] Update Realtime payload fields from `caller_name` to include `citizen_name`.
+- [x] Update citizen client to publish canonical citizen events.
+- [x] Update citizen client to listen for citizen events.
+- [x] Update operator client to publish canonical citizen events where Hotline owns publication.
+- [x] Update operator client to listen for citizen events.
+- [x] Update Realtime payload fields from `caller_id` to include `citizen_id`.
+- [x] Update Realtime payload fields from `caller_name` to include `citizen_name`.
 - [ ] Add tests for canonical citizen event flow.
 - [ ] Add temporary compatibility tests only where caller event support still exists during the refactor.
 - [ ] Coordinate caller event removal with Realtime service owner.
