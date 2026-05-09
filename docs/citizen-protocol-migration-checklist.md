@@ -87,7 +87,7 @@ Legend:
 - [x] `/api/citizen/*` prefix exists.
 - [x] `/api/caller/*` prefix remains available.
 - [x] Confirm all citizen surface frontend calls use `/api/citizen/*` where possible.
-- [ ] Add tests proving `/api/citizen/*` and `/api/caller/*` route pairs return equivalent results during compatibility.
+- [x] Add tests proving `/api/citizen/*` and `/api/caller/*` route pairs return equivalent results during compatibility.
 - [x] Add legacy caller public API usage logging if telemetry is required.
 - [ ] Document deprecation timeline for `/api/caller/*`.
 
