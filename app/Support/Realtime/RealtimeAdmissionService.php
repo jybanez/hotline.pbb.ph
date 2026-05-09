@@ -26,7 +26,7 @@ class RealtimeAdmissionService
     /**
      * @return array<string, mixed>
      */
-    public function forCaller(User $user, string $contextType, int $contextId): array
+    public function forCitizen(User $user, string $contextType, int $contextId): array
     {
         return match ($contextType) {
             'surface_runtime' => $this->buildSurfaceAdmission(
@@ -84,7 +84,7 @@ class RealtimeAdmissionService
                     'presence.subscribe',
                 ],
             ),
-            default => throw new AuthorizationException('Realtime caller admission is not allowed for this context.'),
+            default => throw new AuthorizationException('Realtime citizen admission is not allowed for this context.'),
         };
     }
 

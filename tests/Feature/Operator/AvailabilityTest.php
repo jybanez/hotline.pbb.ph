@@ -185,9 +185,9 @@ class AvailabilityTest extends TestCase
             ->assertJsonPath('items.0.team_assignments.0.incident_id', $incidentId);
     }
 
-    public function test_caller_home_turns_yellow_when_no_operators_are_available(): void
+    public function test_citizen_home_turns_yellow_when_no_operators_are_available(): void
     {
-        $caller = User::factory()->create([
+        $citizen = User::factory()->create([
             'role' => UserRole::Citizen,
         ]);
 
@@ -196,8 +196,8 @@ class AvailabilityTest extends TestCase
         ]);
 
         DB::table('incidents')->insert([
-            'caller_id' => $caller->id,
-            'actual_caller_name' => $caller->name,
+            'caller_id' => $citizen->id,
+            'actual_caller_name' => $citizen->name,
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active->value,
             'alert_level' => 'Normal',
@@ -206,8 +206,8 @@ class AvailabilityTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $this->actingAs($caller)
-            ->getJson('/api/caller/home')
+        $this->actingAs($citizen)
+            ->getJson('/api/citizen/home')
             ->assertOk()
             ->assertJsonPath('availability.status', 'yellow')
             ->assertJsonPath('availability.available_operator_count', 0);
