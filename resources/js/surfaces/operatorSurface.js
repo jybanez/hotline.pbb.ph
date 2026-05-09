@@ -3945,8 +3945,8 @@ async function mountWorkbenchNavbar(overlay, payload, stateOverride, close) {
                 const response = await fetchJson(`/api/operator/incidents/${payload.id}/actual-citizen`, {
                     method: 'post',
                     data: {
-                        actual_caller_name: String(payload.actual_caller_name ?? '').trim(),
-                        actual_caller_relationship: String(payload.actual_caller_relationship ?? 'Self').trim() || 'Self',
+                        actual_citizen_name: String(payload.actual_caller_name ?? '').trim(),
+                        actual_citizen_relationship: String(payload.actual_caller_relationship ?? 'Self').trim() || 'Self',
                     },
                 });
 

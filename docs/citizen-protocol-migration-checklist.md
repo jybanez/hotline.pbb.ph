@@ -106,19 +106,19 @@ Legend:
 
 ## API Payloads
 
-- [ ] Add canonical `citizen` object beside legacy `caller` object in incident payloads.
-- [ ] Add canonical `citizen_id` beside legacy `caller_id` where payloads expose public-user identity.
-- [ ] Add canonical `actual_citizen_name` request/response support.
-- [ ] Add canonical `actual_citizen_relationship` request/response support.
-- [ ] Add canonical `citizen_location` beside legacy `caller_location`.
+- [x] Add canonical `citizen` object beside legacy `caller` object in incident payloads.
+- [x] Add canonical `citizen_id` beside legacy `caller_id` where payloads expose public-user identity.
+- [x] Add canonical `actual_citizen_name` request/response support.
+- [x] Add canonical `actual_citizen_relationship` request/response support.
+- [x] Add canonical `citizen_location` beside legacy `caller_location`.
 - [ ] Add canonical `citizen_locations` beside legacy `caller_locations`.
 - [ ] Add canonical `missing_citizen_location_count` beside legacy `missing_caller_location_count`.
 - [ ] Add canonical `citizen_phone_numbers` beside legacy `caller_phone_numbers`.
 - [ ] Add canonical `citizens_assisted` beside legacy `callers_assisted`.
-- [ ] Accept both citizen and caller request fields during compatibility.
-- [ ] Define conflict behavior when both citizen and caller request fields are provided.
-- [ ] Add serialization tests for citizen canonical fields.
-- [ ] Add compatibility tests for legacy caller fields.
+- [~] Accept both citizen and caller request fields during compatibility.
+- [~] Define conflict behavior when both citizen and caller request fields are provided.
+- [x] Add serialization tests for citizen canonical fields.
+- [x] Add compatibility tests for legacy caller fields.
 
 ## Database and Models
 

@@ -36,11 +36,25 @@ class IncidentController extends Controller
         $status = $incident->status?->value ?? (string) $incident->status;
         $latitude = $incident->latitude === null ? null : (float) $incident->latitude;
         $longitude = $incident->longitude === null ? null : (float) $incident->longitude;
+        $location = $latitude !== null && $longitude !== null ? [
+            'latitude' => $latitude,
+            'longitude' => $longitude,
+            'accuracy' => $incident->caller_location_accuracy === null ? null : (float) $incident->caller_location_accuracy,
+            'altitude' => $incident->caller_altitude === null ? null : (float) $incident->caller_altitude,
+            'altitude_accuracy' => $incident->caller_altitude_accuracy === null ? null : (float) $incident->caller_altitude_accuracy,
+            'heading' => $incident->caller_heading === null ? null : (float) $incident->caller_heading,
+            'heading_source' => $incident->caller_heading_source,
+            'captured_at' => $incident->caller_location_captured_at?->toIso8601String(),
+        ] : null;
 
         return [
             'id' => $incident->id,
             'display_id' => str_pad((string) $incident->id, 6, '0', STR_PAD_LEFT),
+            'citizen_id' => $incident->caller_id,
+            'caller_id' => $incident->caller_id,
+            'actual_citizen_name' => $incident->actual_caller_name,
             'actual_caller_name' => $incident->actual_caller_name,
+            'citizen_name' => $incident->actual_caller_name ?: ($incident->caller?->name ?? 'Unknown citizen'),
             'caller_name' => $incident->actual_caller_name ?: ($incident->caller?->name ?? 'Unknown caller'),
             'status' => $status,
             'status_label' => $this->formatLabel($status),
@@ -49,16 +63,8 @@ class IncidentController extends Controller
             'longitude' => $longitude,
             'location' => $incident->location,
             'location_label' => $this->locationLabel($incident),
-            'caller_location' => $latitude !== null && $longitude !== null ? [
-                'latitude' => $latitude,
-                'longitude' => $longitude,
-                'accuracy' => $incident->caller_location_accuracy === null ? null : (float) $incident->caller_location_accuracy,
-                'altitude' => $incident->caller_altitude === null ? null : (float) $incident->caller_altitude,
-                'altitude_accuracy' => $incident->caller_altitude_accuracy === null ? null : (float) $incident->caller_altitude_accuracy,
-                'heading' => $incident->caller_heading === null ? null : (float) $incident->caller_heading,
-                'heading_source' => $incident->caller_heading_source,
-                'captured_at' => $incident->caller_location_captured_at?->toIso8601String(),
-            ] : null,
+            'citizen_location' => $location,
+            'caller_location' => $location,
             'called_at' => $incident->called_at?->toIso8601String(),
             'resolved_at' => $incident->resolved_at?->toIso8601String(),
             'created_at' => $incident->created_at?->toIso8601String(),
