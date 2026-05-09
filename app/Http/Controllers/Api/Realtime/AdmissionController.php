@@ -16,16 +16,21 @@ class AdmissionController extends Controller
     ) {
     }
 
-    public function caller(Request $request): JsonResponse
+    public function citizen(Request $request): JsonResponse
     {
         return $this->respond(
             request: $request,
-            resolver: fn (string $contextType, int $contextId) => $this->admissions->forCaller(
+            resolver: fn (string $contextType, int $contextId) => $this->admissions->forCitizen(
                 $request->user(),
                 $contextType,
                 $contextId,
             ),
         );
+    }
+
+    public function caller(Request $request): JsonResponse
+    {
+        return $this->citizen($request);
     }
 
     public function operator(Request $request): JsonResponse

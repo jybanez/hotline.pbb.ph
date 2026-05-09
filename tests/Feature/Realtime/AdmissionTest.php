@@ -25,9 +25,9 @@ class AdmissionTest extends TestCase
         $this->withoutMiddleware(VerifyCsrfToken::class);
     }
 
-    public function test_caller_incident_chat_admission_returns_signed_realtime_payload(): void
+    public function test_citizen_incident_chat_admission_returns_signed_realtime_payload(): void
     {
-        $caller = User::factory()->create([
+        $citizen = User::factory()->create([
             'role' => UserRole::Citizen,
         ]);
         $operator = User::factory()->create([
@@ -35,8 +35,8 @@ class AdmissionTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $caller->id,
-            'actual_caller_name' => $caller->name,
+            'caller_id' => $citizen->id,
+            'actual_caller_name' => $citizen->name,
             'actual_caller_relationship' => 'Self',
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active->value,
@@ -48,8 +48,8 @@ class AdmissionTest extends TestCase
 
         $this->storeRealtimeSettings();
 
-        $this->actingAs($caller)
-            ->postJson('/api/realtime/admission/caller', [
+        $this->actingAs($citizen)
+            ->postJson('/api/realtime/admission/citizen', [
                 'context_type' => 'incident_chat',
                 'context_id' => $incidentId,
             ])
@@ -62,16 +62,16 @@ class AdmissionTest extends TestCase
             ->assertJsonPath('websocket_url', 'wss://realtime-beta.pbb.ph/realtime');
     }
 
-    public function test_caller_settings_stream_admission_returns_shared_settings_room(): void
+    public function test_citizen_settings_stream_admission_returns_shared_settings_room(): void
     {
-        $caller = User::factory()->create([
+        $citizen = User::factory()->create([
             'role' => UserRole::Citizen,
         ]);
 
         $this->storeRealtimeSettings();
 
-        $this->actingAs($caller)
-            ->postJson('/api/realtime/admission/caller', [
+        $this->actingAs($citizen)
+            ->postJson('/api/realtime/admission/citizen', [
                 'context_type' => 'settings_stream',
                 'context_id' => 0,
             ])
@@ -84,9 +84,9 @@ class AdmissionTest extends TestCase
             ->assertJsonPath('websocket_url', 'wss://realtime-beta.pbb.ph/realtime');
     }
 
-    public function test_caller_call_session_admission_returns_incident_chat_and_call_session_rooms(): void
+    public function test_citizen_call_session_admission_returns_incident_chat_and_call_session_rooms(): void
     {
-        $caller = User::factory()->create([
+        $citizen = User::factory()->create([
             'role' => UserRole::Citizen,
         ]);
         $operator = User::factory()->create([
@@ -94,8 +94,8 @@ class AdmissionTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $caller->id,
-            'actual_caller_name' => $caller->name,
+            'caller_id' => $citizen->id,
+            'actual_caller_name' => $citizen->name,
             'actual_caller_relationship' => 'Self',
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active->value,
@@ -107,7 +107,7 @@ class AdmissionTest extends TestCase
 
         $callSessionId = DB::table('call_sessions')->insertGetId([
             'incident_id' => $incidentId,
-            'caller_id' => $caller->id,
+            'caller_id' => $citizen->id,
             'status' => CallStatus::InProgress->value,
             'outcome' => CallOutcome::Answered->value,
             'started_at' => now(),
@@ -118,8 +118,8 @@ class AdmissionTest extends TestCase
 
         $this->storeRealtimeSettings();
 
-        $this->actingAs($caller)
-            ->postJson('/api/realtime/admission/caller', [
+        $this->actingAs($citizen)
+            ->postJson('/api/realtime/admission/citizen', [
                 'context_type' => 'call_session',
                 'context_id' => $callSessionId,
             ])
@@ -156,7 +156,7 @@ class AdmissionTest extends TestCase
 
     public function test_realtime_admission_requires_signing_secret_configuration(): void
     {
-        $caller = User::factory()->create([
+        $citizen = User::factory()->create([
             'role' => UserRole::Citizen,
         ]);
         $operator = User::factory()->create([
@@ -164,8 +164,8 @@ class AdmissionTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $caller->id,
-            'actual_caller_name' => $caller->name,
+            'caller_id' => $citizen->id,
+            'actual_caller_name' => $citizen->name,
             'actual_caller_relationship' => 'Self',
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active->value,
@@ -175,13 +175,31 @@ class AdmissionTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $this->actingAs($caller)
-            ->postJson('/api/realtime/admission/caller', [
+        $this->actingAs($citizen)
+            ->postJson('/api/realtime/admission/citizen', [
                 'context_type' => 'incident_chat',
                 'context_id' => $incidentId,
             ])
             ->assertStatus(422)
             ->assertJsonPath('message', 'Realtime token signing secret is not configured.');
+    }
+
+    public function test_legacy_caller_admission_endpoint_still_accepts_citizen_users(): void
+    {
+        $citizen = User::factory()->create([
+            'role' => UserRole::Citizen,
+        ]);
+
+        $this->storeRealtimeSettings();
+
+        $this->actingAs($citizen)
+            ->postJson('/api/realtime/admission/caller', [
+                'context_type' => 'settings_stream',
+                'context_id' => 0,
+            ])
+            ->assertOk()
+            ->assertJsonPath('room', 'hotline.settings.global')
+            ->assertJsonPath('session.allowed_rooms.0', 'hotline.settings.global');
     }
 
     /**

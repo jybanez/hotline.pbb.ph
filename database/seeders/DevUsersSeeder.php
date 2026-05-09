@@ -27,7 +27,7 @@ class DevUsersSeeder extends Seeder
             ],
             [
                 'name' => 'PBB Citizen',
-                'email' => 'caller@hotline.pbb.ph',
+                'email' => 'citizen@hotline.pbb.ph',
                 'mobile' => '09170000003',
                 'role' => UserRole::Citizen,
             ],

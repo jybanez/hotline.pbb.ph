@@ -75,10 +75,10 @@ class SessionTest extends TestCase
         $this->assertNotNull($user->fresh()->remember_token);
     }
 
-    public function test_caller_login_persists_a_remember_token(): void
+    public function test_citizen_login_persists_a_remember_token(): void
     {
         $user = User::factory()->create([
-            'email' => 'caller@example.test',
+            'email' => 'citizen@example.test',
             'password' => Hash::make('secret-password'),
             'role' => UserRole::Citizen,
             'status' => UserStatus::Active,

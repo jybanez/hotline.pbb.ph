@@ -11,7 +11,7 @@ class SurfaceAccessTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_guest_is_redirected_to_public_home_when_opening_caller_surface(): void
+    public function test_guest_is_redirected_to_public_home_when_opening_legacy_caller_surface(): void
     {
         $this->get('/caller')
             ->assertRedirect(route('public.home'));
@@ -34,11 +34,11 @@ class SurfaceAccessTest extends TestCase
 
     public function test_wrong_role_is_redirected_to_unauthorized_screen(): void
     {
-        $caller = User::factory()->create([
+        $citizen = User::factory()->create([
             'role' => UserRole::Citizen,
         ]);
 
-        $this->actingAs($caller)
+        $this->actingAs($citizen)
             ->get('/operator')
             ->assertRedirect(route('unauthorized'));
     }
