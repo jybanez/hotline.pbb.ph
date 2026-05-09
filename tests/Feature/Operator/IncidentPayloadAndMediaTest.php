@@ -480,6 +480,34 @@ class IncidentPayloadAndMediaTest extends TestCase
         ]);
     }
 
+    public function test_operator_media_endpoint_accepts_citizen_media_aliases(): void
+    {
+        [$caller, $operator, $otherOperator, $incidentId] = $this->seedIncidentFixture();
+
+        $this->actingAs($operator)
+            ->postJson('/api/operator/call-sessions/1/media', [
+                'type' => 'citizen_video',
+                'peer_user_id' => $caller->id,
+                'peer_role' => 'citizen',
+                'peer_label' => $caller->name,
+                'mime_type' => 'video/webm;codecs=vp8',
+                'extension' => 'webm',
+                'track_kind' => 'video',
+                'segment_key' => 'citizen-cam-1',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('media.type', 'caller_video')
+            ->assertJsonPath('media.peer_role', 'caller');
+
+        $this->assertDatabaseHas('media', [
+            'incident_id' => $incidentId,
+            'type' => 'caller_video',
+            'peer_user_id' => $caller->id,
+            'peer_role' => 'caller',
+        ]);
+    }
+
     public function test_finalize_returns_conflict_when_initial_webm_header_chunk_is_missing(): void
     {
         Storage::fake('local');
@@ -590,9 +618,9 @@ class IncidentPayloadAndMediaTest extends TestCase
             ->postJson('/api/media/assembly/complete', [
                 'incident_id' => $incidentId,
                 'call_session_id' => 1,
-                'type' => 'caller_video',
+                'type' => 'citizen_video',
                 'peer_user_id' => $caller->id,
-                'peer_role' => 'caller',
+                'peer_role' => 'citizen',
                 'peer_label' => $caller->name,
                 'path' => 'media/caller-video.mp4',
                 'duration_seconds' => 18,
@@ -605,6 +633,7 @@ class IncidentPayloadAndMediaTest extends TestCase
         $this->assertDatabaseHas('media', [
             'incident_id' => $incidentId,
             'type' => 'caller_video',
+            'peer_role' => 'caller',
             'path' => 'media/caller-video.mp4',
         ]);
     }
