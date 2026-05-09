@@ -20,6 +20,7 @@ class Incident extends Model
 
     protected $fillable = [
         'caller_id',
+        'citizen_id',
         'actual_caller_name',
         'actual_caller_relationship',
         'operator_id',
@@ -137,6 +138,6 @@ class Incident extends Model
 
     public function getCitizenIdAttribute(): mixed
     {
-        return $this->caller_id;
+        return $this->attributes['citizen_id'] ?? $this->caller_id;
     }
 }

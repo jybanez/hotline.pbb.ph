@@ -15,6 +15,7 @@ class IncidentCallerLocation extends Model
     protected $fillable = [
         'incident_id',
         'caller_id',
+        'citizen_id',
         'operator_id',
         'call_session_id',
         'latitude',
@@ -70,6 +71,6 @@ class IncidentCallerLocation extends Model
 
     public function getCitizenIdAttribute(): mixed
     {
-        return $this->caller_id;
+        return $this->attributes['citizen_id'] ?? $this->caller_id;
     }
 }

@@ -17,6 +17,7 @@ class CallSession extends Model
     protected $fillable = [
         'incident_id',
         'caller_id',
+        'citizen_id',
         'status',
         'outcome',
         'started_at',
@@ -57,6 +58,6 @@ class CallSession extends Model
 
     public function getCitizenIdAttribute(): mixed
     {
-        return $this->caller_id;
+        return $this->attributes['citizen_id'] ?? $this->caller_id;
     }
 }
