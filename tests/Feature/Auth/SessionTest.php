@@ -98,6 +98,29 @@ class SessionTest extends TestCase
         $this->assertNotNull($user->fresh()->remember_token);
     }
 
+    public function test_legacy_caller_role_login_redirects_to_citizen_surface(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'legacy-caller@example.test',
+            'password' => Hash::make('secret-password'),
+            'role' => UserRole::Caller,
+            'status' => UserStatus::Active,
+            'remember_token' => null,
+        ]);
+
+        $this->postJson('/api/login', [
+            'email' => $user->email,
+            'password' => 'secret-password',
+        ])
+            ->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('user.role', UserRole::Caller->value)
+            ->assertJsonPath('redirect_to', '/citizen')
+            ->assertJsonPath('session_lifetime_minutes', (int) config('session.critical_lifetime'));
+
+        $this->assertNotNull($user->fresh()->remember_token);
+    }
+
     public function test_non_active_user_is_rejected_after_credentials_match(): void
     {
         $user = User::factory()->create([
