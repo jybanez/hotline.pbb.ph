@@ -53,6 +53,11 @@ class IncidentCallerLocation extends Model
         return $this->belongsTo(User::class, 'caller_id');
     }
 
+    public function citizen(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'caller_id');
+    }
+
     public function operator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'operator_id');
@@ -61,5 +66,10 @@ class IncidentCallerLocation extends Model
     public function callSession(): BelongsTo
     {
         return $this->belongsTo(CallSession::class);
+    }
+
+    public function getCitizenIdAttribute(): mixed
+    {
+        return $this->caller_id;
     }
 }
