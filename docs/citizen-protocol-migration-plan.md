@@ -65,6 +65,18 @@ Legacy routes still exist and should remain during Phase 2:
 - `/api/caller/*`
 - `/api/realtime/admission/caller`
 
+### `/api/caller/*` Deprecation Timeline
+
+The `/api/caller/*` public-user API prefix is a temporary compatibility alias for `/api/citizen/*`. It must remain available while deployed Hotline clients, installed legacy PWAs, Realtime flows, and Helper-backed UI paths are still being migrated.
+
+Deprecation stages:
+1. Compatibility stage: keep `/api/caller/*` enabled, log usage through `LogLegacyCallerRouteUsage`, and keep route-pair tests proving representative `/api/citizen/*` and `/api/caller/*` responses match.
+2. Migration stage: update all Hotline frontend calls, Realtime examples, Helper examples, docs, and OpenAPI references to `/api/citizen/*`; continue telemetry collection for legacy caller traffic.
+3. Removal-ready stage: proceed only after production telemetry shows no meaningful `/api/caller/*` traffic, deployed clients have moved to citizen routes, and the caller-to-citizen refactor is otherwise complete.
+4. Decommission stage: remove `/api/caller/*` routes, legacy caller route tests, and caller-specific public API documentation in the final legacy decommission PR.
+
+Removal must not happen before Realtime and Helper have confirmed their examples, fixtures, and any embedded Hotline API references are citizen-canonical.
+
 Operator routes still expose caller terminology:
 - `/api/operator/incidents/{incident}/actual-caller`
 - `/api/operator/incidents/{incident}/caller-address`
