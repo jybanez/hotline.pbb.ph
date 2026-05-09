@@ -5,7 +5,7 @@ namespace App\Support\Bootstrap;
 use App\Domain\Shared\Enums\UserRole;
 use App\Domain\Sitreps\Models\SitrepReport;
 use App\Domain\Users\Models\User;
-use App\Support\Caller\CallerHomePayloadBuilder;
+use App\Support\Citizen\CitizenHomePayloadBuilder;
 use App\Support\Incidents\IncidentPayloadBuilder;
 use App\Support\Settings\SettingsService;
 use Illuminate\Support\Arr;
@@ -34,7 +34,7 @@ class BootstrapPayloadBuilder
     ];
 
     public function __construct(
-        private readonly CallerHomePayloadBuilder $callerHomePayloadBuilder,
+        private readonly CitizenHomePayloadBuilder $citizenHomePayloadBuilder,
         private readonly IncidentPayloadBuilder $incidentPayloadBuilder,
         private readonly SettingsService $settings,
     ) {
@@ -80,7 +80,7 @@ class BootstrapPayloadBuilder
         }
 
         if (in_array($surface, ['citizen', 'caller'], true) && $user?->role?->isCitizen()) {
-            return $this->callerHomePayloadBuilder->build($user);
+            return $this->citizenHomePayloadBuilder->build($user);
         }
 
         if ($surface === 'operator' && $user?->role === UserRole::Operator) {

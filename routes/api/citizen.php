@@ -1,9 +1,9 @@
 <?php
 
-use App\Http\Controllers\Api\Caller\CallAttemptController;
-use App\Http\Controllers\Api\Caller\HomeController;
-use App\Http\Controllers\Api\Caller\IncidentController;
-use App\Http\Controllers\Api\Caller\ReconnectController;
+use App\Http\Controllers\Api\Citizen\CallAttemptController;
+use App\Http\Controllers\Api\Citizen\HomeController;
+use App\Http\Controllers\Api\Citizen\IncidentController;
+use App\Http\Controllers\Api\Citizen\ReconnectController;
 use Illuminate\Support\Facades\Route;
 
 foreach (['citizen', 'caller'] as $prefix) {

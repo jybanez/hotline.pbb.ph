@@ -23,8 +23,8 @@ export async function renderSurface(surface, options = {}) {
     }
 
     if (surface === 'citizen' || surface === 'caller') {
-        const { renderCallerSurface } = await import('./callerSurface.js');
-        await renderCallerSurface(root, bootstrap, options);
+        const { renderCitizenSurface } = await import('./citizenSurface.js');
+        await renderCitizenSurface(root, bootstrap, options);
         return;
     }
 

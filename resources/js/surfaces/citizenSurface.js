@@ -3777,7 +3777,7 @@ function renderCaller(root, bootstrap, home, primerReport) {
 }
 
 
-export async function renderCallerSurface(root, bootstrap) {
+export async function renderCitizenSurface(root, bootstrap) {
     const primerReport = evaluateDevicePrimer('caller');
     const home = bootstrap?.surface_payload ?? await fetchJson('/api/caller/home');
     appState.runtime.callerRoot = root;
