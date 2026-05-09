@@ -73,14 +73,14 @@ Legend:
 - [x] `/caller` is legacy-compatible.
 - [x] `/citizen/offline` exists.
 - [x] `/caller/offline` exists.
-- [ ] Add or verify `citizen.webmanifest`.
-- [ ] Add or verify `citizen-sw.js`.
-- [ ] Keep `caller.webmanifest` available for installed legacy PWAs.
-- [ ] Keep `caller-sw.js` available for installed legacy PWAs.
-- [ ] Verify service-worker scope for `/citizen`.
-- [ ] Verify offline behavior for `/citizen/offline`.
-- [ ] Verify legacy installed caller PWA opens or redirects safely.
-- [ ] Add PWA cache-name migration notes if cache keys include caller terminology.
+- [x] Add or verify `citizen.webmanifest`.
+- [x] Add or verify `citizen-sw.js`.
+- [x] Keep `caller.webmanifest` available for installed legacy PWAs.
+- [x] Keep `caller-sw.js` available for installed legacy PWAs.
+- [x] Verify service-worker scope for `/citizen`.
+- [x] Verify offline behavior for `/citizen/offline`.
+- [~] Verify legacy installed caller PWA opens or redirects safely.
+- [x] Add PWA cache-name migration notes if cache keys include caller terminology.
 
 ## Public-User API Routes
 

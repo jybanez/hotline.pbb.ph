@@ -25,11 +25,30 @@ class SurfaceAccessTest extends TestCase
 
         $this->actingAs($citizen)
             ->get('/citizen')
-            ->assertOk();
+            ->assertOk()
+            ->assertSee('/citizen.webmanifest', false);
 
         $this->actingAs($citizen)
             ->get('/caller')
             ->assertOk();
+    }
+
+    public function test_citizen_pwa_assets_exist_and_keep_legacy_caller_compatibility(): void
+    {
+        self::assertFileExists(public_path('citizen.webmanifest'));
+        self::assertFileExists(public_path('citizen-sw.js'));
+        self::assertFileExists(public_path('caller.webmanifest'));
+        self::assertFileExists(public_path('caller-sw.js'));
+
+        $citizenManifest = file_get_contents(public_path('citizen.webmanifest'));
+        $citizenServiceWorker = file_get_contents(public_path('citizen-sw.js'));
+        $legacyCallerServiceWorker = file_get_contents(public_path('caller-sw.js'));
+
+        self::assertStringContainsString('/citizen?source=pwa', $citizenManifest);
+        self::assertStringContainsString('/citizen/offline', $citizenServiceWorker);
+        self::assertStringContainsString('/caller/offline', $citizenServiceWorker);
+        self::assertStringContainsString('/citizen.webmanifest', $legacyCallerServiceWorker);
+        self::assertStringContainsString('/caller/offline', $legacyCallerServiceWorker);
     }
 
     public function test_wrong_role_is_redirected_to_unauthorized_screen(): void
