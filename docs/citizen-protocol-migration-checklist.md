@@ -7,6 +7,9 @@ Status: Working tracker for Phase 2 caller-to-citizen migration
 Related plan:
 - [Citizen Protocol Migration Plan](citizen-protocol-migration-plan.md)
 
+Related inventory:
+- [Citizen Protocol Inventory](citizen-protocol-inventory.md)
+
 Legend:
 - `[x]` done
 - `[ ]` todo
@@ -31,6 +34,7 @@ Legend:
 
 - [x] Create Phase 2 migration plan.
 - [x] Create Phase 2 implementation checklist.
+- [x] Create Phase 2 caller contract inventory snapshot.
 - [ ] Review caller-to-citizen plan with Hotline owner.
 - [ ] Review Realtime-facing event and admission changes with Realtime service owner.
 - [ ] Review Helper-facing adapter and UI changes with Helper service owner.
@@ -40,15 +44,15 @@ Legend:
 
 ## Contract Inventory Tasks
 
-- [ ] Inventory all remaining `caller` strings in `app/`.
-- [ ] Inventory all remaining `caller` strings in `routes/`.
-- [ ] Inventory all remaining `caller` strings in `resources/`.
-- [ ] Inventory all remaining `caller` strings in `public/`.
-- [ ] Inventory all remaining `caller` strings in `database/`.
-- [ ] Inventory all remaining `caller` strings in `config/`.
-- [ ] Inventory all remaining `caller` strings in `tests/`.
-- [ ] Inventory all remaining `caller` strings in `docs/`.
-- [ ] Classify each remaining `caller` usage as user-facing copy, internal code, API contract, DB contract, Realtime contract, Helper contract, report output, test fixture, or historical documentation.
+- [~] Inventory all remaining `caller` strings in `app/`.
+- [~] Inventory all remaining `caller` strings in `routes/`.
+- [~] Inventory all remaining `caller` strings in `resources/`.
+- [~] Inventory all remaining `caller` strings in `public/`.
+- [~] Inventory all remaining `caller` strings in `database/`.
+- [~] Inventory all remaining `caller` strings in `config/`.
+- [~] Inventory all remaining `caller` strings in `tests/`.
+- [~] Inventory all remaining `caller` strings in `docs/`.
+- [~] Classify each remaining `caller` usage as user-facing copy, internal code, API contract, DB contract, Realtime contract, Helper contract, report output, test fixture, or historical documentation.
 - [ ] Mark usages that should intentionally remain `caller` for compatibility or historical accuracy.
 
 ## Roles and Auth

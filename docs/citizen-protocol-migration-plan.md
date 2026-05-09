@@ -12,6 +12,9 @@ Purpose:
 Tracker:
 - [Citizen Protocol Migration Checklist](citizen-protocol-migration-checklist.md)
 
+Inventory:
+- [Citizen Protocol Inventory](citizen-protocol-inventory.md)
+
 ## Current State
 
 Phase 1 established `citizen` as the user-facing surface name while keeping legacy `caller` compatibility:
