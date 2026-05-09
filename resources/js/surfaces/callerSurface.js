@@ -423,7 +423,7 @@ function resetCallerRealtimeJoinState() {
 }
 
 function scheduleCallerRealtimeReconnect() {
-    if (!appState.bootstrap?.authenticated || appState.activeSurface !== 'caller') {
+    if (!appState.bootstrap?.authenticated || !['citizen', 'caller'].includes(appState.activeSurface)) {
         return;
     }
 
@@ -1168,7 +1168,7 @@ function resetCallerDiscoveryPresence() {
 }
 
 async function connectCallerRealtimeStream(options = {}) {
-    if (!appState.bootstrap?.authenticated || appState.activeSurface !== 'caller') {
+    if (!appState.bootstrap?.authenticated || !['citizen', 'caller'].includes(appState.activeSurface)) {
         return;
     }
 

@@ -52,8 +52,8 @@ class AccountAvatarTest extends TestCase
         $storedPath = Storage::disk('public')->path("avatars/{$user->id}.jpg");
         [$width, $height] = getimagesize($storedPath);
 
-        $this->assertSame(64, $width);
-        $this->assertSame(64, $height);
+        $this->assertSame(256, $width);
+        $this->assertSame(256, $height);
 
         $user->refresh();
 

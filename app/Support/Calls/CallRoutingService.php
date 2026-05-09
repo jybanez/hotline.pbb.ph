@@ -82,7 +82,7 @@ class CallRoutingService
             throw new RuntimeException('Operator is not eligible to receive calls.');
         }
 
-        if ($caller->role !== UserRole::Caller || $caller->status !== UserStatus::Active) {
+        if (! $caller->role->isCitizen() || $caller->status !== UserStatus::Active) {
             throw new RuntimeException('Caller is not eligible to start a call.');
         }
 
@@ -118,7 +118,7 @@ class CallRoutingService
             throw new RuntimeException('Operator is not eligible to receive calls.');
         }
 
-        if ($caller->role !== UserRole::Caller || $caller->status !== UserStatus::Active) {
+        if (! $caller->role->isCitizen() || $caller->status !== UserStatus::Active) {
             throw new RuntimeException('Caller is not eligible to start a reconnect call.');
         }
 

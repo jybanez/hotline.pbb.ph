@@ -25,7 +25,7 @@ class BroadcastController extends Controller
             'tone' => ['nullable', 'string', 'in:info,warning,urgent'],
             'audience' => ['nullable', 'string', 'in:global'],
             'target_roles' => ['required', 'array', 'min:1'],
-            'target_roles.*' => ['required', 'string', 'in:caller,operator'],
+            'target_roles.*' => ['required', 'string', 'in:citizen,caller,operator'],
             'expires_at' => ['nullable', 'date', 'after:now'],
         ]);
 

@@ -41,7 +41,7 @@ class LoginController extends Controller
 
         $user = $request->user();
 
-        if (in_array($user?->role, [UserRole::Caller, UserRole::Operator, UserRole::Command], true)) {
+        if (($user?->role?->isCitizen() ?? false) || in_array($user?->role, [UserRole::Operator, UserRole::Command], true)) {
             config([
                 'session.lifetime' => max(
                     (int) config('session.lifetime', 120),

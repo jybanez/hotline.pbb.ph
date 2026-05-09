@@ -155,7 +155,7 @@ class MediaChunkIngressTest extends TestCase
     private function seedCallMediaFixture(): array
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
             'status' => UserStatus::Active,
         ]);
         $operator = User::factory()->create([

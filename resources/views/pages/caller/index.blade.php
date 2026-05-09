@@ -1,5 +1,5 @@
 @include('shells.surface', [
-    'title' => 'Caller',
+    'title' => 'Citizen',
     'surface' => 'caller',
     'pwaManifest' => '/caller.webmanifest',
     'themeColor' => '#0f766e',

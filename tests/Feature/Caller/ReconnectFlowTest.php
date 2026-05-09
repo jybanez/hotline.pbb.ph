@@ -24,7 +24,7 @@ class ReconnectFlowTest extends TestCase
     public function test_caller_can_start_and_cancel_unanswered_reconnect(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $operator = User::factory()->create([
@@ -70,11 +70,11 @@ class ReconnectFlowTest extends TestCase
     public function test_reconnect_is_blocked_when_assigned_operator_is_busy_on_another_active_incident(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $otherCaller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $operator = User::factory()->create([
@@ -115,7 +115,7 @@ class ReconnectFlowTest extends TestCase
     public function test_assigned_operator_can_answer_reconnect_session(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $operator = User::factory()->create([

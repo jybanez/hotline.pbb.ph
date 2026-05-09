@@ -24,7 +24,7 @@ class IncidentTypeWorkbenchFlowTest extends TestCase
     public function test_operator_can_sync_selected_incident_types_details_and_resources(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $operator = User::factory()->create([
@@ -165,7 +165,7 @@ class IncidentTypeWorkbenchFlowTest extends TestCase
     public function test_operator_can_sync_group_preset_incident_type_detail(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $operator = User::factory()->create([
@@ -265,7 +265,7 @@ class IncidentTypeWorkbenchFlowTest extends TestCase
     public function test_sync_can_clear_selected_incident_types_and_related_rows(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $operator = User::factory()->create([
@@ -396,7 +396,7 @@ class IncidentTypeWorkbenchFlowTest extends TestCase
     public function test_operator_can_attach_update_and_remove_incident_type_through_narrow_endpoints(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $operator = User::factory()->create([
@@ -542,7 +542,7 @@ class IncidentTypeWorkbenchFlowTest extends TestCase
     public function test_narrow_incident_type_endpoints_can_clear_detail_and_resource_values(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $operator = User::factory()->create([
@@ -668,7 +668,7 @@ class IncidentTypeWorkbenchFlowTest extends TestCase
     public function test_workbench_payload_uses_catalog_incident_type_id_and_keeps_pivot_id_separate(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $operator = User::factory()->create([
@@ -720,7 +720,7 @@ class IncidentTypeWorkbenchFlowTest extends TestCase
     public function test_narrow_detail_endpoint_accepts_field_key_without_field_id(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $operator = User::factory()->create([

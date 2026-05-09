@@ -73,7 +73,7 @@ class IncidentMessageController extends Controller
             'body' => ['required', 'string', 'max:4000'],
             'sender' => ['nullable', 'array'],
             'sender.id' => ['required_with:sender', 'integer'],
-            'sender.role' => ['required_with:sender', 'string', 'in:caller,operator'],
+            'sender.role' => ['required_with:sender', 'string', 'in:citizen,caller,operator'],
             'sender.name' => ['required_with:sender', 'string', 'max:255'],
             'sender.avatar' => ['nullable', 'string', 'max:2048'],
         ]);
@@ -196,7 +196,9 @@ class IncidentMessageController extends Controller
     {
         $default = [
             'id' => (int) $user->id,
-            'role' => $user->role?->value ?? (string) $user->role,
+            'role' => ($user->role?->isCitizen() ?? false)
+                ? UserRole::Caller->value
+                : ($user->role?->value ?? (string) $user->role),
         ];
 
         if (!is_array($sender) || ($user->role ?? null) !== UserRole::Operator) {
@@ -207,7 +209,7 @@ class IncidentMessageController extends Controller
         $senderRole = (string) ($sender['role'] ?? '');
 
         if (
-            ($senderRole === UserRole::Caller->value && $senderId !== (int) $incident->caller_id)
+            (in_array($senderRole, UserRole::citizenValues(), true) && $senderId !== (int) $incident->caller_id)
             || ($senderRole === UserRole::Operator->value && $senderId !== (int) $user->id)
         ) {
             abort(422, 'Invalid sender payload for incident message persistence.');

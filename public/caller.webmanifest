@@ -1,9 +1,9 @@
 {
-    "name": "PBB Hotline Caller",
+    "name": "PBB Citizen",
     "short_name": "PBB Hotline",
-    "description": "Caller-side access for PBB Hotline.",
-    "id": "/caller",
-    "start_url": "/caller?source=pwa",
+    "description": "Citizen access for PBB emergency response.",
+    "id": "/citizen",
+    "start_url": "/citizen?source=pwa",
     "scope": "/",
     "display": "standalone",
     "background_color": "#000000",

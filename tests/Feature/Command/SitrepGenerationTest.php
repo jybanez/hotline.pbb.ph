@@ -402,7 +402,7 @@ class SitrepGenerationTest extends TestCase
         $caller = User::factory()->create([
             'name' => 'PBB Caller',
             'mobile' => '09170000003',
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $command = User::factory()->create([

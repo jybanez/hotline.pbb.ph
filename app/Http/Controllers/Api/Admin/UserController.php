@@ -121,7 +121,7 @@ class UserController extends Controller
                 'max:255',
                 Rule::unique('users', 'email')->ignore($user?->id),
             ],
-            'role' => ['required', 'string', 'in:caller,operator,command,admin'],
+            'role' => ['required', 'string', 'in:citizen,caller,operator,command,admin'],
             'status' => ['nullable', 'string', 'in:active,suspended,disabled,pending'],
             'avatar' => ['nullable', 'string', 'max:2048'],
             'password' => [$user ? 'nullable' : 'required', 'string', 'min:8'],

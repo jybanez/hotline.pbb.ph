@@ -24,7 +24,7 @@ class TeamAssignmentFlowTest extends TestCase
     public function test_operator_can_create_update_and_delete_assigned_team_assignment(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $operator = User::factory()->create([
@@ -122,7 +122,7 @@ class TeamAssignmentFlowTest extends TestCase
     public function test_operator_can_add_team_assignment_note(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $operator = User::factory()->create([

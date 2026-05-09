@@ -24,7 +24,7 @@ class TransferFlowTest extends TestCase
     public function test_operator_can_request_and_target_can_reject_transfer(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $fromOperator = User::factory()->create([
@@ -74,7 +74,7 @@ class TransferFlowTest extends TestCase
     public function test_operator_can_request_and_target_can_accept_transfer(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $fromOperator = User::factory()->create([

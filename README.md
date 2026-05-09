@@ -43,20 +43,21 @@ Use WAMP PHP 8.2 for local PHP checks on this workstation:
 
 ### Session Policy
 
-Hotline uses Laravel web sessions for all surfaces, but caller sessions are intentionally longer-lived because the caller side is an emergency entry point.
+Hotline uses Laravel web sessions for all surfaces, but citizen sessions are intentionally longer-lived because the citizen side is an emergency entry point.
 
 Environment settings:
 - `SESSION_LIFETIME`: normal operator/admin/command session lifetime, in minutes. Local default is `15`.
-- `HOTLINE_CALLER_SESSION_LIFETIME`: caller session lifetime, in minutes. Default is `43200` minutes, or 30 days.
+- `HOTLINE_CITIZEN_SESSION_LIFETIME`: citizen session lifetime, in minutes. Default is `43200` minutes, or 30 days.
+- `HOTLINE_CALLER_SESSION_LIFETIME`: legacy alias for citizen session lifetime.
 
-Caller session behavior:
-- caller login uses Laravel remember-login
-- caller web/API routes use `ConfigureCallerSessionLifetime` to apply the longer caller lifetime
-- caller keepalive requests call `/api/session/ping?surface=caller`
-- the frontend allows caller keepalive attempts without requiring the tab to be focused
-- the caller frontend clamps its local session-expiry clock to at least `43200` minutes so an old short bootstrap value does not redirect an emergency caller on tab focus
+Citizen session behavior:
+- citizen login uses Laravel remember-login
+- citizen web/API routes use `ConfigureCriticalSessionLifetime` to apply the longer citizen lifetime
+- citizen keepalive requests call `/api/session/ping?surface=citizen` or the legacy `surface=caller`
+- the frontend allows citizen keepalive attempts without requiring the tab to be focused
+- the citizen frontend clamps its local session-expiry clock to at least `43200` minutes so an old short bootstrap value does not redirect an emergency user on tab focus
 
-Do not raise `SESSION_LIFETIME` just to help callers stay signed in; use `HOTLINE_CALLER_SESSION_LIFETIME` so operator/admin sessions can remain shorter.
+Do not raise `SESSION_LIFETIME` just to help citizens stay signed in; use `HOTLINE_CITIZEN_SESSION_LIFETIME` so operator/admin sessions can remain shorter.
 
 ## Realtime Model
 
@@ -89,13 +90,13 @@ Caller call routing:
 
 ## Caller Side
 
-The caller surface is a single-page flow with layered overlays.
+The citizen surface is a single-page flow with layered overlays.
 
-Caller authentication is designed to avoid login friction during emergencies. Caller accounts keep a long-lived remembered session, currently controlled by `HOTLINE_CALLER_SESSION_LIFETIME`, while operator/admin surfaces keep the normal session policy.
+Citizen authentication is designed to avoid login friction during emergencies. Citizen accounts keep a long-lived remembered session, currently controlled by `HOTLINE_CITIZEN_SESSION_LIFETIME`, while operator/admin surfaces keep the normal session policy.
 
 ### Caller Home
 
-Base resting surface for the caller role.
+Base resting surface for the citizen role.
 
 Purpose:
 - show the `Call for Help` hold-to-start control

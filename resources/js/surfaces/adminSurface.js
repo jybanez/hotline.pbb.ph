@@ -745,7 +745,7 @@ function userFormRows(user = null) {
                 label: 'Role',
                 required: true,
                 options: [
-                    { value: 'caller', label: 'Caller' },
+                    { value: 'citizen', label: 'Citizen' },
                     { value: 'operator', label: 'Operator' },
                     { value: 'command', label: 'Command' },
                     { value: 'admin', label: 'Admin' },
@@ -932,14 +932,14 @@ function settingsEditorData(state) {
             {
                 id: 'call-routing',
                 title: 'Call Routing',
-                description: 'Caller hold and call timeout behavior.',
+                description: 'Citizen hold and call timeout behavior.',
                 properties: [
                     {
                         id: 'call_hold_seconds',
                         kind: 'number',
                         label: 'Call Hold Seconds',
                         value: values.call_hold_seconds ?? 3,
-                        help: 'Number of seconds the caller must hold the main button before routing starts.',
+                        help: 'Number of seconds the citizen must hold the main button before routing starts.',
                     },
                     {
                         id: 'call_timeout_seconds',
@@ -1038,11 +1038,11 @@ function settingsEditorData(state) {
                     {
                         id: 'realtime_project_code_caller',
                         kind: 'text',
-                        label: 'Caller Project Code',
+                        label: 'Citizen Project Code',
                         value: values.realtime_project_code_caller ?? 'prj_01KMXG0AXB2S9CXS0YK4AFT2C9',
                         placeholder: 'prj_01KMXG0AXB2S9CXS0YK4AFT2C9',
                         autocomplete: 'off',
-                        help: 'Realtime project scope code used for Hotline caller admissions.',
+                        help: 'Realtime project scope code used for Hotline citizen admissions.',
                     },
                     {
                         id: 'realtime_project_code_operator',
@@ -1529,7 +1529,7 @@ async function openUserForm(user = null) {
             name: user?.name ?? '',
             email: user?.email ?? '',
             mobile: user?.mobile ?? '',
-            role: user?.role ?? 'caller',
+            role: user?.role ?? 'citizen',
             status: user?.status ?? 'active',
             avatar: user?.avatar_path ?? '',
             password: '',

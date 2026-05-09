@@ -9,8 +9,11 @@ class RoleRedirector
 {
     public function homePathFor(?User $user): string
     {
+        if ($user?->role?->isCitizen()) {
+            return '/citizen';
+        }
+
         return match ($user?->role) {
-            UserRole::Caller => '/caller',
             UserRole::Operator => '/operator',
             UserRole::Admin => '/admin',
             UserRole::Command => '/command',

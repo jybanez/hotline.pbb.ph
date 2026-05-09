@@ -28,7 +28,7 @@ class CallAttemptController extends Controller
         ]);
 
         $caller = User::query()
-            ->where('role', UserRole::Caller)
+            ->whereIn('role', UserRole::citizenValues())
             ->findOrFail((int) $validated['caller_id']);
 
         try {
