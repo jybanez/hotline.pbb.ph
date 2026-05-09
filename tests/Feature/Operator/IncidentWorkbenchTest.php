@@ -390,6 +390,12 @@ class IncidentWorkbenchTest extends TestCase
             ->assertJsonCount(1, 'items')
             ->assertJsonPath('items.0.latitude', 10.3157)
             ->assertJsonPath('items.0.longitude', 123.8854);
+
+        $this->assertDatabaseHas('incident_caller_locations', [
+            'incident_id' => $incidentId,
+            'caller_id' => $citizen->id,
+            'citizen_id' => $citizen->id,
+        ]);
     }
 
     public function test_legacy_caller_operator_routes_are_logged(): void

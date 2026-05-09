@@ -65,6 +65,7 @@ class CallSessionService
             $callSession = CallSession::query()->create([
                 'incident_id' => $incident->id,
                 'caller_id' => $caller->id,
+                'citizen_id' => $caller->id,
                 'status' => CallStatus::Calling,
                 'started_at' => now(),
             ]);

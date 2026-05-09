@@ -129,7 +129,7 @@ Legend:
 - [x] Keep caller-facing relationship names during compatibility.
 - [x] Add nullable citizen columns/tables first where a direct rename would be risky.
 - [x] Backfill citizen columns/tables from caller columns/tables.
-- [ ] Switch writes after read compatibility exists.
+- [x] Switch writes after read compatibility exists.
 - [x] Add rollback-safe migrations.
 - [ ] Defer destructive caller column/table removal until final decommission.
 - [x] Update `BlockedDeleteInspectorService` labels to citizen-facing wording without breaking table checks.

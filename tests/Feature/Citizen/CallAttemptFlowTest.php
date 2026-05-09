@@ -44,6 +44,11 @@ class CallAttemptFlowTest extends TestCase
 
         $attemptId = $response->json('attempt.id');
 
+        $this->assertDatabaseHas('call_attempts', [
+            'id' => $attemptId,
+            'caller_id' => $citizen->id,
+            'citizen_id' => $citizen->id,
+        ]);
         $this->assertDatabaseCount('incidents', 0);
 
         $this->actingAs($citizen)
