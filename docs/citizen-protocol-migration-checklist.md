@@ -163,8 +163,8 @@ Legend:
 - [x] Update operator client to listen for citizen events.
 - [x] Update Realtime payload fields from `caller_id` to include `citizen_id`.
 - [x] Update Realtime payload fields from `caller_name` to include `citizen_name`.
-- [ ] Add tests for canonical citizen event flow.
-- [ ] Add temporary compatibility tests only where caller event support still exists during the refactor.
+- [x] Add tests for canonical citizen event flow.
+- [x] Add temporary compatibility tests only where caller event support still exists during the refactor.
 - [ ] Coordinate caller event removal with Realtime service owner.
 - [ ] Add legacy caller Realtime event usage telemetry before removing caller event handling.
 
@@ -220,7 +220,7 @@ Legend:
 - [ ] Run focused routing tests after route alias changes.
 - [ ] Run focused auth/session tests after role changes.
 - [ ] Run focused Realtime admission tests after admission changes.
-- [ ] Run focused Realtime client tests after event changes.
+- [x] Run focused Realtime client tests after event changes.
 - [ ] Run focused operator workbench tests after API/payload changes.
 - [ ] Run focused citizen surface tests after frontend API changes.
 - [ ] Run focused media tests after media contract changes.

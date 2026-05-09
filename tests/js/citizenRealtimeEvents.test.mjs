@@ -55,6 +55,14 @@ for (const [callerEvent, citizenEvent] of Object.entries(CALLER_TO_CITIZEN_EVENT
     assert.equal(isCitizenRealtimeEvent(citizenEvent), true);
 }
 
+const canonicalFlowEvent = 'citizen.call.answered';
+const legacyCompatibilityEvent = 'caller.call.answered';
+
+assert.equal(citizenEventType(canonicalFlowEvent), canonicalFlowEvent);
+assert.equal(legacyCallerEventType(canonicalFlowEvent), legacyCompatibilityEvent);
+assert.equal(citizenEventType(legacyCompatibilityEvent), canonicalFlowEvent);
+assert.equal(legacyCallerEventType(legacyCompatibilityEvent), legacyCompatibilityEvent);
+
 assert.equal(citizenEventType('hotline.incident.updated'), 'hotline.incident.updated');
 assert.equal(legacyCallerEventType('hotline.incident.updated'), 'hotline.incident.updated');
 assert.equal(isLegacyCallerRealtimeEvent('hotline.incident.updated'), false);
@@ -98,5 +106,20 @@ assert.deepEqual(
         citizen_name: 'Juan',
         caller_location: { latitude: 11.1, longitude: 124.1 },
         citizen_location: { latitude: 11.1, longitude: 124.1 },
+    },
+);
+
+assert.deepEqual(
+    withCitizenRealtimePayloadAliases({
+        citizen_id: 20,
+        caller_id: 21,
+        citizen_name: 'Canonical',
+        caller_name: 'Legacy',
+    }),
+    {
+        citizen_id: 20,
+        caller_id: 21,
+        citizen_name: 'Canonical',
+        caller_name: 'Legacy',
     },
 );
