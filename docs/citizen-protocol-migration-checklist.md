@@ -166,7 +166,7 @@ Legend:
 - [x] Add tests for canonical citizen event flow.
 - [x] Add temporary compatibility tests only where caller event support still exists during the refactor.
 - [ ] Coordinate caller event removal with Realtime service owner.
-- [ ] Add legacy caller Realtime event usage telemetry before removing caller event handling.
+- [x] Add legacy caller Realtime event usage telemetry before removing caller event handling.
 
 ## Helper Integration
 
