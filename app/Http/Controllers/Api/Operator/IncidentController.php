@@ -209,6 +209,7 @@ class IncidentController extends Controller
         DB::table('incident_caller_locations')->insert([
             'incident_id' => $incident->id,
             'caller_id' => $incident->caller_id,
+            'citizen_id' => $incident->citizen_id,
             'operator_id' => $incident->operator_id,
             'call_session_id' => $callSessionId,
             'latitude' => (float) $validated['latitude'],

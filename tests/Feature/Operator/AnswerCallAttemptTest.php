@@ -52,6 +52,14 @@ class AnswerCallAttemptTest extends TestCase
         $this->assertDatabaseCount('incidents', 1);
         $this->assertDatabaseCount('call_sessions', 1);
         $this->assertDatabaseCount('call_participants', 2);
+        $this->assertDatabaseHas('incidents', [
+            'caller_id' => $caller->id,
+            'citizen_id' => $caller->id,
+        ]);
+        $this->assertDatabaseHas('call_sessions', [
+            'caller_id' => $caller->id,
+            'citizen_id' => $caller->id,
+        ]);
     }
 
     public function test_operator_can_mark_active_call_session_ready(): void

@@ -58,6 +58,11 @@ class ReconnectFlowTest extends TestCase
             'user_id' => $citizen->id,
             'participant_role' => 'caller',
         ]);
+        $this->assertDatabaseHas('call_sessions', [
+            'id' => $callSessionId,
+            'caller_id' => $citizen->id,
+            'citizen_id' => $citizen->id,
+        ]);
 
         $this->actingAs($citizen)
             ->postJson("/api/citizen/call-sessions/{$callSessionId}/cancel")
