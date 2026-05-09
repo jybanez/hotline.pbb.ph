@@ -7,6 +7,7 @@ use App\Domain\Messages\Models\IncidentMessage;
 use App\Domain\Shared\Enums\AlertLevel;
 use App\Domain\Shared\Enums\IncidentStatus;
 use App\Domain\Teams\Models\TeamAssignment;
+use App\Domain\Users\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -62,12 +63,17 @@ class Incident extends Model
 
     public function caller(): BelongsTo
     {
-        return $this->belongsTo(\App\Domain\Users\Models\User::class, 'caller_id');
+        return $this->belongsTo(User::class, 'caller_id');
+    }
+
+    public function citizen(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'caller_id');
     }
 
     public function operator(): BelongsTo
     {
-        return $this->belongsTo(\App\Domain\Users\Models\User::class, 'operator_id');
+        return $this->belongsTo(User::class, 'operator_id');
     }
 
     public function callSessions(): HasMany
@@ -86,6 +92,13 @@ class Incident extends Model
     }
 
     public function callerLocations(): HasMany
+    {
+        return $this->hasMany(IncidentCallerLocation::class)
+            ->orderBy('captured_at')
+            ->orderBy('id');
+    }
+
+    public function citizenLocations(): HasMany
     {
         return $this->hasMany(IncidentCallerLocation::class)
             ->orderBy('captured_at')
@@ -120,5 +133,10 @@ class Incident extends Model
     {
         return $this->hasMany(IncidentResourceNeeded::class)
             ->orderBy('id');
+    }
+
+    public function getCitizenIdAttribute(): mixed
+    {
+        return $this->caller_id;
     }
 }

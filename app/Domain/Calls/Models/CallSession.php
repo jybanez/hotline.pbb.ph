@@ -4,6 +4,7 @@ namespace App\Domain\Calls\Models;
 
 use App\Domain\Shared\Enums\CallOutcome;
 use App\Domain\Shared\Enums\CallStatus;
+use App\Domain\Users\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -42,5 +43,20 @@ class CallSession extends Model
     public function incident(): BelongsTo
     {
         return $this->belongsTo(\App\Domain\Incidents\Models\Incident::class);
+    }
+
+    public function caller(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'caller_id');
+    }
+
+    public function citizen(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'caller_id');
+    }
+
+    public function getCitizenIdAttribute(): mixed
+    {
+        return $this->caller_id;
     }
 }

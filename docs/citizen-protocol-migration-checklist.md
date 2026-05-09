@@ -124,9 +124,9 @@ Legend:
 
 - [x] Decide whether database columns will be physically renamed or wrapped by citizen-facing accessors: physically migrate to citizen names through staged migrations.
 - [x] Decide whether `incident_caller_locations` should eventually become `incident_citizen_locations`: yes.
-- [ ] Add model accessors or DTO layer for citizen-facing reads.
-- [ ] Add citizen-facing relationship names where useful, such as `Incident::citizen`.
-- [ ] Keep caller-facing relationship names during compatibility.
+- [x] Add model accessors or DTO layer for citizen-facing reads.
+- [x] Add citizen-facing relationship names where useful, such as `Incident::citizen`.
+- [x] Keep caller-facing relationship names during compatibility.
 - [ ] Add nullable citizen columns/tables first where a direct rename would be risky.
 - [ ] Backfill citizen columns/tables from caller columns/tables.
 - [ ] Switch writes after read compatibility exists.
