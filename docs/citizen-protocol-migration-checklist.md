@@ -127,10 +127,10 @@ Legend:
 - [x] Add model accessors or DTO layer for citizen-facing reads.
 - [x] Add citizen-facing relationship names where useful, such as `Incident::citizen`.
 - [x] Keep caller-facing relationship names during compatibility.
-- [ ] Add nullable citizen columns/tables first where a direct rename would be risky.
-- [ ] Backfill citizen columns/tables from caller columns/tables.
+- [x] Add nullable citizen columns/tables first where a direct rename would be risky.
+- [x] Backfill citizen columns/tables from caller columns/tables.
 - [ ] Switch writes after read compatibility exists.
-- [ ] Add rollback-safe migrations.
+- [x] Add rollback-safe migrations.
 - [ ] Defer destructive caller column/table removal until final decommission.
 - [x] Update `BlockedDeleteInspectorService` labels to citizen-facing wording without breaking table checks.
 
