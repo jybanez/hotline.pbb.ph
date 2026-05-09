@@ -5,17 +5,17 @@ let lastStandaloneSessionPingAt = 0;
 let deferredInstallPrompt = null;
 let installOfferOpening = false;
 
-renderSurface('caller').then(() => {
-    void pingStandaloneCallerSession();
+renderSurface('citizen').then(() => {
+    void pingStandaloneCitizenSession();
 });
 
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/caller-sw.js', { scope: '/' }).catch((error) => {
-        console.warn('Caller service worker registration failed.', error);
+        console.warn('Citizen service worker registration failed.', error);
     });
 }
 
-function isStandaloneCallerPwa() {
+function isStandaloneCitizenPwa() {
     return Boolean(
         window.matchMedia?.('(display-mode: standalone)')?.matches
         || window.navigator.standalone,
@@ -23,7 +23,7 @@ function isStandaloneCallerPwa() {
 }
 
 function shouldOfferPwaInstall() {
-    return !isStandaloneCallerPwa();
+    return !isStandaloneCitizenPwa();
 }
 
 function isAndroidBrowser() {
@@ -40,7 +40,7 @@ function isChromeAndroid() {
         && !/SamsungBrowser|EdgA|OPR\//i.test(ua);
 }
 
-async function offerCallerPwaInstall() {
+async function offerCitizenPwaInstall() {
     if (!shouldOfferPwaInstall() || installOfferOpening) {
         return;
     }
@@ -59,7 +59,7 @@ async function offerCallerPwaInstall() {
         if (canPrompt) {
             const accepted = await helper.uiConfirm('Install PBB Hotline on this device?', {
                 title: 'Install PBB Hotline',
-                description: 'Open the caller side from your home screen for faster access.',
+                description: 'Open the citizen side from your home screen for faster access.',
                 confirmText: 'Install',
                 cancelText: 'Not Now',
                 variant: 'info',
@@ -88,23 +88,24 @@ async function offerCallerPwaInstall() {
             allowEscClose: true,
         });
     } catch (error) {
-        console.warn('Caller PWA install offer failed.', error);
+        console.warn('Citizen PWA install offer failed.', error);
     } finally {
         installOfferOpening = false;
     }
 }
 
-window.HotlineCallerPwa = {
-    isStandalone: isStandaloneCallerPwa,
-    offerInstall: offerCallerPwaInstall,
+window.HotlineCitizenPwa = {
+    isStandalone: isStandaloneCitizenPwa,
+    offerInstall: offerCitizenPwaInstall,
 };
+window.HotlineCallerPwa = window.HotlineCitizenPwa;
 
-async function pingStandaloneCallerSession() {
-    if (!isStandaloneCallerPwa()) {
+async function pingStandaloneCitizenSession() {
+    if (!isStandaloneCitizenPwa()) {
         return;
     }
 
-    if (!appState.bootstrap?.authenticated || appState.bootstrap?.user?.role !== 'caller') {
+    if (!appState.bootstrap?.authenticated || !['citizen', 'caller'].includes(appState.bootstrap?.user?.role)) {
         return;
     }
 
@@ -117,28 +118,28 @@ async function pingStandaloneCallerSession() {
     lastStandaloneSessionPingAt = now;
 
     try {
-        await fetchJson('/api/session/ping?surface=caller');
+        await fetchJson('/api/session/ping?surface=citizen');
     } catch (error) {
-        console.warn('Caller PWA session refresh failed.', error);
+        console.warn('Citizen PWA session refresh failed.', error);
     }
 }
 
 window.addEventListener('focus', () => {
-    void pingStandaloneCallerSession();
+    void pingStandaloneCitizenSession();
 });
 
 window.addEventListener('pageshow', () => {
-    void pingStandaloneCallerSession();
+    void pingStandaloneCitizenSession();
 });
 
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
-        void pingStandaloneCallerSession();
+        void pingStandaloneCitizenSession();
     }
 });
 
 window.addEventListener('beforeinstallprompt', (event) => {
-    if (isStandaloneCallerPwa()) {
+    if (isStandaloneCitizenPwa()) {
         return;
     }
 

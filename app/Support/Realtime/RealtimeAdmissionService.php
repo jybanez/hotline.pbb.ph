@@ -32,7 +32,7 @@ class RealtimeAdmissionService
             'surface_runtime' => $this->buildSurfaceAdmission(
                 user: $user,
                 projectCode: $this->realtimeProjectCode('caller', 'prj_hotline_caller'),
-                rooms: $this->callerSurfaceRooms($user),
+                rooms: $this->citizenSurfaceRooms($user),
                 capabilities: [
                     'session.connect',
                     'room.join',
@@ -322,7 +322,7 @@ class RealtimeAdmissionService
     /**
      * @return array<int, string>
      */
-    private function callerSurfaceRooms(User $user): array
+    private function citizenSurfaceRooms(User $user): array
     {
         $rooms = [
             RealtimeEventPublishService::SETTINGS_ROOM,

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Api\Caller;
+namespace App\Http\Controllers\Api\Citizen;
 
 use App\Domain\Calls\Models\CallAttempt;
 use App\Http\Controllers\Controller;

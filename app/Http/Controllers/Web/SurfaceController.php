@@ -24,9 +24,9 @@ class SurfaceController extends Controller
         return view('pages.public.home');
     }
 
-    public function caller(): View
+    public function citizen(): View
     {
-        return view('pages.caller.index');
+        return view('pages.citizen.index');
     }
 
     public function operator(): View

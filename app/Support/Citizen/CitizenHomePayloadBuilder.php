@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Support\Caller;
+namespace App\Support\Citizen;
 
 use App\Domain\Incidents\Models\Incident;
 use App\Domain\Shared\Enums\IncidentStatus;
@@ -9,7 +9,7 @@ use App\Support\Incidents\IncidentPayloadBuilder;
 use App\Support\Sessions\AvailabilityService;
 use App\Support\Settings\SettingsService;
 
-class CallerHomePayloadBuilder
+class CitizenHomePayloadBuilder
 {
     public function __construct(
         private readonly AvailabilityService $availability,

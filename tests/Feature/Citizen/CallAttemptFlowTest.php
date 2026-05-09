@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Feature\Caller;
+namespace Tests\Feature\Citizen;
 
 use App\Domain\Shared\Enums\UserRole;
 use App\Models\User;

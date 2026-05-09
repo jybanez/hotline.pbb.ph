@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Api\Caller;
+namespace App\Http\Controllers\Api\Citizen;
 
 use App\Domain\Incidents\Models\Incident;
 use App\Domain\Shared\Enums\IncidentStatus;
