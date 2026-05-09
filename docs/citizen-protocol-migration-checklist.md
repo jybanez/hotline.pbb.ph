@@ -146,17 +146,17 @@ Legend:
 
 ## Realtime Events
 
-- [ ] Define citizen equivalent for `caller.operator.available.request`.
-- [ ] Define citizen equivalent for `caller.operator.available.response`.
-- [ ] Define citizen equivalent for `caller.call.request`.
-- [ ] Define citizen equivalent for `caller.call.ringing`.
-- [ ] Define citizen equivalent for `caller.call.cancel`.
-- [ ] Define citizen equivalent for `caller.call.cancelled`.
-- [ ] Define citizen equivalent for `caller.call.declined`.
-- [ ] Define citizen equivalent for `caller.call.answered`.
-- [ ] Define citizen equivalent for `caller.call.ready`.
-- [ ] Define citizen equivalent for `caller.location.updated`.
-- [ ] Define citizen equivalents for `caller.reconnect.*`.
+- [x] Define citizen equivalent for `caller.operator.available.request`.
+- [x] Define citizen equivalent for `caller.operator.available.response`.
+- [x] Define citizen equivalent for `caller.call.request`.
+- [x] Define citizen equivalent for `caller.call.ringing`.
+- [x] Define citizen equivalent for `caller.call.cancel`.
+- [x] Define citizen equivalent for `caller.call.cancelled`.
+- [x] Define citizen equivalent for `caller.call.declined`.
+- [x] Define citizen equivalent for `caller.call.answered`.
+- [x] Define citizen equivalent for `caller.call.ready`.
+- [x] Define citizen equivalent for `caller.location.updated`.
+- [x] Define citizen equivalents for `caller.reconnect.*`.
 - [ ] Update citizen client to publish canonical citizen events.
 - [ ] Update citizen client to listen for citizen events.
 - [ ] Update operator client to publish canonical citizen events where Hotline owns publication.
