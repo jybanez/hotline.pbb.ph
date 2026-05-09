@@ -188,7 +188,7 @@ Legend:
 - [x] Decide whether `peer_role = caller` should become `peer_role = citizen`: yes.
 - [x] Decide whether `participant_role = caller` should become `participant_role = citizen`: yes.
 - [ ] Decide whether outcomes like `cancelled_by_caller` and `ended_by_caller` should become citizen-named outcome values in the same protocol migration or a later reporting migration.
-- [ ] Accept both caller and citizen media values during temporary compatibility.
+- [x] Accept both caller and citizen media values during temporary compatibility.
 - [ ] Add tests for old call sessions and new call sessions.
 - [ ] Verify media assembly still works with legacy records.
 - [ ] Verify operator media playback still filters correctly.
