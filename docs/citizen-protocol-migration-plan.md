@@ -9,6 +9,9 @@ Purpose:
 - keep Hotline, Realtime, and Helper interoperable during the migration
 - identify the contracts that must be migrated before old `caller` names can be retired
 
+Tracker:
+- [Citizen Protocol Migration Checklist](citizen-protocol-migration-checklist.md)
+
 ## Current State
 
 Phase 1 established `citizen` as the user-facing surface name while keeping legacy `caller` compatibility:
