@@ -204,6 +204,7 @@ Planning impact:
 - Hotline can migrate `caller.*` to `citizen.*` event names within the existing app-event lane
 - admission tokens must include `event.publish` wherever citizen/operator clients publish app events
 - Realtime-side docs/fixtures should be updated to mention citizen event names after Hotline finalizes them
+- caller event names should not remain as long-term aliases after the refactor is complete
 
 ### Helper
 
@@ -222,12 +223,13 @@ Planning impact:
 Use these rules when changing code:
 
 1. If `caller` is a user-facing label, prefer changing it to `citizen`.
-2. If `caller` is a legacy route or role alias, keep it and add explicit compatibility tests.
-3. If `caller` is a DB column/table name, do not rename destructively in the same PR as API/frontend changes.
+2. If `caller` is a legacy route or role alias, keep it temporarily and add explicit compatibility tests until decommission.
+3. If `caller` is a DB column/table name, migrate it physically to citizen naming through staged, reversible migrations.
 4. If `caller` is an API payload field, add citizen aliases first and keep caller aliases.
-5. If `caller` is a Realtime event name, publish/listen both names during migration.
-6. If `caller` is a media/session protocol value, wait for an explicit stability decision.
+5. If `caller` is a Realtime event name, replace it with a `citizen.*` event and keep caller support only temporarily if needed to complete the refactor safely.
+6. If `caller` is a media/session protocol value, migrate it to citizen terminology through a compatibility window.
 7. If `caller` is in historical docs, do not rewrite it unless the doc is being promoted to current canonical status.
+8. If `caller` compatibility remains in runtime code, instrument usage before removing it.
 
 ## Recommended Next Implementation Slice
 
@@ -236,6 +238,7 @@ The safest first runtime PR after planning:
 1. Add citizen-named operator route aliases.
 2. Keep all current caller-named operator routes.
 3. Add route-pair tests.
-4. Update only low-risk frontend calls that point to operator/public API aliases, not DB schema or media protocol values.
+4. Add legacy caller route usage telemetry.
+5. Update only low-risk frontend calls that point to operator/public API aliases, not DB schema or media protocol values.
 
-This moves external API shape toward citizen terminology while avoiding the high-risk database, Realtime event, and media protocol decisions.
+This moves external API shape toward citizen terminology while avoiding the high-risk database, Realtime event, and media protocol migrations until their staging work is ready.

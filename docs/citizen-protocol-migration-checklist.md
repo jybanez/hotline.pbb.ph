@@ -39,8 +39,8 @@ Legend:
 - [ ] Review Realtime-facing event and admission changes with Realtime service owner.
 - [ ] Review Helper-facing adapter and UI changes with Helper service owner.
 - [ ] Confirm whether the canonical public-user term is always `citizen` across PBB ecosystem docs.
-- [ ] Decide support window for legacy `caller` routes, fields, events, and PWA assets.
-- [ ] Decide whether telemetry is required before decommissioning legacy caller contracts.
+- [x] Decide support window for legacy `caller` routes, fields, events, and PWA assets: support until the caller-to-citizen refactor is complete.
+- [x] Decide whether telemetry is required before decommissioning legacy caller contracts: yes.
 
 ## Contract Inventory Tasks
 
@@ -122,15 +122,15 @@ Legend:
 
 ## Database and Models
 
-- [ ] Decide whether database columns will be physically renamed or wrapped by citizen-facing accessors.
-- [ ] Decide whether `incident_caller_locations` should eventually become `incident_citizen_locations`.
+- [x] Decide whether database columns will be physically renamed or wrapped by citizen-facing accessors: physically migrate to citizen names through staged migrations.
+- [x] Decide whether `incident_caller_locations` should eventually become `incident_citizen_locations`: yes.
 - [ ] Add model accessors or DTO layer for citizen-facing reads.
 - [ ] Add citizen-facing relationship names where useful, such as `Incident::citizen`.
 - [ ] Keep caller-facing relationship names during compatibility.
-- [ ] If additive columns are approved, add nullable citizen columns first.
-- [ ] If additive columns are approved, backfill citizen columns from caller columns.
-- [ ] If additive columns are approved, switch writes after read compatibility exists.
-- [ ] If additive columns are approved, add rollback-safe migrations.
+- [ ] Add nullable citizen columns/tables first where a direct rename would be risky.
+- [ ] Backfill citizen columns/tables from caller columns/tables.
+- [ ] Switch writes after read compatibility exists.
+- [ ] Add rollback-safe migrations.
 - [ ] Defer destructive caller column/table removal until final decommission.
 - [ ] Update `BlockedDeleteInspectorService` labels to citizen-facing wording without breaking table checks.
 
@@ -158,21 +158,22 @@ Legend:
 - [ ] Define citizen equivalent for `caller.location.updated`.
 - [ ] Define citizen equivalents for `caller.reconnect.*`.
 - [ ] Update citizen client to publish canonical citizen events.
-- [ ] Update citizen client to listen for both citizen and caller events.
+- [ ] Update citizen client to listen for citizen events.
 - [ ] Update operator client to publish canonical citizen events where Hotline owns publication.
-- [ ] Update operator client to listen for both citizen and caller events.
+- [ ] Update operator client to listen for citizen events.
 - [ ] Update Realtime payload fields from `caller_id` to include `citizen_id`.
 - [ ] Update Realtime payload fields from `caller_name` to include `citizen_name`.
 - [ ] Add tests for canonical citizen event flow.
-- [ ] Add tests for legacy caller event compatibility.
-- [ ] Coordinate deprecation date with Realtime service owner.
+- [ ] Add temporary compatibility tests only where caller event support still exists during the refactor.
+- [ ] Coordinate caller event removal with Realtime service owner.
+- [ ] Add legacy caller Realtime event usage telemetry before removing caller event handling.
 
 ## Helper Integration
 
 - [ ] Rename Hotline-owned `callerBootstrapAdapter()` to a citizen-named adapter.
 - [ ] Rename Hotline-owned `startCallAdapter()` if its caller meaning is public-user specific.
 - [ ] Rename Hotline-owned `reconnectCallAdapter()` if its caller meaning is public-user specific.
-- [ ] Keep caller-named adapter aliases while imports or docs still depend on them.
+- [ ] Keep caller-named adapter aliases only until the refactor is complete.
 - [ ] Update Helper-facing adapter payloads to emit citizen canonical fields.
 - [ ] Update Helper-facing adapter payloads to accept legacy caller fields.
 - [ ] Update Helper docs or proposals that still describe the public user as caller.
@@ -181,14 +182,14 @@ Legend:
 
 ## Media and Call Session Contracts
 
-- [ ] Decide whether `caller_video` should become `citizen_video`.
-- [ ] Decide whether `caller-audio` keys should become `citizen-audio`.
-- [ ] Decide whether `caller-cam-*` segment keys should become `citizen-cam-*`.
-- [ ] Decide whether `peer_role = caller` should become `peer_role = citizen`.
-- [ ] Decide whether `participant_role = caller` should become `participant_role = citizen`.
-- [ ] Decide whether outcomes like `cancelled_by_caller` and `ended_by_caller` should remain stable analytics values.
-- [ ] If media values change, accept both caller and citizen media values during compatibility.
-- [ ] If participant values change, add tests for old call sessions and new call sessions.
+- [x] Decide whether `caller_video` should become `citizen_video`: yes.
+- [x] Decide whether `caller-audio` keys should become `citizen-audio`: yes.
+- [x] Decide whether `caller-cam-*` segment keys should become `citizen-cam-*`: yes.
+- [x] Decide whether `peer_role = caller` should become `peer_role = citizen`: yes.
+- [x] Decide whether `participant_role = caller` should become `participant_role = citizen`: yes.
+- [ ] Decide whether outcomes like `cancelled_by_caller` and `ended_by_caller` should become citizen-named outcome values in the same protocol migration or a later reporting migration.
+- [ ] Accept both caller and citizen media values during temporary compatibility.
+- [ ] Add tests for old call sessions and new call sessions.
 - [ ] Verify media assembly still works with legacy records.
 - [ ] Verify operator media playback still filters correctly.
 - [ ] Verify citizen media visibility rules still hold.
@@ -207,7 +208,7 @@ Legend:
 ## Docs and OpenAPI
 
 - [ ] Update `docs/pbb-hotline-beta-contracts.md` roles from caller to citizen after behavior exists.
-- [ ] Update `docs/pbb-hotline-beta-realtime-spec.md` with citizen events and legacy aliases.
+- [ ] Update `docs/pbb-hotline-beta-realtime-spec.md` with citizen events and caller decommission notes.
 - [ ] Update `docs/pbb-hotline-beta-api-inventory.md` with citizen routes and fields.
 - [ ] Update `docs/pbb-hotline-beta-schema-draft.md` with migration notes.
 - [ ] Update `docs/hotline-helper-mapping.md` from caller surface to citizen surface.
@@ -237,19 +238,20 @@ Legend:
 - [ ] Confirm deployed clients have moved to citizen canonical routes and events.
 - [ ] Confirm Realtime shared service has moved to citizen canonical examples and fixtures.
 - [ ] Confirm Helper shared service has moved to citizen canonical examples and fixtures.
-- [ ] Confirm installed PWA compatibility window has passed.
+- [ ] Confirm caller-to-citizen refactor completion and installed PWA compatibility window have passed.
 - [ ] Confirm historical data/report consumers are migrated.
 - [ ] Remove caller route aliases.
 - [ ] Remove caller event aliases.
 - [ ] Remove caller request-field aliases.
 - [ ] Remove caller PWA assets only after compatibility window.
-- [ ] Remove or rename caller database columns/tables only after explicit approval.
+- [ ] Remove caller database columns/tables after staged citizen migration and final decommission approval.
 
 ## Open Decisions Tracker
 
-- [ ] Decide physical DB rename vs citizen accessors over existing caller columns.
-- [ ] Decide media protocol rename strategy.
+- [x] Decide physical DB rename vs citizen accessors over existing caller columns: physical rename through staged migration.
+- [x] Decide media protocol rename strategy: migrate caller protocol/media values to citizen values.
 - [ ] Decide call outcome rename strategy.
-- [ ] Decide legacy caller compatibility duration.
-- [ ] Decide whether this repo owns telemetry for legacy usage or whether Realtime/Helper should provide it.
+- [x] Decide legacy caller compatibility duration: until the caller-to-citizen refactor is complete.
+- [x] Decide whether telemetry is required for legacy usage: yes.
+- [ ] Decide whether this repo owns all telemetry for legacy usage or whether Realtime/Helper should also provide service-local telemetry.
 - [ ] Decide which external repos need synchronized PRs before Hotline switches canonical behavior.

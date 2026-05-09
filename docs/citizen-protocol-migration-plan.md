@@ -29,11 +29,12 @@ Phase 2 should migrate the deeper protocol, payload, persistence, and shared-ser
 ## Migration Principles
 
 1. `citizen` is the canonical term for new public-user contracts.
-2. Existing `caller` contracts must remain readable and accepted until Realtime, Helper, deployed clients, installed PWAs, and historical data consumers have moved.
+2. Existing `caller` contracts must remain readable and accepted only until the caller-to-citizen refactor is complete.
 3. Prefer additive compatibility before destructive renames.
-4. Database changes should be staged and reversible.
-5. Realtime event migration must support dual publish/listen behavior for a deprecation window.
-6. Tests should prove both the canonical citizen path and legacy caller path during the compatibility period.
+4. Database changes should be physically migrated to citizen names, but staged and reversible.
+5. Realtime event migration should move to `citizen.*` canonical events without long-term caller aliases.
+6. Tests should prove both the canonical citizen path and temporary legacy caller path during the compatibility period.
+7. Telemetry should measure legacy caller usage before compatibility is removed.
 
 ## Contract Inventory
 
@@ -109,9 +110,9 @@ Known model/service touchpoints:
 Phase 2 work:
 - do not hard-rename columns in the first Phase 2 implementation PR
 - introduce citizen-facing accessors/serializers first
-- consider additive columns only after payload compatibility is proven
-- if additive columns are used, backfill from caller columns, switch writes, then keep reads dual-source until removal
-- create a later decommission migration for obsolete caller columns and tables
+- physically migrate database columns/tables to citizen names after payload compatibility is proven
+- use additive citizen columns/tables first, backfill from caller columns, switch writes, then keep reads dual-source until decommission
+- create a later decommission migration for obsolete caller columns and tables after telemetry confirms legacy usage is gone
 
 ### API Payloads
 
@@ -168,10 +169,10 @@ Known caller-shaped signal/payload fields:
 
 Phase 2 work:
 - define citizen event equivalents for each caller event
-- update Hotline clients to publish citizen events and listen for both citizen and caller events
-- update operator clients to publish/listen dual events during compatibility
+- update Hotline clients to publish citizen events
+- keep any caller event handling temporary and remove it by the end of the refactor
 - coordinate Realtime shared service fixtures and examples before removing caller event names
-- add tests for dual publish/listen behavior where practical
+- add tests for citizen event behavior and temporary caller compatibility where it still exists
 
 ### Helper Contracts
 
@@ -201,10 +202,10 @@ Known caller-shaped media/session values:
 - outcomes such as `cancelled_by_caller` and `ended_by_caller`
 
 Phase 2 work:
-- decide whether media type values should change to `citizen_video` or remain historical protocol values
-- if changed, add `citizen_video` as canonical and keep `caller_video` accepted
-- decide whether `participant_role` and `peer_role` should use global account role names or call-session participant names
-- keep outcome values stable until reporting and analytics migrations are planned
+- change media type values to citizen terminology where they describe the public user, for example `citizen_video`
+- keep caller media values accepted only during the temporary compatibility window
+- migrate `participant_role` and `peer_role` values from `caller` to `citizen`
+- migrate caller-shaped call outcome values only through a staged compatibility path so existing history and reports remain readable during the refactor
 
 ### PWA and Assets
 
@@ -364,7 +365,7 @@ Exit criteria:
 ### PR 9: Legacy Decommission
 
 Goal:
-- remove caller compatibility after telemetry shows it is safe
+- remove caller compatibility when the caller-to-citizen refactor is complete and telemetry shows legacy usage is gone
 
 Prerequisites:
 - no meaningful caller route usage
@@ -418,8 +419,9 @@ Rollback principle:
 
 ## Open Decisions
 
-1. Should database columns be physically renamed to citizen names, or should citizen accessors wrap stable historical caller columns?
-2. Should media protocol values such as `caller_video` become `citizen_video`, or remain stable protocol identifiers with citizen-facing labels?
-3. Should call outcomes such as `ended_by_caller` become `ended_by_citizen`, or remain historical analytics values?
-4. How long should legacy caller Realtime events and PWA assets be supported?
-5. Which Realtime and Helper repositories need synchronized PRs before Hotline switches canonical client behavior?
+1. Resolved: database columns/tables should physically migrate from caller names to citizen names through staged, reversible migrations.
+2. Resolved: media and protocol values such as `caller_video`, `peer_role = caller`, and `participant_role = caller` should migrate to citizen terminology.
+3. Resolved: Realtime should use citizen event names without long-term caller aliases. Temporary caller compatibility may exist only until the refactor is complete.
+4. Resolved: legacy caller compatibility should last until the caller-to-citizen refactor is complete, not indefinitely.
+5. Resolved: legacy caller usage telemetry should be added before decommission.
+6. Open: which Realtime and Helper repository changes need synchronized PRs before Hotline switches canonical client behavior?
