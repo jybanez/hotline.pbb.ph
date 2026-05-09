@@ -60,6 +60,7 @@ class BootstrapPayloadBuilder
             'surface' => $surface,
             'alert_level' => $alertLevel->value,
             'alert_level_description' => $alertLevel->description(),
+            'suite' => $this->suitePayload($surface),
             'settings' => Arr::where($settings, static fn ($value) => $value !== null),
             'surface_payload' => $this->surfacePayload($user, $surface),
             'lookups' => [
@@ -88,6 +89,37 @@ class BootstrapPayloadBuilder
         }
 
         return null;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function suitePayload(?string $surface): array
+    {
+        $modules = collect(config('suite.modules', []))
+            ->map(fn (array $module): array => [
+                'id' => (string) ($module['id'] ?? ''),
+                'label' => (string) ($module['label'] ?? ''),
+                'description' => (string) ($module['description'] ?? ''),
+                'status' => (string) ($module['status'] ?? 'foundation'),
+                'href' => (string) ($module['href'] ?? ''),
+                'surfaces' => array_values($module['surfaces'] ?? []),
+            ])
+            ->filter(fn (array $module): bool => $module['id'] !== '' && $module['label'] !== '')
+            ->values();
+
+        $moduleById = $modules->keyBy('id');
+        $surfaceModuleId = (string) Arr::get(config('suite.surface_modules', []), (string) $surface, 'hotline');
+
+        return [
+            'brand' => [
+                'name' => (string) config('suite.brand.name', 'PBB Emergency Response Suite'),
+                'short_name' => (string) config('suite.brand.short_name', 'PBB Response'),
+                'host' => (string) config('suite.brand.host', 'hotline.pbb.ph'),
+            ],
+            'current_module' => $moduleById->get($surfaceModuleId) ?? $moduleById->get('hotline'),
+            'modules' => $modules->all(),
+        ];
     }
 
     /**
