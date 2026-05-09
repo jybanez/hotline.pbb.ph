@@ -32,7 +32,7 @@ class AnswerCallAttemptTest extends TestCase
             'role' => UserRole::Operator,
         ]);
 
-        $start = $this->actingAs($caller)->postJson('/api/caller/call-attempts');
+        $start = $this->actingAs($caller)->postJson('/api/citizen/call-attempts');
 
         $attemptId = $start->json('attempt.id');
         $operatorAttemptId = $start->json('operator_attempt.id');
@@ -64,7 +64,7 @@ class AnswerCallAttemptTest extends TestCase
             'role' => UserRole::Operator,
         ]);
 
-        $start = $this->actingAs($caller)->postJson('/api/caller/call-attempts');
+        $start = $this->actingAs($caller)->postJson('/api/citizen/call-attempts');
         $operatorAttemptId = $start->json('operator_attempt.id');
 
         $answer = $this->actingAs($operator)
@@ -126,7 +126,7 @@ class AnswerCallAttemptTest extends TestCase
             'role' => UserRole::Operator,
         ]);
 
-        $start = $this->actingAs($caller)->postJson('/api/caller/call-attempts');
+        $start = $this->actingAs($caller)->postJson('/api/citizen/call-attempts');
         $operatorAttemptId = $start->json('operator_attempt.id');
 
         $answer = $this->actingAs($operator)

@@ -86,9 +86,9 @@ Legend:
 
 - [x] `/api/citizen/*` prefix exists.
 - [x] `/api/caller/*` prefix remains available.
-- [~] Confirm all citizen surface frontend calls use `/api/citizen/*` where possible.
+- [x] Confirm all citizen surface frontend calls use `/api/citizen/*` where possible.
 - [ ] Add tests proving `/api/citizen/*` and `/api/caller/*` route pairs return equivalent results during compatibility.
-- [ ] Add legacy caller public API usage logging if telemetry is required.
+- [x] Add legacy caller public API usage logging if telemetry is required.
 - [ ] Document deprecation timeline for `/api/caller/*`.
 
 ## Operator API Routes
@@ -142,7 +142,7 @@ Legend:
 - [x] Legacy caller admission method remains as compatibility wrapper.
 - [ ] Confirm Realtime shared service documentation uses citizen admission path.
 - [ ] Add Realtime-side fixture/example updates if needed.
-- [ ] Add telemetry for legacy caller admission path.
+- [x] Add telemetry for legacy caller admission path.
 
 ## Realtime Events
 
