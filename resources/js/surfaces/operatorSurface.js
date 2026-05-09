@@ -250,7 +250,7 @@ async function persistOperatorCallerLocation(incidentId, locationPayload = {}) {
     appState.runtime.operatorCallerLocationPersistIds[key] = requestId;
 
     try {
-        const response = await fetchJson(`/api/operator/incidents/${nextIncidentId}/caller-location`, {
+        const response = await fetchJson(`/api/operator/incidents/${nextIncidentId}/citizen-location`, {
             method: 'post',
             data: payload,
         });
@@ -1403,7 +1403,7 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                         return;
                     }
 
-                    fetchJson(`/api/operator/call-attempt-operator-attempts/${payload.call_attempt_operator_attempt_id}/caller-cancel`, {
+                    fetchJson(`/api/operator/call-attempt-operator-attempts/${payload.call_attempt_operator_attempt_id}/citizen-cancel`, {
                         method: 'post',
                     }).then(() => {
                         appState.runtime.operatorDiscoveryClaimed = false;
@@ -1420,7 +1420,7 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                             ended_at: new Date().toISOString(),
                         });
                     }).catch((error) => {
-                        console.warn('Operator caller-cancel update failed.', error);
+                        console.warn('Operator citizen-cancel update failed.', error);
                     });
                     return;
                 }
@@ -1462,7 +1462,7 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                         return;
                     }
 
-                    fetchJson(`/api/operator/call-attempt-operator-attempts/${payload.call_attempt_operator_attempt_id}/caller-cancel`, {
+                    fetchJson(`/api/operator/call-attempt-operator-attempts/${payload.call_attempt_operator_attempt_id}/citizen-cancel`, {
                         method: 'post',
                     }).then(() => {
                         root.querySelector('[data-incoming-call-overlay]')?.remove();
@@ -1481,7 +1481,7 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                             ended_at: new Date().toISOString(),
                         });
                     }).catch((error) => {
-                        console.warn('Operator reconnect caller-cancel update failed.', error);
+                        console.warn('Operator reconnect citizen-cancel update failed.', error);
                     });
                 }
             },
@@ -3163,7 +3163,7 @@ async function openWorkbenchCallerAddressModal(overlay, payload = {}) {
                     const addressPayload = workbenchCallerAddressPayloadFromValue(addressGroup?.getValue?.() ?? {});
 
                     try {
-                        const response = await fetchJson(`/api/operator/incidents/${payload.id}/caller-address`, {
+                        const response = await fetchJson(`/api/operator/incidents/${payload.id}/citizen-address`, {
                             method: 'post',
                             data: addressPayload,
                         });
@@ -3488,7 +3488,7 @@ async function loadWorkbenchCallerLocationTrack(incidentId) {
         return [];
     }
 
-    const response = await fetchJson(`/api/operator/incidents/${nextIncidentId}/caller-locations?limit=500`);
+    const response = await fetchJson(`/api/operator/incidents/${nextIncidentId}/citizen-locations?limit=500`);
 
     return Array.isArray(response?.items) ? response.items : [];
 }
@@ -3942,7 +3942,7 @@ async function mountWorkbenchNavbar(overlay, payload, stateOverride, close) {
             const requestId = ++callerSaveRequestId;
 
             try {
-                const response = await fetchJson(`/api/operator/incidents/${payload.id}/actual-caller`, {
+                const response = await fetchJson(`/api/operator/incidents/${payload.id}/actual-citizen`, {
                     method: 'post',
                     data: {
                         actual_caller_name: String(payload.actual_caller_name ?? '').trim(),

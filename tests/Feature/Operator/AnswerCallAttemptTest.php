@@ -89,6 +89,33 @@ class AnswerCallAttemptTest extends TestCase
         );
     }
 
+    public function test_operator_can_use_citizen_cancel_alias_for_routed_attempt(): void
+    {
+        $citizen = User::factory()->create([
+            'role' => UserRole::Citizen,
+        ]);
+
+        $operator = User::factory()->create([
+            'role' => UserRole::Operator,
+        ]);
+
+        $start = $this->actingAs($citizen)->postJson('/api/citizen/call-attempts');
+        $attemptId = (int) $start->json('attempt.id');
+        $operatorAttemptId = (int) $start->json('operator_attempt.id');
+
+        $this->actingAs($operator)
+            ->postJson("/api/operator/call-attempt-operator-attempts/{$operatorAttemptId}/citizen-cancel")
+            ->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('attempt.id', $attemptId)
+            ->assertJsonPath('attempt.outcome', 'cancelled_by_caller');
+
+        $this->assertDatabaseHas('call_attempts', [
+            'id' => $attemptId,
+            'outcome' => 'cancelled_by_caller',
+        ]);
+    }
+
     public function test_operator_ready_can_use_precise_gate_lift_timestamp(): void
     {
         $caller = User::factory()->create([

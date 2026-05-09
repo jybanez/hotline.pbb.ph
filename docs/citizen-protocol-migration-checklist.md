@@ -86,23 +86,23 @@ Legend:
 
 - [x] `/api/citizen/*` prefix exists.
 - [x] `/api/caller/*` prefix remains available.
-- [ ] Confirm all citizen surface frontend calls use `/api/citizen/*` where possible.
+- [~] Confirm all citizen surface frontend calls use `/api/citizen/*` where possible.
 - [ ] Add tests proving `/api/citizen/*` and `/api/caller/*` route pairs return equivalent results during compatibility.
-- [ ] Add legacy caller API usage logging if telemetry is required.
+- [ ] Add legacy caller public API usage logging if telemetry is required.
 - [ ] Document deprecation timeline for `/api/caller/*`.
 
 ## Operator API Routes
 
-- [ ] Add canonical citizen alias for `/api/operator/incidents/{incident}/actual-caller`.
-- [ ] Add canonical citizen alias for `/api/operator/incidents/{incident}/caller-address`.
-- [ ] Add canonical citizen alias for `/api/operator/incidents/{incident}/caller-location`.
-- [ ] Add canonical citizen alias for `/api/operator/incidents/{incident}/caller-locations`.
-- [ ] Add canonical citizen alias for `/api/operator/call-attempt-operator-attempts/{attempt}/caller-cancel`.
-- [ ] Keep all caller-named operator routes as compatibility aliases.
-- [ ] Update operator frontend calls to use citizen-named routes where appropriate.
-- [ ] Add route tests for each citizen alias.
-- [ ] Add route tests proving caller aliases remain compatible.
-- [ ] Add legacy caller operator route usage logging if telemetry is required.
+- [x] Add canonical citizen alias for `/api/operator/incidents/{incident}/actual-caller`.
+- [x] Add canonical citizen alias for `/api/operator/incidents/{incident}/caller-address`.
+- [x] Add canonical citizen alias for `/api/operator/incidents/{incident}/caller-location`.
+- [x] Add canonical citizen alias for `/api/operator/incidents/{incident}/caller-locations`.
+- [x] Add canonical citizen alias for `/api/operator/call-attempt-operator-attempts/{attempt}/caller-cancel`.
+- [x] Keep all caller-named operator routes as compatibility aliases.
+- [x] Update operator frontend calls to use citizen-named routes where appropriate.
+- [x] Add route tests for each citizen alias.
+- [x] Add route tests proving caller aliases remain compatible.
+- [x] Add legacy caller operator route usage logging if telemetry is required.
 
 ## API Payloads
 
@@ -142,7 +142,7 @@ Legend:
 - [x] Legacy caller admission method remains as compatibility wrapper.
 - [ ] Confirm Realtime shared service documentation uses citizen admission path.
 - [ ] Add Realtime-side fixture/example updates if needed.
-- [ ] Add telemetry for legacy caller admission path if required.
+- [ ] Add telemetry for legacy caller admission path.
 
 ## Realtime Events
 

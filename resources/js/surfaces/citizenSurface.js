@@ -985,7 +985,7 @@ function retryCallerCallDiscoveryAfterMiss(pending) {
     }
 
     if (missedAttemptId > 0 && missedOperatorAttemptId > 0) {
-        void fetchJson(`/api/caller/call-attempts/${missedAttemptId}/timeout`, {
+        void fetchJson(`/api/citizen/call-attempts/${missedAttemptId}/timeout`, {
             method: 'post',
         }).catch((error) => {
             if (Number(error?.response?.status ?? 0) !== 409) {
@@ -1186,7 +1186,7 @@ async function connectCallerRealtimeStream(options = {}) {
     appState.runtime.callerRealtimeSignal?.setReconnectRuntime?.(reconnectRuntime);
 
     try {
-        const admission = await fetchJson('/api/realtime/admission/caller', {
+        const admission = await fetchJson('/api/realtime/admission/citizen', {
             method: 'post',
             data: {
                 context_type: 'surface_runtime',
@@ -3193,7 +3193,7 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
             incidentId: Number(payload.id ?? 0),
             messages: payload.messages ?? [],
             viewerRole: 'caller',
-            admissionPath: '/api/realtime/admission/caller',
+            admissionPath: '/api/realtime/admission/citizen',
             currentUserId: String(appState.bootstrap?.user?.id ?? ''),
             currentDisplayName: String(appState.bootstrap?.user?.name ?? 'Caller'),
             threadHost: overlay.querySelector('[data-caller-chat-thread]'),
@@ -3261,7 +3261,7 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
             ? await mountRealtimeCallSession({
                 callSessionId: Number(latestSession.id),
                 viewerRole: 'caller',
-                admissionPath: '/api/realtime/admission/caller',
+                admissionPath: '/api/realtime/admission/citizen',
                 currentUserId: String(appState.bootstrap?.user?.id ?? ''),
                 remoteUserId: String(payload.operator.id),
                 remoteAudioHost: overlay,
@@ -3342,7 +3342,7 @@ async function runCallerReconnect(root, incidentId, noticeTarget = null) {
 }
 
 async function openCallerIncident(root, incidentId) {
-    const payload = await fetchJson(`/api/caller/incidents/${incidentId}`);
+    const payload = await fetchJson(`/api/citizen/incidents/${incidentId}`);
     await showCallerIncidentOverlay(root, payload);
 }
 
@@ -3373,7 +3373,7 @@ async function showCallerIncidentOverlay(root, payload) {
     overlay?.querySelector('[data-close-caller-incident]')?.addEventListener('click', close);
     overlay?.querySelector('[data-refresh-caller-incident]')?.addEventListener('click', async () => {
         try {
-            const refreshed = await fetchJson(`/api/caller/incidents/${payload.id}`);
+            const refreshed = await fetchJson(`/api/citizen/incidents/${payload.id}`);
             await showCallerIncidentOverlay(root, refreshed);
         } catch (error) {
             showToast(error.response?.data?.message ?? 'Unable to refresh incident.');
@@ -3581,7 +3581,7 @@ function renderCaller(root, bootstrap, home, primerReport) {
                 });
             }
             else if (pending?.kind === 'reconnect' && pending.call_session_id) {
-                await fetchJson(`/api/caller/call-sessions/${pending.call_session_id}/cancel`, {
+                await fetchJson(`/api/citizen/call-sessions/${pending.call_session_id}/cancel`, {
                     method: 'post',
                 });
             }
