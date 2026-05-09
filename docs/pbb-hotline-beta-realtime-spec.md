@@ -1,8 +1,8 @@
 # PBB Hotline Beta Realtime Spec
 
-Date: 2026-04-04
+Date: 2026-05-10
 
-Status: Draft integration spec
+Status: Draft integration spec, updated for caller-to-citizen migration
 
 References:
 - [PBB Hotline Beta System Spec](./pbb-hotline-beta-spec.md)
@@ -45,20 +45,20 @@ Purpose:
 - targeted conference signaling per participant
 
 ### Operator frontend additionally owns in Beta
-- responding to caller availability discovery when locally eligible
+- responding to citizen availability discovery when locally eligible
 - claiming the call request as the first available operator
 - making Hotline backend requests that persist call-attempt and answer/decline state
 - publishing the authoritative Realtime call-state events after backend persistence succeeds
 
-### Caller frontend additionally owns in Beta
+### Citizen frontend additionally owns in Beta
 - broadcasting operator availability discovery
 - requesting a selected available operator through Realtime
 - reacting to authoritative operator-published call-state events
 
 Important Beta constraint:
-- after the caller starts a call request, call-state progression should be driven by Realtime events
-- caller-side polling must not be the normal progression path
-- caller-side server traffic should stay minimized because callers may have fragile Wi-Fi connectivity
+- after the citizen starts a call request, call-state progression should be driven by Realtime events
+- citizen-side polling must not be the normal progression path
+- citizen-side server traffic should stay minimized because citizens may have fragile Wi-Fi connectivity
 - persistence requests should be made from the operator side whenever feasible
 
 ## 2. Room Taxonomy
@@ -97,12 +97,13 @@ Frontend must never self-issue trust.
 
 Admission is always backend-issued.
 
-### Caller admission endpoint
-- `POST /api/realtime/admission/caller`
+### Citizen admission endpoint
+- canonical: `POST /api/realtime/admission/citizen`
+- legacy compatibility: `POST /api/realtime/admission/caller`
 
 Use when:
-- caller enters live call
-- caller enters incident chat during live call
+- citizen enters live call
+- citizen enters incident chat during live call
 
 ### Operator admission endpoint
 - `POST /api/realtime/admission/operator`
@@ -124,7 +125,7 @@ Suggested logical capability buckets:
 - `attachments.publish`
 - `attachments.receive`
 
-### Caller capability guidance
+### Citizen capability guidance
 - join current incident chat room
 - join current call session room
 - publish/receive chat during live call
@@ -167,8 +168,8 @@ Canonical runtime states:
 - `reauth_required`
 
 Availability response rule in Beta:
-- `caller.operator.available.response` must come from the operator side
-- the first eligible operator to respond claims the caller request
+- `citizen.operator.available.response` must come from the operator side
+- the first eligible operator to respond claims the citizen request
 - eligibility is evaluated locally on the operator side from:
   - logged in
   - online
@@ -177,43 +178,48 @@ Availability response rule in Beta:
 
 ## 6. New Call Flow
 
-1. caller passes Device Primer + green home-state gating
-2. caller broadcasts `caller.operator.available.request`
-3. first eligible operator responds `caller.operator.available.response`
-4. caller issues `caller.call.request` targeting that operator
+1. citizen passes Device Primer + green home-state gating
+2. citizen broadcasts `citizen.operator.available.request`
+3. first eligible operator responds `citizen.operator.available.response`
+4. citizen issues `citizen.call.request` targeting that operator
 5. target operator receives the request and calls Hotline backend to create:
    - `call_attempt`
    - `call_attempt_operator_attempt`
-6. after persistence succeeds, operator publishes `caller.call.ringing`
-7. caller receives `caller.call.ringing` and shows the ringing / calling modal
+6. after persistence succeeds, operator publishes `citizen.call.ringing`
+7. citizen receives `citizen.call.ringing` and shows the ringing / calling modal
 8. operator shows the incoming-call modal for the same attempt
-9. if caller cancels before answer:
-   - caller publishes `caller.call.cancel`
+9. if citizen cancels before answer:
+   - citizen publishes `citizen.call.cancel`
    - operator persists the cancellation outcome in Hotline backend
-   - operator publishes `caller.call.cancelled`
+   - operator publishes `citizen.call.cancelled`
 10. if operator declines:
    - operator persists declined outcome in Hotline backend
-   - operator publishes `caller.call.declined`
+   - operator publishes `citizen.call.declined`
 11. if operator answers:
    - operator persists answered outcome
    - operator creates:
      - incident
      - first `call_session`
-   - operator publishes `caller.call.answered`
-12. caller receives `caller.call.answered`, renders active call UI, and requests admission for:
+   - operator publishes `citizen.call.answered`
+12. citizen receives `citizen.call.answered`, renders active call UI, and requests admission for:
    - `chat.thread.incident.{incidentId}`
    - `call.session.{callSessionId}`
 13. operator opens workbench and requests admission for the same rooms
 
 Critical rule:
 - new-call persistence is operator-driven in Beta
-- caller does not directly create or mutate Hotline business records during the new-call handshake
-- Realtime is the caller-facing progression path after the request is sent
+- citizen does not directly create or mutate Hotline business records during the new-call handshake
+- Realtime is the citizen-facing progression path after the request is sent
+
+Compatibility rule:
+- during the caller-to-citizen refactor, Hotline clients accept both `citizen.*` and legacy `caller.*` call-state events
+- Hotline-owned publishers should emit `citizen.*` events
+- payloads should include canonical `citizen_id` / `citizen_name` fields and temporary legacy `caller_id` / `caller_name` aliases where that helps deployed clients
 
 ## 7. Reconnect Flow
 
-1. caller presses `Resume Call`
-2. caller targets the currently assigned operator through Realtime
+1. citizen presses `Resume Call`
+2. citizen targets the currently assigned operator through Realtime
 3. assigned operator verifies local eligibility:
    - in runtime state `available`, or
    - in runtime state `engaged` on this same incident
@@ -224,7 +230,7 @@ Critical rule:
    - operator calls Hotline backend to create new `call_session`
    - operator publishes reconnect ringing state
 6. when operator answers:
-   - operator publishes `caller.call.answered`
+   - operator publishes `citizen.call.answered`
    - both sides keep using the same incident chat room
    - both sides join the new `call.session.{callSessionId}` room
 
@@ -305,7 +311,7 @@ Rules:
 - accepted transfer can become a temporary small conference
 - assigned operator switches to the new operator immediately
 - old operator may remain briefly for handoff
-- caller may hear both operators during overlap
+- citizen may hear both operators during overlap
 
 Future:
 - keep channel/join model ready for later invite function
@@ -313,10 +319,10 @@ Future:
 
 ## 12. Media Capture Boundary
 
-Caller-side resource consumption should stay minimized.
+Citizen-side resource consumption should stay minimized.
 
 Current Beta capture strategy:
-- operator terminal streams operator audio and caller audio/video toward Hotline server
+- operator terminal streams operator audio and citizen audio/video toward Hotline server
 - transport may use Realtime websocket/signaling path as appropriate
 - media chunks are saved in near real time
 - on call end, server merges chunks into final media files
@@ -326,7 +332,7 @@ Artifact rule:
 - final audio artifacts must be created per peer per call session
 - do not collapse multiple operator voices into one session-level operator audio file
 - this is required for isolated playback during transfer overlap and future multi-peer participation
-- caller video may remain a separate caller video artifact when present
+- citizen video may remain a separate citizen video artifact when present
 
 ## 13. Settings Live-Update Events
 
@@ -348,14 +354,19 @@ Client rule:
 Suggested logical event families for Beta:
 - `hotline.settings.updated`
 - `hotline.alert_level.changed`
-- `caller.operator.available.request`
-- `caller.operator.available.response`
-- `caller.call.request`
-- `caller.call.ringing`
-- `caller.call.cancel`
-- `caller.call.cancelled`
-- `caller.call.declined`
-- `caller.call.answered`
+- `citizen.operator.available.request`
+- `citizen.operator.available.response`
+- `citizen.call.request`
+- `citizen.call.ringing`
+- `citizen.call.cancel`
+- `citizen.call.cancelled`
+- `citizen.call.declined`
+- `citizen.call.answered`
+- `citizen.call.ready`
+- `citizen.location.updated`
+- `citizen.reconnect.request`
+- `citizen.reconnect.ringing`
+- `citizen.reconnect.failed`
 - `hotline.transfer.requested`
 - `hotline.transfer.accepted`
 - `hotline.transfer.rejected`
@@ -364,59 +375,67 @@ Suggested logical event families for Beta:
 
 These names are guidance for app-owned event normalization, not a claim about gateway-owned built-in event names.
 
+Legacy `caller.*` equivalents are accepted temporarily while deployed Hotline clients finish migrating. Realtime service examples and fixtures should prefer `citizen.*` once this Hotline compatibility layer is deployed.
+
 ### Call Event Payload Guidance
 
-#### `caller.operator.available.request`
+#### `citizen.operator.available.request`
 ```json
 {
+  "citizen_id": 18,
   "caller_id": 18
 }
 ```
 
-#### `caller.operator.available.response`
+#### `citizen.operator.available.response`
 ```json
 {
+  "citizen_id": 18,
   "caller_id": 18,
   "operator_id": 7,
   "responded_at": "2026-04-12T09:00:00+08:00"
 }
 ```
 
-#### `caller.call.request`
+#### `citizen.call.request`
 ```json
 {
+  "citizen_id": 18,
   "caller_id": 18,
   "operator_id": 7
 }
 ```
 
-#### `caller.call.ringing`
+#### `citizen.call.ringing`
 ```json
 {
   "call_attempt_id": 401,
   "call_attempt_operator_attempt_id": 990,
+  "citizen_id": 18,
   "caller_id": 18,
   "operator_id": 7,
   "requested_at": "2026-04-12T09:00:04+08:00"
 }
 ```
 
-#### `caller.call.cancel`
+#### `citizen.call.cancel`
 ```json
 {
   "call_attempt_id": 401,
   "call_attempt_operator_attempt_id": 990,
+  "citizen_id": 18,
   "caller_id": 18,
   "operator_id": 7,
   "cancelled_at": "2026-04-12T09:00:07+08:00"
 }
 ```
 
-#### `caller.call.cancelled`
+#### `citizen.call.cancelled`
 ```json
 {
   "call_attempt_id": 401,
   "call_attempt_operator_attempt_id": 990,
+  "citizen_id": 18,
   "caller_id": 18,
   "operator_id": 7,
   "outcome": "cancelled_by_caller",
@@ -424,11 +443,12 @@ These names are guidance for app-owned event normalization, not a claim about ga
 }
 ```
 
-#### `caller.call.declined`
+#### `citizen.call.declined`
 ```json
 {
   "call_attempt_id": 401,
   "call_attempt_operator_attempt_id": 990,
+  "citizen_id": 18,
   "caller_id": 18,
   "operator_id": 7,
   "outcome": "declined_by_operator",
@@ -436,7 +456,7 @@ These names are guidance for app-owned event normalization, not a claim about ga
 }
 ```
 
-#### `caller.call.answered`
+#### `citizen.call.answered`
 ```json
 {
   "call_attempt_id": 401,
@@ -445,18 +465,19 @@ These names are guidance for app-owned event normalization, not a claim about ga
   "chat_room": "chat.thread.incident.16",
   "call_room": "call.session.31",
   "call_session_id": 31,
+  "citizen_id": 18,
   "caller_id": 18,
   "operator_id": 7,
   "answered_at": "2026-04-12T09:00:12+08:00"
 }
 ```
 
-Caller and operator should treat operator-published terminal call events as authoritative because those events are emitted only after Hotline backend persistence succeeds.
+Citizen and operator should treat operator-published terminal call events as authoritative because those events are emitted only after Hotline backend persistence succeeds.
 
 ## 15. Error / Recovery Notes
 
 If Realtime local runtime is degraded:
-- caller/operator app should surface clear failure state
+- citizen/operator app should surface clear failure state
 - no browser-side trust minting fallback is allowed
 - Hotline should preserve business-state correctness even when live transport is interrupted
 

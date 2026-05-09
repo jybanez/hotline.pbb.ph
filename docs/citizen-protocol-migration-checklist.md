@@ -208,7 +208,7 @@ Legend:
 ## Docs and OpenAPI
 
 - [ ] Update `docs/pbb-hotline-beta-contracts.md` roles from caller to citizen after behavior exists.
-- [ ] Update `docs/pbb-hotline-beta-realtime-spec.md` with citizen events and caller decommission notes.
+- [x] Update `docs/pbb-hotline-beta-realtime-spec.md` with citizen events and caller decommission notes.
 - [ ] Update `docs/pbb-hotline-beta-api-inventory.md` with citizen routes and fields.
 - [ ] Update `docs/pbb-hotline-beta-schema-draft.md` with migration notes.
 - [ ] Update `docs/hotline-helper-mapping.md` from caller surface to citizen surface.
