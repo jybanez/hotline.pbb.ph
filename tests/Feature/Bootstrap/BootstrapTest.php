@@ -25,6 +25,15 @@ class BootstrapTest extends TestCase
             ])
             ->assertJsonStructure(['csrf_token'])
             ->assertJsonPath('session_lifetime_minutes', 15)
+            ->assertJsonPath('suite.brand.name', 'PBB Emergency Response Suite')
+            ->assertJsonPath('suite.brand.short_name', 'PBB Response')
+            ->assertJsonPath('suite.brand.host', 'hotline.pbb.ph')
+            ->assertJsonPath('suite.current_module.id', 'hotline')
+            ->assertJsonPath('suite.modules.0.id', 'hotline')
+            ->assertJsonPath('suite.modules.1.id', 'incidents')
+            ->assertJsonPath('suite.modules.2.id', 'resources')
+            ->assertJsonPath('suite.modules.3.id', 'teams')
+            ->assertJsonPath('suite.modules.4.id', 'command')
             ->assertJsonPath('settings.call_hold_seconds', 3)
             ->assertJsonPath('settings.call_timeout_seconds', 20)
             ->assertJsonPath('settings.reconnect_timeout_seconds', 20);
@@ -42,6 +51,7 @@ class BootstrapTest extends TestCase
             ->assertOk()
             ->assertJsonPath('authenticated', true)
             ->assertJsonPath('surface', 'operator')
+            ->assertJsonPath('suite.current_module.id', 'incidents')
             ->assertJsonPath('user.role', UserRole::Operator->value)
             ->assertJsonPath('session_lifetime_minutes', (int) config('session.critical_lifetime'));
     }

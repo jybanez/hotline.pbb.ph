@@ -1084,6 +1084,12 @@ function mountSurfaceChrome(root, surface, bootstrap) {
     const currentRoleHome = bootstrap.authenticated ? roleHome(bootstrap.user?.role) : '/';
     const items = dedupeNavItems(appState.runtime.navbarItems ?? []);
     const activeId = appState.runtime.navbarActiveId ?? (surface === 'public' ? 'public' : (bootstrap.user?.role ?? surface));
+    const suiteBrand = bootstrap?.suite?.brand ?? {};
+    const currentModule = bootstrap?.suite?.current_module ?? null;
+    const brandText = String(suiteBrand.name ?? '').trim() || 'PBB Emergency Response Suite';
+    const brandHost = String(suiteBrand.host ?? '').trim() || 'hotline.pbb.ph';
+    const moduleLabel = String(currentModule?.label ?? '').trim();
+    const brandSubtitle = moduleLabel ? `${moduleLabel} | ${brandHost}` : brandHost;
 
     const actions = bootstrap.authenticated
         ? [
@@ -1105,8 +1111,8 @@ function mountSurfaceChrome(root, surface, bootstrap) {
         }];
 
     appState.helper.navbar = appState.helper.createNavbar(navHost, {}, {
-        brandText: 'PBB Hotline Beta',
-        brandSubtitle: 'hotline.pbb.ph',
+        brandText,
+        brandSubtitle,
         activeId,
         items,
         actions,
@@ -3982,4 +3988,3 @@ export {
     trackSurfaceInstance,
     wirePrimer,
 };
-
