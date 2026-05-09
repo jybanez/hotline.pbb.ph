@@ -21,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->alias([
+            'legacy.caller' => \App\Http\Middleware\LogLegacyCallerRouteUsage::class,
             'role' => \App\Http\Middleware\EnsureRole::class,
         ]);
     })
