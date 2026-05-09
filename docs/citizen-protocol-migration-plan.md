@@ -161,6 +161,7 @@ Compatibility rule:
 Known caller-shaped Realtime event families:
 - `caller.operator.available.request`
 - `caller.operator.available.response`
+- `caller.operator.availability.probe`
 - `caller.call.request`
 - `caller.call.ringing`
 - `caller.call.cancel`
@@ -168,8 +169,34 @@ Known caller-shaped Realtime event families:
 - `caller.call.declined`
 - `caller.call.answered`
 - `caller.call.ready`
+- `caller.call.timed_out`
 - `caller.location.updated`
 - `caller.reconnect.*`
+
+Canonical citizen Realtime event mapping:
+
+| Legacy event | Citizen event |
+| --- | --- |
+| `caller.operator.available.request` | `citizen.operator.available.request` |
+| `caller.operator.available.response` | `citizen.operator.available.response` |
+| `caller.operator.availability.probe` | `citizen.operator.availability.probe` |
+| `caller.call.request` | `citizen.call.request` |
+| `caller.call.ringing` | `citizen.call.ringing` |
+| `caller.call.cancel` | `citizen.call.cancel` |
+| `caller.call.cancelled` | `citizen.call.cancelled` |
+| `caller.call.declined` | `citizen.call.declined` |
+| `caller.call.answered` | `citizen.call.answered` |
+| `caller.call.ready` | `citizen.call.ready` |
+| `caller.call.timed_out` | `citizen.call.timed_out` |
+| `caller.location.updated` | `citizen.location.updated` |
+| `caller.reconnect.availability.request` | `citizen.reconnect.availability.request` |
+| `caller.reconnect.availability.response` | `citizen.reconnect.availability.response` |
+| `caller.reconnect.request` | `citizen.reconnect.request` |
+| `caller.reconnect.ringing` | `citizen.reconnect.ringing` |
+| `caller.reconnect.cancel` | `citizen.reconnect.cancel` |
+| `caller.reconnect.cancelled` | `citizen.reconnect.cancelled` |
+| `caller.reconnect.declined` | `citizen.reconnect.declined` |
+| `caller.reconnect.answered` | `citizen.reconnect.answered` |
 
 Known caller-shaped signal/payload fields:
 - `caller_id`
