@@ -24,7 +24,7 @@ class IncidentWorkbenchTest extends TestCase
     public function test_operator_can_list_and_open_owned_incident_workbench(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $operator = User::factory()->create([
@@ -61,7 +61,7 @@ class IncidentWorkbenchTest extends TestCase
     public function test_operator_incident_payload_includes_current_call_session(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $operator = User::factory()->create([
@@ -116,7 +116,7 @@ class IncidentWorkbenchTest extends TestCase
     public function test_operator_cannot_open_another_operators_incident(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $owner = User::factory()->create([
@@ -146,7 +146,7 @@ class IncidentWorkbenchTest extends TestCase
     public function test_resolve_is_blocked_when_team_assignments_are_still_open(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $operator = User::factory()->create([
@@ -201,7 +201,7 @@ class IncidentWorkbenchTest extends TestCase
     public function test_operator_can_defer_or_resolve_incident_when_rules_allow(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $operator = User::factory()->create([
@@ -242,7 +242,7 @@ class IncidentWorkbenchTest extends TestCase
     public function test_operator_can_update_actual_caller_fields(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $operator = User::factory()->create([
@@ -281,7 +281,7 @@ class IncidentWorkbenchTest extends TestCase
     public function test_operator_can_update_caller_address_fields(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $operator = User::factory()->create([
@@ -328,7 +328,7 @@ class IncidentWorkbenchTest extends TestCase
     public function test_operator_can_update_initial_intake_fields_in_one_request(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $operator = User::factory()->create([

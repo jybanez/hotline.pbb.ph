@@ -25,7 +25,7 @@ class AnswerCallAttemptTest extends TestCase
     public function test_answering_routed_call_creates_incident_and_first_call_session(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $operator = User::factory()->create([
@@ -57,7 +57,7 @@ class AnswerCallAttemptTest extends TestCase
     public function test_operator_can_mark_active_call_session_ready(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $operator = User::factory()->create([
@@ -92,7 +92,7 @@ class AnswerCallAttemptTest extends TestCase
     public function test_operator_ready_can_use_precise_gate_lift_timestamp(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $operator = User::factory()->create([

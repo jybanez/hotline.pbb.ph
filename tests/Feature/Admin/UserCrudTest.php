@@ -86,7 +86,7 @@ class UserCrudTest extends TestCase
         ]);
 
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $operator = User::factory()->create([
@@ -118,7 +118,7 @@ class UserCrudTest extends TestCase
         ]);
 
         $user = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $this->actingAs($admin)

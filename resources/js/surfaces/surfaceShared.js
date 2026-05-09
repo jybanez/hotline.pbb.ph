@@ -166,8 +166,9 @@ function availabilityPillClass(status) {
 
 function roleHome(role) {
     switch (role) {
+        case 'citizen':
         case 'caller':
-            return '/caller';
+            return '/citizen';
         case 'operator':
             return '/operator';
         case 'admin':
@@ -342,14 +343,14 @@ function isCriticalSession() {
 
     return Boolean(
         appState.bootstrap?.authenticated
-        && ['caller', 'operator', 'command'].includes(role),
+        && ['citizen', 'caller', 'operator', 'command'].includes(role),
     );
 }
 
 function isCallerSession() {
     return Boolean(
         appState.bootstrap?.authenticated
-        && appState.bootstrap?.user?.role === 'caller',
+        && ['citizen', 'caller'].includes(appState.bootstrap?.user?.role),
     );
 }
 
@@ -357,11 +358,11 @@ function criticalSessionSurface() {
     const surface = String(appState.activeSurface ?? appState.bootstrap?.surface ?? '').trim();
     const role = String(appState.bootstrap?.user?.role ?? '').trim();
 
-    if (['caller', 'operator', 'command'].includes(surface)) {
+    if (['citizen', 'caller', 'operator', 'command'].includes(surface)) {
         return surface;
     }
 
-    if (['caller', 'operator', 'command'].includes(role)) {
+    if (['citizen', 'caller', 'operator', 'command'].includes(role)) {
         return role;
     }
 
@@ -966,12 +967,12 @@ function resetSurfaceRuntime(nextSurface = null) {
         appState.runtime.sessionWatcherTimer = null;
     }
 
-    if (nextSurface !== 'caller' && appState.runtime.callerRealtimeStream) {
+    if (!['citizen', 'caller'].includes(nextSurface) && appState.runtime.callerRealtimeStream) {
         appState.runtime.callerRealtimeStream.destroy?.();
         appState.runtime.callerRealtimeStream = null;
     }
 
-    if (nextSurface !== 'caller' && appState.runtime.callerCameraStream instanceof MediaStream) {
+    if (!['citizen', 'caller'].includes(nextSurface) && appState.runtime.callerCameraStream instanceof MediaStream) {
         appState.runtime.callerCameraStream.getTracks().forEach((track) => {
             try {
                 track.stop();
@@ -1001,7 +1002,7 @@ function resetSurfaceRuntime(nextSurface = null) {
     appState.runtime.operatorDiscoveryClaimed = false;
     appState.runtime.operatorIncomingCallItem = null;
 
-    if (nextSurface !== 'caller' && typeof appState.runtime.callerSpeechPrimerCleanup === 'function') {
+    if (!['citizen', 'caller'].includes(nextSurface) && typeof appState.runtime.callerSpeechPrimerCleanup === 'function') {
         appState.runtime.callerSpeechPrimerCleanup();
         appState.runtime.callerSpeechPrimerCleanup = null;
     }
@@ -1425,12 +1426,12 @@ function buildDevicePrimerPayload(report) {
             id: item.key,
             kind: item.key,
             label: item.label,
-            description: item.key === 'speechSynthesis' && report.surface === 'caller'
+            description: item.key === 'speechSynthesis' && ['citizen', 'caller'].includes(report.surface)
                 ? 'Needed for spoken alert updates. Some browsers require a tap before voice alerts can play.'
                 : item.severity === 'blocking'
                     ? 'Required for baseline hotline operation.'
                     : 'Optional in Phase 1 but recommended when available.',
-            required: report.surface === 'caller' ? true : item.severity === 'blocking',
+            required: ['citizen', 'caller'].includes(report.surface) ? true : item.severity === 'blocking',
         })),
     };
 }
@@ -1503,11 +1504,11 @@ async function openDevicePrimerModal(surface, report, forceOpen = false) {
         blockUntilReady: false,
         showSummary: false,
         autoCloseOnReady: false,
-        mode: surface === 'caller' ? 'compact' : 'cards',
+        mode: ['citizen', 'caller'].includes(surface) ? 'compact' : 'cards',
         closeOnBackdrop: true,
         closeOnEscape: true,
         onRetry(check) {
-            if (surface !== 'caller') {
+            if (!['citizen', 'caller'].includes(surface)) {
                 return;
             }
 
@@ -1523,7 +1524,7 @@ async function openDevicePrimerModal(surface, report, forceOpen = false) {
         },
         onCheckComplete(check, state) {
             if (
-                surface !== 'caller'
+                !['citizen', 'caller'].includes(surface)
                 || String(check?.kind ?? '').toLowerCase() !== 'speechsynthesis'
                 || appState.runtime.callerSpeechPrimed
             ) {
@@ -1554,7 +1555,7 @@ async function openDevicePrimerModal(surface, report, forceOpen = false) {
             const checks = Array.isArray(state?.checks) ? state.checks : [];
             const allChecksReady = checks.length > 0
                 && checks.every((check) => String(check?.status ?? '').toLowerCase() === 'ready');
-            const callerSpeechReady = surface !== 'caller' || appState.runtime.callerSpeechPrimed;
+            const callerSpeechReady = !['citizen', 'caller'].includes(surface) || appState.runtime.callerSpeechPrimed;
 
             if (state?.allComplete && allChecksReady && callerSpeechReady) {
                 helper.primerModal?.close?.({ reason: 'device-primer-ready' });
@@ -1597,7 +1598,7 @@ function syncDevicePrimerReport(surface, report, state) {
         status: blockingFailed.length > 0 ? 'blocked' : (warnings.length > 0 ? 'warning' : 'ready'),
     };
 
-    if (surface === 'caller') {
+    if (['citizen', 'caller'].includes(surface)) {
         appState.runtime.callerPrimerReport = nextReport;
         refreshCallerPrimerStatusButton(nextReport);
     }
@@ -1739,7 +1740,7 @@ function wirePrimer(root, report) {
         void openDevicePrimerModal(report.surface, report, true);
     });
 
-    const callerNeedsSpeechPrime = report.surface === 'caller'
+    const callerNeedsSpeechPrime = ['citizen', 'caller'].includes(report.surface)
         && report.warnings.some((item) => item.key === 'speechSynthesis');
 
     if (report.surface === 'operator' && !appState.runtime.operatorPrimerAutoOpened) {
@@ -3820,7 +3821,11 @@ function handleCommandBroadcastEnvelope(envelope) {
 
     const targetRoles = normalizeBroadcastTargetRoles(payload?.target_roles);
 
-    if (targetRoles.length && !targetRoles.includes(currentRole)) {
+    const currentRoleAliases = ['citizen', 'caller'].includes(currentRole)
+        ? ['citizen', 'caller']
+        : [currentRole];
+
+    if (targetRoles.length && !targetRoles.some((role) => currentRoleAliases.includes(role))) {
         return true;
     }
 
@@ -3874,7 +3879,7 @@ function normalizeBroadcastTargetRoles(value) {
     return Array.from(new Set(
         value
             .map((item) => String(item ?? '').trim().toLowerCase())
-            .filter((item) => ['caller', 'operator'].includes(item))
+            .filter((item) => ['citizen', 'caller', 'operator'].includes(item))
     ));
 }
 

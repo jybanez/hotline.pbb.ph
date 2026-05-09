@@ -182,7 +182,7 @@ class IncidentPayloadBuilder
             'teamAssignments.notes.createdByOperator',
         );
 
-        $isCallerViewer = $viewer?->role === UserRole::Caller;
+        $isCallerViewer = $viewer?->role?->isCitizen() ?? false;
         $sortedCallSessions = $incident->callSessions
             ->sortBy('created_at')
             ->values();

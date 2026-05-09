@@ -16,7 +16,7 @@ class AvailabilityTest extends TestCase
     public function test_operator_dashboard_reports_engaged_when_operator_has_active_incident(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $operator = User::factory()->create([
@@ -45,7 +45,7 @@ class AvailabilityTest extends TestCase
     public function test_operator_dashboard_exposes_transfer_targets_pending_transfers_and_incoming_calls(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $currentOperator = User::factory()->create([
@@ -105,7 +105,7 @@ class AvailabilityTest extends TestCase
     public function test_operator_dashboard_exposes_recent_operator_activity_items(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $operator = User::factory()->create([
@@ -179,7 +179,7 @@ class AvailabilityTest extends TestCase
     public function test_caller_home_turns_yellow_when_no_operators_are_available(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $operator = User::factory()->create([

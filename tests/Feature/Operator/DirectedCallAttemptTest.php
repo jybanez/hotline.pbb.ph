@@ -25,7 +25,7 @@ class DirectedCallAttemptTest extends TestCase
     public function test_operator_can_create_directed_call_attempt_when_realtime_selected_them(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $operator = User::factory()->create([

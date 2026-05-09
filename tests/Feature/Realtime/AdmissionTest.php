@@ -28,7 +28,7 @@ class AdmissionTest extends TestCase
     public function test_caller_incident_chat_admission_returns_signed_realtime_payload(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
         $operator = User::factory()->create([
             'role' => UserRole::Operator,
@@ -65,7 +65,7 @@ class AdmissionTest extends TestCase
     public function test_caller_settings_stream_admission_returns_shared_settings_room(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $this->storeRealtimeSettings();
@@ -87,7 +87,7 @@ class AdmissionTest extends TestCase
     public function test_caller_call_session_admission_returns_incident_chat_and_call_session_rooms(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
         $operator = User::factory()->create([
             'role' => UserRole::Operator,
@@ -157,7 +157,7 @@ class AdmissionTest extends TestCase
     public function test_realtime_admission_requires_signing_secret_configuration(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
         $operator = User::factory()->create([
             'role' => UserRole::Operator,

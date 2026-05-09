@@ -17,10 +17,25 @@ class SurfaceAccessTest extends TestCase
             ->assertRedirect(route('public.home'));
     }
 
+    public function test_citizen_user_can_open_citizen_and_legacy_caller_surfaces(): void
+    {
+        $citizen = User::factory()->create([
+            'role' => UserRole::Citizen,
+        ]);
+
+        $this->actingAs($citizen)
+            ->get('/citizen')
+            ->assertOk();
+
+        $this->actingAs($citizen)
+            ->get('/caller')
+            ->assertOk();
+    }
+
     public function test_wrong_role_is_redirected_to_unauthorized_screen(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $this->actingAs($caller)
@@ -30,13 +45,13 @@ class SurfaceAccessTest extends TestCase
 
     public function test_authenticated_public_home_redirects_to_role_surface(): void
     {
-        $admin = User::factory()->create([
-            'role' => UserRole::Admin,
+        $citizen = User::factory()->create([
+            'role' => UserRole::Citizen,
         ]);
 
-        $this->actingAs($admin)
+        $this->actingAs($citizen)
             ->get('/')
-            ->assertRedirect('/admin');
+            ->assertRedirect('/citizen');
     }
 
     public function test_command_user_can_open_command_surface(): void

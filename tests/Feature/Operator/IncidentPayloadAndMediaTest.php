@@ -615,7 +615,7 @@ class IncidentPayloadAndMediaTest extends TestCase
     private function seedIncidentFixture(): array
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $operator = User::factory()->create([

@@ -22,7 +22,7 @@ class CallAttemptFlowTest extends TestCase
     public function test_caller_can_start_and_cancel_a_new_call_attempt_when_operator_is_available(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         User::factory()->create([
@@ -55,7 +55,7 @@ class CallAttemptFlowTest extends TestCase
     public function test_caller_can_mark_unanswered_call_attempt_as_timed_out(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         User::factory()->create([
@@ -82,7 +82,7 @@ class CallAttemptFlowTest extends TestCase
     public function test_caller_cannot_start_new_call_attempt_when_no_operator_is_available(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $this->actingAs($caller)

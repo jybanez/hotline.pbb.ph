@@ -26,7 +26,7 @@ class IncidentMessagePersistenceTest extends TestCase
     public function test_operator_can_persist_caller_and_operator_messages_for_owned_incident(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $operator = User::factory()->create([
@@ -93,11 +93,11 @@ class IncidentMessagePersistenceTest extends TestCase
     public function test_operator_cannot_persist_caller_message_for_different_caller(): void
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $otherCaller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $operator = User::factory()->create([
@@ -134,7 +134,7 @@ class IncidentMessagePersistenceTest extends TestCase
         Storage::fake('public');
 
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $operator = User::factory()->create([

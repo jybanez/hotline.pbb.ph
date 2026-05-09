@@ -1013,7 +1013,7 @@ async function openCommandBroadcastModal(root) {
                 {
                     type: 'checkbox',
                     name: 'target_callers',
-                    label: 'Callers',
+                    label: 'Citizens',
                 },
                 {
                     type: 'checkbox',
@@ -1050,7 +1050,7 @@ async function openCommandBroadcastModal(root) {
                 const targetRoles = [];
 
                 if (values?.target_callers) {
-                    targetRoles.push('caller');
+                    targetRoles.push('citizen');
                 }
 
                 if (values?.target_operators) {
@@ -1170,7 +1170,7 @@ async function confirmCommandAlertLevelChange(currentAlertLevel, nextAlertLevel)
     if (nextAlertLevel === 'Critical') {
         return appState.helper.uiConfirm('Set command alert level to Critical?', {
             title: 'Confirm Critical Alert',
-            description: 'All connected command, operator, and caller surfaces will receive the alert-level update.',
+            description: 'All connected command, operator, and citizen surfaces will receive the alert-level update.',
             confirmText: 'Set Critical',
             cancelText: 'Cancel',
             variant: 'warning',
@@ -1180,7 +1180,7 @@ async function confirmCommandAlertLevelChange(currentAlertLevel, nextAlertLevel)
     if (currentAlertLevel === 'Critical') {
         return appState.helper.uiConfirm(`Lower alert level from Critical to ${nextAlertLevel}?`, {
             title: 'Confirm Alert Downgrade',
-            description: 'All connected command, operator, and caller surfaces will receive the alert-level update.',
+            description: 'All connected command, operator, and citizen surfaces will receive the alert-level update.',
             confirmText: `Set ${nextAlertLevel}`,
             cancelText: 'Cancel',
             variant: 'warning',

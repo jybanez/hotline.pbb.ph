@@ -1,7 +1,8 @@
-const CACHE_VERSION = 'caller-pwa-v4';
+const CACHE_VERSION = 'citizen-pwa-v1';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 
 const STATIC_PATHS = [
+    '/citizen/offline',
     '/caller/offline',
     '/caller.webmanifest',
     '/images/logo.png',
@@ -30,7 +31,7 @@ self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys().then((keys) => Promise.all(
             keys
-                .filter((key) => key.startsWith('caller-pwa-') && key !== STATIC_CACHE)
+                .filter((key) => (key.startsWith('caller-pwa-') || key.startsWith('citizen-pwa-')) && key !== STATIC_CACHE)
                 .map((key) => caches.delete(key)),
         )),
     );

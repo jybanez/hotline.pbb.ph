@@ -139,7 +139,7 @@ class FinalizeStaleCallMediaCommandTest extends TestCase
     private function seedEndedCallFixture(): array
     {
         $caller = User::factory()->create([
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
         ]);
 
         $operator = User::factory()->create([

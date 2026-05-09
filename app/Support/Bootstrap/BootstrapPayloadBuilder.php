@@ -79,7 +79,7 @@ class BootstrapPayloadBuilder
             ];
         }
 
-        if ($surface === 'caller' && $user?->role === UserRole::Caller) {
+        if (in_array($surface, ['citizen', 'caller'], true) && $user?->role?->isCitizen()) {
             return $this->callerHomePayloadBuilder->build($user);
         }
 

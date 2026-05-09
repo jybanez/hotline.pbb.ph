@@ -80,7 +80,7 @@ class SessionTest extends TestCase
         $user = User::factory()->create([
             'email' => 'caller@example.test',
             'password' => Hash::make('secret-password'),
-            'role' => UserRole::Caller,
+            'role' => UserRole::Citizen,
             'status' => UserStatus::Active,
             'remember_token' => null,
         ]);
@@ -91,8 +91,8 @@ class SessionTest extends TestCase
         ])
             ->assertOk()
             ->assertJsonPath('ok', true)
-            ->assertJsonPath('user.role', UserRole::Caller->value)
-            ->assertJsonPath('redirect_to', '/caller')
+            ->assertJsonPath('user.role', UserRole::Citizen->value)
+            ->assertJsonPath('redirect_to', '/citizen')
             ->assertJsonPath('session_lifetime_minutes', (int) config('session.critical_lifetime'));
 
         $this->assertNotNull($user->fresh()->remember_token);
