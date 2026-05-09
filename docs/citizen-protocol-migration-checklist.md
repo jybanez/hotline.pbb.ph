@@ -170,12 +170,12 @@ Legend:
 
 ## Helper Integration
 
-- [ ] Rename Hotline-owned `callerBootstrapAdapter()` to a citizen-named adapter.
-- [ ] Rename Hotline-owned `startCallAdapter()` if its caller meaning is public-user specific.
-- [ ] Rename Hotline-owned `reconnectCallAdapter()` if its caller meaning is public-user specific.
-- [ ] Keep caller-named adapter aliases only until the refactor is complete.
-- [ ] Update Helper-facing adapter payloads to emit citizen canonical fields.
-- [ ] Update Helper-facing adapter payloads to accept legacy caller fields.
+- [x] Rename Hotline-owned `callerBootstrapAdapter()` to a citizen-named adapter.
+- [x] Rename Hotline-owned `startCallAdapter()` if its caller meaning is public-user specific.
+- [x] Rename Hotline-owned `reconnectCallAdapter()` if its caller meaning is public-user specific.
+- [x] Keep caller-named adapter aliases only until the refactor is complete.
+- [x] Update Helper-facing adapter payloads to emit citizen canonical fields.
+- [x] Update Helper-facing adapter payloads to accept legacy caller fields.
 - [ ] Update Helper docs or proposals that still describe the public user as caller.
 - [ ] Refresh vendored Helper copy if upstream Helper changes are needed.
 - [ ] Smoke-test Helper-backed citizen chat, media viewer, forms, and call UI.
@@ -211,7 +211,7 @@ Legend:
 - [x] Update `docs/pbb-hotline-beta-realtime-spec.md` with citizen events and caller decommission notes.
 - [ ] Update `docs/pbb-hotline-beta-api-inventory.md` with citizen routes and fields.
 - [ ] Update `docs/pbb-hotline-beta-schema-draft.md` with migration notes.
-- [ ] Update `docs/hotline-helper-mapping.md` from caller surface to citizen surface.
+- [x] Update `docs/hotline-helper-mapping.md` from caller surface to citizen surface.
 - [ ] Update `docs/openapi/pbb-hotline-beta.yaml` with citizen API contracts.
 - [ ] Mark old caller docs as historical or deprecated instead of silently rewriting old architecture records.
 
