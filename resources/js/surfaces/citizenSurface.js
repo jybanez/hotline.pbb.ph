@@ -1042,7 +1042,7 @@ function scheduleCallerRingingTimeout(pending) {
 function rerenderCallerInPlace() {
     const root = appState.runtime.callerRoot;
     const home = appState.runtime.callerHome;
-    const primerReport = appState.runtime.callerPrimerReport ?? evaluateDevicePrimer('caller');
+    const primerReport = appState.runtime.callerPrimerReport ?? evaluateDevicePrimer('citizen');
 
     if (!root || !home) {
         return false;
@@ -1313,7 +1313,7 @@ async function connectCallerRealtimeStream(options = {}) {
                         return;
                     }
 
-                    void renderSurface('caller')
+                    void renderSurface('citizen')
                         .then(showAlertToast)
                         .catch(showAlertToast);
                     return;
@@ -3173,7 +3173,7 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
                     void (async () => {
                         clearCallerLiveHangupTimers();
                         await close();
-                        await renderSurface('caller');
+                        await renderSurface('citizen');
                     })();
                 }, CALLER_HANGUP_COMPLETE_TIMEOUT_MS);
 
@@ -3282,14 +3282,14 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
                     void (async () => {
                         clearCallerLiveHangupTimers();
                         await close();
-                        await renderSurface('caller');
+                        await renderSurface('citizen');
                     })();
                 },
                 onHangup() {
                     void (async () => {
                         clearCallerLiveHangupTimers();
                         await close();
-                        await renderSurface('caller');
+                        await renderSurface('citizen');
                     })();
                 },
             })
@@ -3475,16 +3475,16 @@ function renderCaller(root, bootstrap, home, primerReport) {
     };
     appState.runtime.navbarContentEnd = null;
     appState.runtime.navbarStatusContent = () => callerNavbarStatusContent(appState.runtime.callerPrimerReport ?? primerReport);
-    appState.runtime.navbarStatusContentLabel = 'Caller status';
+    appState.runtime.navbarStatusContentLabel = 'Citizen status';
 
     const content = renderCallerHomeContent(home, primerReport, bootstrap?.alert_level);
 
     root.innerHTML = sharedShell({
         title: 'Call for help',
-        kicker: 'Caller',
+        kicker: 'Citizen',
         statusLabel: '',
         content,
-        brandHref: '/caller',
+        brandHref: '/citizen',
         statusActions: '',
         showHero: false,
         shellClass: ['caller-shell', shellAlertToneClass].filter(Boolean).join(' '),
@@ -3492,7 +3492,7 @@ function renderCaller(root, bootstrap, home, primerReport) {
         toolbarClass: 'caller-toolbar',
     });
 
-    mountSurfaceChrome(root, 'caller', bootstrap);
+    mountSurfaceChrome(root, 'citizen', bootstrap);
     const signalHost = root.querySelector('[data-caller-inline-realtime-signal]');
 
     if (signalHost) {
@@ -3778,8 +3778,8 @@ function renderCaller(root, bootstrap, home, primerReport) {
 
 
 export async function renderCitizenSurface(root, bootstrap) {
-    const primerReport = evaluateDevicePrimer('caller');
-    const home = bootstrap?.surface_payload ?? await fetchJson('/api/caller/home');
+    const primerReport = evaluateDevicePrimer('citizen');
+    const home = bootstrap?.surface_payload ?? await fetchJson('/api/citizen/home');
     appState.runtime.callerRoot = root;
     appState.runtime.callerHome = home;
     appState.runtime.callerPrimerReport = primerReport;

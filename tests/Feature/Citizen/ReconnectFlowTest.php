@@ -21,9 +21,9 @@ class ReconnectFlowTest extends TestCase
         $this->withoutMiddleware(VerifyCsrfToken::class);
     }
 
-    public function test_caller_can_start_and_cancel_unanswered_reconnect(): void
+    public function test_citizen_can_start_and_cancel_unanswered_reconnect(): void
     {
-        $caller = User::factory()->create([
+        $citizen = User::factory()->create([
             'role' => UserRole::Citizen,
         ]);
 
@@ -32,8 +32,8 @@ class ReconnectFlowTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $caller->id,
-            'actual_caller_name' => $caller->name,
+            'caller_id' => $citizen->id,
+            'actual_caller_name' => $citizen->name,
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active->value,
             'alert_level' => 'Normal',
@@ -42,8 +42,8 @@ class ReconnectFlowTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $response = $this->actingAs($caller)
-            ->postJson("/api/caller/incidents/{$incidentId}/reconnect");
+        $response = $this->actingAs($citizen)
+            ->postJson("/api/citizen/incidents/{$incidentId}/reconnect");
 
         $response
             ->assertCreated()
@@ -55,12 +55,12 @@ class ReconnectFlowTest extends TestCase
 
         $this->assertDatabaseHas('call_participants', [
             'call_session_id' => $callSessionId,
-            'user_id' => $caller->id,
+            'user_id' => $citizen->id,
             'participant_role' => 'caller',
         ]);
 
-        $this->actingAs($caller)
-            ->postJson("/api/caller/call-sessions/{$callSessionId}/cancel")
+        $this->actingAs($citizen)
+            ->postJson("/api/citizen/call-sessions/{$callSessionId}/cancel")
             ->assertOk()
             ->assertJsonPath('ok', true)
             ->assertJsonPath('call_session.status', 'ended')
@@ -69,11 +69,11 @@ class ReconnectFlowTest extends TestCase
 
     public function test_reconnect_is_blocked_when_assigned_operator_is_busy_on_another_active_incident(): void
     {
-        $caller = User::factory()->create([
+        $citizen = User::factory()->create([
             'role' => UserRole::Citizen,
         ]);
 
-        $otherCaller = User::factory()->create([
+        $otherCitizen = User::factory()->create([
             'role' => UserRole::Citizen,
         ]);
 
@@ -82,8 +82,8 @@ class ReconnectFlowTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $caller->id,
-            'actual_caller_name' => $caller->name,
+            'caller_id' => $citizen->id,
+            'actual_caller_name' => $citizen->name,
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Deferred->value,
             'alert_level' => 'Normal',
@@ -93,8 +93,8 @@ class ReconnectFlowTest extends TestCase
         ]);
 
         DB::table('incidents')->insert([
-            'caller_id' => $otherCaller->id,
-            'actual_caller_name' => $otherCaller->name,
+            'caller_id' => $otherCitizen->id,
+            'actual_caller_name' => $otherCitizen->name,
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active->value,
             'alert_level' => 'Normal',
@@ -103,8 +103,8 @@ class ReconnectFlowTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $this->actingAs($caller)
-            ->postJson("/api/caller/incidents/{$incidentId}/reconnect")
+        $this->actingAs($citizen)
+            ->postJson("/api/citizen/incidents/{$incidentId}/reconnect")
             ->assertStatus(409)
             ->assertJsonPath('ok', false)
             ->assertJsonPath('message', 'Reconnect is blocked because the assigned operator is currently busy.');
@@ -114,7 +114,7 @@ class ReconnectFlowTest extends TestCase
 
     public function test_assigned_operator_can_answer_reconnect_session(): void
     {
-        $caller = User::factory()->create([
+        $citizen = User::factory()->create([
             'role' => UserRole::Citizen,
         ]);
 
@@ -123,8 +123,8 @@ class ReconnectFlowTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $caller->id,
-            'actual_caller_name' => $caller->name,
+            'caller_id' => $citizen->id,
+            'actual_caller_name' => $citizen->name,
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active->value,
             'alert_level' => 'Normal',
@@ -135,7 +135,7 @@ class ReconnectFlowTest extends TestCase
 
         $callSessionId = DB::table('call_sessions')->insertGetId([
             'incident_id' => $incidentId,
-            'caller_id' => $caller->id,
+            'caller_id' => $citizen->id,
             'status' => 'calling',
             'started_at' => now(),
             'created_at' => now(),
@@ -144,7 +144,7 @@ class ReconnectFlowTest extends TestCase
 
         DB::table('call_participants')->insert([
             'call_session_id' => $callSessionId,
-            'user_id' => $caller->id,
+            'user_id' => $citizen->id,
             'participant_role' => 'caller',
             'joined_at' => now(),
             'created_at' => now(),

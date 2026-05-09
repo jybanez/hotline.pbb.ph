@@ -21,23 +21,23 @@ class CitizenHomePayloadBuilder
     /**
      * @return array<string, mixed>
      */
-    public function build(User $caller): array
+    public function build(User $citizen): array
     {
         $currentIncident = Incident::query()
-            ->where('caller_id', $caller->id)
+            ->where('caller_id', $citizen->id)
             ->whereIn('status', [IncidentStatus::Active, IncidentStatus::Deferred])
             ->latest('id')
             ->first();
 
         $recentIncidents = Incident::query()
-            ->where('caller_id', $caller->id)
+            ->where('caller_id', $citizen->id)
             ->when($currentIncident, fn ($query) => $query->where('id', '!=', $currentIncident->id))
             ->latest('id')
             ->take(10)
             ->get();
 
         return [
-            'current_open_incident' => $currentIncident ? $this->incidentPayloads->buildWorkbenchPayload($currentIncident, $caller) : null,
+            'current_open_incident' => $currentIncident ? $this->incidentPayloads->buildWorkbenchPayload($currentIncident, $citizen) : null,
             'recent_incidents' => $this->incidentPayloads->buildHistoryList($recentIncidents),
             ...$this->incidentPayloads->buildWorkbenchLookups(),
             'availability' => $this->availability->callerAvailability(),

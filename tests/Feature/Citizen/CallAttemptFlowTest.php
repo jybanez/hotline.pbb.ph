@@ -19,9 +19,9 @@ class CallAttemptFlowTest extends TestCase
         $this->withoutMiddleware(VerifyCsrfToken::class);
     }
 
-    public function test_caller_can_start_and_cancel_a_new_call_attempt_when_operator_is_available(): void
+    public function test_citizen_can_start_and_cancel_a_new_call_attempt_when_operator_is_available(): void
     {
-        $caller = User::factory()->create([
+        $citizen = User::factory()->create([
             'role' => UserRole::Citizen,
         ]);
 
@@ -29,7 +29,7 @@ class CallAttemptFlowTest extends TestCase
             'role' => UserRole::Operator,
         ]);
 
-        $response = $this->actingAs($caller)->postJson('/api/caller/call-attempts', [
+        $response = $this->actingAs($citizen)->postJson('/api/citizen/call-attempts', [
             'caller_latitude' => 10.3306796,
             'caller_longitude' => 123.8279630,
         ]);
@@ -45,16 +45,16 @@ class CallAttemptFlowTest extends TestCase
 
         $this->assertDatabaseCount('incidents', 0);
 
-        $this->actingAs($caller)
-            ->postJson("/api/caller/call-attempts/{$attemptId}/cancel")
+        $this->actingAs($citizen)
+            ->postJson("/api/citizen/call-attempts/{$attemptId}/cancel")
             ->assertOk()
             ->assertJsonPath('attempt.status', 'ended')
             ->assertJsonPath('attempt.outcome', 'cancelled_by_caller');
     }
 
-    public function test_caller_can_mark_unanswered_call_attempt_as_timed_out(): void
+    public function test_citizen_can_mark_unanswered_call_attempt_as_timed_out(): void
     {
-        $caller = User::factory()->create([
+        $citizen = User::factory()->create([
             'role' => UserRole::Citizen,
         ]);
 
@@ -62,12 +62,12 @@ class CallAttemptFlowTest extends TestCase
             'role' => UserRole::Operator,
         ]);
 
-        $start = $this->actingAs($caller)->postJson('/api/caller/call-attempts');
+        $start = $this->actingAs($citizen)->postJson('/api/citizen/call-attempts');
         $attemptId = $start->json('attempt.id');
         $operatorAttemptId = $start->json('operator_attempt.id');
 
-        $this->actingAs($caller)
-            ->postJson("/api/caller/call-attempts/{$attemptId}/timeout")
+        $this->actingAs($citizen)
+            ->postJson("/api/citizen/call-attempts/{$attemptId}/timeout")
             ->assertOk()
             ->assertJsonPath('attempt.status', 'ended')
             ->assertJsonPath('attempt.outcome', 'timed_out');
@@ -79,14 +79,14 @@ class CallAttemptFlowTest extends TestCase
         ]);
     }
 
-    public function test_caller_cannot_start_new_call_attempt_when_no_operator_is_available(): void
+    public function test_citizen_cannot_start_new_call_attempt_when_no_operator_is_available(): void
     {
-        $caller = User::factory()->create([
+        $citizen = User::factory()->create([
             'role' => UserRole::Citizen,
         ]);
 
-        $this->actingAs($caller)
-            ->postJson('/api/caller/call-attempts')
+        $this->actingAs($citizen)
+            ->postJson('/api/citizen/call-attempts')
             ->assertStatus(409)
             ->assertJsonPath('ok', false);
     }

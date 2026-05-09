@@ -10,7 +10,7 @@
     <main style="min-height:100vh;display:grid;place-items:center;padding:1.5rem;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#061411;color:#ecfeff;text-align:center;">
         <section style="max-width:24rem;">
             <h1 style="font-size:1.35rem;margin:0 0 .6rem;">PBB Hotline</h1>
-            <p style="margin:0;color:#b7f3ea;line-height:1.45;">Reconnect to the internet to open the caller hotline.</p>
+            <p style="margin:0;color:#b7f3ea;line-height:1.45;">Reconnect to the internet to open the citizen emergency response surface.</p>
         </section>
     </main>
 </body>
