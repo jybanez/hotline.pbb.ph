@@ -105,10 +105,12 @@ class UserCrudTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->deleteJson("/api/admin/users/{$operator->id}")
+            ->deleteJson("/api/admin/users/{$caller->id}")
             ->assertStatus(409)
             ->assertJsonPath('ok', false)
-            ->assertJsonPath('references.0.table', 'incidents');
+            ->assertJsonPath('references.0.table', 'incidents')
+            ->assertJsonPath('references.0.column', 'caller_id')
+            ->assertJsonPath('references.0.label', 'Incidents as citizen');
     }
 
     public function test_admin_can_hard_delete_unreferenced_user(): void
