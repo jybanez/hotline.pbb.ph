@@ -2,7 +2,7 @@ import { appState, availabilityPillClass, clearCallerPendingState, createIconMar
 import { renderSurface } from './renderSurface.js';
 import { buildAppEventPublishPayload, buildPresenceSubscribePayload, buildRoomJoinPayload, listPresenceRosterItems, parseRealtimeEnvelope, reducePresenceRosterEvent, RealtimeSocketClient } from '../../../../realtime/resources/js/sdk/index.js';
 import { mountRealtimeSignalStrength } from '../features/realtimeSignalStrength.js';
-import { citizenEventType, legacyCallerEventType, withCitizenRealtimePayloadAliases } from '../realtime/citizenEvents.js';
+import { citizenEventType, isLegacyCallerRealtimeEvent, legacyCallerEventType, withCitizenRealtimePayloadAliases } from '../realtime/citizenEvents.js';
 
 const CALL_DISCOVERY_ROOM = 'presence.global.hotline';
 const INCIDENT_MEDIA_ROOM_PREFIX = 'hotline.media.incident.';
@@ -462,6 +462,26 @@ function publishCallerCallFlow(eventType, payload = {}) {
         CALL_DISCOVERY_ROOM,
         buildAppEventPublishPayload(citizenEventType(eventType), withCitizenRealtimePayloadAliases(payload)),
     );
+}
+
+function logLegacyCallerRealtimeEventUsage(envelope) {
+    const eventType = String(envelope?.type ?? '').trim();
+
+    if (!isLegacyCallerRealtimeEvent(eventType)) {
+        return;
+    }
+
+    void fetchJson('/api/realtime/legacy-caller-events', {
+        method: 'post',
+        data: {
+            surface: 'citizen',
+            event_type: eventType,
+            canonical_event_type: citizenEventType(eventType),
+            room: String(envelope?.room ?? '').trim() || null,
+        },
+    }).catch((error) => {
+        console.warn('Legacy caller Realtime event telemetry failed.', error);
+    });
 }
 
 function callerLocationEventContext() {
@@ -1319,6 +1339,8 @@ async function connectCallerRealtimeStream(options = {}) {
                         .catch(showAlertToast);
                     return;
                 }
+                logLegacyCallerRealtimeEventUsage(envelope);
+
                 const eventType = legacyCallerEventType(envelope?.type);
                 const eventRoom = String(envelope?.room ?? '').trim();
                 const payload = withCitizenRealtimePayloadAliases(envelope?.payload);
