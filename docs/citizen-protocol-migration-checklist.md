@@ -61,11 +61,11 @@ Legend:
 - [x] Legacy caller route access still works for compatible users.
 - [x] Session lifetime supports `HOTLINE_CITIZEN_SESSION_LIFETIME`.
 - [x] Session lifetime keeps `HOTLINE_CALLER_SESSION_LIFETIME` fallback compatibility.
-- [ ] Confirm all new seed users use `citizen`.
-- [ ] Confirm factories and test helpers default to `citizen` where appropriate.
-- [ ] Add migration or mapping plan for persisted users with role value `caller`.
-- [ ] Add deprecation note for the legacy `caller` role value.
-- [ ] Add tests for any role migration or alias behavior introduced in Phase 2.
+- [x] Confirm all new seed users use `citizen`.
+- [x] Confirm factories and test helpers default to `citizen` where appropriate.
+- [x] Add migration or mapping plan for persisted users with role value `caller`.
+- [x] Add deprecation note for the legacy `caller` role value.
+- [x] Add tests for any role migration or alias behavior introduced in Phase 2.
 
 ## Web Routes and PWA
 
