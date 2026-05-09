@@ -112,7 +112,7 @@ Legend:
 - [x] Add canonical `actual_citizen_relationship` request/response support.
 - [x] Add canonical `citizen_location` beside legacy `caller_location`.
 - [x] Add canonical `citizen_locations` beside legacy `caller_locations`.
-- [ ] Add canonical `missing_citizen_location_count` beside legacy `missing_caller_location_count`.
+- [x] Add canonical `missing_citizen_location_count` beside legacy `missing_caller_location_count`.
 - [x] Add canonical `citizen_phone_numbers` beside legacy `caller_phone_numbers`.
 - [x] Add canonical `citizens_assisted` beside legacy `callers_assisted`.
 - [~] Accept both citizen and caller request fields during compatibility.
@@ -132,7 +132,7 @@ Legend:
 - [ ] Switch writes after read compatibility exists.
 - [ ] Add rollback-safe migrations.
 - [ ] Defer destructive caller column/table removal until final decommission.
-- [ ] Update `BlockedDeleteInspectorService` labels to citizen-facing wording without breaking table checks.
+- [x] Update `BlockedDeleteInspectorService` labels to citizen-facing wording without breaking table checks.
 
 ## Realtime Admission
 

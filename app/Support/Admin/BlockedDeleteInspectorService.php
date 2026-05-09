@@ -22,12 +22,12 @@ class BlockedDeleteInspectorService
         $references = [];
 
         $map = [
-            ['table' => 'incidents', 'column' => 'caller_id', 'label' => 'Incidents as caller'],
+            ['table' => 'incidents', 'column' => 'caller_id', 'label' => 'Incidents as citizen'],
             ['table' => 'incidents', 'column' => 'operator_id', 'label' => 'Incidents as operator'],
-            ['table' => 'call_attempts', 'column' => 'caller_id', 'label' => 'Call attempts as caller'],
+            ['table' => 'call_attempts', 'column' => 'caller_id', 'label' => 'Call attempts as citizen'],
             ['table' => 'call_attempts', 'column' => 'answered_by_operator_id', 'label' => 'Answered call attempts'],
             ['table' => 'call_attempt_operator_attempts', 'column' => 'operator_id', 'label' => 'Operator ring attempts'],
-            ['table' => 'call_sessions', 'column' => 'caller_id', 'label' => 'Call sessions as caller'],
+            ['table' => 'call_sessions', 'column' => 'caller_id', 'label' => 'Call sessions as citizen'],
             ['table' => 'call_participants', 'column' => 'user_id', 'label' => 'Call session participants'],
             ['table' => 'incident_messages', 'column' => 'sender_id', 'label' => 'Incident messages'],
             ['table' => 'message_attachments', 'column' => 'uploaded_by', 'label' => 'Uploaded attachments'],
