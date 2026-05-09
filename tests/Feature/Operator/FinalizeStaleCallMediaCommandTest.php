@@ -61,7 +61,7 @@ class FinalizeStaleCallMediaCommandTest extends TestCase
 
         Storage::disk('local')->put(
             "media-processing/{$incidentId}/1/{$finalizableMediaId}/chunks/000000.chunk",
-            'audio-chunk-1'
+            "\x1A\x45\xDF\xA3".'audio-chunk-1'
         );
 
         $this->artisan('app:finalize-stale-call-media', [
@@ -73,7 +73,7 @@ class FinalizeStaleCallMediaCommandTest extends TestCase
         $expectedPath = "incidents/{$incidentId}/media/1/{$finalizableMediaId}_audio-peer_operator-main.weba";
 
         Storage::disk('public')->assertExists($expectedPath);
-        Storage::disk('local')->assertMissing("media-processing/{$incidentId}/1/{$finalizableMediaId}/chunks/000000.chunk");
+        Storage::disk('local')->assertExists("media-processing/{$incidentId}/1/{$finalizableMediaId}/chunks/000000.chunk");
 
         $this->assertDatabaseHas('media', [
             'id' => $finalizableMediaId,

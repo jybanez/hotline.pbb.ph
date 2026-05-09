@@ -38,7 +38,8 @@ class AvailabilityTest extends TestCase
             ->getJson('/api/operator/dashboard')
             ->assertOk()
             ->assertJsonPath('operator_runtime_state', 'engaged')
-            ->assertJsonPath('dashboard_metrics.2.id', 'incoming_calls')
+            ->assertJsonPath('stat_chips.3.label', 'Incoming')
+            ->assertJsonPath('stat_chips.3.value', 0)
             ->assertJsonPath('stat_chips.0.label', 'State');
     }
 
@@ -96,8 +97,8 @@ class AvailabilityTest extends TestCase
         $this->actingAs($currentOperator)
             ->getJson('/api/operator/dashboard')
             ->assertOk()
-            ->assertJsonPath('dashboard_metrics.3.value', 1)
-            ->assertJsonPath('incoming_calls.0.kind', 'reconnect')
+            ->assertJsonPath('stat_chips.3.label', 'Incoming')
+            ->assertJsonPath('stat_chips.3.value', 1)
             ->assertJsonPath('pending_transfer_requests.0.reason', 'Please take this incident.')
             ->assertJsonFragment(['name' => 'Transfer Target']);
     }
@@ -167,13 +168,21 @@ class AvailabilityTest extends TestCase
         $this->actingAs($operator)
             ->getJson('/api/operator/dashboard')
             ->assertOk()
-            ->assertJsonPath('activity_items.0.kind', 'team_assignment')
-            ->assertJsonPath('activity_items.0.incident_id', $incidentId)
             ->assertJsonPath('team_assignment_lanes.0.id', 'assigned')
-            ->assertJsonPath('team_assignment_lanes.0.cards.0.incident_id', $incidentId)
-            ->assertJsonPath('team_assignment_lanes.2.id', 'accepted')
+            ->assertJsonPath('team_assignment_lanes.2.id', 'accepted');
+
+        $this->actingAs($operator)
+            ->getJson('/api/operator/activity')
+            ->assertOk()
+            ->assertJsonPath('items.0.kind', 'team_assignment')
+            ->assertJsonPath('items.0.incident_id', $incidentId)
             ->assertJsonFragment(['title' => 'Transfer for #'.str_pad((string) $incidentId, 6, '0', STR_PAD_LEFT)])
             ->assertJsonFragment(['title' => 'Incident #'.str_pad((string) $incidentId, 6, '0', STR_PAD_LEFT)]);
+
+        $this->actingAs($operator)
+            ->getJson('/api/operator/incidents?status=Active,Deferred')
+            ->assertOk()
+            ->assertJsonPath('items.0.team_assignments.0.incident_id', $incidentId);
     }
 
     public function test_caller_home_turns_yellow_when_no_operators_are_available(): void

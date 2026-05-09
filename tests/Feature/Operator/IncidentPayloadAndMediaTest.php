@@ -353,7 +353,7 @@ class IncidentPayloadAndMediaTest extends TestCase
 
         $this->actingAs($operator)
             ->post('/api/operator/media/' . $mediaId . '/chunks', [
-                'chunk' => \Illuminate\Http\UploadedFile::fake()->createWithContent('000000.chunk', 'audio-chunk-1'),
+                'chunk' => \Illuminate\Http\UploadedFile::fake()->createWithContent('000000.chunk', "\x1A\x45\xDF\xA3".'audio-chunk-1'),
                 'chunk_index' => 0,
             ])
             ->assertCreated()
