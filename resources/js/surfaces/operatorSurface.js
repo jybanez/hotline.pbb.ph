@@ -3431,25 +3431,6 @@ async function openWorkbenchInitialIntakeModal(overlay, payload = {}) {
     modal.open();
 }
 
-function maybeOpenWorkbenchInitialIntake(overlay, payload = {}, options = {}) {
-    if (!options.initialIntake) {
-        return null;
-    }
-
-    const timer = window.setTimeout(() => {
-        void openWorkbenchInitialIntakeModal(overlay, payload).catch((error) => {
-            console.warn('Unable to open initial caller intake modal.', error);
-            showToast('Unable to open initial caller intake prompt.', 'warn');
-        });
-    }, 0);
-
-    return {
-        destroy() {
-            window.clearTimeout(timer);
-        },
-    };
-}
-
 function renderWorkbenchLocationWindowMeta(location = {}) {
     const normalized = workbenchCallerLocation(location);
 
@@ -4192,7 +4173,7 @@ async function mountWorkbenchNavbar(overlay, payload, stateOverride, close) {
     };
 }
 
-async function mountWorkbenchHelpers(overlay, payload, stateOverride) {
+async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = {}) {
     const helper = await ensureOperatorWorkbenchHelpers();
     const lookups = await loadSharedWorkbenchLookups();
     const instances = [];
@@ -5533,6 +5514,34 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride) {
                 inFlight: false,
             };
             let callRuntime = null;
+            const openInitialIntakeAfterConnection = (answeredAt = null) => {
+                if (options.initialIntake !== true || !payload?.id || !activeSessionId) {
+                    return;
+                }
+
+                const intakeKey = `${payload.id}:${activeSessionId}`;
+
+                if (appState.runtime.operatorInitialIntakePromptedKey === intakeKey) {
+                    return;
+                }
+
+                appState.runtime.operatorInitialIntakePromptedKey = intakeKey;
+                logCallFlow('operator', 'initial-intake-open-after-connection', {
+                    incidentId: Number(payload.id ?? 0) || null,
+                    callSessionId: activeSessionId,
+                    answeredAt: answeredAt || null,
+                });
+                window.setTimeout(() => {
+                    if (!overlay?.isConnected) {
+                        return;
+                    }
+
+                    void openWorkbenchInitialIntakeModal(overlay, payload).catch((error) => {
+                        console.warn('Unable to open initial caller intake modal.', error);
+                        showToast('Unable to open initial caller intake prompt.', 'warn');
+                    });
+                }, 0);
+            };
 
             const dismissConnectionOverlay = () => {
                 appState.runtime.operatorConnectingModalClose?.();
@@ -5620,6 +5629,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride) {
                         answered_at: answeredAt,
                     });
                     readiness.completed = true;
+                    openInitialIntakeAfterConnection(answeredAt);
                 } catch (error) {
                     logCallFlow('operator', 'ready-api-error', {
                         incidentId: Number(payload.id ?? 0) || null,
@@ -5687,6 +5697,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride) {
                         ?? new Date().toISOString(),
                     );
                     captureManager.activateCapture?.(existingAnsweredAt);
+                    openInitialIntakeAfterConnection(existingAnsweredAt);
                 }
                 instances.push(captureManager);
             }
@@ -5971,12 +5982,7 @@ async function presentWorkbench(root, payload, stateOverride = null, options = {
         overlayInstances.push(navbar);
     }
 
-    overlayInstances.push(...await mountWorkbenchHelpers(overlay, payload, stateOverride));
-    const initialIntake = maybeOpenWorkbenchInitialIntake(overlay, payload, options);
-
-    if (initialIntake) {
-        overlayInstances.push(initialIntake);
-    }
+    overlayInstances.push(...await mountWorkbenchHelpers(overlay, payload, stateOverride, options));
 }
 
 function createOperatorWorkbenchBusyOverlay(root) {
@@ -6285,12 +6291,7 @@ async function refreshWorkbenchOverlay(payload, stateOverride = null, options = 
         overlayInstances.push(navbar);
     }
 
-    overlayInstances.push(...await mountWorkbenchHelpers(overlay, payload, stateOverride));
-    const initialIntake = maybeOpenWorkbenchInitialIntake(overlay, payload, options);
-
-    if (initialIntake) {
-        overlayInstances.push(initialIntake);
-    }
+    overlayInstances.push(...await mountWorkbenchHelpers(overlay, payload, stateOverride, options));
 }
 
 function removeIncomingCallFromDashboard(item) {
