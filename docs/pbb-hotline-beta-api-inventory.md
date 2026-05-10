@@ -2,7 +2,12 @@
 
 Date: 2026-04-04
 
-Status: Draft initial endpoint inventory
+Status: Draft initial endpoint inventory, partially superseded by Phase 2 caller-to-citizen compatibility work
+
+Phase 2 migration note:
+- `/api/citizen/*` is the canonical public-user API prefix.
+- `/api/caller/*` remains a temporary legacy alias until the caller-to-citizen refactor is complete.
+- Citizen request/response aliases are canonical when both citizen and caller fields are accepted.
 
 References:
 - [PBB Hotline Beta Contracts](./pbb-hotline-beta-contracts.md)
@@ -12,7 +17,7 @@ References:
 Purpose:
 - define the initial Beta API surface
 - give the new team a stable starting point for OpenAPI
-- separate public, session, caller, operator, admin, and Realtime-facing endpoints
+- separate public, session, citizen, legacy caller, operator, admin, and Realtime-facing endpoints
 
 ## 1. Documentation Rule
 

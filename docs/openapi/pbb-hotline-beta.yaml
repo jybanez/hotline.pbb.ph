@@ -9,7 +9,9 @@ tags:
   - name: Public
   - name: Auth
   - name: Account
+  - name: Citizen
   - name: Caller
+    description: Legacy compatibility alias for citizen public-user endpoints.
   - name: Operator
   - name: Messaging
   - name: Media
@@ -1685,7 +1687,7 @@ components:
         email: { type: string, format: email }
         role:
           type: string
-          enum: [caller, operator, command, admin]
+          enum: [citizen, caller, operator, command, admin]
         status:
           type: string
           enum: [active, suspended, disabled, pending]
@@ -1906,7 +1908,7 @@ components:
         sender_id: { type: integer }
         sender_role:
           type: string
-          enum: [caller, operator, system]
+          enum: [citizen, caller, operator, system]
         sender_name: { type: string }
         sender_avatar: { type: string, nullable: true }
         body: { type: string }
@@ -1928,7 +1930,7 @@ components:
         call_session_id: { type: integer }
         type:
           type: string
-          enum: [audio_peer, caller_video]
+          enum: [audio_peer, citizen_video, caller_video]
         peer_user_id: { type: integer, nullable: true }
         peer_role: { type: string, nullable: true }
         peer_label: { type: string, nullable: true }
@@ -2372,7 +2374,7 @@ components:
         avatar: { type: string, nullable: true }
         role:
           type: string
-          enum: [caller, operator, command, admin]
+          enum: [citizen, caller, operator, command, admin]
         status:
           type: string
           enum: [active, suspended, disabled, pending]
