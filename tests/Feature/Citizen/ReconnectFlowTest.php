@@ -69,7 +69,7 @@ class ReconnectFlowTest extends TestCase
             ->assertOk()
             ->assertJsonPath('ok', true)
             ->assertJsonPath('call_session.status', 'ended')
-            ->assertJsonPath('call_session.outcome', 'cancelled_by_caller');
+            ->assertJsonPath('call_session.outcome', 'cancelled_by_citizen');
     }
 
     public function test_reconnect_is_blocked_when_assigned_operator_is_busy_on_another_active_incident(): void
@@ -166,6 +166,52 @@ class ReconnectFlowTest extends TestCase
             'call_session_id' => $callSessionId,
             'user_id' => $operator->id,
             'participant_role' => 'operator',
+        ]);
+    }
+
+    public function test_citizen_hangup_uses_citizen_outcome(): void
+    {
+        $citizen = User::factory()->create([
+            'role' => UserRole::Citizen,
+        ]);
+
+        $operator = User::factory()->create([
+            'role' => UserRole::Operator,
+        ]);
+
+        $incidentId = DB::table('incidents')->insertGetId([
+            'caller_id' => $citizen->id,
+            'actual_caller_name' => $citizen->name,
+            'operator_id' => $operator->id,
+            'status' => IncidentStatus::Active->value,
+            'alert_level' => 'Normal',
+            'called_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $callSessionId = DB::table('call_sessions')->insertGetId([
+            'incident_id' => $incidentId,
+            'caller_id' => $citizen->id,
+            'citizen_id' => $citizen->id,
+            'status' => 'in_progress',
+            'outcome' => 'answered',
+            'started_at' => now()->subMinutes(2),
+            'answered_at' => now()->subMinute(),
+            'created_at' => now()->subMinutes(2),
+            'updated_at' => now()->subMinute(),
+        ]);
+
+        $this->actingAs($citizen)
+            ->postJson("/api/citizen/call-sessions/{$callSessionId}/hangup")
+            ->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('call_session.status', 'ended')
+            ->assertJsonPath('call_session.outcome', 'ended_by_citizen');
+
+        $this->assertDatabaseHas('call_sessions', [
+            'id' => $callSessionId,
+            'outcome' => 'ended_by_citizen',
         ]);
     }
 }

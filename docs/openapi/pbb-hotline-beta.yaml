@@ -1822,7 +1822,7 @@ components:
           enum: [calling, ended]
         outcome:
           type: string
-          enum: [answered, timed_out, declined_by_operator, cancelled_by_caller, ended_by_operator, ended_by_caller]
+          enum: [answered, timed_out, declined_by_operator, cancelled_by_citizen, cancelled_by_caller, ended_by_operator, ended_by_citizen, ended_by_caller]
         caller_latitude: { type: number, nullable: true }
         caller_longitude: { type: number, nullable: true }
         started_at: { type: string, format: date-time }
@@ -1839,7 +1839,7 @@ components:
         user_id: { type: integer }
         participant_role:
           type: string
-          enum: [caller, operator]
+          enum: [citizen, caller, operator]
         joined_at: { type: string, format: date-time }
         left_at: { type: string, format: date-time, nullable: true }
       required: [id, call_session_id, user_id, participant_role, joined_at]
@@ -1855,7 +1855,7 @@ components:
           enum: [calling, in_progress, ended]
         outcome:
           type: string
-          enum: [answered, timed_out, declined_by_operator, cancelled_by_caller, ended_by_operator, ended_by_caller]
+          enum: [answered, timed_out, declined_by_operator, cancelled_by_citizen, cancelled_by_caller, ended_by_operator, ended_by_citizen, ended_by_caller]
         started_at: { type: string, format: date-time }
         answered_at: { type: string, format: date-time, nullable: true }
         ended_at: { type: string, format: date-time, nullable: true }

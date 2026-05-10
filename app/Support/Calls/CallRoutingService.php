@@ -190,7 +190,7 @@ class CallRoutingService
         return DB::transaction(function () use ($attempt) {
             $attempt->forceFill([
                 'status' => CallStatus::Ended,
-                'outcome' => CallOutcome::CancelledByCaller,
+                'outcome' => CallOutcome::CancelledByCitizen,
                 'ended_at' => now(),
             ])->save();
 
@@ -198,7 +198,7 @@ class CallRoutingService
                 ->where('status', CallStatus::Calling)
                 ->update([
                     'status' => CallStatus::Ended,
-                    'outcome' => CallOutcome::CancelledByCaller,
+                    'outcome' => CallOutcome::CancelledByCitizen,
                     'ended_at' => now(),
                 ]);
 
@@ -251,13 +251,13 @@ class CallRoutingService
         return DB::transaction(function () use ($attempt, $operatorAttempt) {
             $attempt->forceFill([
                 'status' => CallStatus::Ended,
-                'outcome' => CallOutcome::CancelledByCaller,
+                'outcome' => CallOutcome::CancelledByCitizen,
                 'ended_at' => now(),
             ])->save();
 
             $operatorAttempt->forceFill([
                 'status' => CallStatus::Ended,
-                'outcome' => CallOutcome::CancelledByCaller,
+                'outcome' => CallOutcome::CancelledByCitizen,
                 'ended_at' => now(),
             ])->save();
 
@@ -266,7 +266,7 @@ class CallRoutingService
                 ->where('status', CallStatus::Calling)
                 ->update([
                     'status' => CallStatus::Ended,
-                    'outcome' => CallOutcome::CancelledByCaller,
+                    'outcome' => CallOutcome::CancelledByCitizen,
                     'ended_at' => now(),
                 ]);
 
