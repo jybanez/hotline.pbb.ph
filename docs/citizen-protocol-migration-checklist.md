@@ -217,17 +217,17 @@ Legend:
 
 ## Testing Gates
 
-- [ ] Run focused routing tests after route alias changes.
-- [ ] Run focused auth/session tests after role changes.
-- [ ] Run focused Realtime admission tests after admission changes.
+- [x] Run focused routing tests after route alias changes.
+- [x] Run focused auth/session tests after role changes.
+- [x] Run focused Realtime admission tests after admission changes.
 - [x] Run focused Realtime client tests after event changes.
-- [ ] Run focused operator workbench tests after API/payload changes.
+- [x] Run focused operator workbench tests after API/payload changes.
 - [ ] Run focused citizen surface tests after frontend API changes.
-- [ ] Run focused media tests after media contract changes.
+- [x] Run focused media tests after media contract changes.
 - [ ] Run focused SITREP tests after report changes.
 - [ ] Run PWA/offline smoke test after manifest/service-worker changes.
 - [ ] Run Helper integration smoke test after Helper adapter changes.
-- [ ] Run full test suite before merging each runtime PR.
+- [x] Run full test suite before merging each runtime PR.
 
 ## Deployment and Decommission
 
