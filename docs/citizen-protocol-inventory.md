@@ -2,7 +2,7 @@
 
 Date: 2026-05-10
 
-Status: Planning inventory snapshot
+Status: Current inventory snapshot after Phase 2 compatibility slices
 
 Related docs:
 - [Citizen Protocol Migration Plan](citizen-protocol-migration-plan.md)
@@ -33,6 +33,44 @@ The remaining `caller` usage is not a single rename class. It falls into these b
 - media and call-session protocol values that need an explicit stability decision
 - reports/SITREP keys and prose that need citizen-facing output aliases
 - historical docs and tests that should be updated only after runtime behavior exists
+
+## Current Snapshot After Phase 2 Slices
+
+Current `caller` counts by source area, excluding `vendor/`, `node_modules/`, `public/vendor/`, `public/build/`, `storage/`, and `bootstrap/cache/`:
+
+| Area | Remaining matches | Primary classification |
+| --- | ---: | --- |
+| `app/` | 331 | DB-backed persistence names, compatibility aliases, telemetry, deprecated enum cases, and model accessors |
+| `routes/` | 41 | legacy `/caller` and caller-named operator route aliases kept during compatibility |
+| `resources/` | 1,730 | citizen/operator Realtime compatibility, legacy payload aliases, CSS/data selectors, and UI copy still queued for later cleanup |
+| `public/` | 10 | legacy caller PWA assets kept for installed app compatibility |
+| `database/` | 36 | staged schema compatibility columns and legacy table/column names pending final decommission |
+| `config/` | 4 | legacy environment variable fallbacks |
+| `tests/` | 596 | explicit legacy compatibility coverage plus fixtures for DB-backed caller columns |
+| `docs/` | 839 | migration plan/checklist text, historical Phase 1 docs, and current compatibility notes |
+
+Top remaining resource files:
+- `resources/js/surfaces/citizenSurface.js`
+- `resources/js/surfaces/operatorSurface.js`
+- `resources/css/citizen.css`
+- `resources/js/surfaces/surfaceShared.js`
+- `resources/js/realtime/citizenEvents.js`
+
+Top remaining application files:
+- `app/Http/Controllers/Api/Operator/IncidentController.php`
+- `app/Support/Calls/CallRoutingService.php`
+- `app/Support/Incidents/IncidentPayloadBuilder.php`
+- `app/Http/Controllers/Api/Command/IncidentController.php`
+- `app/Domain/Incidents/Models/Incident.php`
+
+Intentional `caller` remains during compatibility:
+- legacy public routes and PWA assets: `/caller`, `/caller/offline`, `/api/caller/*`, `caller.webmanifest`, and `caller-sw.js`
+- legacy Realtime admission/events and telemetry while deployed clients migrate
+- DB columns/tables such as `caller_id`, `actual_caller_name`, `caller_location_*`, and `incident_caller_locations` until final decommission
+- legacy request/response aliases beside canonical citizen fields
+- deprecated enum/protocol values such as `caller`, `caller_video`, `cancelled_by_caller`, and `ended_by_caller` where old rows or clients may still send/read them
+- tests that assert legacy compatibility
+- historical Phase 1 docs that are now explicitly marked as superseded or compatibility context
 
 ## Highest-Impact Runtime Files
 
