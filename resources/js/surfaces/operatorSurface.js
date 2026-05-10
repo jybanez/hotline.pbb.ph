@@ -6104,8 +6104,18 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                 onDisconnectRequest() {
                     void (async () => {
                         const requestedAt = new Date().toISOString();
+                        logCallFlow('operator', 'citizen-hangup-request-received', {
+                            incidentId: Number(payload.id ?? 0) || null,
+                            callSessionId: activeSessionId,
+                            requestedAt,
+                        });
                         callRuntime?.sendHangupConfirm?.({
                             requested_at: requestedAt,
+                        });
+                        logCallFlow('operator', 'citizen-hangup-confirm-sent', {
+                            incidentId: Number(payload.id ?? 0) || null,
+                            callSessionId: activeSessionId,
+                            requestedAt,
                         });
 
                         try {
@@ -6113,13 +6123,29 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                             let response = null;
 
                             try {
+                                logCallFlow('operator', 'citizen-hangup-api-request', {
+                                    incidentId: Number(payload.id ?? 0) || null,
+                                    callSessionId: activeSessionId,
+                                });
                                 response = await fetchJson(`/api/operator/call-sessions/${activeSessionId}/hangup`, {
                                     method: 'post',
+                                });
+                                logCallFlow('operator', 'citizen-hangup-api-success', {
+                                    incidentId: Number(payload.id ?? 0) || null,
+                                    callSessionId: activeSessionId,
+                                    status: response?.call_session?.status ?? null,
+                                    outcome: response?.call_session?.outcome ?? null,
+                                    endedAt: response?.call_session?.ended_at ?? null,
                                 });
                             } catch (error) {
                                 if (Number(error?.response?.status ?? 0) !== 409) {
                                     throw error;
                                 }
+                                logCallFlow('operator', 'citizen-hangup-api-skipped', {
+                                    incidentId: Number(payload.id ?? 0) || null,
+                                    callSessionId: activeSessionId,
+                                    reason: 'session-already-ended',
+                                });
                             }
 
                             const officialEndedAt = String(response?.call_session?.ended_at ?? endedAt);
@@ -6135,8 +6161,27 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                                 reason: 'ended-by-citizen',
                                 ended_at: officialEndedAt,
                             });
+                            logCallFlow('operator', 'citizen-hangup-complete-sent', {
+                                incidentId: Number(payload.id ?? 0) || null,
+                                callSessionId: activeSessionId,
+                                endedAt: officialEndedAt,
+                            });
+                            logCallFlow('operator', 'citizen-hangup-ui-refresh-start', {
+                                incidentId: Number(payload.id ?? 0) || null,
+                                callSessionId: activeSessionId,
+                            });
                             await refreshWorkbenchOverlay(payload, null);
+                            logCallFlow('operator', 'citizen-hangup-ui-refresh-success', {
+                                incidentId: Number(payload.id ?? 0) || null,
+                                callSessionId: activeSessionId,
+                            });
                         } catch (error) {
+                            logCallFlow('operator', 'citizen-hangup-failed', {
+                                incidentId: Number(payload.id ?? 0) || null,
+                                callSessionId: activeSessionId,
+                                status: Number(error?.response?.status ?? 0) || null,
+                                message: String(error?.response?.data?.message ?? error?.message ?? 'Unknown hangup error'),
+                            });
                             console.warn('Unable to complete caller-requested hangup.', error);
                         }
                     })();
