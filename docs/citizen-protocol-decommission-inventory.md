@@ -76,7 +76,7 @@ These need a separate data migration plan and explicit rollback strategy.
 
 ## Recommended First Removal PR
 
-Start with Batch 2 only after Realtime shared service confirmation. It removes runtime event compatibility without touching routes, installed PWA assets, or database-backed history. Then run:
+Realtime shared-service confirmation is complete as of 2026-05-10 14:36:33 in the shared PBB chat log. Start with Batch 2 as the first removal PR; it removes runtime event compatibility without touching routes, installed PWA assets, or database-backed history. Then run:
 
 - `npm run test:js`
 - `npm run build`
