@@ -1735,20 +1735,20 @@ async function connectCallerRealtimeStream(options = {}) {
                 if (eventType === INCIDENT_UPDATE_EVENT) {
                     const currentIncidentId = Number(appState.runtime.callerHome?.current_open_incident?.id ?? 0);
                     const nextIncidentId = Number(payload?.incident_id ?? 0);
-                    const nextCallerId = String(payload?.citizen_id ?? payload?.caller_id ?? '');
-                    const currentCallerId = String(appState.bootstrap?.user?.id ?? '');
+                    const nextCitizenId = Number(payload?.citizen_id ?? payload?.caller_id ?? 0);
+                    const currentCitizenId = Number(appState.bootstrap?.user?.id ?? 0);
                     const canApplyIncidentUpdate = (
                         nextIncidentId > 0
                         && currentIncidentId > 0
                         && nextIncidentId === currentIncidentId
-                        && (!nextCallerId || nextCallerId === currentCallerId)
+                        && (nextCitizenId <= 0 || nextCitizenId === currentCitizenId)
                     );
 
                     logCallFlow('citizen', canApplyIncidentUpdate ? 'incident-update-event-apply' : 'incident-update-event-ignored', {
                         incidentId: nextIncidentId || null,
                         currentIncidentId: currentIncidentId || null,
-                        citizenId: nextCallerId || null,
-                        currentCitizenId: currentCallerId || null,
+                        citizenId: nextCitizenId || null,
+                        currentCitizenId: currentCitizenId || null,
                         scope: String(payload?.scope ?? ''),
                         status: String(payload?.patch?.status ?? ''),
                     });
