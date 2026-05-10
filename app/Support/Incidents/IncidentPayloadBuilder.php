@@ -278,7 +278,7 @@ class IncidentPayloadBuilder
                     'id' => $message->id,
                     'incident_id' => $message->incident_id,
                     'sender_id' => $message->sender_id,
-                    'sender_role' => $message->sender_role,
+                    'sender_role' => $this->protocolRole($message->sender_role, $includeLegacyAliases),
                     'sender_name' => $message->sender?->name,
                     'sender_avatar' => $message->sender?->avatar,
                     'body' => $message->body,
@@ -305,21 +305,7 @@ class IncidentPayloadBuilder
             'media' => $incident->mediaItems
                 ->filter(fn ($media) => ! $isCallerViewer || in_array($media->type, MediaContractNormalizer::citizenVideoTypes(), true))
                 ->sortBy('created_at')
-                ->map(fn ($media) => [
-                    'id' => $media->id,
-                    'incident_id' => $media->incident_id,
-                    'call_session_id' => $media->call_session_id,
-                    'type' => $media->type,
-                    'peer_user_id' => $media->peer_user_id,
-                    'peer_role' => $media->peer_role,
-                    'peer_label' => $media->peer_label,
-                    'path' => $media->available_at ? $media->path : null,
-                    'duration_seconds' => $media->duration_seconds,
-                    'metadata' => $media->metadata_json ?? [],
-                    'processing' => $media->available_at === null,
-                    'created_at' => $media->created_at?->toIso8601String(),
-                    'available_at' => $media->available_at?->toIso8601String(),
-                ])
+                ->map(fn ($media) => $this->serializeMediaItem($media, $includeLegacyAliases))
                 ->values()
                 ->all(),
             'incident_types' => $incident->incidentTypes
@@ -483,11 +469,38 @@ class IncidentPayloadBuilder
                 'id' => $participant->id,
                 'call_session_id' => $participant->call_session_id,
                 'user_id' => $participant->user_id,
-                'participant_role' => $participant->participant_role,
+                'participant_role' => $this->protocolRole($participant->participant_role, $includeLegacyAliases),
                 'joined_at' => $participant->joined_at?->toIso8601String(),
                 'left_at' => $participant->left_at?->toIso8601String(),
             ])->values()->all(),
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function serializeMediaItem(object $media, bool $includeLegacyAliases = true): array
+    {
+        return [
+            'id' => $media->id,
+            'incident_id' => $media->incident_id,
+            'call_session_id' => $media->call_session_id,
+            'type' => $includeLegacyAliases ? $media->type : MediaContractNormalizer::normalizeType((string) $media->type),
+            'peer_user_id' => $media->peer_user_id,
+            'peer_role' => $includeLegacyAliases ? $media->peer_role : MediaContractNormalizer::normalizePeerRole($media->peer_role),
+            'peer_label' => $media->peer_label,
+            'path' => $media->available_at ? $media->path : null,
+            'duration_seconds' => $media->duration_seconds,
+            'metadata' => $media->metadata_json ?? [],
+            'processing' => $media->available_at === null,
+            'created_at' => $media->created_at?->toIso8601String(),
+            'available_at' => $media->available_at?->toIso8601String(),
+        ];
+    }
+
+    private function protocolRole(mixed $role, bool $includeLegacyAliases = true): mixed
+    {
+        return $includeLegacyAliases ? $role : MediaContractNormalizer::normalizePeerRole($role);
     }
 
     /**

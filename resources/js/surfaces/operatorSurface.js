@@ -1964,15 +1964,53 @@ function patchIncidentCallSession(payload, callSessionId, patch = {}) {
 }
 
 function workbenchCallerName(payload) {
-    return payload.actual_caller_name ?? payload.caller?.name ?? 'Unknown caller';
+    return payload.actual_citizen_name ?? payload.actual_caller_name ?? payload.citizen?.name ?? payload.caller?.name ?? 'Unknown caller';
 }
 
 function workbenchCallerMobile(payload) {
-    return payload.caller?.mobile ?? 'No mobile recorded';
+    return payload.citizen?.mobile ?? payload.caller?.mobile ?? 'No mobile recorded';
 }
 
 function workbenchCallerAvatar(payload) {
-    return String(payload.caller?.avatar ?? '').trim();
+    return String(payload.citizen?.avatar ?? payload.caller?.avatar ?? '').trim();
+}
+
+function defineOperatorWorkbenchAlias(target, alias, value) {
+    if (!target || typeof target !== 'object' || alias in target || value === undefined) {
+        return;
+    }
+
+    Object.defineProperty(target, alias, {
+        value,
+        enumerable: false,
+        configurable: true,
+        writable: true,
+    });
+}
+
+function prepareOperatorWorkbenchPayload(payload) {
+    if (!payload || typeof payload !== 'object') {
+        return payload;
+    }
+
+    defineOperatorWorkbenchAlias(payload, 'caller_id', payload.citizen_id);
+    defineOperatorWorkbenchAlias(payload, 'caller', payload.citizen);
+    defineOperatorWorkbenchAlias(payload, 'actual_caller_name', payload.actual_citizen_name);
+    defineOperatorWorkbenchAlias(payload, 'actual_caller_relationship', payload.actual_citizen_relationship);
+    defineOperatorWorkbenchAlias(payload, 'caller_location', payload.citizen_location);
+
+    const prepareSession = (session) => {
+        if (!session || typeof session !== 'object') {
+            return;
+        }
+
+        defineOperatorWorkbenchAlias(session, 'caller_id', session.citizen_id);
+    };
+
+    prepareSession(payload.current_call_session);
+    (Array.isArray(payload.call_history) ? payload.call_history : []).forEach(prepareSession);
+
+    return payload;
 }
 
 function resolveWorkbenchMediaUrl(path) {
@@ -3255,8 +3293,11 @@ function updateWorkbenchCallerIdentityView(overlay, payload = {}) {
 
 function applyWorkbenchIntakePayload(overlay, payload, incident = null) {
     if (incident && typeof incident === 'object') {
+        prepareOperatorWorkbenchPayload(incident);
         Object.assign(payload, incident);
     }
+
+    prepareOperatorWorkbenchPayload(payload);
 
     if (appState.runtime.operatorWorkbench?.payload) {
         appState.runtime.operatorWorkbench.payload = payload;
@@ -6413,6 +6454,8 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
 }
 
 async function presentWorkbench(root, payload, stateOverride = null, options = {}) {
+    prepareOperatorWorkbenchPayload(payload);
+
     const persistState = options.persistState !== false;
     const activeCallSessionId = deriveActiveCallSessionId(payload);
 
@@ -6708,6 +6751,8 @@ function nextWorkbenchOverlayMarkup(payload, stateOverride = null) {
 }
 
 async function refreshWorkbenchOverlay(payload, stateOverride = null, options = {}) {
+    prepareOperatorWorkbenchPayload(payload);
+
     const overlay = appState.runtime.operatorWorkbenchOverlay;
     const root = appState.runtime.operatorWorkbenchRoot;
 

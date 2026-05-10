@@ -56,7 +56,7 @@ class IncidentController extends Controller
         abort_unless((int) $incident->operator_id === (int) $request->user()->id, 404);
 
         return response()->json(
-            $this->incidentPayloads->buildWorkbenchPayload($incident, $request->user()),
+            $this->buildIncidentPayload($request, $incident),
         );
     }
 
@@ -94,7 +94,7 @@ class IncidentController extends Controller
 
         return response()->json([
             'ok' => true,
-            'incident' => $this->incidentPayloads->buildWorkbenchPayload($incident->fresh(), $request->user()),
+            'incident' => $this->buildIncidentPayload($request, $incident->fresh()),
         ]);
     }
 
@@ -118,7 +118,7 @@ class IncidentController extends Controller
 
         return response()->json([
             'ok' => true,
-            'incident' => $this->incidentPayloads->buildWorkbenchPayload($incident->fresh(), $request->user()),
+            'incident' => $this->buildIncidentPayload($request, $incident->fresh()),
         ]);
     }
 
@@ -146,7 +146,7 @@ class IncidentController extends Controller
 
         return response()->json([
             'ok' => true,
-            'incident' => $this->incidentPayloads->buildWorkbenchPayload($incident->fresh(), $request->user()),
+            'incident' => $this->buildIncidentPayload($request, $incident->fresh()),
         ]);
     }
 
@@ -164,7 +164,7 @@ class IncidentController extends Controller
 
         return response()->json([
             'ok' => true,
-            'incident' => $this->incidentPayloads->buildWorkbenchPayload($incident->fresh(), $request->user()),
+            'incident' => $this->buildIncidentPayload($request, $incident->fresh()),
         ]);
     }
 
@@ -178,7 +178,7 @@ class IncidentController extends Controller
 
         return response()->json([
             'ok' => true,
-            'incident' => $this->incidentPayloads->buildWorkbenchPayload($incident->fresh(), $request->user()),
+            'incident' => $this->buildIncidentPayload($request, $incident->fresh()),
         ]);
     }
 
@@ -242,7 +242,7 @@ class IncidentController extends Controller
             return response()->json([
                 'ok' => true,
                 'ignored' => true,
-                'incident' => $this->incidentPayloads->buildWorkbenchPayload($incident->fresh(), $request->user()),
+                'incident' => $this->buildIncidentPayload($request, $incident->fresh()),
             ]);
         }
 
@@ -259,7 +259,7 @@ class IncidentController extends Controller
 
         return response()->json([
             'ok' => true,
-            'incident' => $this->incidentPayloads->buildWorkbenchPayload($incident->fresh(), $request->user()),
+            'incident' => $this->buildIncidentPayload($request, $incident->fresh()),
         ]);
     }
 
@@ -325,8 +325,29 @@ class IncidentController extends Controller
 
         return response()->json([
             'ok' => true,
-            'incident' => $this->incidentPayloads->buildWorkbenchPayload($incident, $request->user()),
+            'incident' => $this->buildIncidentPayload($request, $incident),
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildIncidentPayload(Request $request, Incident $incident): array
+    {
+        return $this->incidentPayloads->buildWorkbenchPayload(
+            $incident,
+            $request->user(),
+            includeLegacyAliases: $this->isLegacyOperatorAliasRoute($request),
+        );
+    }
+
+    private function isLegacyOperatorAliasRoute(Request $request): bool
+    {
+        $path = $request->path();
+
+        return str_contains($path, '/actual-caller')
+            || str_contains($path, '/caller-address')
+            || str_contains($path, '/caller-location');
     }
 
     public function attachIncidentType(Request $request, Incident $incident, IncidentType $incidentType): JsonResponse

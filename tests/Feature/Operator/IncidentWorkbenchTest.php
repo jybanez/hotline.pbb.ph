@@ -55,7 +55,7 @@ class IncidentWorkbenchTest extends TestCase
             ->getJson("/api/operator/incidents/{$incidentId}")
             ->assertOk()
             ->assertJsonPath('id', $incidentId)
-            ->assertJsonPath('caller.id', $caller->id)
+            ->assertJsonPath('citizen.id', $caller->id)
             ->assertJsonPath('status', 'Active');
     }
 
@@ -359,9 +359,7 @@ class IncidentWorkbenchTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('incident.actual_citizen_name', 'Citizen Canonical')
-            ->assertJsonPath('incident.actual_citizen_relationship', 'Neighbor')
-            ->assertJsonPath('incident.actual_caller_name', 'Citizen Canonical')
-            ->assertJsonPath('incident.actual_caller_relationship', 'Neighbor');
+            ->assertJsonPath('incident.actual_citizen_relationship', 'Neighbor');
 
         $this->assertDatabaseHas('incidents', [
             'id' => $incidentId,
@@ -410,9 +408,7 @@ class IncidentWorkbenchTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('incident.actual_citizen_name', 'Juan Dela Cruz')
-            ->assertJsonPath('incident.actual_citizen_relationship', 'Brother')
-            ->assertJsonPath('incident.actual_caller_name', 'Juan Dela Cruz')
-            ->assertJsonPath('incident.actual_caller_relationship', 'Brother');
+            ->assertJsonPath('incident.actual_citizen_relationship', 'Brother');
 
         $this->actingAs($operator)
             ->postJson("/api/operator/incidents/{$incidentId}/citizen-address", [
@@ -435,9 +431,7 @@ class IncidentWorkbenchTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('incident.citizen_location.latitude', 10.3157)
-            ->assertJsonPath('incident.citizen_location.longitude', 123.8854)
-            ->assertJsonPath('incident.caller_location.latitude', 10.3157)
-            ->assertJsonPath('incident.caller_location.longitude', 123.8854);
+            ->assertJsonPath('incident.citizen_location.longitude', 123.8854);
 
         $this->actingAs($operator)
             ->getJson("/api/operator/incidents/{$incidentId}/citizen-locations")
@@ -493,7 +487,7 @@ class IncidentWorkbenchTest extends TestCase
             ));
     }
 
-    public function test_operator_incident_payload_includes_citizen_aliases(): void
+    public function test_operator_incident_payload_omits_legacy_caller_aliases(): void
     {
         $citizen = User::factory()->create([
             'role' => UserRole::Citizen,
@@ -528,19 +522,25 @@ class IncidentWorkbenchTest extends TestCase
             ->assertJsonPath('items.0.citizen_location.latitude', 10.3157)
             ->assertJsonPath('items.0.caller_location.latitude', 10.3157);
 
-        $this->actingAs($operator)
+        $payload = $this->actingAs($operator)
             ->getJson("/api/operator/incidents/{$incidentId}")
             ->assertOk()
             ->assertJsonPath('citizen_id', $citizen->id)
-            ->assertJsonPath('caller_id', $citizen->id)
             ->assertJsonPath('citizen.id', $citizen->id)
-            ->assertJsonPath('caller.id', $citizen->id)
             ->assertJsonPath('actual_citizen_name', 'Maria Santos')
-            ->assertJsonPath('actual_caller_name', 'Maria Santos')
             ->assertJsonPath('actual_citizen_relationship', 'Self')
-            ->assertJsonPath('actual_caller_relationship', 'Self')
             ->assertJsonPath('citizen_location.latitude', 10.3157)
-            ->assertJsonPath('caller_location.latitude', 10.3157);
+            ->json();
+
+        foreach ([
+            'caller_id',
+            'caller',
+            'actual_caller_name',
+            'actual_caller_relationship',
+            'caller_location',
+        ] as $legacyKey) {
+            self::assertArrayNotHasKey($legacyKey, $payload);
+        }
     }
 
     public function test_operator_can_update_initial_intake_fields_in_one_request(): void
@@ -578,8 +578,8 @@ class IncidentWorkbenchTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('ok', true)
-            ->assertJsonPath('incident.actual_caller_name', 'Juan Dela Cruz')
-            ->assertJsonPath('incident.actual_caller_relationship', 'Brother')
+            ->assertJsonPath('incident.actual_citizen_name', 'Juan Dela Cruz')
+            ->assertJsonPath('incident.actual_citizen_relationship', 'Brother')
             ->assertJsonPath('incident.location_road', 'Riverside Road')
             ->assertJsonPath('incident.location_barangay', 'Guadalupe')
             ->assertJsonPath('incident.location_citymunicipality', 'Cebu City');
@@ -626,9 +626,7 @@ class IncidentWorkbenchTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('incident.actual_citizen_name', 'Canonical Intake')
-            ->assertJsonPath('incident.actual_caller_name', 'Canonical Intake')
             ->assertJsonPath('incident.actual_citizen_relationship', 'Witness')
-            ->assertJsonPath('incident.actual_caller_relationship', 'Witness')
             ->assertJsonPath('incident.location_barangay', 'Guadalupe');
 
         $this->assertDatabaseHas('incidents', [

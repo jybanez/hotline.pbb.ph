@@ -148,7 +148,8 @@ class IncidentPayloadAndMediaTest extends TestCase
             ->assertJsonPath('team_assignments.0.id', $assignmentId)
             ->assertJsonPath('team_assignments.0.allocated_resources.0.resource_type.name', 'Stretcher')
             ->assertJsonPath('media.0.type', 'audio_peer')
-            ->assertJsonPath('media.1.type', 'caller_video');
+            ->assertJsonPath('media.1.type', 'citizen_video')
+            ->assertJsonPath('media.1.peer_role', 'citizen');
     }
 
     public function test_caller_incident_payload_and_media_endpoint_only_expose_citizen_video_records(): void
@@ -266,7 +267,7 @@ class IncidentPayloadAndMediaTest extends TestCase
                 'path' => null,
             ])
             ->assertJsonFragment([
-                'type' => 'caller_video',
+                'type' => 'citizen_video',
                 'processing' => true,
                 'path' => null,
             ]);

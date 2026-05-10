@@ -32,7 +32,11 @@ class CallAttemptOperatorAttemptController extends Controller
         return response()->json([
             'ok' => true,
             'attempt' => $result['attempt'],
-            'incident' => $this->incidentPayloads->buildWorkbenchPayload($result['incident'], $request->user()),
+            'incident' => $this->incidentPayloads->buildWorkbenchPayload(
+                $result['incident'],
+                $request->user(),
+                includeLegacyAliases: false,
+            ),
             'call_session' => $result['call_session'],
         ]);
     }
