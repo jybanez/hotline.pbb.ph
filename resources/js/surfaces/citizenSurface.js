@@ -1229,7 +1229,7 @@ async function connectCallerRealtimeStream(options = {}) {
         const client = new RealtimeSocketClient({
             websocketUrl: admission.websocket_url,
             token: admission.token,
-            requestPrefix: 'caller_surface',
+            requestPrefix: 'citizen_surface',
             onOpen() {
                 reconnectRuntime.connecting = false;
                 reconnectRuntime.attempts = 0;
@@ -1716,7 +1716,7 @@ async function connectCallerRealtimeStream(options = {}) {
         if (appState.runtime.callerRealtimeStream?.client && !appState.runtime.callerRealtimeStream.client.isOpen?.()) {
             appState.runtime.callerRealtimeStream.client = null;
         }
-        console.warn('Caller Realtime surface stream unavailable.', error);
+        console.warn('Citizen Realtime surface stream unavailable.', error);
         scheduleCallerRealtimeReconnect();
     }
 }
@@ -3481,7 +3481,9 @@ function renderCaller(root, bootstrap, home, primerReport) {
 
     appState.runtime.navbarActions = [];
 
-    if (!window.HotlineCallerPwa?.isStandalone?.()) {
+    const citizenPwa = window.HotlineCitizenPwa ?? window.HotlineCallerPwa;
+
+    if (!citizenPwa?.isStandalone?.()) {
         appState.runtime.navbarActions.push({
             id: 'caller-install-app',
             label: 'Install App',
@@ -3490,7 +3492,7 @@ function renderCaller(root, bootstrap, home, primerReport) {
 
     appState.runtime.navbarOnAction = (action) => {
         if (action?.id === 'caller-install-app') {
-            void window.HotlineCallerPwa?.offerInstall?.();
+            void citizenPwa?.offerInstall?.();
             return;
         }
     };
