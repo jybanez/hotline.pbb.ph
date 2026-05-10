@@ -231,7 +231,7 @@ Legend:
 
 ## Deployment and Decommission
 
-- [ ] Deploy citizen compatibility additions before removing caller contracts.
+- [~] Deploy citizen compatibility additions before removing caller contracts: local WAMP runtime migrated and preflighted for owner live testing; final deployment remains open.
 - [ ] Monitor legacy caller route usage.
 - [ ] Monitor legacy caller Realtime event usage.
 - [ ] Monitor legacy caller payload field usage if feasible.
@@ -253,5 +253,5 @@ Legend:
 - [x] Decide call outcome rename strategy: canonical new values use citizen terminology while legacy caller outcome values remain readable during compatibility.
 - [x] Decide legacy caller compatibility duration: until the caller-to-citizen refactor is complete.
 - [x] Decide whether telemetry is required for legacy usage: yes.
-- [ ] Decide whether this repo owns all telemetry for legacy usage or whether Realtime/Helper should also provide service-local telemetry.
-- [ ] Decide which external repos need synchronized PRs before Hotline switches canonical behavior.
+- [x] Decide whether this repo owns all telemetry for legacy usage or whether Realtime/Helper should also provide service-local telemetry: Hotline owns app-visible legacy route/event/payload telemetry for the current compatibility window; Realtime/Helper only need service-local telemetry if they later accept or translate legacy caller contracts themselves.
+- [x] Decide which external repos need synchronized PRs before Hotline switches canonical behavior: no blocking external PR is required for current Hotline canonical behavior; Realtime docs/fixtures should be synchronized before final caller event decommission, and Helper needs no upstream change for this Hotline-owned terminology slice.
