@@ -30,7 +30,7 @@ Hotline should not own repeated UI primitives if Helper already provides them.
 ## Current Hotline Surface Inventory
 
 Current top-level surfaces:
-- caller surface: [user/home.blade.php](C:/wamp64/www/hotline/resources/views/user/home.blade.php)
+- citizen surface: [user/home.blade.php](C:/wamp64/www/hotline/resources/views/user/home.blade.php) (legacy Alpha path)
 - operator surface: [operator/dashboard.blade.php](C:/wamp64/www/hotline/resources/views/operator/dashboard.blade.php)
 - operator history: [operator/history.blade.php](C:/wamp64/www/hotline/resources/views/operator/history.blade.php)
 - command surface: [command/dashboard.blade.php](C:/wamp64/www/hotline/resources/views/command/dashboard.blade.php)
@@ -127,7 +127,7 @@ Current intent:
 - incident details editing
 - resource needed editing
 - team assignment management
-- chat/media with caller
+- chat/media with citizen
 - operator status and availability
 
 Use Helper directly for:
@@ -405,7 +405,7 @@ Before adopting Helper contracts broadly, define one canonical normalization lay
 
 ## Practical Screen Mapping Matrix
 
-### Caller
+### Citizen
 - Helper-first: high
 - Hotline-local UI: low to medium
 - Proposal need: low

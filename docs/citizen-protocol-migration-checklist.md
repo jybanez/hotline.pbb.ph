@@ -176,8 +176,8 @@ Legend:
 - [x] Keep caller-named adapter aliases only until the refactor is complete.
 - [x] Update Helper-facing adapter payloads to emit citizen canonical fields.
 - [x] Update Helper-facing adapter payloads to accept legacy caller fields.
-- [ ] Update Helper docs or proposals that still describe the public user as caller.
-- [ ] Refresh vendored Helper copy if upstream Helper changes are needed.
+- [x] Update Helper docs or proposals that still describe the public user as caller.
+- [x] Refresh vendored Helper copy if upstream Helper changes are needed: not needed for this Hotline-owned terminology slice.
 - [x] Smoke-test Helper-backed citizen chat, media viewer, forms, and call UI.
 
 ## Media and Call Session Contracts
