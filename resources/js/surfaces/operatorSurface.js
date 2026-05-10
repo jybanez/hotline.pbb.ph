@@ -153,6 +153,12 @@ function operatorCallTimeoutMs() {
     return Math.max(5, seconds || OPERATOR_CALL_TIMEOUT_FALLBACK_SECONDS) * 1000;
 }
 
+function operatorReconnectTimeoutMs() {
+    const seconds = Number(appState.bootstrap?.settings?.reconnect_timeout_seconds ?? appState.bootstrap?.settings?.call_timeout_seconds ?? OPERATOR_CALL_TIMEOUT_FALLBACK_SECONDS);
+
+    return Math.max(5, seconds || OPERATOR_CALL_TIMEOUT_FALLBACK_SECONDS) * 1000;
+}
+
 function operatorIsExcludedFromCallerDiscovery(payload = {}) {
     const operatorId = Number(appState.bootstrap?.user?.id ?? 0);
     const excluded = Array.isArray(payload?.excluded_operator_ids)
@@ -1527,6 +1533,36 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                     removeIncomingCallFromDashboard(activeIncoming);
                     closeIncomingCallModal(root, activeIncoming);
                     publishOperatorDiscoveryPresence();
+                    return;
+                }
+
+                if (eventType === 'caller.reconnect.timed_out') {
+                    if (String(payload?.operator_id ?? '') !== String(appState.bootstrap?.user?.id ?? '')) {
+                        return;
+                    }
+
+                    const activeIncoming = appState.runtime.operatorIncomingCallItem;
+
+                    if (
+                        !activeIncoming
+                        || activeIncoming.kind !== 'reconnect'
+                        || String(activeIncoming.id ?? '') !== String(payload.call_attempt_operator_attempt_id ?? '')
+                    ) {
+                        return;
+                    }
+
+                    fetchJson(`/api/operator/call-attempt-operator-attempts/${payload.call_attempt_operator_attempt_id}/timeout`, {
+                        method: 'post',
+                    }).catch((error) => {
+                        if (Number(error?.response?.status ?? 0) !== 409) {
+                            console.warn('Operator reconnect timeout update failed.', error);
+                        }
+                    }).finally(() => {
+                        appState.runtime.operatorDiscoveryClaimed = false;
+                        removeIncomingCallFromDashboard(activeIncoming);
+                        closeIncomingCallModal(root, activeIncoming);
+                        publishOperatorDiscoveryPresence();
+                    });
                     return;
                 }
 
@@ -6588,7 +6624,7 @@ async function openIncomingCallModal(root, item, phase = 'incoming') {
 
     const dismissIncoming = async (options = {}) => {
         const timeout = Boolean(options.timeout);
-        const endpointAction = timeout && item.kind === 'new_call' ? 'timeout' : 'decline';
+        const endpointAction = timeout ? 'timeout' : 'decline';
         const outcome = timeout ? 'timed_out' : 'declined_by_operator';
         const eventType = timeout ? 'caller.call.timed_out' : 'caller.call.declined';
 
@@ -6611,14 +6647,16 @@ async function openIncomingCallModal(root, item, phase = 'incoming') {
             publishOperatorDiscoveryPresence();
 
             if (item.kind === 'reconnect' && item.call_attempt_id) {
-                publishOperatorCallFlow('caller.reconnect.declined', {
+                publishOperatorCallFlow(timeout ? 'caller.reconnect.timed_out' : 'caller.reconnect.declined', {
                     call_attempt_id: Number(item.call_attempt_id ?? 0),
                     call_attempt_operator_attempt_id: Number(item.id),
                     caller_id: Number(item.caller_id ?? 0),
                     incident_id: Number(item.incident_id ?? 0),
                     operator_id: Number(appState.bootstrap?.user?.id ?? 0),
-                    message: 'Operator is currently not available. Please try again later.',
-                    outcome: 'declined_by_operator',
+                    message: timeout
+                        ? 'Operator did not answer. Please try again later.'
+                        : 'Operator is currently not available. Please try again later.',
+                    outcome,
                     ended_at: new Date().toISOString(),
                 });
             } else {
@@ -6641,19 +6679,19 @@ async function openIncomingCallModal(root, item, phase = 'incoming') {
         void dismissIncoming();
     });
 
-    if (!item?.demo && item.kind === 'new_call' && phase === 'incoming') {
+    if (!item?.demo && ['new_call', 'reconnect'].includes(String(item.kind ?? '')) && ['incoming', 'reconnect'].includes(phase)) {
         autoDeclineTimeoutId = window.setTimeout(() => {
             autoDeclineTimeoutId = null;
 
             if (
                 String(appState.runtime.operatorIncomingCallItem?.id ?? '') !== String(item.id ?? '')
-                || appState.runtime.operatorIncomingCallPhase !== 'incoming'
+                || !['incoming', 'reconnect'].includes(String(appState.runtime.operatorIncomingCallPhase ?? ''))
             ) {
                 return;
             }
 
             void dismissIncoming({ timeout: true });
-        }, operatorCallTimeoutMs());
+        }, item.kind === 'reconnect' ? operatorReconnectTimeoutMs() : operatorCallTimeoutMs());
     }
 
     overlay?.addEventListener('click', (event) => {

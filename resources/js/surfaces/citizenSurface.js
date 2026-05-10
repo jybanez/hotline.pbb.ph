@@ -943,6 +943,12 @@ function callerCallTimeoutMs() {
     return Math.max(5, seconds || CALLER_CALL_TIMEOUT_FALLBACK_SECONDS) * 1000;
 }
 
+function callerReconnectTimeoutMs() {
+    const seconds = Number(appState.bootstrap?.settings?.reconnect_timeout_seconds ?? appState.bootstrap?.settings?.call_timeout_seconds ?? CALLER_CALL_TIMEOUT_FALLBACK_SECONDS);
+
+    return Math.max(5, seconds || CALLER_CALL_TIMEOUT_FALLBACK_SECONDS) * 1000;
+}
+
 function callerDiscoveryResponseTimeoutMs() {
     return Math.min(
         CALLER_DISCOVERY_RESPONSE_TIMEOUT_MAX_MS,
@@ -1281,6 +1287,42 @@ function scheduleCallerRingingTimeout(pending) {
 
         retryCallerCallDiscoveryAfterMiss(latest);
     }, callerCallTimeoutMs() + 1000);
+}
+
+function scheduleCallerReconnectRingingTimeout(pending) {
+    if (appState.runtime.callerRingingTimeoutTimerId) {
+        window.clearTimeout(appState.runtime.callerRingingTimeoutTimerId);
+    }
+
+    const operatorId = Number(pending?.operator_id ?? 0);
+    const incidentId = Number(pending?.incident_id ?? 0);
+    const operatorAttemptId = Number(pending?.operator_attempt_id ?? 0);
+
+    appState.runtime.callerRingingTimeoutTimerId = window.setTimeout(() => {
+        appState.runtime.callerRingingTimeoutTimerId = null;
+        const latest = getCallerPendingState();
+
+        if (
+            !latest
+            || latest.kind !== 'reconnect'
+            || String(latest.phase ?? '').trim() !== 'ringing'
+            || Number(latest.operator_id ?? 0) !== operatorId
+            || Number(latest.incident_id ?? 0) !== incidentId
+            || Number(latest.operator_attempt_id ?? 0) !== operatorAttemptId
+        ) {
+            return;
+        }
+
+        publishCallerCallFlow('caller.reconnect.timed_out', {
+            call_attempt_id: Number(latest.attempt_id ?? 0),
+            call_attempt_operator_attempt_id: Number(latest.operator_attempt_id ?? 0),
+            caller_id: Number(appState.bootstrap?.user?.id ?? 0),
+            incident_id: Number(latest.incident_id ?? 0),
+            operator_id: Number(latest.operator_id ?? 0),
+            outcome: 'timed_out',
+            ended_at: new Date().toISOString(),
+        });
+    }, callerReconnectTimeoutMs() + 1000);
 }
 
 function rerenderCallerInPlace() {
@@ -1748,6 +1790,7 @@ async function connectCallerRealtimeStream(options = {}) {
                         phase: 'ringing',
                     });
 
+                    scheduleCallerReconnectRingingTimeout(getCallerPendingState());
                     rerenderCallerInPlace();
                     return;
                 }
@@ -1907,7 +1950,7 @@ async function connectCallerRealtimeStream(options = {}) {
                     return;
                 }
 
-                if (eventType === 'caller.reconnect.declined') {
+                if (eventType === 'caller.reconnect.declined' || eventType === 'caller.reconnect.timed_out') {
                     if (!pendingState || pendingState.kind !== 'reconnect') {
                         return;
                     }
