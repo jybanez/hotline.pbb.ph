@@ -276,27 +276,52 @@ class CallRoutingService
 
     public function declineNewAttempt(User $operator, CallAttemptOperatorAttempt $operatorAttempt): CallAttempt
     {
+        return $this->endNewAttemptForOperator(
+            $operator,
+            $operatorAttempt,
+            CallOutcome::DeclinedByOperator,
+            'decline',
+        );
+    }
+
+    public function timeoutNewAttemptForOperator(User $operator, CallAttemptOperatorAttempt $operatorAttempt): CallAttempt
+    {
+        return $this->endNewAttemptForOperator(
+            $operator,
+            $operatorAttempt,
+            CallOutcome::TimedOut,
+            'timeout',
+        );
+    }
+
+    private function endNewAttemptForOperator(
+        User $operator,
+        CallAttemptOperatorAttempt $operatorAttempt,
+        CallOutcome $outcome,
+        string $action,
+    ): CallAttempt
+    {
         $operatorAttempt->loadMissing('callAttempt');
         $attempt = $operatorAttempt->callAttempt;
 
         if ((int) $operatorAttempt->operator_id !== (int) $operator->id) {
-            throw new RuntimeException('You cannot decline this routed call.');
+            throw new RuntimeException("You cannot {$action} this routed call.");
         }
 
         if (! $attempt || $attempt->status !== CallStatus::Calling) {
-            throw new RuntimeException('This call attempt is no longer declineable.');
+            throw new RuntimeException("This call attempt is no longer {$action}able.");
         }
 
-        return DB::transaction(function () use ($attempt, $operatorAttempt) {
+        return DB::transaction(function () use ($attempt, $operatorAttempt, $outcome) {
             $attempt->forceFill([
                 'status' => CallStatus::Ended,
-                'outcome' => CallOutcome::DeclinedByOperator,
+                'outcome' => $outcome,
                 'ended_at' => now(),
             ])->save();
 
             $operatorAttempt->forceFill([
                 'status' => CallStatus::Ended,
-                'outcome' => CallOutcome::DeclinedByOperator,
+                'outcome' => $outcome,
                 'ended_at' => now(),
             ])->save();
 

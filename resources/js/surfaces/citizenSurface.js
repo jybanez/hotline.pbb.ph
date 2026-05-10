@@ -1773,6 +1773,16 @@ async function connectCallerRealtimeStream(options = {}) {
                     return;
                 }
 
+                if (eventType === 'caller.call.timed_out') {
+                    if (!pendingState || pendingState.kind !== 'new_call') {
+                        return;
+                    }
+
+                    clearCallerCallRoutingTimers();
+                    retryCallerCallDiscoveryAfterMiss(pendingState, { markTimedOut: false });
+                    return;
+                }
+
                 if (eventType === 'caller.call.cancelled' || eventType === 'caller.call.declined') {
                     if (!pendingState || pendingState.kind !== 'new_call') {
                         return;

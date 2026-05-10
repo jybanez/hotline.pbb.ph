@@ -41,6 +41,7 @@ Route::middleware(['auth', 'role:operator'])->prefix('/operator')->group(functio
     Route::post('/incidents/{incident}/team-assignments', [TeamAssignmentController::class, 'store']);
     Route::post('/call-attempt-operator-attempts/{attempt}/answer', [CallAttemptOperatorAttemptController::class, 'answer']);
     Route::post('/call-attempt-operator-attempts/{attempt}/decline', [CallAttemptOperatorAttemptController::class, 'decline']);
+    Route::post('/call-attempt-operator-attempts/{attempt}/timeout', [CallAttemptOperatorAttemptController::class, 'timeout']);
     Route::post('/call-attempt-operator-attempts/{attempt}/citizen-cancel', [CallAttemptOperatorAttemptController::class, 'cancelByCaller']);
     Route::post('/call-attempt-operator-attempts/{attempt}/caller-cancel', [CallAttemptOperatorAttemptController::class, 'cancelByCaller'])
         ->middleware('legacy.caller:operator.caller-cancel');

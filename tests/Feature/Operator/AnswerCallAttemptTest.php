@@ -128,6 +128,38 @@ class AnswerCallAttemptTest extends TestCase
         ]);
     }
 
+    public function test_operator_can_mark_unanswered_routed_attempt_as_timed_out(): void
+    {
+        $citizen = User::factory()->create([
+            'role' => UserRole::Citizen,
+        ]);
+
+        $operator = User::factory()->create([
+            'role' => UserRole::Operator,
+        ]);
+
+        $start = $this->actingAs($citizen)->postJson('/api/citizen/call-attempts');
+        $attemptId = (int) $start->json('attempt.id');
+        $operatorAttemptId = (int) $start->json('operator_attempt.id');
+
+        $this->actingAs($operator)
+            ->postJson("/api/operator/call-attempt-operator-attempts/{$operatorAttemptId}/timeout")
+            ->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('attempt.id', $attemptId)
+            ->assertJsonPath('attempt.outcome', 'timed_out');
+
+        $this->assertDatabaseHas('call_attempts', [
+            'id' => $attemptId,
+            'outcome' => 'timed_out',
+        ]);
+
+        $this->assertDatabaseHas('call_attempt_operator_attempts', [
+            'id' => $operatorAttemptId,
+            'outcome' => 'timed_out',
+        ]);
+    }
+
     public function test_operator_ready_can_use_precise_gate_lift_timestamp(): void
     {
         $caller = User::factory()->create([

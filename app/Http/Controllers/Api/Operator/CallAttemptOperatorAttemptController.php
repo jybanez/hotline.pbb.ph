@@ -54,6 +54,23 @@ class CallAttemptOperatorAttemptController extends Controller
         ]);
     }
 
+    public function timeout(Request $request, CallAttemptOperatorAttempt $attempt): JsonResponse
+    {
+        try {
+            $callAttempt = $this->callRouting->timeoutNewAttemptForOperator($request->user(), $attempt);
+        } catch (RuntimeException $exception) {
+            return response()->json([
+                'ok' => false,
+                'message' => $exception->getMessage(),
+            ], 409);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'attempt' => $callAttempt,
+        ]);
+    }
+
     public function cancelByCaller(Request $request, CallAttemptOperatorAttempt $attempt): JsonResponse
     {
         try {

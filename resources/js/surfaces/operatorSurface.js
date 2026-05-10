@@ -6408,7 +6408,12 @@ async function openIncomingCallModal(root, item, phase = 'incoming') {
         return;
     }
 
-    const dismissIncoming = async () => {
+    const dismissIncoming = async (options = {}) => {
+        const timeout = Boolean(options.timeout);
+        const endpointAction = timeout && item.kind === 'new_call' ? 'timeout' : 'decline';
+        const outcome = timeout ? 'timed_out' : 'declined_by_operator';
+        const eventType = timeout ? 'caller.call.timed_out' : 'caller.call.declined';
+
         if (item?.demo) {
             sessionStorage.setItem(dismissKey, '1');
             close();
@@ -6417,7 +6422,7 @@ async function openIncomingCallModal(root, item, phase = 'incoming') {
 
         try {
             if (item.kind === 'new_call' || (item.kind === 'reconnect' && item.call_attempt_id)) {
-                await fetchJson(`/api/operator/call-attempt-operator-attempts/${item.id}/decline`, {
+                await fetchJson(`/api/operator/call-attempt-operator-attempts/${item.id}/${endpointAction}`, {
                     method: 'post',
                 });
             }
@@ -6439,12 +6444,12 @@ async function openIncomingCallModal(root, item, phase = 'incoming') {
                     ended_at: new Date().toISOString(),
                 });
             } else {
-                publishOperatorCallFlow('caller.call.declined', {
+                publishOperatorCallFlow(eventType, {
                     call_attempt_id: Number(item.call_attempt_id ?? 0),
                     call_attempt_operator_attempt_id: Number(item.id),
                     caller_id: Number(item.caller_id ?? 0),
                     operator_id: Number(appState.bootstrap?.user?.id ?? 0),
-                    outcome: 'declined_by_operator',
+                    outcome,
                     ended_at: new Date().toISOString(),
                 });
             }
@@ -6469,7 +6474,7 @@ async function openIncomingCallModal(root, item, phase = 'incoming') {
                 return;
             }
 
-            void dismissIncoming();
+            void dismissIncoming({ timeout: true });
         }, operatorCallTimeoutMs());
     }
 
