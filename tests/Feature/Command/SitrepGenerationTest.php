@@ -109,6 +109,8 @@ class SitrepGenerationTest extends TestCase
             ->assertOk()
             ->assertSee('Public SITREP')
             ->assertSee('Current Situation Picture')
+            ->assertSee('Citizens assisted')
+            ->assertDontSee('Callers assisted')
             ->assertDontSee('09170000003');
 
         $this->actingAs($command)->get("/command/sitreps/{$privateReportId}/preview")
