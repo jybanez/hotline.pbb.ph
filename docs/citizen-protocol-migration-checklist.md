@@ -237,6 +237,7 @@ Legend:
 - [~] Monitor legacy caller Realtime event usage: local log snapshot on 2026-05-11 shows zero `Hotline legacy caller Realtime event used.` entries.
 - [~] Monitor legacy caller payload field usage if feasible: local log snapshot on 2026-05-11 showed 12 runtime legacy payload hits, all operator call-attempt `caller_id` fields on `POST /api/operator/call-attempts`, last seen at `2026-05-11 03:53:39`; operator call-attempt frontend now sends `citizen_id`, citizen/operator call-start frontends send `citizen_latitude` and `citizen_longitude`, and the 2026-05-11 04:02, 04:06, 04:09, 04:11, 04:14, production-served 04:17, and 04:21 live checks did not increase runtime legacy payload telemetry.
 - [x] Confirm deployed clients have moved to citizen canonical routes and events: local WAMP live-browser calls now use `/api/realtime/admission/citizen` and publish/handle `citizen.*` canonical events; local reloaded-session validation is covered by the 2026-05-11 04:11 run, the production-served 04:17 run covered canonical call admission plus ready/hangup flow, the 04:21 run covered production terminal-status publish/apply for incident 202, and the 04:25 production tail confirmed post-call reconciliation ignored incident 203 after `currentIncidentId` cleared to `null`.
+- [x] Inventory remaining caller compatibility aliases and split removal into staged batches: see `docs/citizen-protocol-decommission-inventory.md`.
 - [ ] Confirm Realtime shared service has moved to citizen canonical examples and fixtures.
 - [ ] Confirm Helper shared service has moved to citizen canonical examples and fixtures.
 - [ ] Confirm caller-to-citizen refactor completion and installed PWA compatibility window have passed.
@@ -249,7 +250,7 @@ Legend:
 
 Current decommission gate:
 - Do not remove `/caller`, `/api/caller/*`, `/api/realtime/admission/caller`, legacy `caller.*` event handling, caller request-field aliases, caller PWA assets, or caller-shaped database columns yet.
-- The local readiness pass proved current `/citizen` flows are canonical, including live call setup, hangup/reconnect handling, operator offline recovery, and post-call status propagation. Payload-field telemetry now exists for the feasible runtime compatibility paths. Legacy admission telemetry is not yet clean for a full compatibility window and final production deployment/consumer confirmations are still open.
+- The local and production-served readiness passes proved current `/citizen` flows are canonical, including live call setup, hangup/reconnect handling, operator offline recovery, and post-call status propagation. Payload-field telemetry now exists for the feasible runtime compatibility paths. Legacy route and payload telemetry stayed flat through the live validation window, but Realtime shared-service, Helper shared-service, installed PWA, and durable storage/history confirmations remain open.
 
 ## Open Decisions Tracker
 

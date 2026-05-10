@@ -1,0 +1,84 @@
+# Citizen Protocol Decommission Inventory
+
+Status: prepared after local and production-served validation on 2026-05-11.
+
+This inventory separates temporary caller compatibility from durable storage/history names. Do not remove database columns, historical media type values, or report terminology in the same batch as route/event alias cleanup.
+
+## Validation Baseline
+
+- Citizen clients now use `POST /api/realtime/admission/citizen` in local and production-served live calls.
+- Legacy caller route telemetry stayed flat at 454 local entries, last seen at `2026-05-10 14:39:54`.
+- Legacy caller Realtime event telemetry stayed at zero.
+- Legacy caller payload telemetry stayed flat at 12 local entries, last seen at `2026-05-11 03:53:39`.
+- Production terminal-status validation confirmed the citizen active incident clears after the terminal update and post-call reconcile.
+
+## Batch 1: Route Aliases
+
+Remove after the final compatibility window:
+
+- `routes/web/citizen.php`: `/caller`, `/caller/`, `/caller/offline`.
+- `routes/api/citizen.php`: `/api/caller/*` loop branch and `legacy.caller:public-api` middleware.
+- `routes/api/realtime.php`: `POST /api/realtime/admission/caller`.
+- `app/Http/Controllers/Api/Realtime/AdmissionController.php`: `caller()` delegating method.
+- `app/Http/Middleware/LogLegacyCallerRouteUsage.php` and `bootstrap/app.php` alias registration.
+- Route compatibility tests in `tests/Feature/Routing/SurfaceAccessTest.php`, `tests/Feature/Citizen/PublicApiCompatibilityTest.php`, and legacy sections of `tests/Feature/Realtime/AdmissionTest.php`.
+
+## Batch 2: Realtime Event Aliases
+
+Remove after Realtime service examples and fixtures are confirmed canonical:
+
+- `resources/js/realtime/citizenEvents.js`: caller-to-citizen event map, reverse map, legacy detector, and payload alias helper.
+- `resources/js/surfaces/citizenSurface.js` and `resources/js/surfaces/operatorSurface.js`: remaining `caller.*` event string inputs and `/api/realtime/legacy-caller-events` telemetry calls.
+- `routes/api/realtime.php`: `POST /api/realtime/legacy-caller-events`.
+- `app/Http/Controllers/Api/Realtime/LegacyCallerEventUsageController.php`.
+- `tests/js/citizenRealtimeEvents.test.mjs` and `tests/Feature/Realtime/LegacyCallerEventUsageTest.php`.
+
+Expected replacement: surfaces publish and compare `citizen.*` event names directly.
+
+## Batch 3: Request Payload Aliases
+
+Remove after route/event alias cleanup has shipped:
+
+- `app/Support/Compatibility/LegacyCallerPayloadUsageLogger.php`.
+- Legacy field acceptance in citizen/operator/media controllers:
+  - `app/Http/Controllers/Api/Citizen/CallAttemptController.php`
+  - `app/Http/Controllers/Api/Operator/CallAttemptController.php`
+  - `app/Http/Controllers/Api/Operator/IncidentController.php`
+  - `app/Http/Controllers/Api/Operator/CallSessionMediaController.php`
+  - `app/Http/Controllers/Api/Media/AssemblyController.php`
+  - `app/Http/Controllers/Api/Internal/MediaChunkIngressController.php`
+- Tests whose only purpose is legacy caller payload logging.
+
+Expected replacement: request validation accepts canonical `citizen_*` fields only, while durable database columns remain unchanged in this batch.
+
+## Batch 4: PWA Alias Assets
+
+Remove only after installed PWA compatibility window has passed:
+
+- `public/caller.webmanifest`.
+- `public/caller-sw.js`.
+- `/caller/offline` route and `/caller` navigation fallback entries in `public/citizen-sw.js`.
+- `window.HotlineCallerPwa` alias in `resources/js/entries/citizen.js`.
+
+Keep `citizen-sw.js` cache cleanup for old `caller-pwa-*` caches until at least one additional production release after caller assets are removed.
+
+## Batch 5: Durable Storage And History Names
+
+Do not remove in the alias cleanup PR:
+
+- Database columns and model attributes such as `caller_id`, `actual_caller_name`, `caller_location_*`.
+- `incident_caller_locations` table and related historical relationships.
+- Historical media values such as `caller_video` and `peer_role: caller`.
+- Legacy role enum value `caller` and historical call outcomes such as `ended_by_caller`.
+- SITREP/report labels that describe historical caller data.
+
+These need a separate data migration plan and explicit rollback strategy.
+
+## Recommended First Removal PR
+
+Start with Batch 2 only after Realtime shared service confirmation. It removes runtime event compatibility without touching routes, installed PWA assets, or database-backed history. Then run:
+
+- `npm run test:js`
+- `npm run build`
+- `php artisan test --filter=Realtime`
+- Live smoke: new call, reconnect, operator hangup, citizen hangup, terminal status update.
