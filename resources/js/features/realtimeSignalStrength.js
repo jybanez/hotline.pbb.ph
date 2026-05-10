@@ -58,6 +58,10 @@ function readClientState(client) {
     return isRealtimeOpen(client) ? 'open' : 'idle';
 }
 
+function browserOffline() {
+    return typeof navigator !== 'undefined' && navigator.onLine === false;
+}
+
 function createRoot(label) {
     const root = document.createElement('div');
     root.className = 'realtime-signal';
@@ -121,6 +125,17 @@ function destroyView(view) {
 function snapshotFromState(state, latestHealth, reconnectRuntime) {
     const normalized = normalizeConnectionState(state);
     const reconnecting = Boolean(reconnectRuntime?.connecting || reconnectRuntime?.timerId);
+
+    if (browserOffline()) {
+        return {
+            level: 0,
+            state: 'browser-offline',
+            tone: 'offline',
+            label: 'Offline',
+            ariaLabel: 'Browser is offline',
+            title: 'Browser is offline',
+        };
+    }
 
     if (reconnecting) {
         return {
@@ -404,6 +419,19 @@ export function mountRealtimeSignalStrength(host, options = {}) {
         }
     };
 
+    const handleBrowserNetworkChange = () => {
+        update(readClientState(client));
+
+        if (!browserOffline() && isRealtimeOpen(client)) {
+            startMeasuring();
+        }
+    };
+
+    if (typeof window !== 'undefined' && window.addEventListener) {
+        window.addEventListener('offline', handleBrowserNetworkChange);
+        window.addEventListener('online', handleBrowserNetworkChange);
+    }
+
     const setReconnectRuntime = (runtime) => {
         reconnectRuntime = runtime ?? null;
         update();
@@ -428,6 +456,10 @@ export function mountRealtimeSignalStrength(host, options = {}) {
         getSnapshot: () => latestSnapshot ? { ...latestSnapshot } : null,
         destroy() {
             destroyed = true;
+            if (typeof window !== 'undefined' && window.removeEventListener) {
+                window.removeEventListener('offline', handleBrowserNetworkChange);
+                window.removeEventListener('online', handleBrowserNetworkChange);
+            }
             cleanups.splice(0).forEach((cleanup) => cleanup());
             clearMeasureTimer();
             clearStaleTimer();

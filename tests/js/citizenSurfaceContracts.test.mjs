@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 const citizenEntry = await readFile(new URL('../../resources/js/entries/citizen.js', import.meta.url), 'utf8');
 const citizenSurface = await readFile(new URL('../../resources/js/surfaces/citizenSurface.js', import.meta.url), 'utf8');
 const renderSurface = await readFile(new URL('../../resources/js/surfaces/renderSurface.js', import.meta.url), 'utf8');
+const realtimeSignalStrength = await readFile(new URL('../../resources/js/features/realtimeSignalStrength.js', import.meta.url), 'utf8');
 
 assert.match(citizenEntry, /renderSurface\('citizen'\)/);
 assert.match(citizenEntry, /navigator\.serviceWorker\.register\('\/citizen-sw\.js'/);
@@ -29,6 +30,9 @@ assert.match(citizenSurface, /function updateCallerPendingOfflineOverlay/);
 assert.match(citizenSurface, /processed_miss_key/);
 assert.match(citizenSurface, /function callerMissKey/);
 assert.doesNotMatch(citizenSurface, /src="\/images\/hang-up\.svg"/);
+assert.match(realtimeSignalStrength, /navigator\.onLine === false/);
+assert.match(realtimeSignalStrength, /state:\s*'browser-offline'/);
+assert.match(realtimeSignalStrength, /window\.addEventListener\('offline'/);
 
 assert.doesNotMatch(citizenSurface, /\/api\/caller\//);
 assert.doesNotMatch(citizenSurface, /\/api\/realtime\/admission\/caller/);
