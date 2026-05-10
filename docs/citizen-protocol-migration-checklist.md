@@ -212,7 +212,7 @@ Legend:
 - [x] Update `docs/pbb-hotline-beta-api-inventory.md` with citizen routes and fields.
 - [x] Update `docs/pbb-hotline-beta-schema-draft.md` with migration notes.
 - [x] Update `docs/hotline-helper-mapping.md` from caller surface to citizen surface.
-- [~] Update `docs/openapi/pbb-hotline-beta.yaml` with citizen API contracts.
+- [x] Update `docs/openapi/pbb-hotline-beta.yaml` with citizen API contracts.
 - [x] Mark old caller docs as historical or deprecated instead of silently rewriting old architecture records.
 
 ## Testing Gates

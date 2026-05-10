@@ -188,6 +188,202 @@ paths:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
 
+  /api/citizen/home:
+    get:
+      tags: [Citizen]
+      summary: Get citizen home state
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Citizen home payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallerHomeResponse'
+
+  /api/citizen/call-attempts:
+    post:
+      tags: [Citizen]
+      summary: Start a new call attempt
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCallAttemptRequest'
+      responses:
+        '200':
+          description: Call attempt started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallAttempt'
+        '409':
+          description: Blocked by current citizen state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/citizen/call-attempts/{attempt}/cancel:
+    post:
+      tags: [Citizen]
+      summary: Cancel an unanswered new call attempt
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AttemptId'
+      responses:
+        '200':
+          description: Call attempt cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallAttempt'
+        '409':
+          description: Call attempt can no longer be cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/citizen/call-attempts/{attempt}/timeout:
+    post:
+      tags: [Citizen]
+      summary: Mark an unanswered new call attempt timed out
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AttemptId'
+      responses:
+        '200':
+          description: Call attempt timed out
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallAttempt'
+        '409':
+          description: Call attempt can no longer be timed out
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/citizen/incidents/current:
+    get:
+      tags: [Citizen]
+      summary: Get current open citizen incident
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Current incident payload or null
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Incident'
+                nullable: true
+
+  /api/citizen/incidents/history:
+    get:
+      tags: [Citizen]
+      summary: Get citizen incident history excluding the current open incident
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Citizen incident history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallerIncidentHistoryResponse'
+
+  /api/citizen/incidents/{incident}:
+    get:
+      tags: [Citizen]
+      summary: Get one citizen-visible incident view
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IncidentId'
+      responses:
+        '200':
+          description: Citizen incident payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+
+  /api/citizen/incidents/{incident}/reconnect:
+    post:
+      tags: [Citizen]
+      summary: Request reconnect to the assigned operator
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IncidentId'
+      responses:
+        '200':
+          description: Reconnect request accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallSession'
+        '409':
+          description: Reconnect blocked by operator state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/citizen/call-sessions/{callSession}/cancel:
+    post:
+      tags: [Citizen]
+      summary: Cancel an unanswered reconnect call session
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CallSessionId'
+      responses:
+        '200':
+          description: Reconnect call session cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallSession'
+        '409':
+          description: Call session can no longer be cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/citizen/call-sessions/{callSession}/hangup:
+    post:
+      tags: [Citizen]
+      summary: End an active citizen call session
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CallSessionId'
+      responses:
+        '200':
+          description: Active call session ended by citizen
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallSession'
+        '409':
+          description: Call session can no longer be ended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /api/caller/home:
     get:
       tags: [Caller]
