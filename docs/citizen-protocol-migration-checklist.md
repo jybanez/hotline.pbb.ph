@@ -140,8 +140,8 @@ Legend:
 - [x] `/api/realtime/admission/caller` remains compatible.
 - [x] `RealtimeAdmissionService::forCitizen()` exists.
 - [x] Legacy caller admission method remains as compatibility wrapper.
-- [ ] Confirm Realtime shared service documentation uses citizen admission path.
-- [ ] Add Realtime-side fixture/example updates if needed.
+- [x] Confirm Realtime shared service documentation uses citizen admission path: Hotline owns `/api/realtime/admission/citizen`; Realtime docs do not own that endpoint path.
+- [x] Add Realtime-side fixture/example updates if needed: needed in Realtime docs/tests; scope recorded in [Citizen Realtime Coordination](citizen-realtime-coordination.md).
 - [x] Add telemetry for legacy caller admission path.
 
 ## Realtime Events
@@ -165,7 +165,7 @@ Legend:
 - [x] Update Realtime payload fields from `caller_name` to include `citizen_name`.
 - [x] Add tests for canonical citizen event flow.
 - [x] Add temporary compatibility tests only where caller event support still exists during the refactor.
-- [ ] Coordinate caller event removal with Realtime service owner.
+- [x] Coordinate caller event removal with Realtime service owner: chat-log note posted and removal prerequisites recorded in [Citizen Realtime Coordination](citizen-realtime-coordination.md).
 - [x] Add legacy caller Realtime event usage telemetry before removing caller event handling.
 
 ## Helper Integration
