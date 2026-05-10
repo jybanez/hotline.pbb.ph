@@ -2,7 +2,7 @@
 
 Date: 2026-05-10
 
-Status: Working tracker for Phase 2 caller-to-citizen migration
+Status: Working tracker for Phase 2 caller-to-citizen migration; live-call readiness validated, final legacy decommission still gated by telemetry and compatibility-window checks.
 
 Related plan:
 - [Citizen Protocol Migration Plan](citizen-protocol-migration-plan.md)
@@ -231,9 +231,9 @@ Legend:
 
 ## Deployment and Decommission
 
-- [~] Deploy citizen compatibility additions before removing caller contracts: local WAMP runtime migrated and preflighted for owner live testing; final deployment remains open.
-- [ ] Monitor legacy caller route usage.
-- [ ] Monitor legacy caller Realtime event usage.
+- [~] Deploy citizen compatibility additions before removing caller contracts: local WAMP runtime migrated and owner live testing passed; final production deployment remains open.
+- [~] Monitor legacy caller route usage: local log snapshot on 2026-05-11 shows 453 local legacy route hits, all `POST /api/realtime/admission/caller`, last seen at `2026-05-10 14:39:54`; testing logs also contain expected legacy route coverage hits.
+- [~] Monitor legacy caller Realtime event usage: local log snapshot on 2026-05-11 shows zero `Hotline legacy caller Realtime event used.` entries.
 - [ ] Monitor legacy caller payload field usage if feasible.
 - [ ] Confirm deployed clients have moved to citizen canonical routes and events.
 - [ ] Confirm Realtime shared service has moved to citizen canonical examples and fixtures.
@@ -245,6 +245,10 @@ Legend:
 - [ ] Remove caller request-field aliases.
 - [ ] Remove caller PWA assets only after compatibility window.
 - [ ] Remove caller database columns/tables after staged citizen migration and final decommission approval.
+
+Current decommission gate:
+- Do not remove `/caller`, `/api/caller/*`, `/api/realtime/admission/caller`, legacy `caller.*` event handling, caller request-field aliases, caller PWA assets, or caller-shaped database columns yet.
+- The local readiness pass proved current `/citizen` flows are canonical, but legacy admission telemetry is not yet clean for a full compatibility window and final production deployment/consumer confirmations are still open.
 
 ## Open Decisions Tracker
 
