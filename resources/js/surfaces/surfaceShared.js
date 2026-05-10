@@ -1979,17 +1979,29 @@ function mapAttachmentKind(type, mimeType = '') {
     return 'file';
 }
 
+function publicViewerRoleAliases(viewerRole) {
+    return ['citizen', 'caller'].includes(viewerRole)
+        ? ['citizen', 'caller']
+        : [viewerRole];
+}
+
+function isPublicViewerRole(viewerRole) {
+    return ['citizen', 'caller'].includes(viewerRole);
+}
+
 function normalizeChatMessages(messages, viewerRole) {
+    const viewerRoleAliases = publicViewerRoleAliases(viewerRole);
+
     return (Array.isArray(messages) ? messages : []).map((message) => ({
         id: String(message.id),
-        direction: message.sender_role === viewerRole
+        direction: viewerRoleAliases.includes(message.sender_role)
             ? 'outgoing'
             : (message.type === 'system' ? 'system' : 'incoming'),
         senderName: message.sender_name ?? formatStatusLabel(message.sender_role ?? 'Unknown'),
         senderSubtitle: formatStatusLabel(message.sender_role ?? 'message'),
         text: message.body ?? '',
         timestamp: formatDateTime(message.created_at),
-        state: message.sender_role === viewerRole ? 'sent' : undefined,
+        state: viewerRoleAliases.includes(message.sender_role) ? 'sent' : undefined,
         attachments: (Array.isArray(message.attachments) ? message.attachments : []).map((attachment) => ({
             id: String(attachment.id),
             kind: mapAttachmentKind(attachment.type, attachment.mime_type),
@@ -2700,7 +2712,7 @@ async function mountRealtimeCallSession(options = {}) {
     };
 
     const createAndSendOffer = async ({ force = false, resetPeer = true } = {}) => {
-        if (viewerRole !== 'caller') {
+        if (!isPublicViewerRole(viewerRole)) {
             return;
         }
 
@@ -2820,7 +2832,7 @@ async function mountRealtimeCallSession(options = {}) {
             await applyLocalVideoTrack(peerConnection);
         }
 
-        if (viewerRole === 'caller' && state.joinedRoom && state.client?.isOpen?.() && state.callRoom) {
+        if (isPublicViewerRole(viewerRole) && state.joinedRoom && state.client?.isOpen?.() && state.callRoom) {
             state.client.sendRequest(
                 'call.signal.publish',
                 state.callRoom,
@@ -2831,7 +2843,7 @@ async function mountRealtimeCallSession(options = {}) {
             );
         }
 
-        if (viewerRole === 'caller' && state.joinedRoom && videoChanged) {
+        if (isPublicViewerRole(viewerRole) && state.joinedRoom && videoChanged) {
             await createAndSendOffer({ force: true, resetPeer: false });
         }
     };
@@ -2867,7 +2879,7 @@ async function mountRealtimeCallSession(options = {}) {
         }
 
         if (signalType === 'ready') {
-            if (viewerRole === 'caller') {
+            if (isPublicViewerRole(viewerRole)) {
                 await createAndSendOffer({ force: true, resetPeer: false });
             } else if (viewerRole === 'operator') {
                 debugMedia('ready-echo', {
@@ -3982,4 +3994,3 @@ export {
     trackSurfaceInstance,
     wirePrimer,
 };
-

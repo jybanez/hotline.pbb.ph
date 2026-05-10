@@ -1,0 +1,28 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+
+const citizenSurface = await readFile(new URL('../../resources/js/surfaces/citizenSurface.js', import.meta.url), 'utf8');
+const surfaceShared = await readFile(new URL('../../resources/js/surfaces/surfaceShared.js', import.meta.url), 'utf8');
+
+assert.match(surfaceShared, /function publicViewerRoleAliases\(viewerRole\)/);
+assert.match(surfaceShared, /\['citizen', 'caller'\]\.includes\(viewerRole\)/);
+assert.match(surfaceShared, /function isPublicViewerRole\(viewerRole\)/);
+assert.match(surfaceShared, /viewerRoleAliases\.includes\(message\.sender_role\)/);
+assert.match(surfaceShared, /isPublicViewerRole\(viewerRole\) && state\.joinedRoom/);
+
+assert.match(citizenSurface, /mountChatThread\(runtime\.chatHost, payload\.messages \?\? \[\], 'citizen'/);
+assert.match(citizenSurface, /mountChatThread\(callerThreadHost, incident\.messages, 'citizen'/);
+assert.match(citizenSurface, /mountRealtimeIncidentChat\(\{\s+incidentId:[\s\S]+viewerRole: 'citizen'/);
+assert.match(citizenSurface, /mountRealtimeCallSession\(\{\s+callSessionId:[\s\S]+viewerRole: 'citizen'/);
+assert.match(citizenSurface, /currentDisplayName: String\(appState\.bootstrap\?\.user\?\.name \?\? 'Citizen'\)/);
+assert.match(citizenSurface, /reason: 'ended-by-citizen'/);
+
+assert.match(citizenSurface, /helper\.createMediaStrip\(mediaHost, nextItems/);
+assert.match(citizenSurface, /helper\.incidentTypesHelper\(panel/);
+assert.match(citizenSurface, /helper\.incidentAssignmentsHelper\(panel/);
+assert.match(citizenSurface, /helper\.createTabs\(tabsHost/);
+assert.match(citizenSurface, /trackSurfaceInstance\(mountChatComposer/);
+
+assert.doesNotMatch(citizenSurface, /viewerRole: 'caller'/);
+assert.doesNotMatch(citizenSurface, /mountChatThread\([^;\n]+, 'caller'/);
+assert.doesNotMatch(citizenSurface, /reason: 'ended-by-caller'/);
