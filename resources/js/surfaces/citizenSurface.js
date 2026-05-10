@@ -3185,6 +3185,34 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
 
     await ensureHelperUi();
 
+    const callSessionId = Number(latestSession?.id ?? 0);
+    const activeLiveModal = appState.runtime.callerLiveModal ?? null;
+    const activeLiveOverlay = root.querySelector('[data-caller-live-modal]');
+
+    if (
+        callSessionId > 0
+        && Number(activeLiveModal?.latestSessionId ?? 0) === callSessionId
+        && activeLiveOverlay
+    ) {
+        logCallFlow('citizen', 'live-modal-reuse-existing-overlay', {
+            incidentId: Number(payload.id ?? 0) || null,
+            callSessionId,
+            opening: Boolean(activeLiveModal?.opening),
+            hasCallRuntime: Boolean(activeLiveModal?.callRuntime),
+            hasCallRuntimePromise: Boolean(activeLiveModal?.callRuntimePromise),
+        });
+
+        setCallerLiveModalTransportOnly(activeLiveOverlay, transportOnly);
+        appState.runtime.callerLiveModal = {
+            ...activeLiveModal,
+            incidentId: Number(payload.id ?? 0),
+            payload,
+            latestSessionId: callSessionId,
+            transportOnly: Boolean(transportOnly),
+        };
+        return;
+    }
+
     closeCallerLiveModal(root);
     root.insertAdjacentHTML(
         'beforeend',
@@ -3202,6 +3230,23 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
     bindCallerLiveModalCommon(overlay, close);
     fadeInOverlay(overlay);
     setCallerLiveModalTransportOnly(overlay, transportOnly);
+
+    appState.runtime.callerLiveModal = {
+        incidentId: Number(payload.id ?? 0),
+        payload,
+        latestSessionId: callSessionId,
+        transportOnly: Boolean(transportOnly),
+        opening: true,
+        threadApi: null,
+        composerApi: null,
+        chatRuntime: null,
+        callRuntime: null,
+        callRuntimePromise: null,
+        locationWatchStop: null,
+        disconnectOverlay: null,
+        disconnectRequested: false,
+        hangupConfirmReceived: false,
+    };
 
     overlay?.querySelector('[data-caller-live-hangup]')?.addEventListener('click', () => {
         void (async () => {
@@ -3334,20 +3379,26 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
                 composerApi: fallbackComposer,
             };
         const existingRuntime = appState.runtime.callerLiveModal ?? null;
-        const existingCallRuntime = Number(existingRuntime?.latestSessionId ?? 0) === Number(latestSession?.id ?? 0)
+        const existingCallRuntime = Number(existingRuntime?.latestSessionId ?? 0) === callSessionId
             ? existingRuntime.callRuntime ?? null
+            : null;
+        const existingCallRuntimePromise = Number(existingRuntime?.latestSessionId ?? 0) === callSessionId
+            ? existingRuntime.callRuntimePromise ?? null
             : null;
 
         logCallFlow('citizen', 'live-modal-call-runtime-mount', {
             incidentId: Number(payload.id ?? 0) || null,
-            callSessionId: Number(latestSession?.id ?? 0) || null,
+            callSessionId: callSessionId || null,
             operatorId: Number(payload?.operator?.id ?? 0) || null,
             needsConnectionGate,
-            reused: Boolean(existingCallRuntime),
+            reused: Boolean(existingCallRuntime || existingCallRuntimePromise),
         });
-        const callRuntime = existingCallRuntime
+        const callRuntimePromise = existingCallRuntimePromise
+            ?? (existingCallRuntime
+                ? Promise.resolve(existingCallRuntime)
+                : null)
             ?? (latestSession?.id && payload?.operator?.id
-            ? await mountRealtimeCallSession({
+            ? mountRealtimeCallSession({
                 callSessionId: Number(latestSession.id),
                 viewerRole: 'citizen',
                 admissionPath: '/api/realtime/admission/citizen',
@@ -3395,23 +3446,41 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
                 },
             })
             : null);
+
+        if (callRuntimePromise && !existingCallRuntime && !existingCallRuntimePromise) {
+            appState.runtime.callerLiveModal = {
+                ...(appState.runtime.callerLiveModal ?? {}),
+                callRuntimePromise,
+            };
+        }
+
+        const callRuntime = callRuntimePromise ? await callRuntimePromise : null;
         const existingLocationWatchStop = existingCallRuntime
             ? existingRuntime?.locationWatchStop ?? null
             : null;
+        const currentRuntime = appState.runtime.callerLiveModal ?? null;
+
+        if (Number(currentRuntime?.latestSessionId ?? 0) !== callSessionId || !overlay.isConnected) {
+            liveConversation?.destroy?.();
+            callRuntime?.destroy?.();
+            return;
+        }
 
         appState.runtime.callerLiveModal = {
-            ...(appState.runtime.callerLiveModal ?? {}),
+            ...currentRuntime,
             payload,
-            latestSessionId: Number(latestSession?.id ?? 0),
+            latestSessionId: callSessionId,
             transportOnly: Boolean(transportOnly),
+            opening: false,
             threadApi: conversation.threadApi,
             composerApi: conversation.composerApi,
             chatRuntime: liveConversation,
             callRuntime,
+            callRuntimePromise: null,
             locationWatchStop: existingLocationWatchStop ?? startCallerLocationWatch(callRuntime),
-            disconnectOverlay: null,
-            disconnectRequested: false,
-            hangupConfirmReceived: false,
+            disconnectOverlay: currentRuntime.disconnectOverlay ?? null,
+            disconnectRequested: Boolean(currentRuntime.disconnectRequested),
+            hangupConfirmReceived: Boolean(currentRuntime.hangupConfirmReceived),
         };
 
         if (!needsConnectionGate) {
