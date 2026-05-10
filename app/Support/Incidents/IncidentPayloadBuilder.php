@@ -12,6 +12,7 @@ use App\Domain\Teams\Models\ResourceType;
 use App\Domain\Teams\Models\Team;
 use App\Domain\Teams\Models\TeamCategory;
 use App\Domain\Users\Models\User;
+use App\Support\Media\MediaContractNormalizer;
 use Illuminate\Support\Collection;
 
 class IncidentPayloadBuilder
@@ -294,7 +295,7 @@ class IncidentPayloadBuilder
                 ->values()
                 ->all(),
             'media' => $incident->mediaItems
-                ->filter(fn ($media) => ! $isCallerViewer || $media->type === 'caller_video')
+                ->filter(fn ($media) => ! $isCallerViewer || in_array($media->type, MediaContractNormalizer::citizenVideoTypes(), true))
                 ->sortBy('created_at')
                 ->map(fn ($media) => [
                     'id' => $media->id,

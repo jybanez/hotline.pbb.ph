@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Domain\Incidents\Models\Incident;
 use App\Http\Controllers\Controller;
+use App\Support\Media\MediaContractNormalizer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -18,7 +19,7 @@ class IncidentMediaController extends Controller
         $isCaller = (int) $incident->caller_id === (int) $request->user()->id;
 
         $items = $incident->mediaItems()
-            ->when($isCaller, fn ($query) => $query->where('type', 'caller_video'))
+            ->when($isCaller, fn ($query) => $query->whereIn('type', MediaContractNormalizer::citizenVideoTypes()))
             ->orderBy('created_at')
             ->get()
             ->map(fn ($media) => [

@@ -56,7 +56,7 @@ class ReconnectFlowTest extends TestCase
         $this->assertDatabaseHas('call_participants', [
             'call_session_id' => $callSessionId,
             'user_id' => $citizen->id,
-            'participant_role' => 'caller',
+            'participant_role' => 'citizen',
         ]);
         $this->assertDatabaseHas('call_sessions', [
             'id' => $callSessionId,

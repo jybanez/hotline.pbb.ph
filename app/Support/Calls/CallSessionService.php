@@ -73,7 +73,7 @@ class CallSessionService
             CallParticipant::query()->create([
                 'call_session_id' => $callSession->id,
                 'user_id' => $caller->id,
-                'participant_role' => 'caller',
+                'participant_role' => 'citizen',
                 'joined_at' => now(),
                 'created_at' => now(),
             ]);
