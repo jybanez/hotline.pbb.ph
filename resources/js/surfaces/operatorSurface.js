@@ -2550,13 +2550,13 @@ function createOperatorCallCaptureManager({
                     }
 
                     const nextRuntime = await createRecorderRuntime({
-                        key: 'caller-audio',
+                        key: 'citizen-audio',
                         mediaType: 'audio_peer',
                         trackKind: 'audio',
                         sourceStream: stream,
                         peerUserId: Number(caller?.id ?? 0),
-                        peerRole: 'caller',
-                        peerLabel: caller?.name ?? 'Caller',
+                        peerRole: 'citizen',
+                        peerLabel: caller?.name ?? 'Citizen',
                     });
 
                     if (!nextRuntime) {
@@ -2653,13 +2653,13 @@ function createOperatorCallCaptureManager({
                         }
 
                         const nextRuntime = await createRecorderRuntime({
-                            key: 'caller-video',
-                            mediaType: 'caller_video',
+                            key: 'citizen-cam',
+                            mediaType: 'citizen_video',
                             trackKind: 'video',
                             sourceStream: stream,
                             peerUserId: Number(caller?.id ?? 0),
-                            peerRole: 'caller',
-                            peerLabel: caller?.name ?? 'Caller',
+                            peerRole: 'citizen',
+                            peerLabel: caller?.name ?? 'Citizen',
                         });
 
                         if (!nextRuntime) {
@@ -5590,7 +5590,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride) {
                         readiness.localAudioRecorder = true;
                     }
 
-                    if (key === 'caller-audio') {
+                    if (key === 'citizen-audio') {
                         readiness.remoteAudioRecorder = true;
                     }
 
@@ -5605,7 +5605,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride) {
                         readiness.localAudioPrimed = true;
                     }
 
-                    if (key === 'caller-audio') {
+                    if (key === 'citizen-audio') {
                         readiness.remoteAudioPrimed = true;
                     }
 

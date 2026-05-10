@@ -72,7 +72,7 @@ class MediaChunkIngressController extends Controller
             ], 422);
         }
 
-        if ((string) $media->type !== (string) $validated['type']) {
+        if (! MediaContractNormalizer::typesMatch((string) $media->type, (string) $validated['type'])) {
             return response()->json([
                 'ok' => false,
                 'message' => 'Media ingest type mismatch.',

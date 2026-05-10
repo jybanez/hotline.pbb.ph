@@ -235,7 +235,7 @@ class MediaAssemblyService
 
     private function defaultExtensionFor(string $type): string
     {
-        return $type === 'caller_video' ? 'webm' : 'weba';
+        return in_array($type, MediaContractNormalizer::citizenVideoTypes(), true) ? 'webm' : 'weba';
     }
 
     /**

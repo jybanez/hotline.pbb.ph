@@ -151,7 +151,7 @@ class IncidentPayloadAndMediaTest extends TestCase
             ->assertJsonPath('media.1.type', 'caller_video');
     }
 
-    public function test_caller_incident_payload_and_media_endpoint_only_expose_caller_video(): void
+    public function test_caller_incident_payload_and_media_endpoint_only_expose_citizen_video_records(): void
     {
         [$caller, $operator, $otherOperator, $incidentId] = $this->seedIncidentFixture();
 
@@ -182,24 +182,39 @@ class IncidentPayloadAndMediaTest extends TestCase
                 'created_at' => now(),
                 'available_at' => now(),
             ],
+            [
+                'incident_id' => $incidentId,
+                'call_session_id' => 1,
+                'type' => 'citizen_video',
+                'peer_user_id' => $caller->id,
+                'peer_role' => 'citizen',
+                'peer_label' => $caller->name,
+                'path' => 'media/citizen-video.mp4',
+                'duration_seconds' => 11,
+                'metadata_json' => json_encode(['codec' => 'h264']),
+                'created_at' => now()->addSecond(),
+                'available_at' => now(),
+            ],
         ]);
 
         $this->actingAs($caller)
             ->getJson("/api/caller/incidents/{$incidentId}")
             ->assertOk()
-            ->assertJsonCount(1, 'media')
-            ->assertJsonPath('media.0.type', 'caller_video');
+            ->assertJsonCount(2, 'media')
+            ->assertJsonPath('media.0.type', 'caller_video')
+            ->assertJsonPath('media.1.type', 'citizen_video');
 
         $this->actingAs($caller)
             ->getJson("/api/incidents/{$incidentId}/media")
             ->assertOk()
-            ->assertJsonCount(1, 'items')
-            ->assertJsonPath('items.0.type', 'caller_video');
+            ->assertJsonCount(2, 'items')
+            ->assertJsonPath('items.0.type', 'caller_video')
+            ->assertJsonPath('items.1.type', 'citizen_video');
 
         $this->actingAs($operator)
             ->getJson("/api/incidents/{$incidentId}/media")
             ->assertOk()
-            ->assertJsonCount(2, 'items');
+            ->assertJsonCount(3, 'items');
     }
 
     public function test_processing_media_is_visible_in_operator_and_caller_read_models(): void
@@ -476,6 +491,8 @@ class IncidentPayloadAndMediaTest extends TestCase
         $this->assertDatabaseHas('media', [
             'id' => $mediaId,
             'incident_id' => $incidentId,
+            'type' => 'citizen_video',
+            'peer_role' => 'citizen',
             'path' => '',
         ]);
     }
@@ -497,14 +514,14 @@ class IncidentPayloadAndMediaTest extends TestCase
             ])
             ->assertCreated()
             ->assertJsonPath('ok', true)
-            ->assertJsonPath('media.type', 'caller_video')
-            ->assertJsonPath('media.peer_role', 'caller');
+            ->assertJsonPath('media.type', 'citizen_video')
+            ->assertJsonPath('media.peer_role', 'citizen');
 
         $this->assertDatabaseHas('media', [
             'incident_id' => $incidentId,
-            'type' => 'caller_video',
+            'type' => 'citizen_video',
             'peer_user_id' => $caller->id,
-            'peer_role' => 'caller',
+            'peer_role' => 'citizen',
         ]);
     }
 
@@ -628,12 +645,12 @@ class IncidentPayloadAndMediaTest extends TestCase
             ])
             ->assertCreated()
             ->assertJsonPath('ok', true)
-            ->assertJsonPath('media.type', 'caller_video');
+            ->assertJsonPath('media.type', 'citizen_video');
 
         $this->assertDatabaseHas('media', [
             'incident_id' => $incidentId,
-            'type' => 'caller_video',
-            'peer_role' => 'caller',
+            'type' => 'citizen_video',
+            'peer_role' => 'citizen',
             'path' => 'media/caller-video.mp4',
         ]);
     }

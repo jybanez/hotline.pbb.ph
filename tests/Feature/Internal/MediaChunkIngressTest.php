@@ -155,6 +155,39 @@ class MediaChunkIngressTest extends TestCase
         $this->assertSame('video chunk', Storage::disk('local')->get($chunkPath));
     }
 
+    public function test_internal_media_chunk_ingest_accepts_legacy_caller_aliases_for_citizen_media(): void
+    {
+        Storage::fake('local');
+        [$operator, $mediaId] = $this->seedCallMediaFixture('citizen_video', 'citizen');
+        $this->setMediaIngestSecret('test-media-secret');
+
+        $response = $this->postJson('/api/internal/media/chunks', [
+            'incident_id' => 1,
+            'call_session_id' => 1,
+            'media_id' => $mediaId,
+            'type' => 'caller_video',
+            'peer_role' => 'caller',
+            'track_kind' => 'video',
+            'mime_type' => 'video/webm;codecs=vp8',
+            'extension' => 'webm',
+            'segment_key' => 'citizen-video-segment',
+            'chunk_index' => 0,
+            'chunk_data' => base64_encode('new video chunk'),
+            'sender_user_id' => $operator->id,
+            'room' => 'call.session.1',
+        ], [
+            'X-Hotline-Media-Ingest-Secret' => 'test-media-secret',
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('ok', true);
+
+        $chunkPath = $response->json('chunk.chunk_path');
+        $this->assertNotEmpty($chunkPath);
+        Storage::disk('local')->assertExists($chunkPath);
+        $this->assertSame('new video chunk', Storage::disk('local')->get($chunkPath));
+    }
+
     public function test_internal_media_chunk_ingest_rejects_non_operator_sender_for_call_session(): void
     {
         Storage::fake('local');
@@ -228,8 +261,11 @@ class MediaChunkIngressTest extends TestCase
             'created_at' => now()->subMinutes(1),
         ]);
 
-        $peer = $peerRole === 'caller' ? $caller : $operator;
-        $segmentKey = $mediaType === 'caller_video' ? 'caller-video-segment' : 'operator-audio-segment';
+        $peer = in_array($peerRole, UserRole::citizenValues(), true) ? $caller : $operator;
+        $isCitizenVideo = in_array($mediaType, ['caller_video', 'citizen_video'], true);
+        $segmentKey = $isCitizenVideo
+            ? ($mediaType === 'citizen_video' ? 'citizen-video-segment' : 'caller-video-segment')
+            : 'operator-audio-segment';
 
         $mediaId = DB::table('media')->insertGetId([
             'incident_id' => 1,
@@ -243,8 +279,8 @@ class MediaChunkIngressTest extends TestCase
             'metadata_json' => json_encode([
                 'processing' => true,
                 'segment_key' => $segmentKey,
-                'extension' => $mediaType === 'caller_video' ? 'webm' : 'weba',
-                'track_kind' => $mediaType === 'caller_video' ? 'video' : 'audio',
+                'extension' => $isCitizenVideo ? 'webm' : 'weba',
+                'track_kind' => $isCitizenVideo ? 'video' : 'audio',
             ]),
             'created_at' => now()->subMinute(),
             'available_at' => null,

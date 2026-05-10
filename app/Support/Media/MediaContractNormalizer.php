@@ -23,11 +23,24 @@ class MediaContractNormalizer
 
     public static function normalizeType(string $type): string
     {
-        return $type === 'citizen_video' ? 'caller_video' : $type;
+        return $type === 'caller_video' ? 'citizen_video' : $type;
     }
 
     public static function normalizePeerRole(mixed $role): mixed
     {
-        return $role === 'citizen' ? 'caller' : $role;
+        return $role === 'caller' ? 'citizen' : $role;
+    }
+
+    public static function typesMatch(string $left, string $right): bool
+    {
+        return self::normalizeType($left) === self::normalizeType($right);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function citizenVideoTypes(): array
+    {
+        return ['caller_video', 'citizen_video'];
     }
 }

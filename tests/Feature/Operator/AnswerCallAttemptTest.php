@@ -60,6 +60,10 @@ class AnswerCallAttemptTest extends TestCase
             'caller_id' => $caller->id,
             'citizen_id' => $caller->id,
         ]);
+        $this->assertDatabaseHas('call_participants', [
+            'user_id' => $caller->id,
+            'participant_role' => 'citizen',
+        ]);
     }
 
     public function test_operator_can_mark_active_call_session_ready(): void
