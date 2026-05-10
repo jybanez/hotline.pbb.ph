@@ -16,6 +16,7 @@ const OPERATOR_DISCOVERY_PRESENCE_HEARTBEAT_MS = 60000;
 const OPERATOR_CALL_TIMEOUT_FALLBACK_SECONDS = 30;
 const OPERATOR_REALTIME_RECONNECT_MIN_MS = 1000;
 const OPERATOR_REALTIME_RECONNECT_MAX_MS = 15000;
+const OPERATOR_REMOTE_DISCONNECT_GRACE_MS = 10000;
 const OPERATOR_MEDIA_CONSUMER_ENABLED = true;
 const OPERATOR_MEDIA_CHUNK_TRANSPORT = 'realtime-binary';
 
@@ -3432,8 +3433,13 @@ async function openWorkbenchInitialIntakeModal(overlay, payload = {}) {
             relationshipSelect?.destroy?.();
             addressGroup?.destroy?.();
             addressGroup = null;
+
+            if (appState.runtime.operatorInitialIntakeModal === modal) {
+                appState.runtime.operatorInitialIntakeModal = null;
+            }
         },
     });
+    appState.runtime.operatorInitialIntakeModal = modal;
 
     addressGroup = helper.createFieldGroup(addressHost, {
         name: 'caller_address',
@@ -5530,6 +5536,101 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                 inFlight: false,
             };
             let callRuntime = null;
+            let remoteDisconnectTimerId = null;
+            let remoteDisconnectCompleting = false;
+
+            const clearRemoteDisconnectTimer = () => {
+                if (!remoteDisconnectTimerId) {
+                    return;
+                }
+
+                window.clearTimeout(remoteDisconnectTimerId);
+                remoteDisconnectTimerId = null;
+            };
+
+            const completeRemoteDisconnect = async (state = 'disconnected') => {
+                if (remoteDisconnectCompleting || !activeSessionId) {
+                    return;
+                }
+
+                remoteDisconnectCompleting = true;
+                clearRemoteDisconnectTimer();
+
+                const disconnectedAt = new Date().toISOString();
+                logCallFlow('operator', 'remote-disconnect-grace-elapsed', {
+                    incidentId: Number(payload.id ?? 0) || null,
+                    callSessionId: activeSessionId,
+                    state: String(state ?? ''),
+                    disconnectedAt,
+                });
+
+                try {
+                    let response = null;
+
+                    try {
+                        response = await fetchJson(`/api/operator/call-sessions/${activeSessionId}/citizen-disconnect`, {
+                            method: 'post',
+                        });
+                    } catch (error) {
+                        if (Number(error?.response?.status ?? 0) !== 409) {
+                            throw error;
+                        }
+
+                        logCallFlow('operator', 'remote-disconnect-cleanup-skipped', {
+                            incidentId: Number(payload.id ?? 0) || null,
+                            callSessionId: activeSessionId,
+                            reason: 'session-already-ended',
+                        });
+                        return;
+                    }
+
+                    const officialEndedAt = String(response?.call_session?.ended_at ?? disconnectedAt);
+                    void appState.runtime.operatorInitialIntakeModal?.close?.({ reason: 'remote-disconnect' });
+                    dismissConnectionOverlay();
+                    captureManager?.setOfficialEndedAt?.(officialEndedAt);
+                    void captureManager?.finalizeAll?.();
+                    callRuntime?.sendHangupComplete?.({
+                        reason: 'citizen-disconnected',
+                        ended_at: officialEndedAt,
+                    });
+                    payload = patchIncidentCallSession(payload, activeSessionId, {
+                        status: response?.call_session?.status ?? 'ended',
+                        outcome: response?.call_session?.outcome ?? 'ended_by_citizen',
+                        ended_at: officialEndedAt,
+                        updated_at: response?.call_session?.updated_at ?? officialEndedAt,
+                    });
+                    await refreshWorkbenchOverlay(payload, null);
+                } catch (error) {
+                    remoteDisconnectCompleting = false;
+                    console.warn('Unable to complete citizen disconnect cleanup.', error);
+                    showToast(error.response?.data?.message ?? 'Unable to clean up disconnected caller call.', 'warn');
+                }
+            };
+
+            const scheduleRemoteDisconnectCleanup = (state = 'disconnected') => {
+                if (remoteDisconnectTimerId || remoteDisconnectCompleting) {
+                    return;
+                }
+
+                logCallFlow('operator', 'remote-disconnect-grace-start', {
+                    incidentId: Number(payload.id ?? 0) || null,
+                    callSessionId: activeSessionId,
+                    state: String(state ?? ''),
+                    graceMs: OPERATOR_REMOTE_DISCONNECT_GRACE_MS,
+                });
+
+                remoteDisconnectTimerId = window.setTimeout(() => {
+                    remoteDisconnectTimerId = null;
+                    void completeRemoteDisconnect(state);
+                }, OPERATOR_REMOTE_DISCONNECT_GRACE_MS);
+            };
+
+            instances.push({
+                destroy() {
+                    clearRemoteDisconnectTimer();
+                },
+            });
+
             const openInitialIntakeAfterConnection = (answeredAt = null) => {
                 if (options.initialIntake !== true || !payload?.id || !activeSessionId) {
                     return;
@@ -5838,13 +5939,20 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                     });
                 },
                 onStateChange(nextState) {
-                    readiness.peerConnected = String(nextState ?? '').trim() === 'connected';
-                    const active = ['connected', 'connecting'].includes(String(nextState ?? '').trim());
+                    const normalizedState = String(nextState ?? '').trim();
+                    readiness.peerConnected = normalizedState === 'connected';
+                    const active = ['connected', 'connecting'].includes(normalizedState);
                     logCallFlow('operator', 'peer-connection-state', {
                         incidentId: Number(payload.id ?? 0) || null,
                         callSessionId: activeSessionId,
-                        state: String(nextState ?? ''),
+                        state: normalizedState,
                     });
+
+                    if (normalizedState === 'connected') {
+                        clearRemoteDisconnectTimer();
+                    } else if (['disconnected', 'failed'].includes(normalizedState)) {
+                        scheduleRemoteDisconnectCleanup(normalizedState);
+                    }
 
                     callerGraphApi?.update({
                         isActive: active,
@@ -5966,6 +6074,7 @@ async function presentWorkbench(root, payload, stateOverride = null, options = {
     appState.runtime.operatorWorkbenchOverlay = overlay;
     appState.runtime.operatorWorkbenchRoot = root;
     appState.runtime.operatorWorkbenchInstances = overlayInstances;
+    appState.runtime.operatorInitialIntakeModal?.close?.({ reason: 'workbench-replaced' });
     appState.runtime.operatorWorkbenchCallRuntime = null;
     appState.runtime.operatorWorkbenchCaptureManager = null;
     const close = () => {
@@ -5977,6 +6086,7 @@ async function presentWorkbench(root, payload, stateOverride = null, options = {
         appState.runtime.operatorWorkbenchCaptureManager = null;
         appState.runtime.operatorWorkbenchChat = null;
         appState.runtime.operatorWorkbench = null;
+        appState.runtime.operatorInitialIntakeModal?.close?.({ reason: 'workbench-close' });
         appState.runtime.operatorConnectingModalClose?.();
         appState.runtime.operatorConnectingModalClose = null;
         overlayInstances.forEach((instance) => instance?.destroy?.());
@@ -6261,6 +6371,7 @@ async function refreshWorkbenchOverlay(payload, stateOverride = null, options = 
         : [];
     priorInstances.forEach((instance) => instance?.destroy?.());
     appState.runtime.operatorWorkbenchInstances = [];
+    appState.runtime.operatorInitialIntakeModal?.close?.({ reason: 'workbench-refresh' });
     appState.runtime.operatorWorkbenchCallRuntime = null;
     appState.runtime.operatorWorkbenchCaptureManager = null;
     appState.runtime.operatorWorkbench = null;
@@ -6283,6 +6394,7 @@ async function refreshWorkbenchOverlay(payload, stateOverride = null, options = 
         appState.runtime.operatorWorkbenchCaptureManager = null;
         appState.runtime.operatorWorkbenchChat = null;
         appState.runtime.operatorWorkbench = null;
+        appState.runtime.operatorInitialIntakeModal?.close?.({ reason: 'workbench-close' });
         appState.runtime.operatorConnectingModalClose?.();
         appState.runtime.operatorConnectingModalClose = null;
         overlayInstances.forEach((instance) => instance?.destroy?.());

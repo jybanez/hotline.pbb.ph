@@ -231,6 +231,28 @@ class CallSessionService
 
     public function endActiveOperatorSession(User $operator, CallSession $callSession): CallSession
     {
+        return $this->endActiveSessionForOperator(
+            $operator,
+            $callSession,
+            CallOutcome::EndedByOperator,
+        );
+    }
+
+    public function endActiveCitizenDisconnectedSession(User $operator, CallSession $callSession): CallSession
+    {
+        return $this->endActiveSessionForOperator(
+            $operator,
+            $callSession,
+            CallOutcome::EndedByCitizen,
+        );
+    }
+
+    private function endActiveSessionForOperator(
+        User $operator,
+        CallSession $callSession,
+        CallOutcome $outcome,
+    ): CallSession
+    {
         $callSession->loadMissing('incident', 'participants');
         $incident = $callSession->incident;
 
@@ -242,10 +264,10 @@ class CallSessionService
             throw new RuntimeException('This call session is not currently active.');
         }
 
-        return DB::transaction(function () use ($callSession) {
+        return DB::transaction(function () use ($callSession, $outcome) {
             $callSession->forceFill([
                 'status' => CallStatus::Ended,
-                'outcome' => CallOutcome::EndedByOperator,
+                'outcome' => $outcome,
                 'ended_at' => now(),
             ])->save();
 

@@ -48,6 +48,7 @@ Route::middleware(['auth', 'role:operator'])->prefix('/operator')->group(functio
     Route::post('/call-sessions/{callSession}/answer', [CallSessionController::class, 'answer']);
     Route::post('/call-sessions/{callSession}/ready', [CallSessionController::class, 'ready']);
     Route::post('/call-sessions/{callSession}/hangup', [CallSessionController::class, 'hangup']);
+    Route::post('/call-sessions/{callSession}/citizen-disconnect', [CallSessionController::class, 'citizenDisconnect']);
     Route::post('/call-sessions/{callSession}/media', [CallSessionMediaController::class, 'store']);
     Route::post('/media/{media}/chunks', [CallSessionMediaController::class, 'storeChunk']);
     Route::post('/media/{media}/finalize', [CallSessionMediaController::class, 'finalize']);

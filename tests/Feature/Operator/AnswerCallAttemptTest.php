@@ -4,6 +4,7 @@ namespace Tests\Feature\Operator;
 
 use App\Domain\Shared\Enums\UserRole;
 use App\Domain\Calls\Models\CallSession;
+use App\Domain\Shared\Enums\IncidentStatus;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -207,5 +208,52 @@ class AnswerCallAttemptTest extends TestCase
 
         $this->assertSame($expected->format('Y-m-d\\TH:i:s.u\\Z'), $actualModel?->format('Y-m-d\\TH:i:s.u\\Z'));
         $this->assertSame($expected->format('Y-m-d\\TH:i:s.u\\Z'), $actualResponse->format('Y-m-d\\TH:i:s.u\\Z'));
+    }
+
+    public function test_operator_can_end_active_session_after_citizen_disconnect(): void
+    {
+        $citizen = User::factory()->create([
+            'role' => UserRole::Citizen,
+        ]);
+
+        $operator = User::factory()->create([
+            'role' => UserRole::Operator,
+        ]);
+
+        $incidentId = DB::table('incidents')->insertGetId([
+            'caller_id' => $citizen->id,
+            'citizen_id' => $citizen->id,
+            'actual_caller_name' => $citizen->name,
+            'operator_id' => $operator->id,
+            'status' => IncidentStatus::Active->value,
+            'alert_level' => 'Normal',
+            'called_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $callSessionId = DB::table('call_sessions')->insertGetId([
+            'incident_id' => $incidentId,
+            'caller_id' => $citizen->id,
+            'citizen_id' => $citizen->id,
+            'status' => 'in_progress',
+            'outcome' => 'answered',
+            'started_at' => now()->subMinutes(2),
+            'answered_at' => now()->subMinute(),
+            'created_at' => now()->subMinutes(2),
+            'updated_at' => now()->subMinute(),
+        ]);
+
+        $this->actingAs($operator)
+            ->postJson("/api/operator/call-sessions/{$callSessionId}/citizen-disconnect")
+            ->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('call_session.status', 'ended')
+            ->assertJsonPath('call_session.outcome', 'ended_by_citizen');
+
+        $this->assertDatabaseHas('call_sessions', [
+            'id' => $callSessionId,
+            'outcome' => 'ended_by_citizen',
+        ]);
     }
 }

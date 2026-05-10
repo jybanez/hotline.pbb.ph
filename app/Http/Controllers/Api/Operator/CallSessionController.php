@@ -70,4 +70,21 @@ class CallSessionController extends Controller
             'call_session' => $callSession,
         ]);
     }
+
+    public function citizenDisconnect(Request $request, CallSession $callSession): JsonResponse
+    {
+        try {
+            $callSession = $this->callSessions->endActiveCitizenDisconnectedSession($request->user(), $callSession);
+        } catch (RuntimeException $exception) {
+            return response()->json([
+                'ok' => false,
+                'message' => $exception->getMessage(),
+            ], 409);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'call_session' => $callSession,
+        ]);
+    }
 }
