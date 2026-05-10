@@ -2411,10 +2411,8 @@ function switchCameraIconMarkup() {
 
 function hangupIconMarkup() {
     return `
-        <svg class="caller-live-action-icon caller-live-action-icon-hangup" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M5.25 15.25c.95-1.7 3.6-2.9 6.75-2.9s5.8 1.2 6.75 2.9" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2"></path>
-            <path d="M7.1 13.95l-1.55 2.7c-.25.45-.1 1.02.35 1.27l1.9 1.08c.45.25 1.02.1 1.27-.35l.8-1.4" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.8"></path>
-            <path d="M16.9 13.95l1.55 2.7c.25.45.1 1.02-.35 1.27l-1.9 1.08c-.45.25-1.02.1-1.27-.35l-.8-1.4" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.8"></path>
+        <svg class="caller-live-action-icon caller-live-action-icon-hangup" viewBox="0 0 1024 1024" aria-hidden="true" focusable="false">
+            <path d="M57.856 600.106667a52.394667 52.394667 0 0 1 0-73.813334c245.674667-246.613333 645.034667-246.613333 891.648 0 20.266667 20.394667 20.266667 53.333333 0 73.770667l-89.514667 89.557333a51.84 51.84 0 0 1-73.301333 0.426667 411.562667 411.562667 0 0 0-101.973333-74.24 51.584 51.584 0 0 1-28.373334-46.464l-0.512-100.693333c-99.413333-29.781333-205.354667-29.866667-304.810666-0.170667v100.138667c-0.128 19.626667-11.093333 37.589333-28.586667 46.634666a394.154667 394.154667 0 0 0-101.589333 74.069334c-20.48 20.224-53.376 20.224-73.813334-0.042667l-89.173333-89.173333z" fill="currentColor"></path>
         </svg>
     `;
 }
