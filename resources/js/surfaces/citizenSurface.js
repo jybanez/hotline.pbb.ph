@@ -1070,13 +1070,21 @@ function ensureCallerNetworkHandlers() {
 
     appState.runtime.callerNetworkHandlersMounted = true;
     window.addEventListener('offline', () => {
+        if (syncCallerLiveNetworkState(true)) {
+            return;
+        }
+
         if (!pauseCallerCallRoutingForOffline(getCallerPendingState(), 'browser-offline-event')) {
             rerenderCallerInPlace();
         }
     });
     window.addEventListener('online', () => {
+        syncCallerLiveNetworkState(false);
         resumeCallerCallRoutingAfterOnline();
-        rerenderCallerInPlace();
+
+        if (!appState.runtime.callerLiveModal) {
+            rerenderCallerInPlace();
+        }
     });
 }
 
@@ -3114,6 +3122,9 @@ function renderCallerLiveCallContent(payload, latestSession) {
 
     return `
         <div class="caller-live-layout">
+            <div class="caller-live-network-banner" data-caller-live-network-banner hidden>
+                Network offline. Keep this screen open while reconnecting.
+            </div>
             <section class="caller-live-call-header">
                 <div class="caller-live-header-meta">
                     <div class="caller-live-incident-number">Incident No. ${escapeHtml(incidentNumber)}</div>
@@ -3153,6 +3164,32 @@ function renderCallerLiveCallContent(payload, latestSession) {
             </footer>
         </div>
     `;
+}
+
+function syncCallerLiveNetworkState(forceOffline = callerBrowserOffline()) {
+    const overlay = appState.runtime.callerRoot?.querySelector?.('[data-caller-live-modal]');
+
+    if (!overlay) {
+        return false;
+    }
+
+    const offline = Boolean(forceOffline);
+    overlay.classList.toggle('is-browser-offline', offline);
+    const banner = overlay.querySelector('[data-caller-live-network-banner]');
+
+    if (banner) {
+        banner.hidden = !offline;
+        banner.textContent = offline
+            ? 'Network offline. Keep this screen open while reconnecting.'
+            : '';
+    }
+
+    logCallFlow('citizen', offline ? 'live-call-browser-offline' : 'live-call-browser-online', {
+        incidentId: Number(appState.runtime.callerLiveModal?.incidentId ?? 0) || null,
+        callSessionId: Number(appState.runtime.callerLiveModal?.latestSessionId ?? 0) || null,
+    });
+
+    return true;
 }
 
 function mountCallerConversation(host, incident, emptyText, includeComposer = false) {
@@ -3433,6 +3470,7 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
 
         if (activeLiveOverlay) {
             setCallerLiveModalTransportOnly(activeLiveOverlay, transportOnly);
+            syncCallerLiveNetworkState(callerBrowserOffline());
         }
 
         appState.runtime.callerLiveModal = {
@@ -3491,6 +3529,7 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
         disconnectRequested: canReuseLiveRuntime ? Boolean(activeLiveModal?.disconnectRequested) : false,
         hangupConfirmReceived: canReuseLiveRuntime ? Boolean(activeLiveModal?.hangupConfirmReceived) : false,
     };
+    syncCallerLiveNetworkState(callerBrowserOffline());
 
     overlay?.querySelector('[data-caller-live-hangup]')?.addEventListener('click', () => {
         void (async () => {

@@ -902,6 +902,18 @@
     align-content: stretch;
 }
 
+.caller-live-network-banner {
+    padding: 0.55rem 0.7rem;
+    border: 1px solid rgba(239, 83, 80, 0.45);
+    border-radius: 8px;
+    background: rgba(81, 20, 24, 0.82);
+    color: #fff1f1;
+    font-size: 0.84rem;
+    font-weight: 700;
+    line-height: 1.35;
+    text-align: center;
+}
+
 .caller-live-call-header {
     display: grid;
     gap: 0.45rem;
