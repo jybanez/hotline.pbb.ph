@@ -203,7 +203,7 @@ Legend:
 - [x] Add `citizen_phone_numbers` redaction key beside `caller_phone_numbers` if needed.
 - [x] Update generated SITREP prose from caller to citizen where user-facing.
 - [ ] Keep historical or schema-specific caller terms where required.
-- [ ] Add SITREP tests for citizen-facing output.
+- [x] Add SITREP tests for citizen-facing output.
 
 ## Docs and OpenAPI
 
@@ -224,7 +224,7 @@ Legend:
 - [x] Run focused operator workbench tests after API/payload changes.
 - [ ] Run focused citizen surface tests after frontend API changes.
 - [x] Run focused media tests after media contract changes.
-- [ ] Run focused SITREP tests after report changes.
+- [x] Run focused SITREP tests after report changes.
 - [ ] Run PWA/offline smoke test after manifest/service-worker changes.
 - [ ] Run Helper integration smoke test after Helper adapter changes.
 - [x] Run full test suite before merging each runtime PR.
