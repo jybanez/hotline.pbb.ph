@@ -115,8 +115,8 @@ Legend:
 - [x] Add canonical `missing_citizen_location_count` beside legacy `missing_caller_location_count`.
 - [x] Add canonical `citizen_phone_numbers` beside legacy `caller_phone_numbers`.
 - [x] Add canonical `citizens_assisted` beside legacy `callers_assisted`.
-- [~] Accept both citizen and caller request fields during compatibility.
-- [~] Define conflict behavior when both citizen and caller request fields are provided.
+- [x] Accept both citizen and caller request fields during compatibility.
+- [x] Define conflict behavior when both citizen and caller request fields are provided: canonical non-empty `citizen_*` values win over legacy `caller_*` aliases.
 - [x] Add serialization tests for citizen canonical fields.
 - [x] Add compatibility tests for legacy caller fields.
 
@@ -250,7 +250,7 @@ Legend:
 
 - [x] Decide physical DB rename vs citizen accessors over existing caller columns: physical rename through staged migration.
 - [x] Decide media protocol rename strategy: migrate caller protocol/media values to citizen values.
-- [ ] Decide call outcome rename strategy.
+- [x] Decide call outcome rename strategy: canonical new values use citizen terminology while legacy caller outcome values remain readable during compatibility.
 - [x] Decide legacy caller compatibility duration: until the caller-to-citizen refactor is complete.
 - [x] Decide whether telemetry is required for legacy usage: yes.
 - [ ] Decide whether this repo owns all telemetry for legacy usage or whether Realtime/Helper should also provide service-local telemetry.
