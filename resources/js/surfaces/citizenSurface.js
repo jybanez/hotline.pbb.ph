@@ -869,14 +869,60 @@ function ensureCallerSpeechPrimer() {
 
 const CALLER_OPERATOR_UNAVAILABLE_MESSAGE = 'Operator is currently not available. Please try again later.';
 
+function blurFocusedElementInside(container) {
+    if (typeof document === 'undefined' || !container?.contains) {
+        return;
+    }
+
+    const activeElement = document.activeElement;
+
+    if (activeElement instanceof HTMLElement && container.contains(activeElement)) {
+        activeElement.blur();
+    }
+}
+
 async function showCallerOperatorUnavailableAlert(message = CALLER_OPERATOR_UNAVAILABLE_MESSAGE) {
     await ensureHelperUi();
 
-    if (typeof appState.helper.uiAlert === 'function') {
-        await appState.helper.uiAlert(message, {
-            title: 'Operator Unavailable',
-            variant: 'warning',
-            speak: true,
+    if (typeof appState.helper.createActionModal === 'function') {
+        await new Promise((resolve) => {
+            const content = document.createElement('p');
+            let settled = false;
+            let modal = null;
+
+            content.className = 'ui-dialog-message';
+            content.textContent = message;
+
+            modal = appState.helper.createActionModal({
+                title: 'Operator Unavailable',
+                content,
+                actions: [
+                    {
+                        id: 'ok',
+                        label: 'OK',
+                        variant: 'danger',
+                        autoFocus: true,
+                    },
+                ],
+                size: 'sm',
+                className: 'ui-dialog ui-dialog--warning',
+                showCloseButton: false,
+                closeOnBackdrop: false,
+                closeOnEscape: true,
+                onBeforeClose() {
+                    blurFocusedElementInside(modal?.refs?.root);
+                    return true;
+                },
+                onClose() {
+                    modal?.destroy?.();
+
+                    if (!settled) {
+                        settled = true;
+                        resolve(true);
+                    }
+                },
+            });
+            modal.open();
         });
         return;
     }
