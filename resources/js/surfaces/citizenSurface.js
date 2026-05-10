@@ -1635,7 +1635,7 @@ async function connectCallerRealtimeStream(options = {}) {
                 if (eventType === INCIDENT_UPDATE_EVENT) {
                     const currentIncidentId = Number(appState.runtime.callerHome?.current_open_incident?.id ?? 0);
                     const nextIncidentId = Number(payload?.incident_id ?? 0);
-                    const nextCallerId = String(payload?.caller_id ?? '');
+                    const nextCallerId = String(payload?.citizen_id ?? payload?.caller_id ?? '');
                     const currentCallerId = String(appState.bootstrap?.user?.id ?? '');
 
                     if (

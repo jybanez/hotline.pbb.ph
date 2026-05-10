@@ -2013,6 +2013,10 @@ function prepareOperatorWorkbenchPayload(payload) {
     return payload;
 }
 
+function operatorIncidentCitizenId(payload) {
+    return Number(payload?.citizen?.id ?? payload?.citizen_id ?? payload?.caller?.id ?? payload?.caller_id ?? 0);
+}
+
 function resolveWorkbenchMediaUrl(path) {
     const value = String(path ?? '').trim();
 
@@ -4304,11 +4308,13 @@ async function mountWorkbenchNavbar(overlay, payload, stateOverride, close) {
 
             if (confirmed) {
                 if (statusResponse?.incident) {
-                    payload = statusResponse.incident;
+                    payload = prepareOperatorWorkbenchPayload(statusResponse.incident);
                     syncOperatorIncidentRails(currentOperatorRoot(), payload);
+                    const citizenId = operatorIncidentCitizenId(payload);
                     publishOperatorIncidentUpdate({
                         incident_id: Number(payload.id ?? 0),
-                        caller_id: Number(payload.caller_id ?? 0),
+                        citizen_id: citizenId,
+                        caller_id: citizenId,
                         scope: 'status',
                         patch: {
                             status: String(payload.status ?? targetStatus ?? ''),
