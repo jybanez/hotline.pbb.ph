@@ -1940,7 +1940,7 @@ function syncCallerIncidentOverlayMountedTab(runtime) {
 
     if (runtime.chatHost) {
         runtime.chatHost.replaceChildren();
-        runtime.chatThreadApi = mountChatThread(runtime.chatHost, payload.messages ?? [], 'caller', {
+        runtime.chatThreadApi = mountChatThread(runtime.chatHost, payload.messages ?? [], 'citizen', {
             emptyText: 'No messages yet.',
         });
     } else {
@@ -2095,7 +2095,7 @@ async function mountCallerIncidentOverlay(overlay, payload, options = {}) {
 
                 if (runtime.chatHost) {
                     runtime.chatThreadApi?.destroy?.();
-                    runtime.chatThreadApi = mountChatThread(runtime.chatHost, currentPayload.messages ?? [], 'caller', {
+                    runtime.chatThreadApi = mountChatThread(runtime.chatHost, currentPayload.messages ?? [], 'citizen', {
                         emptyText: 'No messages yet.',
                     });
                 }
@@ -2883,7 +2883,7 @@ function mountCallerConversation(host, incident, emptyText, includeComposer = fa
     let composerApi = null;
 
     if (callerThreadHost && incident) {
-        threadApi = trackSurfaceInstance(mountChatThread(callerThreadHost, incident.messages, 'caller', {
+        threadApi = trackSurfaceInstance(mountChatThread(callerThreadHost, incident.messages, 'citizen', {
             emptyText,
         }));
     }
@@ -2969,7 +2969,7 @@ function refreshCallerLiveThread(overlay, incident, emptyText) {
     appState.runtime.callerLiveModal?.threadApi?.destroy?.();
     host.replaceChildren();
 
-    return trackSurfaceInstance(mountChatThread(host, incident.messages, 'caller', {
+    return trackSurfaceInstance(mountChatThread(host, incident.messages, 'citizen', {
         emptyText,
     }));
 }
@@ -3199,7 +3199,7 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
                 }, CALLER_HANGUP_COMPLETE_TIMEOUT_MS);
 
                 runtime.callRuntime?.sendDisconnectRequest?.({
-                    reason: 'ended-by-caller',
+                    reason: 'ended-by-citizen',
                     requested_at: runtime.disconnectRequestedAt,
                 });
             } catch (error) {
@@ -3213,10 +3213,10 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
         const liveConversation = await mountRealtimeIncidentChat({
             incidentId: Number(payload.id ?? 0),
             messages: payload.messages ?? [],
-            viewerRole: 'caller',
+            viewerRole: 'citizen',
             admissionPath: '/api/realtime/admission/citizen',
             currentUserId: String(appState.bootstrap?.user?.id ?? ''),
-            currentDisplayName: String(appState.bootstrap?.user?.name ?? 'Caller'),
+            currentDisplayName: String(appState.bootstrap?.user?.name ?? 'Citizen'),
             threadHost: overlay.querySelector('[data-caller-chat-thread]'),
             composerHost: overlay.querySelector('[data-caller-chat-composer]'),
             uploadQueueHost: overlay.querySelector('[data-caller-chat-upload-queue]'),
@@ -3281,7 +3281,7 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
         const callRuntime = latestSession?.id && payload?.operator?.id
             ? await mountRealtimeCallSession({
                 callSessionId: Number(latestSession.id),
-                viewerRole: 'caller',
+                viewerRole: 'citizen',
                 admissionPath: '/api/realtime/admission/citizen',
                 currentUserId: String(appState.bootstrap?.user?.id ?? ''),
                 remoteUserId: String(payload.operator.id),

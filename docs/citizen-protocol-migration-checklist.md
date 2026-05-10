@@ -178,7 +178,7 @@ Legend:
 - [x] Update Helper-facing adapter payloads to accept legacy caller fields.
 - [ ] Update Helper docs or proposals that still describe the public user as caller.
 - [ ] Refresh vendored Helper copy if upstream Helper changes are needed.
-- [ ] Smoke-test Helper-backed citizen chat, media viewer, forms, and call UI.
+- [x] Smoke-test Helper-backed citizen chat, media viewer, forms, and call UI.
 
 ## Media and Call Session Contracts
 
@@ -226,7 +226,7 @@ Legend:
 - [x] Run focused media tests after media contract changes.
 - [x] Run focused SITREP tests after report changes.
 - [x] Run PWA/offline smoke test after manifest/service-worker changes.
-- [ ] Run Helper integration smoke test after Helper adapter changes.
+- [x] Run Helper integration smoke test after Helper adapter changes.
 - [x] Run full test suite before merging each runtime PR.
 
 ## Deployment and Decommission

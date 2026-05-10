@@ -5778,7 +5778,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride) {
                                 updated_at: response?.call_session?.updated_at ?? officialEndedAt,
                             });
                             callRuntime?.sendHangupComplete?.({
-                                reason: 'ended-by-caller',
+                                reason: 'ended-by-citizen',
                                 ended_at: officialEndedAt,
                             });
                             await refreshWorkbenchOverlay(payload, null);
