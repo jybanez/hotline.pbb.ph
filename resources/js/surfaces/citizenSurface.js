@@ -1008,17 +1008,18 @@ function publishCallerOperatorDiscoveryRequest(excludedOperatorIds = []) {
     return published;
 }
 
-function retryCallerCallDiscoveryAfterMiss(pending) {
+function retryCallerCallDiscoveryAfterMiss(pending, options = {}) {
     const missedOperatorId = Number(pending?.operator_id ?? 0);
     const missedAttemptId = Number(pending?.attempt_id ?? 0);
     const missedOperatorAttemptId = Number(pending?.operator_attempt_id ?? 0);
     const callerId = Number(appState.bootstrap?.user?.id ?? 0);
+    const markTimedOut = options.markTimedOut !== false;
     const excluded = normalizeOperatorIdList([
         ...(Array.isArray(pending?.excluded_operator_ids) ? pending.excluded_operator_ids : []),
         missedOperatorId,
     ]);
 
-    if (missedOperatorId > 0) {
+    if (markTimedOut && missedOperatorId > 0) {
         publishCallerCallFlow('caller.call.timed_out', {
             call_attempt_id: missedAttemptId,
             call_attempt_operator_attempt_id: missedOperatorAttemptId,
@@ -1029,7 +1030,7 @@ function retryCallerCallDiscoveryAfterMiss(pending) {
         });
     }
 
-    if (missedAttemptId > 0 && missedOperatorAttemptId > 0) {
+    if (markTimedOut && missedAttemptId > 0 && missedOperatorAttemptId > 0) {
         void fetchJson(`/api/citizen/call-attempts/${missedAttemptId}/timeout`, {
             method: 'post',
         }).catch((error) => {
@@ -1741,7 +1742,8 @@ async function connectCallerRealtimeStream(options = {}) {
                         return;
                     }
 
-                    retryCallerCallDiscoveryAfterMiss(pendingState);
+                    clearCallerCallRoutingTimers();
+                    retryCallerCallDiscoveryAfterMiss(pendingState, { markTimedOut: false });
                     return;
                 }
             },
