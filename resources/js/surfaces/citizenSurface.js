@@ -3192,7 +3192,11 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
     if (
         callSessionId > 0
         && Number(activeLiveModal?.latestSessionId ?? 0) === callSessionId
-        && activeLiveOverlay
+        && (
+            activeLiveModal?.opening
+            || activeLiveModal?.callRuntime
+            || activeLiveModal?.callRuntimePromise
+        )
     ) {
         logCallFlow('citizen', 'live-modal-reuse-existing-overlay', {
             incidentId: Number(payload.id ?? 0) || null,
@@ -3202,7 +3206,10 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
             hasCallRuntimePromise: Boolean(activeLiveModal?.callRuntimePromise),
         });
 
-        setCallerLiveModalTransportOnly(activeLiveOverlay, transportOnly);
+        if (activeLiveOverlay) {
+            setCallerLiveModalTransportOnly(activeLiveOverlay, transportOnly);
+        }
+
         appState.runtime.callerLiveModal = {
             ...activeLiveModal,
             incidentId: Number(payload.id ?? 0),

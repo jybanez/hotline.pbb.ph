@@ -32,6 +32,7 @@ const SESSION_ACTIVITY_STALE_MS = 30 * 1000;
 const SESSION_KEEPALIVE_MIN_INTERVAL_MS = 15 * 1000;
 const SESSION_WATCH_INTERVAL_MS = 5 * 1000;
 const HELPER_VENDOR_REV = '5af197a';
+const realtimeCallSessionRegistry = new Map();
 
 const appState = {
     bootstrap: null,
@@ -2259,6 +2260,57 @@ async function mountRealtimeCallSession(options = {}) {
         return null;
     }
 
+    const registryKey = [
+        viewerRole,
+        callSessionId,
+        currentUserId,
+        remoteUserId,
+    ].join(':');
+    const existingRegistryEntry = realtimeCallSessionRegistry.get(registryKey);
+
+    if (existingRegistryEntry?.promise) {
+        logCallFlow(viewerRole, 'call-session-runtime-reuse', {
+            callSessionId,
+            currentUserId,
+            remoteUserId,
+            hasRuntime: Boolean(existingRegistryEntry.runtime),
+        });
+        return existingRegistryEntry.promise;
+    }
+
+    let resolveRegistryRuntime = null;
+    const registryPromise = new Promise((resolve) => {
+        resolveRegistryRuntime = resolve;
+    });
+
+    realtimeCallSessionRegistry.set(registryKey, {
+        promise: registryPromise,
+        runtime: null,
+    });
+
+    const finishRegistryRuntime = (runtime) => {
+        const currentEntry = realtimeCallSessionRegistry.get(registryKey);
+
+        if (currentEntry) {
+            currentEntry.runtime = runtime;
+            currentEntry.promise = Promise.resolve(runtime);
+        }
+
+        resolveRegistryRuntime?.(runtime);
+        return runtime;
+    };
+
+    const clearRegistryRuntime = () => {
+        const currentEntry = realtimeCallSessionRegistry.get(registryKey);
+
+        if (currentEntry) {
+            realtimeCallSessionRegistry.delete(registryKey);
+        }
+
+        resolveRegistryRuntime?.(null);
+        return null;
+    };
+
     const conferenceState = createRealtimeConferenceState();
     const state = {
         active: true,
@@ -3118,7 +3170,7 @@ async function mountRealtimeCallSession(options = {}) {
                 hasWebsocketUrl: Boolean(admission?.websocket_url),
                 callRoom,
             });
-            return null;
+            return clearRegistryRuntime();
         }
 
         state.callRoom = callRoom;
@@ -3203,10 +3255,10 @@ async function mountRealtimeCallSession(options = {}) {
         });
         console.warn('Realtime call session is unavailable.', error);
         showToast('Live audio is unavailable right now.', 'warn');
-        return null;
+        return clearRegistryRuntime();
     }
 
-    return {
+    const runtimeApi = {
         destroy() {
             state.active = false;
 
@@ -3255,6 +3307,11 @@ async function mountRealtimeCallSession(options = {}) {
             resetRemoteVideoHost(remoteVideoHost);
 
             state.client?.close?.();
+            const currentEntry = realtimeCallSessionRegistry.get(registryKey);
+
+            if (currentEntry?.runtime === runtimeApi) {
+                realtimeCallSessionRegistry.delete(registryKey);
+            }
         },
         sendHangup(meta = {}) {
             sendHangupSignal(meta);
@@ -3287,6 +3344,8 @@ async function mountRealtimeCallSession(options = {}) {
             };
         },
     };
+
+    return finishRegistryRuntime(runtimeApi);
 }
 
 async function mountRealtimeIncidentChat(options = {}) {
