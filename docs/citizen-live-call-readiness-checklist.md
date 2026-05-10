@@ -2,7 +2,7 @@
 
 Date: 2026-05-10
 
-Status: Ready for owner live testing after local preflight.
+Status: Owner live testing in progress; core call, reconnect, disconnect, offline, and hangup flows validated.
 
 Scope:
 - Citizen-to-operator live call flow after the caller-to-citizen compatibility refactor.
@@ -57,22 +57,41 @@ npm run build
 
 ## Owner Live Test
 
-- [ ] Open a citizen browser session at `https://hotline.pbb.ph`.
-- [ ] Sign in with an active citizen account.
-- [ ] Close or refresh any older `/caller` browser/PWA tabs before testing so legacy telemetry does not mask the canonical citizen flow.
-- [ ] Open a separate operator browser session at `https://hotline.pbb.ph`.
-- [ ] Sign in with an active operator account.
-- [ ] Set the operator available if the dashboard does not already show availability.
-- [ ] From the citizen surface, start a new call.
-- [ ] Confirm the operator receives the incoming call attempt.
-- [ ] Accept the call from the operator surface.
-- [ ] Confirm both sides transition to an active call session.
-- [ ] Confirm camera and microphone permission prompts work.
-- [ ] Confirm citizen hangup records a citizen outcome.
-- [ ] Confirm operator hangup still works.
-- [ ] Confirm reconnect works from an active incident.
+- [x] Open a citizen browser session at `https://hotline.pbb.ph`.
+- [x] Sign in with an active citizen account.
+- [x] Close or refresh any older `/caller` browser/PWA tabs before testing so legacy telemetry does not mask the canonical citizen flow.
+- [x] Open a separate operator browser session at `https://hotline.pbb.ph`.
+- [x] Sign in with an active operator account.
+- [x] Set the operator available if the dashboard does not already show availability.
+- [x] From the citizen surface, start a new call.
+- [x] Confirm the operator receives the incoming call attempt.
+- [x] Accept the call from the operator surface.
+- [x] Confirm both sides transition to an active call session.
+- [x] Confirm camera and microphone permission prompts work.
+- [x] Confirm citizen hangup records a citizen outcome.
+- [x] Confirm operator hangup still works.
+- [x] Confirm reconnect works from an active incident.
 - [ ] Confirm no new `caller` values are written for canonical call outcomes or participant/media peer roles.
 - [ ] Review `storage/logs/laravel.log` for unexpected errors after the test.
+
+## Owner Live Test Coverage Confirmed
+
+- [x] New call answer reaches active call on citizen and operator surfaces.
+- [x] Reconnect answer reaches active call on citizen and operator surfaces.
+- [x] Operator decline for reconnect publishes and renders the declined state.
+- [x] Reconnect ringing timeout follows `reconnect_timeout_seconds`.
+- [x] Citizen cancel of unanswered reconnect publishes cancel/cancelled and clears the operator modal.
+- [x] Operator hangup on reconnected active call closes the citizen live modal and refreshes operator UI.
+- [x] Citizen hangup on reconnected active call confirms, ends the call, and refreshes operator UI.
+- [x] Closing the citizen tab during an active call triggers operator remote-disconnect grace, cleanup API, and UI refresh.
+- [x] Closing the operator tab during an active call triggers citizen operator-disconnect grace, cleanup API, and UI refresh.
+- [x] Citizen offline during ringing pauses routing without misleading weak/available UI.
+- [x] Citizen offline/online during active live call logs browser offline/online and keeps the active call stable.
+- [x] Operator short offline during active reconnect call cancels grace when the operator returns online.
+- [x] Operator long offline during active reconnect call triggers citizen heartbeat timeout and citizen cleanup.
+- [x] Operator long offline during active reconnect call exits stale operator live-call UI locally and reconciles from server when online.
+- [x] Operator long offline during fresh new active call exits stale operator live-call UI locally and reconciles from server when online.
+- [x] Operator short offline during fresh new active call cancels grace and keeps the call live.
 
 ## Keep Running During Live Test
 
