@@ -44,16 +44,16 @@ Legend:
 
 ## Contract Inventory Tasks
 
-- [~] Inventory all remaining `caller` strings in `app/`.
-- [~] Inventory all remaining `caller` strings in `routes/`.
-- [~] Inventory all remaining `caller` strings in `resources/`.
-- [~] Inventory all remaining `caller` strings in `public/`.
-- [~] Inventory all remaining `caller` strings in `database/`.
-- [~] Inventory all remaining `caller` strings in `config/`.
-- [~] Inventory all remaining `caller` strings in `tests/`.
-- [~] Inventory all remaining `caller` strings in `docs/`.
-- [~] Classify each remaining `caller` usage as user-facing copy, internal code, API contract, DB contract, Realtime contract, Helper contract, report output, test fixture, or historical documentation.
-- [ ] Mark usages that should intentionally remain `caller` for compatibility or historical accuracy.
+- [x] Inventory all remaining `caller` strings in `app/`.
+- [x] Inventory all remaining `caller` strings in `routes/`.
+- [x] Inventory all remaining `caller` strings in `resources/`.
+- [x] Inventory all remaining `caller` strings in `public/`.
+- [x] Inventory all remaining `caller` strings in `database/`.
+- [x] Inventory all remaining `caller` strings in `config/`.
+- [x] Inventory all remaining `caller` strings in `tests/`.
+- [x] Inventory all remaining `caller` strings in `docs/`.
+- [x] Classify each remaining `caller` usage as user-facing copy, internal code, API contract, DB contract, Realtime contract, Helper contract, report output, test fixture, or historical documentation.
+- [x] Mark usages that should intentionally remain `caller` for compatibility or historical accuracy.
 
 ## Roles and Auth
 
@@ -202,7 +202,7 @@ Legend:
 - [x] Add `missing_citizen_location_count` beside `missing_caller_location_count`.
 - [x] Add `citizen_phone_numbers` redaction key beside `caller_phone_numbers` if needed.
 - [x] Update generated SITREP prose from caller to citizen where user-facing.
-- [ ] Keep historical or schema-specific caller terms where required.
+- [x] Keep historical or schema-specific caller terms where required.
 - [x] Add SITREP tests for citizen-facing output.
 
 ## Docs and OpenAPI
