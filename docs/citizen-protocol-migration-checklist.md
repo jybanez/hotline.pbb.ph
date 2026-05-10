@@ -222,7 +222,7 @@ Legend:
 - [x] Run focused Realtime admission tests after admission changes.
 - [x] Run focused Realtime client tests after event changes.
 - [x] Run focused operator workbench tests after API/payload changes.
-- [ ] Run focused citizen surface tests after frontend API changes.
+- [x] Run focused citizen surface tests after frontend API changes.
 - [x] Run focused media tests after media contract changes.
 - [x] Run focused SITREP tests after report changes.
 - [x] Run PWA/offline smoke test after manifest/service-worker changes.
