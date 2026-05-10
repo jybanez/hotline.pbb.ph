@@ -65,6 +65,53 @@ function clearOperatorRealtimeReconnectTimer() {
     appState.runtime.operatorRealtimeSignal?.setReconnectRuntime?.(runtime);
 }
 
+async function refreshPendingOperatorOnlineWorkbench() {
+    const pending = appState.runtime.operatorPendingOnlineRefresh ?? null;
+    const incidentId = Number(pending?.incidentId ?? 0);
+    const callSessionId = Number(pending?.callSessionId ?? 0);
+
+    if (!incidentId || !navigator.onLine) {
+        return;
+    }
+
+    appState.runtime.operatorPendingOnlineRefresh = null;
+
+    try {
+        logCallFlow('operator', 'operator-browser-online-refresh-start', {
+            incidentId,
+            callSessionId: callSessionId || null,
+        });
+        const latestPayload = await fetchJson(`/api/operator/incidents/${incidentId}`);
+        if (latestPayload) {
+            await refreshWorkbenchOverlay(latestPayload, null);
+        }
+        logCallFlow('operator', 'operator-browser-online-refresh-success', {
+            incidentId,
+            callSessionId: callSessionId || null,
+        });
+    } catch (error) {
+        appState.runtime.operatorPendingOnlineRefresh = pending;
+        logCallFlow('operator', 'operator-browser-online-refresh-failed', {
+            incidentId,
+            callSessionId: callSessionId || null,
+            status: Number(error?.response?.status ?? 0) || null,
+            message: String(error?.response?.data?.message ?? error?.message ?? 'Unknown refresh error'),
+        });
+        console.warn('Unable to refresh operator workbench after reconnect.', error);
+    }
+}
+
+function ensureOperatorBrowserOnlineRefreshListener() {
+    if (appState.runtime.operatorBrowserOnlineRefreshListenerBound) {
+        return;
+    }
+
+    appState.runtime.operatorBrowserOnlineRefreshListenerBound = true;
+    window.addEventListener('online', () => {
+        void refreshPendingOperatorOnlineWorkbench();
+    });
+}
+
 function resetOperatorRealtimeJoinState() {
     resetOperatorDiscoveryPresence();
     resetOperatorTransferPresenceRoster();
@@ -5639,31 +5686,11 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                 notifyOperatorBrowserNetworkState(false);
                 cancelOperatorBrowserOfflineCleanup();
                 if (operatorBrowserOfflineLocallyEnded && payload?.id) {
-                    void (async () => {
-                        try {
-                            logCallFlow('operator', 'operator-browser-online-refresh-start', {
-                                incidentId: Number(payload.id ?? 0) || null,
-                                callSessionId: activeSessionId,
-                            });
-                            const latestPayload = await fetchJson(`/api/operator/incidents/${payload.id}`);
-                            if (latestPayload) {
-                                payload = latestPayload;
-                                await refreshWorkbenchOverlay(payload, null);
-                            }
-                            logCallFlow('operator', 'operator-browser-online-refresh-success', {
-                                incidentId: Number(payload.id ?? 0) || null,
-                                callSessionId: activeSessionId,
-                            });
-                        } catch (error) {
-                            logCallFlow('operator', 'operator-browser-online-refresh-failed', {
-                                incidentId: Number(payload.id ?? 0) || null,
-                                callSessionId: activeSessionId,
-                                status: Number(error?.response?.status ?? 0) || null,
-                                message: String(error?.response?.data?.message ?? error?.message ?? 'Unknown refresh error'),
-                            });
-                            console.warn('Unable to refresh operator workbench after reconnect.', error);
-                        }
-                    })();
+                    appState.runtime.operatorPendingOnlineRefresh = {
+                        incidentId: Number(payload.id ?? 0),
+                        callSessionId: activeSessionId,
+                    };
+                    void refreshPendingOperatorOnlineWorkbench();
                 }
             };
 
@@ -5835,6 +5862,10 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                 operatorBrowserOfflineCompleting = true;
                 operatorBrowserOfflineLocallyEnded = true;
                 clearOperatorBrowserOfflineTimer();
+                appState.runtime.operatorPendingOnlineRefresh = {
+                    incidentId: Number(payload.id ?? 0),
+                    callSessionId: activeSessionId,
+                };
 
                 const endedAt = new Date().toISOString();
                 logCallFlow('operator', 'operator-browser-offline-grace-elapsed', {
@@ -8189,6 +8220,7 @@ function mountOperatorAssignmentBoard(root, dashboard) {
 
 export async function renderOperatorSurface(root, bootstrap) {
     clearOperatorIncidentElapsedTimers();
+    ensureOperatorBrowserOnlineRefreshListener();
     const primerReport = evaluateDevicePrimer('operator');
     installOperatorMediaConsoleApi();
     operatorMediaManagersRuntime().start();
@@ -8196,6 +8228,7 @@ export async function renderOperatorSurface(root, bootstrap) {
     appState.operatorDashboard = dashboard;
     renderOperator(root, bootstrap, dashboard, primerReport);
     await connectOperatorRealtimeStream(root);
+    void refreshPendingOperatorOnlineWorkbench();
     await (appState.runtime.operatorActiveItemsLoadPromise ?? Promise.resolve([]));
 
     const retainedIncidentId = Number(sessionStorage.getItem(OPERATOR_WORKBENCH_KEY) ?? 0);
