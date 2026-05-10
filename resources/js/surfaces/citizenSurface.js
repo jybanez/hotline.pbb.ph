@@ -8,6 +8,7 @@ const CALL_DISCOVERY_ROOM = 'presence.global.hotline';
 const INCIDENT_MEDIA_ROOM_PREFIX = 'hotline.media.incident.';
 const INCIDENT_UPDATE_EVENT = 'hotline.incident.updated';
 const TERMINAL_INCIDENT_STATUSES = new Set(['Discarded', 'Resolved']);
+const CALLER_POST_CALL_RECONCILE_DELAYS_MS = [1500, 5000, 12000, 25000];
 const CALLER_HANGUP_CONFIRM_TIMEOUT_MS = 3000;
 const CALLER_HANGUP_COMPLETE_TIMEOUT_MS = 10000;
 const CALLER_DISCOVERY_RESPONSE_TIMEOUT_MIN_MS = 1500;
@@ -682,6 +683,105 @@ function applyCallerIncidentPatch(incidentId, patch = {}) {
     rerenderCallerInPlace();
 
     return true;
+}
+
+function clearCallerPostCallIncidentReconcileTimers() {
+    const timers = Array.isArray(appState.runtime.callerPostCallIncidentReconcileTimers)
+        ? appState.runtime.callerPostCallIncidentReconcileTimers
+        : [];
+
+    timers.forEach((timerId) => window.clearTimeout(timerId));
+    appState.runtime.callerPostCallIncidentReconcileTimers = [];
+}
+
+async function reconcileCallerCurrentIncidentFromHome(incidentId, reason = 'post-call') {
+    const expectedIncidentId = Number(incidentId ?? 0);
+
+    if (expectedIncidentId <= 0) {
+        return false;
+    }
+
+    logCallFlow('citizen', 'post-call-incident-reconcile-start', {
+        incidentId: expectedIncidentId,
+        reason,
+    });
+
+    try {
+        const home = await fetchJson('/api/citizen/home');
+        const serverIncident = home?.current_open_incident ?? null;
+        const serverIncidentId = Number(serverIncident?.id ?? 0);
+        const currentIncident = appState.runtime.callerHome?.current_open_incident ?? null;
+        const currentIncidentId = Number(currentIncident?.id ?? 0);
+
+        appState.runtime.callerHome = {
+            ...(appState.runtime.callerHome ?? {}),
+            ...(home && typeof home === 'object' ? home : {}),
+        };
+
+        if (!serverIncident && currentIncidentId === expectedIncidentId) {
+            logCallFlow('citizen', 'post-call-incident-reconcile-cleared', {
+                incidentId: expectedIncidentId,
+                reason,
+            });
+            syncCallerCurrentIncident(null);
+            clearCallerPendingState();
+            destroyCallerIncidentOverlay(appState.runtime.callerRoot);
+            closeCallerLiveModal(appState.runtime.callerRoot);
+            rerenderCallerInPlace();
+            refreshCallerAvailabilityFromPresence();
+            return true;
+        }
+
+        if (serverIncident && serverIncidentId === expectedIncidentId) {
+            logCallFlow('citizen', 'post-call-incident-reconcile-synced', {
+                incidentId: expectedIncidentId,
+                status: String(serverIncident.status ?? ''),
+                reason,
+            });
+            syncCallerCurrentIncident(serverIncident);
+
+            if (TERMINAL_INCIDENT_STATUSES.has(String(serverIncident.status ?? '').trim())) {
+                return applyCallerIncidentPatch(expectedIncidentId, {
+                    status: serverIncident.status,
+                    resolved_at: serverIncident.resolved_at ?? null,
+                });
+            }
+
+            rerenderCallerInPlace();
+            return true;
+        }
+
+        logCallFlow('citizen', 'post-call-incident-reconcile-ignored', {
+            incidentId: expectedIncidentId,
+            currentIncidentId: currentIncidentId || null,
+            serverIncidentId: serverIncidentId || null,
+            reason,
+        });
+    } catch (error) {
+        logCallFlow('citizen', 'post-call-incident-reconcile-failed', {
+            incidentId: expectedIncidentId,
+            reason,
+            status: Number(error?.response?.status ?? 0) || null,
+            message: String(error?.response?.data?.message ?? error?.message ?? 'Unable to refresh incident state.'),
+        });
+    }
+
+    return false;
+}
+
+function scheduleCallerPostCallIncidentReconciliation(incidentId, reason = 'post-call') {
+    const expectedIncidentId = Number(incidentId ?? 0);
+
+    if (expectedIncidentId <= 0) {
+        return;
+    }
+
+    clearCallerPostCallIncidentReconcileTimers();
+    appState.runtime.callerPostCallIncidentReconcileTimers = CALLER_POST_CALL_RECONCILE_DELAYS_MS.map((delayMs) => (
+        window.setTimeout(() => {
+            void reconcileCallerCurrentIncidentFromHome(expectedIncidentId, reason);
+        }, delayMs)
+    ));
 }
 
 function applyCallerIncidentMediaUpdate(incidentId, nextMedia) {
@@ -1637,13 +1737,23 @@ async function connectCallerRealtimeStream(options = {}) {
                     const nextIncidentId = Number(payload?.incident_id ?? 0);
                     const nextCallerId = String(payload?.citizen_id ?? payload?.caller_id ?? '');
                     const currentCallerId = String(appState.bootstrap?.user?.id ?? '');
-
-                    if (
+                    const canApplyIncidentUpdate = (
                         nextIncidentId > 0
                         && currentIncidentId > 0
                         && nextIncidentId === currentIncidentId
                         && (!nextCallerId || nextCallerId === currentCallerId)
-                    ) {
+                    );
+
+                    logCallFlow('citizen', canApplyIncidentUpdate ? 'incident-update-event-apply' : 'incident-update-event-ignored', {
+                        incidentId: nextIncidentId || null,
+                        currentIncidentId: currentIncidentId || null,
+                        citizenId: nextCallerId || null,
+                        currentCitizenId: currentCallerId || null,
+                        scope: String(payload?.scope ?? ''),
+                        status: String(payload?.patch?.status ?? ''),
+                    });
+
+                    if (canApplyIncidentUpdate) {
                         applyCallerIncidentPatch(nextIncidentId, payload?.patch ?? {});
                     }
 
@@ -4037,6 +4147,7 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
                             incidentId: Number(payload.id ?? 0) || null,
                             callSessionId: Number(latestSession.id ?? 0) || null,
                         });
+                        scheduleCallerPostCallIncidentReconciliation(payload.id, 'hangup-complete');
                         clearCallerLiveHangupTimers();
                         await close();
                         await renderSurface('citizen');
@@ -4051,6 +4162,7 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
                             callSessionId: callSessionIdForHangup || null,
                             endedAt,
                         });
+                        scheduleCallerPostCallIncidentReconciliation(payload.id, 'operator-hangup');
                         clearCallerLiveHangupTimers();
                         if (callSessionIdForHangup > 0) {
                             payload = patchIncidentCallSession(payload, callSessionIdForHangup, {
