@@ -21,6 +21,8 @@ const CALLER_LOCATION_SIGNAL_ACCURACY_IMPROVEMENT_RATIO = 0.35;
 const CALLER_LOCATION_SIGNAL_MIN_ACCURACY_IMPROVEMENT_METERS = 8;
 const CALLER_REALTIME_RECONNECT_MIN_MS = 1000;
 const CALLER_REALTIME_RECONNECT_MAX_MS = 15000;
+const CALLER_REMOTE_DISCONNECT_GRACE_MS = 10000;
+const CALLER_REMOTE_DISCONNECT_CLEANUP_TIMEOUT_MS = 10000;
 
 function normalizeHeadingDegrees(value) {
     const heading = Number(value);
@@ -3226,6 +3228,7 @@ function mountCallerConversation(host, incident, emptyText, includeComposer = fa
 function cleanupCallerLiveModalRuntime() {
     const confirmTimer = appState.runtime.callerLiveModalHangupConfirmTimer;
     const completeTimer = appState.runtime.callerLiveModalHangupCompleteTimer;
+    const remoteDisconnectTimer = appState.runtime.callerLiveRemoteDisconnectTimerId;
 
     if (confirmTimer) {
         window.clearTimeout(confirmTimer);
@@ -3236,6 +3239,13 @@ function cleanupCallerLiveModalRuntime() {
         window.clearTimeout(completeTimer);
         appState.runtime.callerLiveModalHangupCompleteTimer = null;
     }
+
+    if (remoteDisconnectTimer) {
+        window.clearTimeout(remoteDisconnectTimer);
+        appState.runtime.callerLiveRemoteDisconnectTimerId = null;
+    }
+
+    appState.runtime.callerLiveRemoteDisconnectCompleting = false;
 
     const pollTimer = appState.runtime.callerLiveModalPollTimer;
 
@@ -3273,6 +3283,49 @@ function clearCallerLiveHangupTimers() {
         window.clearTimeout(appState.runtime.callerLiveModalHangupCompleteTimer);
         appState.runtime.callerLiveModalHangupCompleteTimer = null;
     }
+}
+
+function clearCallerLiveRemoteDisconnectTimer() {
+    if (!appState.runtime.callerLiveRemoteDisconnectTimerId) {
+        return;
+    }
+
+    window.clearTimeout(appState.runtime.callerLiveRemoteDisconnectTimerId);
+    appState.runtime.callerLiveRemoteDisconnectTimerId = null;
+}
+
+function withCallerRemoteDisconnectCleanupTimeout(promise, label) {
+    return new Promise((resolve, reject) => {
+        let settled = false;
+        const timeoutId = window.setTimeout(() => {
+            if (settled) {
+                return;
+            }
+
+            settled = true;
+            const error = new Error(`${label} timed out`);
+            error.code = 'caller_remote_disconnect_cleanup_timeout';
+            reject(error);
+        }, CALLER_REMOTE_DISCONNECT_CLEANUP_TIMEOUT_MS);
+
+        Promise.resolve(promise).then((value) => {
+            if (settled) {
+                return;
+            }
+
+            settled = true;
+            window.clearTimeout(timeoutId);
+            resolve(value);
+        }, (error) => {
+            if (settled) {
+                return;
+            }
+
+            settled = true;
+            window.clearTimeout(timeoutId);
+            reject(error);
+        });
+    });
 }
 
 function refreshCallerLiveThread(overlay, incident, emptyText) {
@@ -3591,6 +3644,154 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
         })();
     });
 
+    const syncOperatorDisconnectNotice = (visible) => {
+        const liveOverlay = appState.runtime.callerRoot?.querySelector?.('[data-caller-live-modal]');
+        const banner = liveOverlay?.querySelector?.('[data-caller-live-network-banner]');
+
+        if (!banner) {
+            return;
+        }
+
+        banner.hidden = !visible;
+        banner.textContent = visible
+            ? 'Operator connection lost. Waiting to reconnect...'
+            : '';
+    };
+
+    const completeCallerOperatorDisconnect = async (state = 'disconnected') => {
+        const runtime = appState.runtime.callerLiveModal ?? null;
+
+        if (
+            appState.runtime.callerLiveRemoteDisconnectCompleting
+            || runtime?.disconnectRequested
+            || Number(runtime?.latestSessionId ?? 0) !== callSessionId
+            || !callSessionId
+        ) {
+            return;
+        }
+
+        appState.runtime.callerLiveRemoteDisconnectCompleting = true;
+        clearCallerLiveRemoteDisconnectTimer();
+
+        const disconnectedAt = new Date().toISOString();
+        logCallFlow('citizen', 'operator-disconnect-grace-elapsed', {
+            incidentId: Number(payload.id ?? 0) || null,
+            callSessionId,
+            state: String(state ?? ''),
+            disconnectedAt,
+        });
+
+        try {
+            let response = null;
+            let cleanupReason = 'operator-disconnect';
+
+            try {
+                logCallFlow('citizen', 'operator-disconnect-cleanup-api-request', {
+                    incidentId: Number(payload.id ?? 0) || null,
+                    callSessionId,
+                });
+
+                response = await withCallerRemoteDisconnectCleanupTimeout(fetchJson(`/api/citizen/call-sessions/${callSessionId}/operator-disconnect`, {
+                    method: 'post',
+                }), 'Operator disconnect cleanup');
+
+                logCallFlow('citizen', 'operator-disconnect-cleanup-api-success', {
+                    incidentId: Number(payload.id ?? 0) || null,
+                    callSessionId,
+                    status: response?.call_session?.status ?? null,
+                    outcome: response?.call_session?.outcome ?? null,
+                    endedAt: response?.call_session?.ended_at ?? null,
+                });
+            } catch (error) {
+                if (Number(error?.response?.status ?? 0) !== 409) {
+                    throw error;
+                }
+
+                cleanupReason = 'session-already-ended';
+                logCallFlow('citizen', 'operator-disconnect-cleanup-skipped', {
+                    incidentId: Number(payload.id ?? 0) || null,
+                    callSessionId,
+                    reason: cleanupReason,
+                });
+            }
+
+            const officialEndedAt = String(response?.call_session?.ended_at ?? disconnectedAt);
+            payload = patchIncidentCallSession(payload, callSessionId, {
+                status: response?.call_session?.status ?? 'ended',
+                outcome: response?.call_session?.outcome ?? 'ended_by_operator',
+                ended_at: officialEndedAt,
+                updated_at: response?.call_session?.updated_at ?? officialEndedAt,
+            });
+            syncCallerCurrentIncident(payload);
+
+            logCallFlow('citizen', 'operator-disconnect-cleanup-ui-refresh-start', {
+                incidentId: Number(payload.id ?? 0) || null,
+                callSessionId,
+                reason: cleanupReason,
+            });
+
+            showToast('Operator disconnected. The call has ended.', 'warn');
+            await close();
+            await renderSurface('citizen');
+
+            logCallFlow('citizen', 'operator-disconnect-cleanup-ui-refresh-success', {
+                incidentId: Number(payload.id ?? 0) || null,
+                callSessionId,
+                reason: cleanupReason,
+            });
+        } catch (error) {
+            appState.runtime.callerLiveRemoteDisconnectCompleting = false;
+            logCallFlow('citizen', 'operator-disconnect-cleanup-failed', {
+                incidentId: Number(payload.id ?? 0) || null,
+                callSessionId,
+                status: Number(error?.response?.status ?? 0) || null,
+                message: String(error?.response?.data?.message ?? error?.message ?? 'Unknown cleanup error'),
+            });
+            console.warn('Unable to complete operator disconnect cleanup.', error);
+            showToast(error.response?.data?.message ?? 'Unable to clean up disconnected operator call.', 'warn');
+        }
+    };
+
+    const scheduleCallerOperatorDisconnectCleanup = (state = 'disconnected') => {
+        const runtime = appState.runtime.callerLiveModal ?? null;
+
+        if (
+            appState.runtime.callerLiveRemoteDisconnectTimerId
+            || appState.runtime.callerLiveRemoteDisconnectCompleting
+            || runtime?.disconnectRequested
+            || Number(runtime?.latestSessionId ?? 0) !== callSessionId
+        ) {
+            return;
+        }
+
+        syncOperatorDisconnectNotice(true);
+        logCallFlow('citizen', 'operator-disconnect-grace-start', {
+            incidentId: Number(payload.id ?? 0) || null,
+            callSessionId,
+            state: String(state ?? ''),
+            graceMs: CALLER_REMOTE_DISCONNECT_GRACE_MS,
+        });
+
+        appState.runtime.callerLiveRemoteDisconnectTimerId = window.setTimeout(() => {
+            appState.runtime.callerLiveRemoteDisconnectTimerId = null;
+            void completeCallerOperatorDisconnect(state);
+        }, CALLER_REMOTE_DISCONNECT_GRACE_MS);
+    };
+
+    const cancelCallerOperatorDisconnectCleanup = (state = 'connected') => {
+        if (!appState.runtime.callerLiveRemoteDisconnectTimerId) {
+            return;
+        }
+
+        clearCallerLiveRemoteDisconnectTimer();
+        syncOperatorDisconnectNotice(false);
+        logCallFlow('citizen', 'operator-disconnect-grace-cancelled', {
+            incidentId: Number(payload.id ?? 0) || null,
+            callSessionId,
+            state: String(state ?? ''),
+        });
+    };
+
     if (overlay) {
         const needsConnectionGate = !latestSession?.answered_at;
         const liveConversation = await mountRealtimeIncidentChat({
@@ -3702,11 +3903,21 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
                     }
                 },
                 onStateChange(nextState) {
+                    const normalizedState = String(nextState ?? '').trim();
                     logCallFlow('citizen', 'peer-connection-state', {
                         incidentId: Number(payload.id ?? 0) || null,
                         callSessionId: Number(latestSession.id ?? 0) || null,
-                        state: String(nextState ?? ''),
+                        state: normalizedState,
                     });
+
+                    if (['disconnected', 'failed'].includes(normalizedState)) {
+                        scheduleCallerOperatorDisconnectCleanup(normalizedState);
+                        return;
+                    }
+
+                    if (['connected', 'completed'].includes(normalizedState)) {
+                        cancelCallerOperatorDisconnectCleanup(normalizedState);
+                    }
                 },
                 onHangupConfirm() {
                     if (appState.runtime.callerLiveModal) {

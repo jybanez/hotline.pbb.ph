@@ -229,6 +229,35 @@ class CallSessionService
         });
     }
 
+    public function endActiveOperatorDisconnectedSession(User $caller, CallSession $callSession): CallSession
+    {
+        $callSession->loadMissing('incident', 'participants');
+
+        if ((int) $callSession->caller_id !== (int) $caller->id) {
+            throw new RuntimeException('You cannot end this call session.');
+        }
+
+        if ($callSession->status !== CallStatus::InProgress) {
+            throw new RuntimeException('This call session is not currently active.');
+        }
+
+        return DB::transaction(function () use ($callSession) {
+            $callSession->forceFill([
+                'status' => CallStatus::Ended,
+                'outcome' => CallOutcome::EndedByOperator,
+                'ended_at' => now(),
+            ])->save();
+
+            $callSession->participants()
+                ->whereNull('left_at')
+                ->update([
+                    'left_at' => now(),
+                ]);
+
+            return $callSession->fresh(['participants']);
+        });
+    }
+
     public function endActiveOperatorSession(User $operator, CallSession $callSession): CallSession
     {
         return $this->endActiveSessionForOperator(

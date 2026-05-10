@@ -67,4 +67,21 @@ class ReconnectController extends Controller
             'call_session' => $callSession,
         ]);
     }
+
+    public function operatorDisconnect(Request $request, CallSession $callSession): JsonResponse
+    {
+        try {
+            $callSession = $this->callSessions->endActiveOperatorDisconnectedSession($request->user(), $callSession);
+        } catch (RuntimeException $exception) {
+            return response()->json([
+                'ok' => false,
+                'message' => $exception->getMessage(),
+            ], 409);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'call_session' => $callSession,
+        ]);
+    }
 }
