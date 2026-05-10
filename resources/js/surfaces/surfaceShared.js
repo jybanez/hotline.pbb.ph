@@ -31,6 +31,7 @@ const DEVICE_PRIMER_DISMISS_PREFIX = 'hotline.device.primer.dismissed.';
 const SESSION_ACTIVITY_STALE_MS = 30 * 1000;
 const SESSION_KEEPALIVE_MIN_INTERVAL_MS = 15 * 1000;
 const SESSION_WATCH_INTERVAL_MS = 5 * 1000;
+const CALL_SESSION_HEARTBEAT_MS = 2000;
 const HELPER_VENDOR_REV = '5af197a';
 const realtimeCallSessionRegistry = new Map();
 
@@ -2342,6 +2343,7 @@ async function mountRealtimeCallSession(options = {}) {
         client: null,
         callRoom: '',
         mediaMuted: Boolean(options.startMuted),
+        heartbeatTimerId: null,
     };
 
     const debugMedia = (event, detail = {}) => {
@@ -2808,6 +2810,33 @@ async function mountRealtimeCallSession(options = {}) {
         sendCallSignal('hangup', { meta });
     };
 
+    const stopCallHeartbeat = () => {
+        if (!state.heartbeatTimerId) {
+            return;
+        }
+
+        window.clearInterval(state.heartbeatTimerId);
+        state.heartbeatTimerId = null;
+    };
+
+    const sendHeartbeatSignal = () => {
+        sendCallSignal('heartbeat', {
+            meta: {
+                role: viewerRole,
+                sent_at: new Date().toISOString(),
+            },
+        });
+    };
+
+    const startCallHeartbeat = () => {
+        if (state.heartbeatTimerId) {
+            return;
+        }
+
+        sendHeartbeatSignal();
+        state.heartbeatTimerId = window.setInterval(sendHeartbeatSignal, CALL_SESSION_HEARTBEAT_MS);
+    };
+
     const resetRemotePeerConnection = (targetUserId) => {
         const remoteId = String(targetUserId ?? '').trim();
 
@@ -3064,6 +3093,17 @@ async function mountRealtimeCallSession(options = {}) {
             return;
         }
 
+        if (signalType === 'heartbeat') {
+            if (typeof options.onRemoteHeartbeat === 'function') {
+                options.onRemoteHeartbeat({
+                    ...payload,
+                    meta: signalMeta,
+                    senderUserId,
+                });
+            }
+            return;
+        }
+
         if (signalType === 'browser-offline') {
             if (typeof options.onRemoteBrowserOffline === 'function') {
                 options.onRemoteBrowserOffline({
@@ -3256,6 +3296,7 @@ async function mountRealtimeCallSession(options = {}) {
 
                     if (state.joinedRoom) {
                         sendReadySignal();
+                        startCallHeartbeat();
                     }
                     return;
                 }
@@ -3298,6 +3339,7 @@ async function mountRealtimeCallSession(options = {}) {
     const runtimeApi = {
         destroy() {
             state.active = false;
+            stopCallHeartbeat();
 
             Object.values(conferenceState.peerConnections ?? {}).forEach((peerConnection) => {
                 try {

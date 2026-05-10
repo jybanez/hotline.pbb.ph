@@ -23,6 +23,7 @@ const CALLER_REALTIME_RECONNECT_MIN_MS = 1000;
 const CALLER_REALTIME_RECONNECT_MAX_MS = 15000;
 const CALLER_REMOTE_DISCONNECT_GRACE_MS = 10000;
 const CALLER_REMOTE_DISCONNECT_CLEANUP_TIMEOUT_MS = 10000;
+const CALLER_REMOTE_HEARTBEAT_TIMEOUT_MS = 5000;
 const CALLER_RECONNECT_REQUEST_DEDUPE_MS = 1500;
 
 function normalizeHeadingDegrees(value) {
@@ -3273,6 +3274,7 @@ function cleanupCallerLiveModalRuntime() {
     const confirmTimer = appState.runtime.callerLiveModalHangupConfirmTimer;
     const completeTimer = appState.runtime.callerLiveModalHangupCompleteTimer;
     const remoteDisconnectTimer = appState.runtime.callerLiveRemoteDisconnectTimerId;
+    const remoteHeartbeatTimer = appState.runtime.callerLiveRemoteHeartbeatTimerId;
 
     if (confirmTimer) {
         window.clearTimeout(confirmTimer);
@@ -3287,6 +3289,11 @@ function cleanupCallerLiveModalRuntime() {
     if (remoteDisconnectTimer) {
         window.clearTimeout(remoteDisconnectTimer);
         appState.runtime.callerLiveRemoteDisconnectTimerId = null;
+    }
+
+    if (remoteHeartbeatTimer) {
+        window.clearTimeout(remoteHeartbeatTimer);
+        appState.runtime.callerLiveRemoteHeartbeatTimerId = null;
     }
 
     appState.runtime.callerLiveRemoteDisconnectCompleting = false;
@@ -3336,6 +3343,15 @@ function clearCallerLiveRemoteDisconnectTimer() {
 
     window.clearTimeout(appState.runtime.callerLiveRemoteDisconnectTimerId);
     appState.runtime.callerLiveRemoteDisconnectTimerId = null;
+}
+
+function clearCallerLiveRemoteHeartbeatTimer() {
+    if (!appState.runtime.callerLiveRemoteHeartbeatTimerId) {
+        return;
+    }
+
+    window.clearTimeout(appState.runtime.callerLiveRemoteHeartbeatTimerId);
+    appState.runtime.callerLiveRemoteHeartbeatTimerId = null;
 }
 
 function withCallerRemoteDisconnectCleanupTimeout(promise, label) {
@@ -3836,6 +3852,30 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
         });
     };
 
+    const resetCallerOperatorHeartbeatWatch = (source = 'heartbeat') => {
+        const runtime = appState.runtime.callerLiveModal ?? null;
+
+        if (
+            runtime?.disconnectRequested
+            || Number(runtime?.latestSessionId ?? 0) !== callSessionId
+            || appState.runtime.callerLiveRemoteDisconnectCompleting
+        ) {
+            return;
+        }
+
+        clearCallerLiveRemoteHeartbeatTimer();
+        appState.runtime.callerLiveRemoteHeartbeatTimerId = window.setTimeout(() => {
+            appState.runtime.callerLiveRemoteHeartbeatTimerId = null;
+            logCallFlow('citizen', 'operator-heartbeat-timeout', {
+                incidentId: Number(payload.id ?? 0) || null,
+                callSessionId,
+                source,
+                timeoutMs: CALLER_REMOTE_HEARTBEAT_TIMEOUT_MS,
+            });
+            scheduleCallerOperatorDisconnectCleanup('heartbeat-timeout');
+        }, CALLER_REMOTE_HEARTBEAT_TIMEOUT_MS);
+    };
+
     if (overlay) {
         const needsConnectionGate = !latestSession?.answered_at;
         const liveConversation = await mountRealtimeIncidentChat({
@@ -3979,7 +4019,12 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
                         callSessionId: Number(latestSession.id ?? 0) || null,
                         observedAt: observedAt || null,
                     });
+                    resetCallerOperatorHeartbeatWatch('browser-online');
                     cancelCallerOperatorDisconnectCleanup('browser-online');
+                },
+                onRemoteHeartbeat(eventPayload = {}) {
+                    resetCallerOperatorHeartbeatWatch('heartbeat');
+                    cancelCallerOperatorDisconnectCleanup('heartbeat');
                 },
                 onHangupConfirm() {
                     if (appState.runtime.callerLiveModal) {
