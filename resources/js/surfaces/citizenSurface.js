@@ -23,6 +23,7 @@ const CALLER_REALTIME_RECONNECT_MIN_MS = 1000;
 const CALLER_REALTIME_RECONNECT_MAX_MS = 15000;
 const CALLER_REMOTE_DISCONNECT_GRACE_MS = 10000;
 const CALLER_REMOTE_DISCONNECT_CLEANUP_TIMEOUT_MS = 10000;
+const CALLER_RECONNECT_REQUEST_DEDUPE_MS = 1500;
 
 function normalizeHeadingDegrees(value) {
     const heading = Number(value);
@@ -3989,6 +3990,43 @@ async function runCallerReconnect(root, incidentId, noticeTarget = null) {
     if (nextIncidentId <= 0) {
         return;
     }
+
+    const existingPending = getCallerPendingState();
+    const existingPhase = String(existingPending?.phase ?? '').trim();
+    const reconnectInFlightPhases = ['availability_check', 'requesting', 'ringing', 'connecting'];
+
+    if (
+        existingPending?.kind === 'reconnect'
+        && Number(existingPending.incident_id ?? 0) === nextIncidentId
+        && reconnectInFlightPhases.includes(existingPhase)
+    ) {
+        logCallFlow('citizen', 'reconnect-request-deduped', {
+            incidentId: nextIncidentId,
+            reason: 'pending-reconnect-in-flight',
+            phase: existingPhase,
+        });
+        return;
+    }
+
+    const nowMs = Date.now();
+    const recentRequest = appState.runtime.callerReconnectRequest ?? null;
+
+    if (
+        Number(recentRequest?.incidentId ?? 0) === nextIncidentId
+        && nowMs - Number(recentRequest?.requestedAtMs ?? 0) < CALLER_RECONNECT_REQUEST_DEDUPE_MS
+    ) {
+        logCallFlow('citizen', 'reconnect-request-deduped', {
+            incidentId: nextIncidentId,
+            reason: 'recent-request',
+            ageMs: nowMs - Number(recentRequest?.requestedAtMs ?? 0),
+        });
+        return;
+    }
+
+    appState.runtime.callerReconnectRequest = {
+        incidentId: nextIncidentId,
+        requestedAtMs: nowMs,
+    };
 
     setCallerPendingState({
         kind: 'reconnect',
