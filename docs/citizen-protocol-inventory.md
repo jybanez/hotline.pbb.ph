@@ -2,7 +2,7 @@
 
 Date: 2026-05-10
 
-Status: Current inventory snapshot after Phase 2 compatibility slices
+Status: Current inventory snapshot after Phase 2 compatibility slices and Helper documentation refresh
 
 Related docs:
 - [Citizen Protocol Migration Plan](citizen-protocol-migration-plan.md)
@@ -40,14 +40,14 @@ Current `caller` counts by source area, excluding `vendor/`, `node_modules/`, `p
 
 | Area | Remaining matches | Primary classification |
 | --- | ---: | --- |
-| `app/` | 331 | DB-backed persistence names, compatibility aliases, telemetry, deprecated enum cases, and model accessors |
-| `routes/` | 41 | legacy `/caller` and caller-named operator route aliases kept during compatibility |
-| `resources/` | 1,730 | citizen/operator Realtime compatibility, legacy payload aliases, CSS/data selectors, and UI copy still queued for later cleanup |
+| `app/` | 236 | DB-backed persistence names, compatibility aliases, telemetry, deprecated enum cases, and model accessors |
+| `routes/` | 20 | legacy `/caller` and caller-named operator route aliases kept during compatibility |
+| `resources/` | 1,039 | citizen/operator Realtime compatibility, legacy payload aliases, CSS/data selectors, and UI copy still queued for later cleanup |
 | `public/` | 10 | legacy caller PWA assets kept for installed app compatibility |
-| `database/` | 36 | staged schema compatibility columns and legacy table/column names pending final decommission |
-| `config/` | 4 | legacy environment variable fallbacks |
-| `tests/` | 596 | explicit legacy compatibility coverage plus fixtures for DB-backed caller columns |
-| `docs/` | 839 | migration plan/checklist text, historical Phase 1 docs, and current compatibility notes |
+| `database/` | 31 | staged schema compatibility columns and legacy table/column names pending final decommission |
+| `config/` | 1 | legacy environment variable fallback |
+| `tests/` | 485 | explicit legacy compatibility coverage plus fixtures for DB-backed caller columns |
+| `docs/` | 671 | migration plan/checklist text, historical Phase 1 docs, and current compatibility notes |
 
 Top remaining resource files:
 - `resources/js/surfaces/citizenSurface.js`
@@ -87,13 +87,12 @@ Primary files:
 - `public/caller-sw.js`
 
 Observed contracts:
-- citizen surface still calls some `/api/caller/*` endpoints
-- citizen surface still requests `/api/realtime/admission/caller` in call/session paths
-- citizen and operator surfaces publish/listen for `caller.*` Realtime events
-- operator surface still uses `caller_id`, `caller_name`, `actual_caller_name`, `caller_location`, and related payload fields
-- chat Helper mounts still use viewer role `caller`
-- PWA manifest still points at `/caller.webmanifest`
-- service worker still caches/navigates caller paths
+- citizen surface uses `/api/citizen/*` endpoints where Hotline owns the frontend call path
+- citizen surface requests `/api/realtime/admission/citizen`; `/api/realtime/admission/caller` remains a telemetry-backed legacy alias
+- citizen and operator surfaces publish/listen for `citizen.*` Realtime events while accepting legacy `caller.*` events during compatibility
+- operator surface still exposes legacy `caller_id`, `caller_name`, `actual_caller_name`, `caller_location`, and related payload fields beside citizen aliases where implemented
+- Helper chat and call mounts now use `citizen` as the public-user viewer role while treating legacy `caller` messages as equivalent
+- citizen PWA manifest and service worker are canonical; legacy caller PWA assets remain for installed app compatibility
 
 Migration classification:
 - API route names: migrate to citizen canonical aliases, keep caller aliases
@@ -141,16 +140,16 @@ Primary files:
 Observed contracts:
 - persistence and authorization still rely on `caller_id`
 - incident payloads expose `caller`, `caller_id`, `actual_caller_name`, `actual_caller_relationship`, and `caller_location`
-- call creation writes `participant_role = caller`
-- media logic treats `caller_video` as the citizen video capture type
-- SITREP output still uses caller-shaped keys and prose
-- admin delete-blocking labels still say caller
+- new call/session writes use citizen protocol values where the staged compatibility columns or enums exist
+- media logic stores citizen protocol values while retaining legacy caller values as readable compatibility inputs
+- SITREP output exposes citizen-facing keys/prose while retaining legacy caller keys where external consumers may still depend on them
+- admin delete-blocking labels use citizen-facing copy while table checks still cover legacy caller-shaped persistence
 
 Migration classification:
 - DB-backed names should not be destructively renamed first
 - add citizen-facing serializers/accessors before schema changes
 - keep old caller-shaped persistence readable until a later decommission
-- decide whether protocol values such as `caller_video` and `participant_role = caller` are stable technical identifiers or user-role values to rename
+- keep legacy protocol values such as `caller_video` and `participant_role = caller` readable until final decommission
 
 ### Database and models
 
@@ -198,7 +197,7 @@ Observed contracts:
 - many tests still seed `caller_id`
 - route compatibility tests intentionally hit `/caller`
 - Realtime tests now hit `/api/realtime/admission/citizen` with a legacy caller endpoint test
-- operator/media tests assert `caller_video`, `peer_role = caller`, and caller-shaped incident fields
+- operator/media tests assert citizen protocol values plus legacy caller compatibility where required
 
 Migration classification:
 - update tests alongside each runtime contract migration
@@ -216,11 +215,11 @@ Primary files:
 - `docs/hotline-helper-mapping.md`
 
 Observed contracts:
-- public API docs still list `/api/caller/*`
-- Realtime spec still documents `caller.*` event names
-- canonical contract docs still list role `caller`
-- schema docs still use `caller_id`, `actual_caller_name`, and media role values
-- Helper mapping still describes caller surface/adapters
+- public API docs list `/api/citizen/*` as canonical and `/api/caller/*` as temporary compatibility
+- Realtime spec documents `citizen.*` event names and temporary `caller.*` compatibility
+- canonical contract docs list role `citizen` and mark `caller` as legacy compatibility
+- schema docs still use `caller_id`, `actual_caller_name`, and media role values where final DB decommission has not happened
+- Helper mapping describes the citizen surface and keeps only legacy adapter aliases as compatibility notes
 
 Migration classification:
 - update docs after runtime compatibility exists
@@ -252,9 +251,9 @@ Shared chat log confirms:
 - Helper owns visual/UI primitives, while Hotline owns domain adapters and Realtime mapping
 
 Planning impact:
-- caller-to-citizen Helper work should start in Hotline-owned adapter names and payload normalization
-- any shared Helper component/docs changes should be proposed upstream first
-- Hotline vendor refresh should happen only after Helper changes land
+- caller-to-citizen Helper work is now covered in Hotline-owned adapter names, payload normalization, and smoke contracts
+- no upstream Helper component change is required for the current citizen terminology slice
+- Hotline vendor refresh is deferred unless a future upstream Helper change lands
 
 ## Proposed Classification Rules
 

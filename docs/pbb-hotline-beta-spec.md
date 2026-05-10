@@ -2,7 +2,9 @@
 
 Date: 2026-04-04
 
-Status: Draft baseline spec
+Status: Draft baseline spec, updated for caller-to-citizen migration
+
+Migration note: The public emergency-reporting user is now `citizen`. Legacy `caller` routes, role values, payload fields, and installed PWA assets remain temporary compatibility contracts until the caller-to-citizen refactor is complete.
 
 Primary baseline references:
 - [PBB Laravel Application Baseline](C:/wamp64/www/pbb/hub.ph/docs/pbb-laravel-application-baseline.md)
@@ -21,7 +23,7 @@ Primary baseline references:
 `PBB Hotline Beta` is the barangay-local emergency response application for the next production line of Hotline.
 
 It runs inside a `PBB Hub` and serves these Phase 1 roles:
-- `caller`
+- `citizen`
 - `operator`
 - `admin`
 
@@ -38,7 +40,7 @@ Alpha remains the reference for:
 - domain semantics
 - schema/model direction
 - workflow intent
-- caller/operator UX direction
+- citizen/operator UX direction
 
 Beta is the clean implementation target.
 
@@ -80,7 +82,8 @@ Hotline Beta assumptions:
 
 Phase 1 routes:
 - `/`
-- `/caller`
+- `/citizen`
+- `/caller` as a legacy compatibility alias
 - `/operator`
 - `/admin`
 
@@ -101,7 +104,7 @@ Unauthorized screen:
 
 Beta should use separate frontend entrypoints:
 - public home bundle
-- caller bundle
+- citizen bundle
 - operator bundle
 - admin bundle
 - command bundle later
@@ -137,8 +140,8 @@ Account flow:
 
 ## 8. Roles
 
-### Caller
-- uses local Hotline caller surface
+### Citizen
+- uses local Hotline citizen surface
 - may have only one open incident at a time
 - may view current and past incidents
 
@@ -206,7 +209,7 @@ Post-entry behavior:
 - warnings remain visible as a header status item
 - clicking the status item reopens Device Primer
 
-### Caller Device Primer
+### Citizen Device Primer
 Runs immediately after login/page load.
 
 Blocking checks:
@@ -238,7 +241,7 @@ Alert card behavior:
 - live updates for connected guests
 - small visual change notice/animation when alert level changes
 
-## 11. Caller Surface
+## 11. Citizen Surface
 
 ### Home screen
 Navbar:
@@ -261,7 +264,7 @@ Bottom-right:
   - red = not connected to network
 
 Indicator truth model:
-- this indicator should be treated as caller availability state, not a loose visual hint
+- this indicator should be treated as citizen availability state, not a loose visual hint
 - backend owns:
   - whether call service is ready
   - how many operators are currently in runtime state `available`
@@ -270,19 +273,19 @@ Indicator truth model:
 
 Status rules:
 - `green`
-  - caller app can reach Hotline backend/session truth
+  - citizen app can reach Hotline backend/session truth
   - backend call service is ready
   - at least one operator is in runtime state `available`
 - `yellow`
-  - caller app can reach Hotline backend/session truth
+  - citizen app can reach Hotline backend/session truth
   - backend call service is ready
   - zero operators are in runtime state `available`
 - `red`
-  - caller app cannot reach Hotline backend/session truth, or
+  - citizen app cannot reach Hotline backend/session truth, or
   - backend reports call service is not ready
 
 Important separation:
-- caller Device Primer warnings do not directly change this color unless they block calling locally
+- citizen Device Primer warnings do not directly change this color unless they block calling locally
 - geolocation warning must not change this color
 - color and local call-button eligibility are related but not identical concerns
 
@@ -291,7 +294,7 @@ Call initiation:
 - yellow -> block immediately, show busy message
 - red -> block immediately, show no-network message
 
-### Caller calling state
+### Citizen calling state
 After successful press-and-hold:
 - full-screen calling state
 - ringing animation
@@ -303,10 +306,10 @@ If citizen hangs up before answer:
 - outcome = `cancelled_by_citizen`
 
 Reconnect ringing rule:
-- if a reconnect has already created a new `call_session` but is still unanswered, caller hang-up should cancel that unanswered reconnect call session
+- if a reconnect has already created a new `call_session` but is still unanswered, citizen hang-up should cancel that unanswered reconnect call session
 - reconnect cancel should use outcome = `cancelled_by_citizen`
 
-### Caller incident view
+### Citizen incident view
 Header behavior:
 - `Active Incident` for active or deferred
 - `Resolved Incident` for resolved
@@ -339,7 +342,7 @@ Recent history:
   - status
   - created date/time
 
-### Caller live-call view
+### Citizen live-call view
 Header:
 - operator details
 
@@ -354,7 +357,7 @@ Footer actions:
 
 Rules:
 - no mic mute action
-- caller can send chat and attachments during live call
+- citizen can send chat and attachments during live call
 - attachments limited to photos and videos
 - live video can be toggled on/off without ending call
 - local self-preview appears in a floating draggable/resizable wrapper
@@ -378,10 +381,10 @@ Main layout:
 - bottom: team assignment stepper lanes
 
 Incident list cards:
-- caller avatar
+- citizen avatar
 - padded incident id
 - status
-- actual caller name
+- actual citizen name
 - created date/time
 
 Archive tab:
@@ -411,8 +414,8 @@ Used for:
 - `Reconnect`
 
 Content:
-- caller avatar
-- caller name
+- citizen avatar
+- citizen name
 - call type label
 - padded incident id for reconnects
 - large ringing SVG with ripple animation
@@ -484,7 +487,7 @@ Media area:
 - visible even when empty
 - simple empty placeholder when nothing exists yet
 - `processing media...` while merged media is not ready
-- only caller live video shown during live call
+- only citizen live video shown during live call
 
 Audio area:
 - during live call, show live audiographs per role
@@ -496,7 +499,7 @@ Playback model:
 - audio playback is combined into one incident-level timeline with visible gaps between sessions
 - media strip also combines chronology across sessions
 - audio artifacts must be stored per peer per call session so replay can isolate each peer voice track
-- audio storage must not assume only one caller and one operator track forever
+- audio storage must not assume only one citizen and one operator track forever
 - transfer overlap may create more than two peer audio artifacts in one call session
 - call session membership must therefore be modeled through participant rows, not a single session-level operator reference
 
@@ -607,7 +610,8 @@ Login:
 - same email/password login flow for all roles
 
 Role redirect after login:
-- caller -> `/caller`
+- citizen -> `/citizen`
+- caller -> `/citizen` during compatibility
 - operator -> `/operator`
 - admin -> `/admin`
 - command later -> `/command`
@@ -663,7 +667,7 @@ Runtime behavior:
 
 Alert level live propagation:
 - public home updates live
-- caller updates live
+- citizen updates live
 - operator updates live with visual + spoken notice
 - admin receives immediate live feedback
 
@@ -672,17 +676,17 @@ Alert level live propagation:
 ### New call
 - only routed to operators whose runtime state is `available`
 - if one operator times out, try another available operator
-- if no operator is available, caller is informed operators are busy
+- if no operator is available, citizen is informed operators are busy
 - incident record created only after an operator actually answers
 - first persisted incident status is `Active`
 
 ### Reconnect
-- initiated explicitly by caller through `Resume Call`
+- initiated explicitly by citizen through `Resume Call`
 - only targets assigned operator
 - before send, system checks whether assigned operator is:
   - in runtime state `available`
   - or in runtime state `engaged` on this same incident
-- if not, reconnect is blocked before send and caller is told operator is busy
+- if not, reconnect is blocked before send and citizen is told operator is busy
 - blocked-before-send reconnect creates no attempt record
 
 ## 17. Command And SITREP Deferral

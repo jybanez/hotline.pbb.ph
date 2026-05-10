@@ -4,6 +4,8 @@ Date: 2026-04-04
 
 Status: Draft for new team kickoff
 
+Migration note: The public emergency-reporting user is now `citizen`. Legacy `caller` routes, role values, payload fields, and installed PWA assets remain temporary compatibility contracts until the caller-to-citizen refactor is complete.
+
 Related references:
 - [project-audit-2026-04-03.md](./project-audit-2026-04-03.md)
 - [database-schema-models.md](./database-schema-models.md)
@@ -26,7 +28,7 @@ Related references:
 `PBB Hotline Beta` should be a new build that:
 - preserves Hotline's proven domain model
 - preserves the current barangay emergency-response process
-- preserves the intent of the caller and operator UX
+- preserves the intent of the citizen and operator UX
 - adopts current PBB platform libraries and application baselines from day one
 
 Beta should not be an in-place refactor of Alpha.
@@ -36,7 +38,7 @@ Beta should not be an in-place refactor of Alpha.
 Alpha is already valuable as:
 - workflow proof
 - domain proof
-- operator/caller UX proof
+- operator/citizen UX proof
 - schema/model proof
 - local-first operational proof
 
@@ -54,7 +56,7 @@ Hotline is a barangay-local emergency response application used inside a `PBB Hu
 The hub is the local physical and network environment that hosts multiple services and apps. Hotline Beta is one app inside that environment. Beta should remain app-focused and should not own hub/network infrastructure management.
 
 Hotline Beta operates locally so that:
-- callers connect through barangay Wi-Fi
+- citizens connect through barangay Wi-Fi
 - operators work on LAN-connected terminals
 - administration happens locally
 - emergency intake continues even without internet connectivity
@@ -99,7 +101,7 @@ Current intended local engineering baseline:
 - local settings
 
 ### Workflow continuity
-- caller initiates a new call only when operators are available and network is reachable
+- citizen initiates a new call only when operators are available and network is reachable
 - unanswered new calls do not create incident records
 - incident record is created only when an operator actually answers
 - the first persisted incident status is `Active`
@@ -111,8 +113,8 @@ Current intended local engineering baseline:
 - operator remains engaged until the incident is deferred, discarded, resolved, or transferred away
 - post-call audio must be stored per peer per session so playback can isolate voices even during transfer overlap
 
-### Caller availability continuity
-- caller green/yellow/red state must come from an explicit availability contract
+### Citizen availability continuity
+- citizen green/yellow/red state must come from an explicit availability contract
 - backend should own operator availability and call-service readiness truth
 - client may still force `red` when it cannot reach Hotline backend/session truth at all
 
@@ -181,7 +183,7 @@ Current Beta direction:
 - use Helper navbar for uniform app-shell behavior
 - use Helper login, re-auth, account, and password presets
 - align session expiry and keepalive behavior to the shared PBB session-handling and keepalive proposals
-- use Helper Device Primer for operator and caller startup readiness
+- use Helper Device Primer for operator and citizen startup readiness
 - use Helper incident type and team assignment components
 - use Helper chat thread/composer/upload queue/media strip/media viewer
 - use Helper audio call-session playback for operator post-call review
@@ -201,7 +203,8 @@ Use for:
 
 ### Phase 1: Core Hotline Operations
 - public `/` home page
-- caller surface at `/caller`
+- citizen surface at `/citizen`
+- legacy caller surface alias at `/caller` until decommission
 - operator surface at `/operator`
 - admin surface at `/admin`
 - session auth and re-auth
@@ -246,12 +249,12 @@ Behavior:
 - prominent alert card with fixed alert-level description
 - logged-in users should be redirected to their own role page
 
-### Caller
+### Citizen
 Route:
-- `/caller`
+- `/citizen`
 
 Purpose:
-- caller home
+- citizen home
 - active incident view
 - live call view
 - recent incident history
@@ -293,7 +296,7 @@ Beta should not repeat Alpha's one-CSS/one-JS-for-everyone pattern.
 
 Recommended entrypoints:
 - public home bundle
-- caller bundle
+- citizen bundle
 - operator bundle
 - admin bundle
 - command bundle later
@@ -304,7 +307,7 @@ Recommended asset strategy:
 
 ## High-Level UX Direction
 
-### Caller
+### Citizen
 - home screen with press-and-hold `Call for Help`
 - call only allowed when combined network/operator indicator is green
 - blocked immediately on yellow or red
@@ -330,11 +333,12 @@ Recommended asset strategy:
 ## Current Beta Domain Decisions
 
 - one generic `users` table with roles:
-  - `caller`
+  - `citizen`
+  - `caller` (legacy compatibility only)
   - `operator`
   - `command`
   - `admin`
-- no caller self-registration in Phase 1
+- no citizen self-registration in Phase 1
 - admin-created users start immediately as `active`
 - delete actions are hard deletes, but must be blocked when records are still referenced
 - blocked deletes should explain concrete references when practical
