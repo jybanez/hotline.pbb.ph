@@ -1956,11 +1956,11 @@ function patchIncidentCallSession(payload, callSessionId, patch = {}) {
         }
         : payload?.current_call_session ?? null;
 
-    return {
+    return prepareOperatorWorkbenchPayload({
         ...payload,
         current_call_session: nextCurrentCallSession,
         call_history: nextCallHistory,
-    };
+    });
 }
 
 function workbenchCallerName(payload) {
@@ -6105,7 +6105,8 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                     publishOperatorCallFlow('caller.call.ready', {
                         incident_id: Number(payload.id ?? 0),
                         call_session_id: activeSessionId,
-                        caller_id: Number(payload.caller?.id ?? 0),
+                        citizen_id: Number(payload.citizen?.id ?? payload.citizen_id ?? 0),
+                        caller_id: Number(payload.citizen?.id ?? payload.citizen_id ?? payload.caller?.id ?? 0),
                         operator_id: Number(appState.bootstrap?.user?.id ?? 0),
                         answered_at: answeredAt,
                     });
