@@ -1070,10 +1070,13 @@ function ensureCallerNetworkHandlers() {
 
     appState.runtime.callerNetworkHandlersMounted = true;
     window.addEventListener('offline', () => {
-        pauseCallerCallRoutingForOffline(getCallerPendingState(), 'browser-offline-event');
+        if (!pauseCallerCallRoutingForOffline(getCallerPendingState(), 'browser-offline-event')) {
+            rerenderCallerInPlace();
+        }
     });
     window.addEventListener('online', () => {
         resumeCallerCallRoutingAfterOnline();
+        rerenderCallerInPlace();
     });
 }
 
@@ -2379,6 +2382,15 @@ async function mountCallerIncidentOverlay(overlay, payload, options = {}) {
 }
 
 function callerAvailabilitySummary(availability, primerReport) {
+    if (callerBrowserOffline()) {
+        return {
+            status: 'red',
+            label: 'OFFLINE',
+            canCall: false,
+            reason: 'This device is offline. Reconnect to the barangay hotline network.',
+        };
+    }
+
     const status = String(availability?.status ?? 'red').toLowerCase();
     const primerBlocked = (primerReport?.blockingFailed?.length ?? 0) > 0;
 
