@@ -159,7 +159,7 @@ class IncidentPayloadBuilder
     /**
      * @return array<string, mixed>
      */
-    public function buildWorkbenchPayload(Incident $incident, ?User $viewer = null): array
+    public function buildWorkbenchPayload(Incident $incident, ?User $viewer = null, bool $includeLegacyAliases = true): array
     {
         $incident->loadMissing(
             'caller',
@@ -201,17 +201,25 @@ class IncidentPayloadBuilder
             'id' => $incident->id,
             'display_id' => str_pad((string) $incident->id, 6, '0', STR_PAD_LEFT),
             'citizen_id' => $incident->caller_id,
-            'caller_id' => $incident->caller_id,
+            ...$this->legacyAliases($includeLegacyAliases, [
+                'caller_id' => $incident->caller_id,
+            ]),
             'citizen' => $publicUser,
-            'caller' => $publicUser,
+            ...$this->legacyAliases($includeLegacyAliases, [
+                'caller' => $publicUser,
+            ]),
             'actual_citizen_name' => $incident->actual_caller_name,
             'actual_citizen_relationship' => $incident->actual_caller_relationship,
-            'actual_caller_name' => $incident->actual_caller_name,
-            'actual_caller_relationship' => $incident->actual_caller_relationship,
+            ...$this->legacyAliases($includeLegacyAliases, [
+                'actual_caller_name' => $incident->actual_caller_name,
+                'actual_caller_relationship' => $incident->actual_caller_relationship,
+            ]),
             'latitude' => $incident->latitude,
             'longitude' => $incident->longitude,
             'citizen_location' => $publicUserLocation,
-            'caller_location' => $publicUserLocation,
+            ...$this->legacyAliases($includeLegacyAliases, [
+                'caller_location' => $publicUserLocation,
+            ]),
             'location' => $incident->location,
             'location_road' => $incident->location_road,
             'location_suburb' => $incident->location_suburb,
@@ -232,9 +240,9 @@ class IncidentPayloadBuilder
             'other_details' => $incident->other_details ?? '',
             'created_at' => $incident->created_at?->toIso8601String(),
             'updated_at' => $incident->updated_at?->toIso8601String(),
-            'current_call_session' => $currentCallSession ? $this->serializeCallSession($currentCallSession) : null,
+            'current_call_session' => $currentCallSession ? $this->serializeCallSession($currentCallSession, $includeLegacyAliases) : null,
             'call_history' => $sortedCallSessions
-                ->map(fn ($session) => $this->serializeCallSession($session))
+                ->map(fn ($session) => $this->serializeCallSession($session, $includeLegacyAliases))
                 ->values()
                 ->all(),
             'transfer_history' => $incident->transfers
@@ -455,13 +463,15 @@ class IncidentPayloadBuilder
     /**
      * @return array<string, mixed>
      */
-    private function serializeCallSession(object $session): array
+    private function serializeCallSession(object $session, bool $includeLegacyAliases = true): array
     {
         return [
             'id' => $session->id,
             'incident_id' => $session->incident_id,
             'citizen_id' => $session->caller_id,
-            'caller_id' => $session->caller_id,
+            ...$this->legacyAliases($includeLegacyAliases, [
+                'caller_id' => $session->caller_id,
+            ]),
             'status' => $session->status->value,
             'outcome' => $session->outcome?->value,
             'started_at' => $session->started_at?->toIso8601String(),
@@ -478,6 +488,15 @@ class IncidentPayloadBuilder
                 'left_at' => $participant->left_at?->toIso8601String(),
             ])->values()->all(),
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $aliases
+     * @return array<string, mixed>
+     */
+    private function legacyAliases(bool $includeLegacyAliases, array $aliases): array
+    {
+        return $includeLegacyAliases ? $aliases : [];
     }
 
     /**

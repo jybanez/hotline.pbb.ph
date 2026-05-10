@@ -3139,7 +3139,7 @@ function renderCallerIncidentContent(payload, recentIncidents) {
                 <section class="panel-card">
                     <h3>Incident Type Details</h3>
                     <div class="detail-grid">
-                        <article class="detail-item"><span class="detail-label">Caller</span><strong>${escapeHtml(payload.actual_caller_name ?? payload.caller?.name ?? 'Unknown caller')}</strong><p class="hero-copy">${escapeHtml(payload.actual_caller_relationship ?? 'Self')}</p></article>
+                        <article class="detail-item"><span class="detail-label">Citizen</span><strong>${escapeHtml(payload.actual_citizen_name ?? payload.actual_caller_name ?? payload.citizen?.name ?? payload.caller?.name ?? 'Unknown citizen')}</strong><p class="hero-copy">${escapeHtml(payload.actual_citizen_relationship ?? payload.actual_caller_relationship ?? 'Self')}</p></article>
                         <article class="detail-item"><span class="detail-label">Operator</span><strong>${escapeHtml(payload.operator?.name ?? 'Pending')}</strong><p class="hero-copy">${escapeHtml(payload.operator?.level ?? 'Hotline operator')}</p></article>
                         <article class="detail-item"><span class="detail-label">Location</span><strong>${escapeHtml(payload.location || 'Pending')}</strong><p class="hero-copy">${escapeHtml(payload.location_barangay ?? '')}</p></article>
                         <article class="detail-item"><span class="detail-label">Notes</span><strong>${escapeHtml(payload.other_details || 'No notes yet')}</strong></article>

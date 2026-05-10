@@ -25,7 +25,7 @@ class IncidentController extends Controller
             ->first();
 
         return response()->json([
-            'incident' => $incident ? $this->incidentPayloads->buildWorkbenchPayload($incident, $request->user()) : null,
+            'incident' => $incident ? $this->buildIncidentPayload($request, $incident) : null,
         ]);
     }
 
@@ -53,7 +53,19 @@ class IncidentController extends Controller
         abort_unless((int) $incident->caller_id === (int) $request->user()->id, 404);
 
         return response()->json(
-            $this->incidentPayloads->buildWorkbenchPayload($incident, $request->user()),
+            $this->buildIncidentPayload($request, $incident),
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildIncidentPayload(Request $request, Incident $incident): array
+    {
+        return $this->incidentPayloads->buildWorkbenchPayload(
+            $incident,
+            $request->user(),
+            includeLegacyAliases: str_starts_with($request->path(), 'api/caller/'),
         );
     }
 }

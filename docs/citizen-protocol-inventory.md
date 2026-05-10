@@ -139,7 +139,7 @@ Primary files:
 
 Observed contracts:
 - persistence and authorization still rely on `caller_id`
-- incident payloads expose `caller`, `caller_id`, `actual_caller_name`, `actual_caller_relationship`, and `caller_location`
+- canonical citizen incident payloads expose citizen-facing public-user aliases only; legacy `/api/caller/*` incident payloads still expose `caller`, `caller_id`, `actual_caller_name`, `actual_caller_relationship`, and `caller_location`
 - new call/session writes use citizen protocol values where the staged compatibility columns or enums exist
 - media logic stores citizen protocol values while retaining legacy caller values as readable compatibility inputs
 - SITREP output exposes citizen-facing keys/prose while retaining legacy caller keys where external consumers may still depend on them
