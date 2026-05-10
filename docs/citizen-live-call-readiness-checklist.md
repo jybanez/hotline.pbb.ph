@@ -2,7 +2,7 @@
 
 Date: 2026-05-10
 
-Status: Owner live testing in progress; core call, reconnect, disconnect, offline, and hangup flows validated.
+Status: Owner live testing complete for core call, reconnect, disconnect, offline, hangup, canonical write, and log-review checks.
 
 Scope:
 - Citizen-to-operator live call flow after the caller-to-citizen compatibility refactor.
@@ -71,8 +71,8 @@ npm run build
 - [x] Confirm citizen hangup records a citizen outcome.
 - [x] Confirm operator hangup still works.
 - [x] Confirm reconnect works from an active incident.
-- [ ] Confirm no new `caller` values are written for canonical call outcomes or participant/media peer roles.
-- [ ] Review `storage/logs/laravel.log` for unexpected errors after the test.
+- [x] Confirm no new `caller` values are written for canonical call outcomes or participant/media peer roles.
+- [x] Review `storage/logs/laravel.log` for unexpected errors after the test.
 
 ## Owner Live Test Coverage Confirmed
 
@@ -92,6 +92,8 @@ npm run build
 - [x] Operator long offline during active reconnect call exits stale operator live-call UI locally and reconciles from server when online.
 - [x] Operator long offline during fresh new active call exits stale operator live-call UI locally and reconciles from server when online.
 - [x] Operator short offline during fresh new active call cancels grace and keeps the call live.
+- [x] Recent live-test DB rows from call session `195` onward contain zero `caller` values in `call_sessions.outcome`, `call_participants.participant_role`, or `media.type`/`media.peer_role`.
+- [x] Recent live-test Laravel log window contains no ERROR, CRITICAL, or Exception entries.
 
 ## Keep Running During Live Test
 
@@ -106,4 +108,5 @@ If the machine restarts, restart the Realtime daemon before retesting.
 - Legacy `/caller`, `/api/caller/*`, and caller event aliases remain during the compatibility window.
 - Existing legacy tabs may still call `/api/realtime/admission/caller`; fresh `/citizen` sessions use `/api/realtime/admission/citizen`.
 - Canonical new Hotline writes now use citizen values where this phase has switched runtime behavior.
+- Historical pre-refactor rows can still contain legacy caller values; the live-test verification above only covers newly written rows from this readiness pass.
 - Destructive removal of caller columns, routes, PWA assets, and event aliases is still deferred until final decommission approval.
