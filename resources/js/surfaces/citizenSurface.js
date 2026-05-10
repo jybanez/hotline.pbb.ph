@@ -3650,6 +3650,14 @@ function renderCaller(root, bootstrap, home, primerReport) {
     const shellAlertToneClass = !showingLiveCall && !showingReconnectCall && !activePendingState && !currentIncident
         ? callerAlertToneClass(bootstrap?.alert_level)
         : '';
+    const existingLiveModalOverlay = root.querySelector('[data-caller-live-modal]');
+    const shouldPreserveLiveModalOverlay = existingLiveModalOverlay
+        && shouldMountLiveCall
+        && Number(appState.runtime.callerLiveModal?.latestSessionId ?? 0) === Number(latestSession?.id ?? 0);
+
+    if (shouldPreserveLiveModalOverlay) {
+        existingLiveModalOverlay.remove();
+    }
 
     appState.runtime.navbarActions = [];
 
@@ -3686,6 +3694,14 @@ function renderCaller(root, bootstrap, home, primerReport) {
         mainClass: 'caller-main',
         toolbarClass: 'caller-toolbar',
     });
+
+    if (shouldPreserveLiveModalOverlay) {
+        root.appendChild(existingLiveModalOverlay);
+        logCallFlow('citizen', 'live-modal-preserved-across-render', {
+            incidentId: Number(currentIncident?.id ?? 0) || null,
+            callSessionId: Number(latestSession?.id ?? 0) || null,
+        });
+    }
 
     mountSurfaceChrome(root, 'citizen', bootstrap);
     const signalHost = root.querySelector('[data-caller-inline-realtime-signal]');
