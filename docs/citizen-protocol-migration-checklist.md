@@ -2,7 +2,7 @@
 
 Date: 2026-05-10
 
-Status: Working tracker for Phase 2 caller-to-citizen migration; live-call readiness validated, final legacy decommission still gated by telemetry and compatibility-window checks.
+Status: Working tracker for Phase 2 caller-to-citizen migration; live-call readiness and incident status propagation validated, final legacy decommission still gated by telemetry and compatibility-window checks.
 
 Related plan:
 - [Citizen Protocol Migration Plan](citizen-protocol-migration-plan.md)
@@ -227,6 +227,7 @@ Legend:
 - [x] Run focused SITREP tests after report changes.
 - [x] Run PWA/offline smoke test after manifest/service-worker changes.
 - [x] Run Helper integration smoke test after Helper adapter changes.
+- [x] Live-validate post-call incident status propagation: `Deferred` remains current/open, while `Discarded` and `Resolved` clear the citizen active incident through Realtime updates with post-call `/api/citizen/home` reconciliation as backup.
 - [x] Run full test suite before merging each runtime PR.
 
 ## Deployment and Decommission
@@ -248,7 +249,7 @@ Legend:
 
 Current decommission gate:
 - Do not remove `/caller`, `/api/caller/*`, `/api/realtime/admission/caller`, legacy `caller.*` event handling, caller request-field aliases, caller PWA assets, or caller-shaped database columns yet.
-- The local readiness pass proved current `/citizen` flows are canonical, and payload-field telemetry now exists for the feasible runtime compatibility paths. Legacy admission telemetry is not yet clean for a full compatibility window and final production deployment/consumer confirmations are still open.
+- The local readiness pass proved current `/citizen` flows are canonical, including live call setup, hangup/reconnect handling, operator offline recovery, and post-call status propagation. Payload-field telemetry now exists for the feasible runtime compatibility paths. Legacy admission telemetry is not yet clean for a full compatibility window and final production deployment/consumer confirmations are still open.
 
 ## Open Decisions Tracker
 
