@@ -79,7 +79,7 @@ Legend:
 - [x] Keep `caller-sw.js` available for installed legacy PWAs.
 - [x] Verify service-worker scope for `/citizen`.
 - [x] Verify offline behavior for `/citizen/offline`.
-- [~] Verify legacy installed caller PWA opens or redirects safely.
+- [x] Verify legacy installed caller PWA opens or redirects safely.
 - [x] Add PWA cache-name migration notes if cache keys include caller terminology.
 
 ## Public-User API Routes
@@ -225,7 +225,7 @@ Legend:
 - [ ] Run focused citizen surface tests after frontend API changes.
 - [x] Run focused media tests after media contract changes.
 - [x] Run focused SITREP tests after report changes.
-- [ ] Run PWA/offline smoke test after manifest/service-worker changes.
+- [x] Run PWA/offline smoke test after manifest/service-worker changes.
 - [ ] Run Helper integration smoke test after Helper adapter changes.
 - [x] Run full test suite before merging each runtime PR.
 
