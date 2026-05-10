@@ -17,6 +17,7 @@ const OPERATOR_CALL_TIMEOUT_FALLBACK_SECONDS = 30;
 const OPERATOR_REALTIME_RECONNECT_MIN_MS = 1000;
 const OPERATOR_REALTIME_RECONNECT_MAX_MS = 15000;
 const OPERATOR_REMOTE_DISCONNECT_GRACE_MS = 10000;
+const OPERATOR_REMOTE_DISCONNECT_CLEANUP_TIMEOUT_MS = 10000;
 const OPERATOR_MEDIA_CONSUMER_ENABLED = true;
 const OPERATOR_MEDIA_CHUNK_TRANSPORT = 'realtime-binary';
 
@@ -5548,6 +5549,38 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                 remoteDisconnectTimerId = null;
             };
 
+            const withRemoteDisconnectCleanupTimeout = (promise, label) => new Promise((resolve, reject) => {
+                let settled = false;
+                const timeoutId = window.setTimeout(() => {
+                    if (settled) {
+                        return;
+                    }
+
+                    settled = true;
+                    const error = new Error(`${label} timed out`);
+                    error.code = 'remote_disconnect_cleanup_timeout';
+                    reject(error);
+                }, OPERATOR_REMOTE_DISCONNECT_CLEANUP_TIMEOUT_MS);
+
+                Promise.resolve(promise).then((value) => {
+                    if (settled) {
+                        return;
+                    }
+
+                    settled = true;
+                    window.clearTimeout(timeoutId);
+                    resolve(value);
+                }, (error) => {
+                    if (settled) {
+                        return;
+                    }
+
+                    settled = true;
+                    window.clearTimeout(timeoutId);
+                    reject(error);
+                });
+            });
+
             const completeRemoteDisconnect = async (state = 'disconnected') => {
                 if (remoteDisconnectCompleting || !activeSessionId) {
                     return;
@@ -5566,22 +5599,36 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
 
                 try {
                     let response = null;
+                    let cleanupReason = 'citizen-disconnect';
 
                     try {
-                        response = await fetchJson(`/api/operator/call-sessions/${activeSessionId}/citizen-disconnect`, {
+                        logCallFlow('operator', 'remote-disconnect-cleanup-api-request', {
+                            incidentId: Number(payload.id ?? 0) || null,
+                            callSessionId: activeSessionId,
+                        });
+
+                        response = await withRemoteDisconnectCleanupTimeout(fetchJson(`/api/operator/call-sessions/${activeSessionId}/citizen-disconnect`, {
                             method: 'post',
+                        }), 'Citizen disconnect cleanup');
+
+                        logCallFlow('operator', 'remote-disconnect-cleanup-api-success', {
+                            incidentId: Number(payload.id ?? 0) || null,
+                            callSessionId: activeSessionId,
+                            status: response?.call_session?.status ?? null,
+                            outcome: response?.call_session?.outcome ?? null,
+                            endedAt: response?.call_session?.ended_at ?? null,
                         });
                     } catch (error) {
                         if (Number(error?.response?.status ?? 0) !== 409) {
                             throw error;
                         }
 
+                        cleanupReason = 'session-already-ended';
                         logCallFlow('operator', 'remote-disconnect-cleanup-skipped', {
                             incidentId: Number(payload.id ?? 0) || null,
                             callSessionId: activeSessionId,
-                            reason: 'session-already-ended',
+                            reason: cleanupReason,
                         });
-                        return;
                     }
 
                     const officialEndedAt = String(response?.call_session?.ended_at ?? disconnectedAt);
@@ -5599,9 +5646,28 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                         ended_at: officialEndedAt,
                         updated_at: response?.call_session?.updated_at ?? officialEndedAt,
                     });
+
+                    logCallFlow('operator', 'remote-disconnect-cleanup-ui-refresh-start', {
+                        incidentId: Number(payload.id ?? 0) || null,
+                        callSessionId: activeSessionId,
+                        reason: cleanupReason,
+                    });
+
                     await refreshWorkbenchOverlay(payload, null);
+
+                    logCallFlow('operator', 'remote-disconnect-cleanup-ui-refresh-success', {
+                        incidentId: Number(payload.id ?? 0) || null,
+                        callSessionId: activeSessionId,
+                        reason: cleanupReason,
+                    });
                 } catch (error) {
                     remoteDisconnectCompleting = false;
+                    logCallFlow('operator', 'remote-disconnect-cleanup-failed', {
+                        incidentId: Number(payload.id ?? 0) || null,
+                        callSessionId: activeSessionId,
+                        status: Number(error?.response?.status ?? 0) || null,
+                        message: String(error?.response?.data?.message ?? error?.message ?? 'Unknown cleanup error'),
+                    });
                     console.warn('Unable to complete citizen disconnect cleanup.', error);
                     showToast(error.response?.data?.message ?? 'Unable to clean up disconnected caller call.', 'warn');
                 }
