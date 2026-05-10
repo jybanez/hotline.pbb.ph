@@ -1077,6 +1077,22 @@ function ensureCallerNetworkHandlers() {
     });
 }
 
+function callerMissKey(pendingOrPayload) {
+    const attemptId = Number(pendingOrPayload?.attempt_id ?? pendingOrPayload?.call_attempt_id ?? 0);
+    const operatorAttemptId = Number(
+        pendingOrPayload?.operator_attempt_id
+        ?? pendingOrPayload?.call_attempt_operator_attempt_id
+        ?? 0,
+    );
+    const operatorId = Number(pendingOrPayload?.operator_id ?? 0);
+
+    return [
+        attemptId > 0 ? attemptId : '',
+        operatorAttemptId > 0 ? operatorAttemptId : '',
+        operatorId > 0 ? operatorId : '',
+    ].join(':');
+}
+
 function callerCallAttemptExhausted(excludedOperatorIds = []) {
     const excluded = new Set(normalizeOperatorIdList(excludedOperatorIds));
     const available = callerAvailableOperatorIds();
@@ -1175,6 +1191,7 @@ function retryCallerCallDiscoveryAfterMiss(pending, options = {}) {
     const missedOperatorAttemptId = Number(pending?.operator_attempt_id ?? 0);
     const callerId = Number(appState.bootstrap?.user?.id ?? 0);
     const markTimedOut = options.markTimedOut !== false;
+    const missKey = callerMissKey(pending);
     const excluded = normalizeOperatorIdList([
         ...(Array.isArray(pending?.excluded_operator_ids) ? pending.excluded_operator_ids : []),
         missedOperatorId,
@@ -1214,6 +1231,7 @@ function retryCallerCallDiscoveryAfterMiss(pending, options = {}) {
         operator_attempt_id: null,
         phase: 'discovering',
         excluded_operator_ids: excluded,
+        processed_miss_key: missKey,
     });
 
     rerenderCallerInPlace();
@@ -1898,6 +1916,10 @@ async function connectCallerRealtimeStream(options = {}) {
                         return;
                     }
 
+                    if (String(pendingState.processed_miss_key ?? '') === callerMissKey(payload)) {
+                        return;
+                    }
+
                     clearCallerCallRoutingTimers();
                     retryCallerCallDiscoveryAfterMiss(pendingState, { markTimedOut: false });
                     return;
@@ -1915,6 +1937,10 @@ async function connectCallerRealtimeStream(options = {}) {
                             clearCallerPendingState();
                             rerenderCallerInPlace();
                         })();
+                        return;
+                    }
+
+                    if (String(pendingState.processed_miss_key ?? '') === callerMissKey(payload)) {
                         return;
                     }
 
