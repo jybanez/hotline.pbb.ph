@@ -977,6 +977,90 @@ function clearCallerCallRoutingTimers() {
     }
 }
 
+function callerBrowserOffline() {
+    return typeof navigator !== 'undefined' && navigator.onLine === false;
+}
+
+function callerPendingCanPauseForOffline(pending) {
+    return pending?.kind === 'new_call'
+        && ['discovering', 'operator_found', 'ringing', 'network_offline'].includes(String(pending?.phase ?? '').trim());
+}
+
+function pauseCallerCallRoutingForOffline(pending, reason = 'network-offline') {
+    if (!callerPendingCanPauseForOffline(pending)) {
+        return false;
+    }
+
+    const currentPhase = String(pending?.phase ?? '').trim();
+    clearCallerCallRoutingTimers();
+    setCallerPendingState({
+        ...pending,
+        phase: 'network_offline',
+        network_offline_retry_pending: true,
+        network_offline_source_phase: currentPhase === 'network_offline'
+            ? String(pending?.network_offline_source_phase ?? 'discovering')
+            : currentPhase,
+    });
+    logCallFlow('citizen', 'call-routing-paused-offline', {
+        reason,
+        sourcePhase: currentPhase,
+        callAttemptId: Number(pending?.attempt_id ?? 0) || null,
+        operatorAttemptId: Number(pending?.operator_attempt_id ?? 0) || null,
+        operatorId: Number(pending?.operator_id ?? 0) || null,
+    });
+    rerenderCallerInPlace();
+
+    return true;
+}
+
+function resumeCallerCallRoutingAfterOnline() {
+    const pending = getCallerPendingState();
+
+    if (!pending?.network_offline_retry_pending || !callerPendingCanPauseForOffline(pending)) {
+        return;
+    }
+
+    const sourcePhase = String(pending.network_offline_source_phase ?? '').trim() || 'discovering';
+    const restoredPending = {
+        ...pending,
+        phase: sourcePhase,
+        network_offline_retry_pending: false,
+        network_offline_source_phase: null,
+    };
+
+    setCallerPendingState(restoredPending);
+    logCallFlow('citizen', 'call-routing-resume-online', {
+        sourcePhase,
+        callAttemptId: Number(restoredPending?.attempt_id ?? 0) || null,
+        operatorAttemptId: Number(restoredPending?.operator_attempt_id ?? 0) || null,
+        operatorId: Number(restoredPending?.operator_id ?? 0) || null,
+    });
+
+    if (sourcePhase === 'discovering' || !Number(restoredPending?.operator_id ?? 0)) {
+        rerenderCallerInPlace();
+        void captureCallerLocationOnce({ timeoutMs: 1200 }).then(() => {
+            publishCallerOperatorDiscoveryRequest(restoredPending.excluded_operator_ids);
+        });
+        return;
+    }
+
+    retryCallerCallDiscoveryAfterMiss(restoredPending);
+}
+
+function ensureCallerNetworkHandlers() {
+    if (appState.runtime.callerNetworkHandlersMounted || !window.addEventListener) {
+        return;
+    }
+
+    appState.runtime.callerNetworkHandlersMounted = true;
+    window.addEventListener('offline', () => {
+        pauseCallerCallRoutingForOffline(getCallerPendingState(), 'browser-offline-event');
+    });
+    window.addEventListener('online', () => {
+        resumeCallerCallRoutingAfterOnline();
+    });
+}
+
 function callerCallAttemptExhausted(excludedOperatorIds = []) {
     const excluded = new Set(normalizeOperatorIdList(excludedOperatorIds));
     const available = callerAvailableOperatorIds();
@@ -1022,6 +1106,11 @@ function publishCallerOperatorDiscoveryRequest(excludedOperatorIds = []) {
         discovery_requested_at: new Date().toISOString(),
     });
 
+    if (callerBrowserOffline()) {
+        pauseCallerCallRoutingForOffline(getCallerPendingState(), 'discovery-start-offline');
+        return false;
+    }
+
     if (appState.runtime.callerDiscoveryResponseTimerId) {
         window.clearTimeout(appState.runtime.callerDiscoveryResponseTimerId);
     }
@@ -1031,6 +1120,11 @@ function publishCallerOperatorDiscoveryRequest(excludedOperatorIds = []) {
         const latest = getCallerPendingState();
 
         if (!latest || latest.kind !== 'new_call' || latest.operator_id || latest.phase !== 'discovering') {
+            return;
+        }
+
+        if (callerBrowserOffline()) {
+            pauseCallerCallRoutingForOffline(latest, 'discovery-response-timeout-offline');
             return;
         }
 
@@ -1055,6 +1149,11 @@ function publishCallerOperatorDiscoveryRequest(excludedOperatorIds = []) {
 }
 
 function retryCallerCallDiscoveryAfterMiss(pending, options = {}) {
+    if (callerBrowserOffline()) {
+        pauseCallerCallRoutingForOffline(pending, 'retry-after-miss-offline');
+        return;
+    }
+
     const missedOperatorId = Number(pending?.operator_id ?? 0);
     const missedAttemptId = Number(pending?.attempt_id ?? 0);
     const missedOperatorAttemptId = Number(pending?.operator_attempt_id ?? 0);
@@ -1124,6 +1223,11 @@ function scheduleCallerRingingTimeout(pending) {
             || !['operator_found', 'ringing'].includes(String(latest.phase ?? '').trim())
             || Number(latest.operator_id ?? 0) !== operatorId
         ) {
+            return;
+        }
+
+        if (callerBrowserOffline()) {
+            pauseCallerCallRoutingForOffline(latest, 'ringing-timeout-offline');
             return;
         }
 
@@ -2866,7 +2970,11 @@ function callerNavbarStatusContent(primerReport) {
 function renderCallerPendingContent(pending, incident = null) {
     const operator = pendingOperatorIdentity(pending, incident);
     const phase = String(pending?.phase ?? '').trim();
-    const statusText = phase === 'connecting' ? 'Connecting ...' : 'Calling ...';
+    const statusText = phase === 'network_offline'
+        ? 'Waiting for network ...'
+        : phase === 'connecting'
+            ? 'Connecting ...'
+            : 'Calling ...';
 
     return `
         <section class="caller-ringing-screen">
@@ -3675,7 +3783,7 @@ function renderCaller(root, bootstrap, home, primerReport) {
     const currentIncident = home.current_open_incident ?? null;
     const pendingState = getCallerPendingState();
     const latestSession = latestCallSession(currentIncident);
-    const newCallPendingPhases = ['discovering', 'operator_found', 'requesting', 'ringing', 'connecting'];
+    const newCallPendingPhases = ['discovering', 'operator_found', 'requesting', 'ringing', 'connecting', 'network_offline'];
     const hasNewCallPending = pendingState?.kind === 'new_call'
         && newCallPendingPhases.includes(String(pendingState?.phase ?? '').trim());
     const reconnectPendingPhases = ['availability_check', 'requesting', 'ringing', 'connecting'];
@@ -4052,6 +4160,7 @@ export async function renderCitizenSurface(root, bootstrap) {
     appState.runtime.callerRoot = root;
     appState.runtime.callerHome = home;
     appState.runtime.callerPrimerReport = primerReport;
+    ensureCallerNetworkHandlers();
     renderCaller(root, bootstrap, home, primerReport);
     ensureCallerSpeechPrimer();
     await connectCallerRealtimeStream();

@@ -21,6 +21,10 @@ assert.match(citizenSurface, /admissionPath:\s*'\/api\/realtime\/admission\/citi
 assert.match(citizenSurface, /brandHref:\s*'\/citizen'/);
 assert.match(citizenSurface, /window\.HotlineCitizenPwa \?\? window\.HotlineCallerPwa/);
 assert.match(citizenSurface, /Citizen Realtime surface stream unavailable\./);
+assert.match(citizenSurface, /window\.addEventListener\('offline'/);
+assert.match(citizenSurface, /window\.addEventListener\('online'/);
+assert.match(citizenSurface, /phase:\s*'network_offline'/);
+assert.match(citizenSurface, /Waiting for network \.\.\./);
 
 assert.doesNotMatch(citizenSurface, /\/api\/caller\//);
 assert.doesNotMatch(citizenSurface, /\/api\/realtime\/admission\/caller/);
