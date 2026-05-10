@@ -1,4 +1,4 @@
-import { appState, buildOptions, deriveActiveCallSessionId, ensureHelperUi, escapeHtml, evaluateDevicePrimer, fetchJson, formatDateTime, formatStatusLabel, handleCommandBroadcastEnvelope, INCOMING_MODAL_DISMISS_PREFIX, mergeIncidentMediaItems, mountChatComposer, mountChatThread, mountRealtimeCallSession, mountRealtimeIncidentChat, mountSurfaceChrome, OPERATOR_WORKBENCH_CALL_SESSION_KEY, OPERATOR_WORKBENCH_KEY, padIncidentId, renderAssignments, renderMedia, renderStatChips, renderTransfers, sharedShell, showToast, trackSurfaceInstance, TRANSFER_MODAL_DISMISS_PREFIX, wirePrimer } from './surfaceShared.js';
+import { appState, buildOptions, deriveActiveCallSessionId, ensureHelperUi, escapeHtml, evaluateDevicePrimer, fetchJson, formatDateTime, formatStatusLabel, handleCommandBroadcastEnvelope, INCOMING_MODAL_DISMISS_PREFIX, logCallFlow, mergeIncidentMediaItems, mountChatComposer, mountChatThread, mountRealtimeCallSession, mountRealtimeIncidentChat, mountSurfaceChrome, OPERATOR_WORKBENCH_CALL_SESSION_KEY, OPERATOR_WORKBENCH_KEY, padIncidentId, renderAssignments, renderMedia, renderStatChips, renderTransfers, sharedShell, showToast, trackSurfaceInstance, TRANSFER_MODAL_DISMISS_PREFIX, wirePrimer } from './surfaceShared.js';
 import { renderSurface } from './renderSurface.js';
 import { createOperatorMediaManagers } from '../media/operator.js';
 import { createOperatorMediaFinalizer } from '../media/finalizers/operatorMediaFinalizer.js';
@@ -82,15 +82,30 @@ function scheduleOperatorRealtimeReconnect(root) {
 
 function publishOperatorCallFlow(eventType, payload = {}) {
     const client = operatorDiscoveryClient();
+    const canonicalEventType = citizenEventType(eventType);
+
+    logCallFlow('operator', 'discovery-event-publish-attempt', {
+        eventType,
+        canonicalEventType,
+        incidentId: Number(payload?.incident_id ?? 0) || null,
+        callAttemptId: Number(payload?.call_attempt_id ?? 0) || null,
+        operatorAttemptId: Number(payload?.call_attempt_operator_attempt_id ?? 0) || null,
+        callSessionId: Number(payload?.call_session_id ?? 0) || null,
+        clientOpen: Boolean(client?.isOpen?.()),
+    });
 
     if (!client?.isOpen?.()) {
+        logCallFlow('operator', 'discovery-event-publish-skip-client-closed', {
+            eventType,
+            canonicalEventType,
+        });
         return null;
     }
 
     return client.sendRequest(
         'app.event.publish',
         CALL_DISCOVERY_ROOM,
-        buildAppEventPublishPayload(citizenEventType(eventType), withCitizenRealtimePayloadAliases(payload)),
+        buildAppEventPublishPayload(canonicalEventType, withCitizenRealtimePayloadAliases(payload)),
     );
 }
 
@@ -1170,6 +1185,16 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                     return;
                 }
 
+                logCallFlow('operator', 'discovery-event-received', {
+                    eventType,
+                    canonicalEventType: citizenEventType(eventType),
+                    incidentId: Number(payload?.incident_id ?? 0) || null,
+                    callAttemptId: Number(payload?.call_attempt_id ?? 0) || null,
+                    operatorAttemptId: Number(payload?.call_attempt_operator_attempt_id ?? 0) || null,
+                    callSessionId: Number(payload?.call_session_id ?? 0) || null,
+                    callerId: Number(payload?.caller_id ?? payload?.citizen_id ?? 0) || null,
+                });
+
                 if (eventType === 'caller.location.updated') {
                     if (operatorCanReceiveCallerLocationUpdate(payload)) {
                         applyOperatorCallerLocationUpdate(payload);
@@ -1178,6 +1203,11 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                 }
 
                 if (eventType === 'caller.operator.available.request') {
+                    logCallFlow('operator', 'availability-request-handling', {
+                        callerId: Number(payload.caller_id ?? payload.citizen_id ?? 0) || null,
+                        canAnswer: operatorCanAnswerDiscoveryRequest(),
+                        excluded: operatorIsExcludedFromCallerDiscovery(payload),
+                    });
                     if (!operatorCanAnswerDiscoveryRequest() || operatorIsExcludedFromCallerDiscovery(payload)) {
                         return;
                     }
@@ -1216,6 +1246,11 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                 }
 
                 if (eventType === 'caller.call.request') {
+                    logCallFlow('operator', 'call-request-handling', {
+                        callerId: Number(payload.caller_id ?? payload.citizen_id ?? 0) || null,
+                        operatorId: Number(payload.operator_id ?? 0) || null,
+                        currentOperatorId: Number(appState.bootstrap?.user?.id ?? 0) || null,
+                    });
                     if (String(payload?.operator_id ?? '') !== String(appState.bootstrap?.user?.id ?? '')) {
                         return;
                     }
@@ -1237,6 +1272,10 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                     };
 
                     void openIncomingCallModal(root, pendingIncomingItem, 'preparing');
+                    logCallFlow('operator', 'incoming-call-modal-preparing', {
+                        callerId: Number(payload.caller_id ?? 0) || null,
+                        itemId: pendingIncomingItem.id,
+                    });
 
                     fetchJson('/api/operator/call-attempts', {
                         method: 'post',
@@ -1267,6 +1306,11 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                             caller_id: Number(payload.caller_id),
                             operator_id: Number(appState.bootstrap?.user?.id ?? 0),
                             requested_at: response.attempt?.created_at ?? new Date().toISOString(),
+                        });
+                        logCallFlow('operator', 'incoming-call-created', {
+                            callerId: Number(payload.caller_id ?? 0) || null,
+                            callAttemptId: Number(response.attempt?.id ?? 0) || null,
+                            operatorAttemptId: Number(response.operator_attempt?.id ?? 0) || null,
                         });
 
                         const incomingItem = {
@@ -5518,6 +5562,12 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride) {
                 }
 
                 if (missing.length > 0) {
+                    logCallFlow('operator', 'connection-gate-waiting', {
+                        incidentId: Number(payload.id ?? 0) || null,
+                        callSessionId: activeSessionId,
+                        missing,
+                        readiness: { ...readiness },
+                    });
                     debugMediaCapture('connection-gate-waiting', {
                         callSessionId: activeSessionId,
                         incidentId: Number(payload.id ?? 0),
@@ -5531,6 +5581,11 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride) {
 
                 try {
                     const gateLiftedAt = new Date().toISOString();
+                    logCallFlow('operator', 'ready-api-request', {
+                        incidentId: Number(payload.id ?? 0) || null,
+                        callSessionId: activeSessionId,
+                        answeredAt: gateLiftedAt,
+                    });
                     const response = await fetchJson(`/api/operator/call-sessions/${activeSessionId}/ready`, {
                         method: 'post',
                         data: {
@@ -5538,6 +5593,11 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride) {
                         },
                     });
                     const answeredAt = response?.call_session?.answered_at ?? gateLiftedAt;
+                    logCallFlow('operator', 'ready-api-success', {
+                        incidentId: Number(payload.id ?? 0) || null,
+                        callSessionId: activeSessionId,
+                        answeredAt,
+                    });
                     payload = patchIncidentCallSession(payload, activeSessionId, {
                         answered_at: answeredAt,
                     });
@@ -5561,6 +5621,12 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride) {
                     });
                     readiness.completed = true;
                 } catch (error) {
+                    logCallFlow('operator', 'ready-api-error', {
+                        incidentId: Number(payload.id ?? 0) || null,
+                        callSessionId: activeSessionId,
+                        message: String(error?.message ?? error ?? ''),
+                        status: Number(error?.response?.status ?? 0) || null,
+                    });
                     console.warn('Unable to mark call session ready.', error);
                     showToast(error.response?.data?.message ?? 'Unable to complete call connection.', 'warn');
                 } finally {
@@ -5636,6 +5702,11 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride) {
                 startMuted: needsConnectionGate,
                 onLocalStream(stream) {
                     readiness.localStream = true;
+                    logCallFlow('operator', 'local-stream-observed', {
+                        incidentId: Number(payload.id ?? 0) || null,
+                        callSessionId: activeSessionId,
+                        audioTrackCount: stream instanceof MediaStream ? stream.getAudioTracks().length : 0,
+                    });
                     if (operatorGraphApi) {
                         operatorGraphApi.update({
                             isLive: true,
@@ -5650,6 +5721,12 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride) {
                 },
                 onRemoteStream(stream) {
                     readiness.remoteStream = true;
+                    logCallFlow('operator', 'remote-stream-observed', {
+                        incidentId: Number(payload.id ?? 0) || null,
+                        callSessionId: activeSessionId,
+                        audioTrackCount: stream instanceof MediaStream ? stream.getAudioTracks().length : 0,
+                        videoTrackCount: stream instanceof MediaStream ? stream.getVideoTracks().length : 0,
+                    });
                     if (callerGraphApi) {
                         callerGraphApi.update({
                             isLive: true,
@@ -5736,6 +5813,11 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride) {
                 onStateChange(nextState) {
                     readiness.peerConnected = String(nextState ?? '').trim() === 'connected';
                     const active = ['connected', 'connecting'].includes(String(nextState ?? '').trim());
+                    logCallFlow('operator', 'peer-connection-state', {
+                        incidentId: Number(payload.id ?? 0) || null,
+                        callSessionId: activeSessionId,
+                        state: String(nextState ?? ''),
+                    });
 
                     callerGraphApi?.update({
                         isActive: active,
@@ -5806,6 +5888,13 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride) {
                         await refreshWorkbenchOverlay(payload, null);
                     })();
                 },
+            });
+
+            logCallFlow('operator', 'workbench-call-runtime-mounted', {
+                incidentId: Number(payload.id ?? 0) || null,
+                callSessionId: activeSessionId,
+                mounted: Boolean(callRuntime),
+                needsConnectionGate,
             });
 
             if (callRuntime) {
@@ -6372,6 +6461,14 @@ async function openIncomingCallModal(root, item, phase = 'incoming') {
     });
 
     overlay?.querySelector('[data-answer-incoming]')?.addEventListener('click', async () => {
+        logCallFlow('operator', 'answer-click', {
+            kind: String(item?.kind ?? ''),
+            itemId: String(item?.id ?? ''),
+            incidentId: Number(item?.incident_id ?? 0) || null,
+            callAttemptId: Number(item?.call_attempt_id ?? 0) || null,
+            callSessionId: Number(item?.call_session_id ?? 0) || null,
+        });
+
         if (item?.demo) {
             showNotice('Temporary incoming-call modal preview.', 'success');
             return;
@@ -6379,8 +6476,19 @@ async function openIncomingCallModal(root, item, phase = 'incoming') {
 
         try {
             if (item.kind === 'new_call') {
+                logCallFlow('operator', 'answer-api-request', {
+                    operatorAttemptId: Number(item.id ?? 0) || null,
+                });
                 const response = await fetchJson(`/api/operator/call-attempt-operator-attempts/${item.id}/answer`, {
                     method: 'post',
+                });
+                logCallFlow('operator', 'answer-api-success', {
+                    callAttemptId: Number(response.attempt?.id ?? 0) || null,
+                    operatorAttemptId: Number(item.id ?? 0) || null,
+                    incidentId: Number(response.incident?.id ?? 0) || null,
+                    callSessionId: Number(response.call_session?.id ?? 0) || null,
+                    hasIncidentPayload: Boolean(response.incident),
+                    hasCallSessionPayload: Boolean(response.call_session),
                 });
 
                 publishOperatorCallFlow('caller.call.answered', {
@@ -6410,8 +6518,16 @@ async function openIncomingCallModal(root, item, phase = 'incoming') {
                 removeIncomingCallFromDashboard(item);
                 syncOperatorActiveIncident(root, response.incident);
                 await openIncomingCallModal(root, appState.runtime.operatorIncomingCallItem, 'connecting');
+                logCallFlow('operator', 'incoming-call-modal-connecting', {
+                    incidentId: Number(response.incident?.id ?? 0) || null,
+                    callSessionId: Number(response.call_session?.id ?? 0) || null,
+                });
                 await openOperatorWorkbench(root, response.incident.id, {
                     initialIntake: true,
+                });
+                logCallFlow('operator', 'workbench-open-requested-after-answer', {
+                    incidentId: Number(response.incident?.id ?? 0) || null,
+                    callSessionId: Number(response.call_session?.id ?? 0) || null,
                 });
                 return;
             }
@@ -6493,6 +6609,12 @@ async function openIncomingCallModal(root, item, phase = 'incoming') {
                 await openOperatorWorkbench(root, item.incident_id);
             }
         } catch (error) {
+            logCallFlow('operator', 'answer-flow-error', {
+                kind: String(item?.kind ?? ''),
+                itemId: String(item?.id ?? ''),
+                message: String(error?.message ?? error ?? ''),
+                status: Number(error?.response?.status ?? 0) || null,
+            });
             showNotice(error.response?.data?.message ?? 'Unable to answer incoming call.');
         }
     });

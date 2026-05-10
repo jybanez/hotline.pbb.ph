@@ -1,4 +1,4 @@
-import { appState, availabilityPillClass, clearCallerPendingState, createIconMarkup, ensureHelperUi, escapeHtml, evaluateDevicePrimer, fetchJson, formatDateTime, formatIncidentStatusHeading, formatStatusLabel, getCallerPendingState, handleCommandBroadcastEnvelope, latestCallSession, mergeIncidentMediaItems, mountChatComposer, mountChatThread, mountRealtimeCallSession, mountRealtimeIncidentChat, mountSurfaceChrome, primerStatusButton, setCallerPendingState, sharedShell, showToast, trackSurfaceInstance, wirePrimer } from './surfaceShared.js';
+import { appState, availabilityPillClass, clearCallerPendingState, createIconMarkup, ensureHelperUi, escapeHtml, evaluateDevicePrimer, fetchJson, formatDateTime, formatIncidentStatusHeading, formatStatusLabel, getCallerPendingState, handleCommandBroadcastEnvelope, latestCallSession, logCallFlow, mergeIncidentMediaItems, mountChatComposer, mountChatThread, mountRealtimeCallSession, mountRealtimeIncidentChat, mountSurfaceChrome, primerStatusButton, setCallerPendingState, sharedShell, showToast, trackSurfaceInstance, wirePrimer } from './surfaceShared.js';
 import { renderSurface } from './renderSurface.js';
 import { buildAppEventPublishPayload, buildPresenceSubscribePayload, buildRoomJoinPayload, listPresenceRosterItems, parseRealtimeEnvelope, reducePresenceRosterEvent, RealtimeSocketClient } from '../../../../realtime/resources/js/sdk/index.js';
 import { mountRealtimeSignalStrength } from '../features/realtimeSignalStrength.js';
@@ -452,15 +452,29 @@ function scheduleCallerRealtimeReconnect() {
 
 function publishCallerCallFlow(eventType, payload = {}) {
     const client = callerDiscoveryClient();
+    const canonicalEventType = citizenEventType(eventType);
+
+    logCallFlow('citizen', 'discovery-event-publish-attempt', {
+        eventType,
+        canonicalEventType,
+        incidentId: Number(payload?.incident_id ?? 0) || null,
+        callAttemptId: Number(payload?.call_attempt_id ?? 0) || null,
+        callSessionId: Number(payload?.call_session_id ?? 0) || null,
+        clientOpen: Boolean(client?.isOpen?.()),
+    });
 
     if (!client?.isOpen?.()) {
+        logCallFlow('citizen', 'discovery-event-publish-skip-client-closed', {
+            eventType,
+            canonicalEventType,
+        });
         return null;
     }
 
     return client.sendRequest(
         'app.event.publish',
         CALL_DISCOVERY_ROOM,
-        buildAppEventPublishPayload(citizenEventType(eventType), withCitizenRealtimePayloadAliases(payload)),
+        buildAppEventPublishPayload(canonicalEventType, withCitizenRealtimePayloadAliases(payload)),
     );
 }
 
@@ -934,8 +948,15 @@ async function closeCallerPendingAndShowUnavailable(message = CALLER_OPERATOR_UN
 
 function publishCallerOperatorDiscoveryRequest(excludedOperatorIds = []) {
     const excluded = normalizeOperatorIdList(excludedOperatorIds);
+    logCallFlow('citizen', 'operator-discovery-start', {
+        excludedOperatorIds: excluded,
+        callerId: Number(appState.bootstrap?.user?.id ?? 0) || null,
+    });
 
     if (callerCallAttemptExhausted(excluded)) {
+        logCallFlow('citizen', 'operator-discovery-exhausted', {
+            excludedOperatorIds: excluded,
+        });
         void closeCallerPendingAndShowUnavailable(CALLER_OPERATOR_UNAVAILABLE_MESSAGE);
         return false;
     }
@@ -978,6 +999,9 @@ function publishCallerOperatorDiscoveryRequest(excludedOperatorIds = []) {
     });
 
     if (!published) {
+        logCallFlow('citizen', 'operator-discovery-publish-failed', {
+            excludedOperatorIds: excluded,
+        });
         clearCallerCallRoutingTimers();
     }
 
@@ -1395,6 +1419,16 @@ async function connectCallerRealtimeStream(options = {}) {
                     return;
                 }
 
+                logCallFlow('citizen', 'discovery-event-received', {
+                    eventType,
+                    canonicalEventType: citizenEventType(eventType),
+                    incidentId: Number(payload?.incident_id ?? 0) || null,
+                    callAttemptId: Number(payload?.call_attempt_id ?? 0) || null,
+                    operatorAttemptId: Number(payload?.call_attempt_operator_attempt_id ?? 0) || null,
+                    callSessionId: Number(payload?.call_session_id ?? 0) || null,
+                    pendingPhase: String(getCallerPendingState()?.phase ?? ''),
+                });
+
                 const pendingState = getCallerPendingState();
 
                 if (eventType === 'caller.operator.available.response') {
@@ -1520,7 +1554,19 @@ async function connectCallerRealtimeStream(options = {}) {
                 }
 
                 if (eventType === 'caller.call.answered') {
+                    logCallFlow('citizen', 'call-answered-event-handling', {
+                        incidentId: Number(payload.incident_id ?? 0) || null,
+                        callSessionId: Number(payload.call_session_id ?? 0) || null,
+                        hasIncidentPayload: Boolean(payload.incident),
+                        pendingKind: String(pendingState?.kind ?? ''),
+                        pendingPhase: String(pendingState?.phase ?? ''),
+                    });
+
                     if (!pendingState || pendingState.kind !== 'new_call') {
+                        logCallFlow('citizen', 'call-answered-event-ignored-no-pending-new-call', {
+                            incidentId: Number(payload.incident_id ?? 0) || null,
+                            callSessionId: Number(payload.call_session_id ?? 0) || null,
+                        });
                         return;
                     }
 
@@ -1607,6 +1653,11 @@ async function connectCallerRealtimeStream(options = {}) {
                     const callSessionId = Number(payload.call_session_id ?? 0);
                     const incidentId = Number(payload.incident_id ?? 0);
                     const answeredAt = String(payload.answered_at ?? '').trim() || new Date().toISOString();
+                    logCallFlow('citizen', 'call-ready-event-handling', {
+                        incidentId,
+                        callSessionId,
+                        answeredAt,
+                    });
                     const currentIncident = appState.runtime.callerHome?.current_open_incident ?? null;
                     const nextIncident = currentIncident
                         && Number(currentIncident.id ?? 0) === incidentId
@@ -1621,6 +1672,10 @@ async function connectCallerRealtimeStream(options = {}) {
                     }
 
                     collapseCallerConnectingState(callSessionId, incidentId, answeredAt);
+                    logCallFlow('citizen', 'connecting-overlay-collapse-requested', {
+                        incidentId,
+                        callSessionId,
+                    });
 
                     if (
                         appState.runtime.callerLiveModal
@@ -3278,6 +3333,12 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
                 ...staticConversation,
                 composerApi: fallbackComposer,
             };
+        logCallFlow('citizen', 'live-modal-call-runtime-mount', {
+            incidentId: Number(payload.id ?? 0) || null,
+            callSessionId: Number(latestSession?.id ?? 0) || null,
+            operatorId: Number(payload?.operator?.id ?? 0) || null,
+            needsConnectionGate,
+        });
         const callRuntime = latestSession?.id && payload?.operator?.id
             ? await mountRealtimeCallSession({
                 callSessionId: Number(latestSession.id),
@@ -3289,11 +3350,23 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
                 localVideoStream: appState.runtime.callerCameraStream ?? null,
                 startMuted: needsConnectionGate,
                 onRemoteStream(stream) {
+                    logCallFlow('citizen', 'remote-stream-observed', {
+                        incidentId: Number(payload.id ?? 0) || null,
+                        callSessionId: Number(latestSession.id ?? 0) || null,
+                        audioTrackCount: stream instanceof MediaStream ? stream.getAudioTracks().length : 0,
+                        videoTrackCount: stream instanceof MediaStream ? stream.getVideoTracks().length : 0,
+                    });
                     if (!(stream instanceof MediaStream)) {
                         return;
                     }
                 },
-                onStateChange() {},
+                onStateChange(nextState) {
+                    logCallFlow('citizen', 'peer-connection-state', {
+                        incidentId: Number(payload.id ?? 0) || null,
+                        callSessionId: Number(latestSession.id ?? 0) || null,
+                        state: String(nextState ?? ''),
+                    });
+                },
                 onHangupConfirm() {
                     if (appState.runtime.callerLiveModal) {
                         appState.runtime.callerLiveModal.hangupConfirmReceived = true;

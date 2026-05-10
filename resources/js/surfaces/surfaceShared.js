@@ -119,6 +119,23 @@ const appState = {
     },
 };
 
+function logCallFlow(surface, step, detail = {}) {
+    if (typeof console === 'undefined' || typeof console.info !== 'function') {
+        return;
+    }
+
+    const safeDetail = detail && typeof detail === 'object' && !Array.isArray(detail)
+        ? detail
+        : {};
+
+    console.info('[hotline.call.flow]', {
+        timestamp: new Date().toISOString(),
+        surface: String(surface ?? '').trim() || 'unknown',
+        step: String(step ?? '').trim() || 'unknown',
+        ...safeDetail,
+    });
+}
+
 function escapeHtml(value) {
     return String(value ?? '')
         .replaceAll('&', '&amp;')
@@ -2231,6 +2248,14 @@ async function mountRealtimeCallSession(options = {}) {
         || !navigator.mediaDevices?.getUserMedia
         || typeof RTCPeerConnection !== 'function'
     ) {
+        logCallFlow(viewerRole || 'unknown', 'call-runtime-skip-missing-prerequisite', {
+            callSessionId,
+            hasAdmissionPath: Boolean(admissionPath),
+            hasCurrentUserId: Boolean(currentUserId),
+            hasRemoteUserId: Boolean(remoteUserId),
+            hasMediaDevices: Boolean(navigator.mediaDevices?.getUserMedia),
+            hasRtcPeerConnection: typeof RTCPeerConnection === 'function',
+        });
         return null;
     }
 
@@ -2289,6 +2314,10 @@ async function mountRealtimeCallSession(options = {}) {
         state.localStream = await navigator.mediaDevices.getUserMedia({
             audio: true,
             video: false,
+        });
+        logCallFlow(viewerRole, 'call-session-local-media-success', {
+            callSessionId,
+            audioTrackCount: state.localStream.getAudioTracks().length,
         });
 
         debugMedia('local-stream-acquired', {
@@ -2647,10 +2676,22 @@ async function mountRealtimeCallSession(options = {}) {
 
     const sendReadySignal = () => {
         if (!state.client?.isOpen?.() || !state.joinedRoom || state.sentReady || !state.callRoom) {
+            logCallFlow(viewerRole, 'call-session-ready-signal-skip', {
+                callSessionId,
+                callRoom: state.callRoom,
+                clientOpen: Boolean(state.client?.isOpen?.()),
+                joinedRoom: Boolean(state.joinedRoom),
+                sentReady: Boolean(state.sentReady),
+            });
             return;
         }
 
         state.sentReady = true;
+        logCallFlow(viewerRole, 'call-session-ready-signal-send', {
+            callSessionId,
+            callRoom: state.callRoom,
+            targetUserId: remoteUserId,
+        });
         state.client.sendRequest(
             'call.signal.publish',
             state.callRoom,
@@ -2873,6 +2914,13 @@ async function mountRealtimeCallSession(options = {}) {
             targetUserId,
             meta: signalMeta,
         });
+        logCallFlow(viewerRole, 'call-session-signal-received', {
+            callSessionId,
+            callRoom: state.callRoom,
+            senderUserId,
+            signalType,
+            targetUserId,
+        });
 
         if (!signalType) {
             return;
@@ -3035,6 +3083,12 @@ async function mountRealtimeCallSession(options = {}) {
     };
 
     try {
+        logCallFlow(viewerRole, 'call-session-admission-request', {
+            callSessionId,
+            admissionPath,
+            currentUserId,
+            remoteUserId,
+        });
         const admission = await fetchJson(admissionPath, {
             method: 'post',
             data: {
@@ -3046,10 +3100,21 @@ async function mountRealtimeCallSession(options = {}) {
         const callRoom = String(admission?.call_room ?? admission?.session?.call_room ?? '').trim();
 
         if (!admission?.token || !admission?.websocket_url || !callRoom) {
+            logCallFlow(viewerRole, 'call-session-admission-invalid', {
+                callSessionId,
+                hasToken: Boolean(admission?.token),
+                hasWebsocketUrl: Boolean(admission?.websocket_url),
+                callRoom,
+            });
             return null;
         }
 
         state.callRoom = callRoom;
+        logCallFlow(viewerRole, 'call-session-admission-success', {
+            callSessionId,
+            callRoom,
+            websocketUrl: admission.websocket_url,
+        });
         state.remoteAudioEl = attachHiddenRemoteAudio(remoteAudioHost, `${viewerRole}-call-remote-audio`);
         resetRemoteVideoHost(remoteVideoHost);
 
@@ -3071,12 +3136,22 @@ async function mountRealtimeCallSession(options = {}) {
                 }
 
                 if (envelope?.phase === 'ack' && envelope?.type === 'session.auth.request') {
+                    logCallFlow(viewerRole, 'call-session-auth-ack', {
+                        callSessionId,
+                        callRoom,
+                    });
                     state.client?.sendRequest('room.join.request', callRoom, buildRoomJoinPayload());
                     return;
                 }
 
                 if (envelope?.phase === 'ack' && envelope?.type === 'room.join.request') {
                     state.joinedRoom = String(envelope?.room ?? '') === callRoom;
+                    logCallFlow(viewerRole, 'call-session-room-join-ack', {
+                        callSessionId,
+                        callRoom,
+                        ackRoom: String(envelope?.room ?? ''),
+                        joinedRoom: Boolean(state.joinedRoom),
+                    });
 
                     if (state.joinedRoom) {
                         sendReadySignal();
@@ -3095,12 +3170,25 @@ async function mountRealtimeCallSession(options = {}) {
         });
 
         state.client.connect();
+        logCallFlow(viewerRole, 'call-session-websocket-connect-start', {
+            callSessionId,
+            callRoom,
+        });
 
         void ensureLocalStream().catch((error) => {
+            logCallFlow(viewerRole, 'call-session-local-media-error', {
+                callSessionId,
+                message: String(error?.message ?? error ?? ''),
+            });
             console.warn('Realtime call session local media acquisition failed.', error);
             showToast('Unable to access the microphone for the live call.', 'error');
         });
     } catch (error) {
+        logCallFlow(viewerRole, 'call-session-runtime-error', {
+            callSessionId,
+            message: String(error?.message ?? error ?? ''),
+            status: Number(error?.response?.status ?? 0) || null,
+        });
         console.warn('Realtime call session is unavailable.', error);
         showToast('Live audio is unavailable right now.', 'warn');
         return null;
@@ -3974,6 +4062,7 @@ export {
     getCallerPendingState,
     handleCommandBroadcastEnvelope,
     latestCallSession,
+    logCallFlow,
     mergeIncidentMediaItems,
     mountChatComposer,
     mountChatThread,
