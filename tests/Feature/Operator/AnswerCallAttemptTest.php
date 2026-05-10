@@ -120,11 +120,11 @@ class AnswerCallAttemptTest extends TestCase
             ->assertOk()
             ->assertJsonPath('ok', true)
             ->assertJsonPath('attempt.id', $attemptId)
-            ->assertJsonPath('attempt.outcome', 'cancelled_by_caller');
+            ->assertJsonPath('attempt.outcome', 'cancelled_by_citizen');
 
         $this->assertDatabaseHas('call_attempts', [
             'id' => $attemptId,
-            'outcome' => 'cancelled_by_caller',
+            'outcome' => 'cancelled_by_citizen',
         ]);
     }
 

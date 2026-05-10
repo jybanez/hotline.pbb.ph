@@ -97,7 +97,7 @@ class CallSessionService
         return DB::transaction(function () use ($callSession) {
             $callSession->forceFill([
                 'status' => CallStatus::Ended,
-                'outcome' => CallOutcome::CancelledByCaller,
+                'outcome' => CallOutcome::CancelledByCitizen,
                 'ended_at' => now(),
             ])->save();
 
@@ -215,7 +215,7 @@ class CallSessionService
         return DB::transaction(function () use ($callSession) {
             $callSession->forceFill([
                 'status' => CallStatus::Ended,
-                'outcome' => CallOutcome::EndedByCaller,
+                'outcome' => CallOutcome::EndedByCitizen,
                 'ended_at' => now(),
             ])->save();
 

@@ -298,13 +298,13 @@ After successful press-and-hold:
 - `Calling operator...`
 - hang-up button
 
-If caller hangs up before answer:
+If citizen hangs up before answer:
 - keep call-attempt record
-- outcome = `cancelled_by_caller`
+- outcome = `cancelled_by_citizen`
 
 Reconnect ringing rule:
 - if a reconnect has already created a new `call_session` but is still unanswered, caller hang-up should cancel that unanswered reconnect call session
-- reconnect cancel should use outcome = `cancelled_by_caller`
+- reconnect cancel should use outcome = `cancelled_by_citizen`
 
 ### Caller incident view
 Header behavior:

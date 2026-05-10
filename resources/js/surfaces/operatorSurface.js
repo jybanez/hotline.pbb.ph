@@ -1437,7 +1437,7 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                             call_attempt_operator_attempt_id: Number(payload.call_attempt_operator_attempt_id ?? 0),
                             caller_id: Number(payload.caller_id ?? 0),
                             operator_id: Number(payload.operator_id ?? 0),
-                            outcome: 'cancelled_by_caller',
+                            outcome: 'cancelled_by_citizen',
                             ended_at: new Date().toISOString(),
                         });
                     }).catch((error) => {
@@ -1498,7 +1498,7 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                             caller_id: Number(payload.caller_id ?? 0),
                             incident_id: Number(payload.incident_id ?? 0),
                             operator_id: Number(payload.operator_id ?? 0),
-                            outcome: 'cancelled_by_caller',
+                            outcome: 'cancelled_by_citizen',
                             ended_at: new Date().toISOString(),
                         });
                     }).catch((error) => {
@@ -5773,7 +5773,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride) {
                             void captureManager?.finalizeAll?.();
                             payload = patchIncidentCallSession(payload, activeSessionId, {
                                 status: response?.call_session?.status ?? 'ended',
-                                outcome: response?.call_session?.outcome ?? 'ended_by_caller',
+                                outcome: response?.call_session?.outcome ?? 'ended_by_citizen',
                                 ended_at: officialEndedAt,
                                 updated_at: response?.call_session?.updated_at ?? officialEndedAt,
                             });
@@ -5799,7 +5799,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride) {
                         void captureManager?.finalizeAll?.();
                         payload = patchIncidentCallSession(payload, activeSessionId, {
                             status: 'ended',
-                            outcome: 'ended_by_caller',
+                            outcome: 'ended_by_citizen',
                             ended_at: endedAt,
                             updated_at: endedAt,
                         });

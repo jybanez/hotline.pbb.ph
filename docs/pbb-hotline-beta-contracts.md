@@ -44,9 +44,11 @@ Lifecycle note:
 - `answered`
 - `timed_out`
 - `declined_by_operator`
-- `cancelled_by_caller`
+- `cancelled_by_citizen`
+- `cancelled_by_caller` (legacy compatibility)
 - `ended_by_operator`
-- `ended_by_caller`
+- `ended_by_citizen`
+- `ended_by_caller` (legacy compatibility)
 
 ### Team assignment statuses
 - `Assigned`
@@ -347,7 +349,7 @@ Notes:
 - remove session-level `operator_id` from the call session contract
 - use `participants[]` to describe who actually joined that session
 - this is required for transfer overlap and future multi-peer sessions
-- if an unanswered reconnect call session is cancelled by the caller, use outcome `cancelled_by_caller`
+- if an unanswered reconnect call session is cancelled by the citizen, use outcome `cancelled_by_citizen`
 
 ## 11. Call Participant DTO
 

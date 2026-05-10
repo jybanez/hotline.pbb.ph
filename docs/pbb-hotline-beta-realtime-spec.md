@@ -271,9 +271,11 @@ Business outcomes:
 - `answered`
 - `timed_out`
 - `declined_by_operator`
-- `cancelled_by_caller`
+- `cancelled_by_citizen`
+- `cancelled_by_caller` (legacy compatibility)
 - `ended_by_operator`
-- `ended_by_caller`
+- `ended_by_citizen`
+- `ended_by_caller` (legacy compatibility)
 
 Signaling events may include:
 - ring/start
@@ -438,7 +440,7 @@ Legacy `caller.*` equivalents are accepted temporarily while deployed Hotline cl
   "citizen_id": 18,
   "caller_id": 18,
   "operator_id": 7,
-  "outcome": "cancelled_by_caller",
+  "outcome": "cancelled_by_citizen",
   "ended_at": "2026-04-12T09:00:08+08:00"
 }
 ```

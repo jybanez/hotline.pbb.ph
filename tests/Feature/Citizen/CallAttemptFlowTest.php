@@ -55,7 +55,7 @@ class CallAttemptFlowTest extends TestCase
             ->postJson("/api/citizen/call-attempts/{$attemptId}/cancel")
             ->assertOk()
             ->assertJsonPath('attempt.status', 'ended')
-            ->assertJsonPath('attempt.outcome', 'cancelled_by_caller');
+            ->assertJsonPath('attempt.outcome', 'cancelled_by_citizen');
     }
 
     public function test_citizen_can_mark_unanswered_call_attempt_as_timed_out(): void

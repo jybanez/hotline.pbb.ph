@@ -187,7 +187,7 @@ Legend:
 - [x] Decide whether `caller-cam-*` segment keys should become `citizen-cam-*`: yes.
 - [x] Decide whether `peer_role = caller` should become `peer_role = citizen`: yes.
 - [x] Decide whether `participant_role = caller` should become `participant_role = citizen`: yes.
-- [ ] Decide whether outcomes like `cancelled_by_caller` and `ended_by_caller` should become citizen-named outcome values in the same protocol migration or a later reporting migration.
+- [x] Decide whether outcomes like `cancelled_by_caller` and `ended_by_caller` should become citizen-named outcome values in the same protocol migration: yes, canonical new values are `cancelled_by_citizen` and `ended_by_citizen`.
 - [x] Accept both caller and citizen media values during temporary compatibility.
 - [x] Add tests for old call sessions and new call sessions.
 - [x] Verify media assembly still works with legacy records.
