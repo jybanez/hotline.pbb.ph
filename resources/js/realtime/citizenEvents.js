@@ -18,6 +18,7 @@ export const CALLER_TO_CITIZEN_EVENT_TYPES = Object.freeze({
     'caller.reconnect.cancel': 'citizen.reconnect.cancel',
     'caller.reconnect.cancelled': 'citizen.reconnect.cancelled',
     'caller.reconnect.declined': 'citizen.reconnect.declined',
+    'caller.reconnect.timed_out': 'citizen.reconnect.timed_out',
     'caller.reconnect.answered': 'citizen.reconnect.answered',
 });
 
