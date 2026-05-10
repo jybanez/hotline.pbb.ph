@@ -240,7 +240,7 @@ Legend:
 - [x] Inventory remaining caller compatibility aliases and split removal into staged batches: see `docs/citizen-protocol-decommission-inventory.md`.
 - [x] Confirm Realtime shared service has moved to citizen canonical examples and fixtures: PBB Realtime confirmed on 2026-05-10 14:36:33 in the shared chat log that its Hotline reference-flow docs, browser app-event unit examples, generic unit fixture labels, project code examples, and media peer examples now use citizen/operator wording where not covering legacy compatibility; verification passed with `php artisan test tests\Unit\RealtimeGatewayTest.php tests\Unit\RealtimeMediaChunkDispatcherTest.php tests\Unit\RealtimeTokenValidatorTest.php` in `C:\wamp64\www\pbb\realtime`.
 - [x] Confirm Helper shared service has moved to citizen canonical examples and fixtures: PBB Helper confirmed on 2026-05-11 04:36:42 in the shared chat log that it reviewed `C:\wamp64\www\hotline-helpers`, updated canonical device-selector wording from caller/operator to citizen/operator in `docs\ui-device-selector-proposal.md`, `docs\ui-device-selector-implementation-checklist.md`, and `demos\demo.device.selector.html`, verified the demo with a localhost/headless load check, and left only intentional Helper API/domain compatibility, historical sample data, generic programming docs, or unrelated local sample references.
-- [ ] Confirm caller-to-citizen refactor completion and installed PWA compatibility window have passed.
+- [~] Confirm caller-to-citizen refactor completion and installed PWA compatibility window have passed: installed PWA terminal-status validation is in progress; the 2026-05-11 04:40 installed citizen PWA run for incident 204 used `/api/realtime/admission/citizen`, applied the terminal incident update at 20:40:48Z, and post-call reconciliation ignored the incident after `currentIncidentId` cleared to `null` at 20:40:53Z and again at 20:41:06Z. Repeat once with `Discarded` before closing this gate.
 - [ ] Confirm historical data/report consumers are migrated.
 - [ ] Remove caller route aliases.
 - [ ] Remove caller event aliases.
@@ -250,7 +250,7 @@ Legend:
 
 Current decommission gate:
 - Do not remove `/caller`, `/api/caller/*`, `/api/realtime/admission/caller`, legacy `caller.*` event handling, caller request-field aliases, caller PWA assets, or caller-shaped database columns yet.
-- The local and production-served readiness passes proved current `/citizen` flows are canonical, including live call setup, hangup/reconnect handling, operator offline recovery, and post-call status propagation. Payload-field telemetry now exists for the feasible runtime compatibility paths. Legacy route and payload telemetry stayed flat through the live validation window. Realtime and Helper shared-service confirmations are complete; installed PWA and durable storage/history confirmations remain open.
+- The local and production-served readiness passes proved current `/citizen` flows are canonical, including live call setup, hangup/reconnect handling, operator offline recovery, and post-call status propagation. Payload-field telemetry now exists for the feasible runtime compatibility paths. Legacy route and payload telemetry stayed flat through the live validation window. Realtime and Helper shared-service confirmations are complete, and installed PWA terminal-status validation has one passing sample; the second installed PWA terminal-status sample and durable storage/history confirmations remain open.
 
 ## Open Decisions Tracker
 
