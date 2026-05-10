@@ -5956,6 +5956,7 @@ async function presentWorkbench(root, payload, stateOverride = null, options = {
         clearOperatorWorkbenchCallStatusPoll();
         sessionStorage.removeItem(OPERATOR_WORKBENCH_KEY);
         sessionStorage.removeItem(OPERATOR_WORKBENCH_CALL_SESSION_KEY);
+        appState.runtime.operatorDiscoveryClaimed = false;
         appState.runtime.operatorWorkbenchCallRuntime = null;
         appState.runtime.operatorWorkbenchCaptureManager = null;
         appState.runtime.operatorWorkbenchChat = null;
@@ -5964,7 +5965,7 @@ async function presentWorkbench(root, payload, stateOverride = null, options = {
         appState.runtime.operatorConnectingModalClose = null;
         overlayInstances.forEach((instance) => instance?.destroy?.());
         overlay?.remove();
-        publishOperatorDiscoveryPresence();
+        publishOperatorDiscoveryPresence(true);
         if (appState.runtime.operatorWorkbenchClose === close) {
             appState.runtime.operatorWorkbenchClose = null;
             appState.runtime.operatorWorkbenchOverlay = null;
@@ -6261,6 +6262,7 @@ async function refreshWorkbenchOverlay(payload, stateOverride = null, options = 
         clearOperatorWorkbenchCallStatusPoll();
         sessionStorage.removeItem(OPERATOR_WORKBENCH_KEY);
         sessionStorage.removeItem(OPERATOR_WORKBENCH_CALL_SESSION_KEY);
+        appState.runtime.operatorDiscoveryClaimed = false;
         appState.runtime.operatorWorkbenchCallRuntime = null;
         appState.runtime.operatorWorkbenchCaptureManager = null;
         appState.runtime.operatorWorkbenchChat = null;
@@ -6269,7 +6271,7 @@ async function refreshWorkbenchOverlay(payload, stateOverride = null, options = 
         appState.runtime.operatorConnectingModalClose = null;
         overlayInstances.forEach((instance) => instance?.destroy?.());
         overlay?.remove();
-        publishOperatorDiscoveryPresence();
+        publishOperatorDiscoveryPresence(true);
         if (appState.runtime.operatorWorkbenchClose === close) {
             appState.runtime.operatorWorkbenchClose = null;
             appState.runtime.operatorWorkbenchOverlay = null;
