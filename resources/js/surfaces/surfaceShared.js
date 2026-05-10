@@ -3064,6 +3064,26 @@ async function mountRealtimeCallSession(options = {}) {
             return;
         }
 
+        if (signalType === 'browser-offline') {
+            if (typeof options.onRemoteBrowserOffline === 'function') {
+                options.onRemoteBrowserOffline({
+                    ...payload,
+                    meta: signalMeta,
+                });
+            }
+            return;
+        }
+
+        if (signalType === 'browser-online') {
+            if (typeof options.onRemoteBrowserOnline === 'function') {
+                options.onRemoteBrowserOnline({
+                    ...payload,
+                    meta: signalMeta,
+                });
+            }
+            return;
+        }
+
         if (signalType === 'video-state') {
             debugMedia('signal-video-state', {
                 senderUserId,

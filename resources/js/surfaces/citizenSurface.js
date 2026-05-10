@@ -3963,6 +3963,24 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
                         cancelCallerOperatorDisconnectCleanup(normalizedState);
                     }
                 },
+                onRemoteBrowserOffline(eventPayload = {}) {
+                    const observedAt = String(eventPayload?.meta?.observed_at ?? eventPayload?.observed_at ?? '');
+                    logCallFlow('citizen', 'operator-browser-offline-received', {
+                        incidentId: Number(payload.id ?? 0) || null,
+                        callSessionId: Number(latestSession.id ?? 0) || null,
+                        observedAt: observedAt || null,
+                    });
+                    scheduleCallerOperatorDisconnectCleanup('browser-offline');
+                },
+                onRemoteBrowserOnline(eventPayload = {}) {
+                    const observedAt = String(eventPayload?.meta?.observed_at ?? eventPayload?.observed_at ?? '');
+                    logCallFlow('citizen', 'operator-browser-online-received', {
+                        incidentId: Number(payload.id ?? 0) || null,
+                        callSessionId: Number(latestSession.id ?? 0) || null,
+                        observedAt: observedAt || null,
+                    });
+                    cancelCallerOperatorDisconnectCleanup('browser-online');
+                },
                 onHangupConfirm() {
                     if (appState.runtime.callerLiveModal) {
                         appState.runtime.callerLiveModal.hangupConfirmReceived = true;

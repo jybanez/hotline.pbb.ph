@@ -5610,6 +5610,30 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
             let callRuntime = null;
             let remoteDisconnectTimerId = null;
             let remoteDisconnectCompleting = false;
+            const notifyOperatorBrowserNetworkState = (offline) => {
+                const signalType = offline ? 'browser-offline' : 'browser-online';
+                const step = offline ? 'live-call-browser-offline' : 'live-call-browser-online';
+                const observedAt = new Date().toISOString();
+
+                logCallFlow('operator', step, {
+                    incidentId: Number(payload.id ?? 0) || null,
+                    callSessionId: activeSessionId,
+                    observedAt,
+                });
+
+                callRuntime?.sendSignal?.(signalType, {
+                    meta: {
+                        role: 'operator',
+                        observed_at: observedAt,
+                    },
+                });
+            };
+            const handleOperatorBrowserOffline = () => {
+                notifyOperatorBrowserNetworkState(true);
+            };
+            const handleOperatorBrowserOnline = () => {
+                notifyOperatorBrowserNetworkState(false);
+            };
 
             const clearRemoteDisconnectTimer = () => {
                 if (!remoteDisconnectTimerId) {
@@ -5765,6 +5789,8 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
             instances.push({
                 destroy() {
                     clearRemoteDisconnectTimer();
+                    window.removeEventListener('offline', handleOperatorBrowserOffline);
+                    window.removeEventListener('online', handleOperatorBrowserOnline);
                 },
             });
 
@@ -6206,6 +6232,8 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                     })();
                 },
             });
+            window.addEventListener('offline', handleOperatorBrowserOffline);
+            window.addEventListener('online', handleOperatorBrowserOnline);
 
             logCallFlow('operator', 'workbench-call-runtime-mounted', {
                 incidentId: Number(payload.id ?? 0) || null,
