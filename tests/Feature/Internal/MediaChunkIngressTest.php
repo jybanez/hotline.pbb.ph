@@ -9,6 +9,7 @@ use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -157,6 +158,8 @@ class MediaChunkIngressTest extends TestCase
 
     public function test_internal_media_chunk_ingest_accepts_legacy_caller_aliases_for_citizen_media(): void
     {
+        Log::spy();
+
         Storage::fake('local');
         [$operator, $mediaId] = $this->seedCallMediaFixture('citizen_video', 'citizen');
         $this->setMediaIngestSecret('test-media-secret');
@@ -186,6 +189,17 @@ class MediaChunkIngressTest extends TestCase
         $this->assertNotEmpty($chunkPath);
         Storage::disk('local')->assertExists($chunkPath);
         $this->assertSame('new video chunk', Storage::disk('local')->get($chunkPath));
+
+        Log::shouldHaveReceived('info')
+            ->once()
+            ->with('Hotline legacy caller payload used.', \Mockery::on(
+                fn (array $context): bool => ($context['contract'] ?? null) === 'internal.media-chunk'
+                    && ($context['fields'] ?? []) === ['type', 'peer_role']
+                    && ($context['method'] ?? null) === 'POST'
+                    && ($context['path'] ?? null) === 'api/internal/media/chunks'
+                    && ($context['user_id'] ?? null) === null
+                    && ($context['user_role'] ?? null) === null
+            ));
     }
 
     public function test_internal_media_chunk_ingest_rejects_non_operator_sender_for_call_session(): void

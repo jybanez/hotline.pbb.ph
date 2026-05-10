@@ -234,7 +234,7 @@ Legend:
 - [~] Deploy citizen compatibility additions before removing caller contracts: local WAMP runtime migrated and owner live testing passed; final production deployment remains open.
 - [~] Monitor legacy caller route usage: local log snapshot on 2026-05-11 shows 453 local legacy route hits, all `POST /api/realtime/admission/caller`, last seen at `2026-05-10 14:39:54`; testing logs also contain expected legacy route coverage hits.
 - [~] Monitor legacy caller Realtime event usage: local log snapshot on 2026-05-11 shows zero `Hotline legacy caller Realtime event used.` entries.
-- [ ] Monitor legacy caller payload field usage if feasible.
+- [~] Monitor legacy caller payload field usage if feasible: added `Hotline legacy caller payload used.` telemetry for call-attempt request aliases, operator actual-citizen/intake aliases, and legacy caller media protocol payload values; citizen/operator call-start frontends now send `citizen_latitude` and `citizen_longitude`.
 - [ ] Confirm deployed clients have moved to citizen canonical routes and events.
 - [ ] Confirm Realtime shared service has moved to citizen canonical examples and fixtures.
 - [ ] Confirm Helper shared service has moved to citizen canonical examples and fixtures.
@@ -248,7 +248,7 @@ Legend:
 
 Current decommission gate:
 - Do not remove `/caller`, `/api/caller/*`, `/api/realtime/admission/caller`, legacy `caller.*` event handling, caller request-field aliases, caller PWA assets, or caller-shaped database columns yet.
-- The local readiness pass proved current `/citizen` flows are canonical, but legacy admission telemetry is not yet clean for a full compatibility window and final production deployment/consumer confirmations are still open.
+- The local readiness pass proved current `/citizen` flows are canonical, and payload-field telemetry now exists for the feasible runtime compatibility paths. Legacy admission telemetry is not yet clean for a full compatibility window and final production deployment/consumer confirmations are still open.
 
 ## Open Decisions Tracker
 

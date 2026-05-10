@@ -8,6 +8,7 @@ use App\Domain\Teams\Models\ResourceType;
 use App\Domain\Shared\Enums\IncidentStatus;
 use App\Domain\Shared\Enums\TeamAssignmentStatus;
 use App\Http\Controllers\Controller;
+use App\Support\Compatibility\LegacyCallerPayloadUsageLogger;
 use App\Support\Incidents\IncidentPayloadBuilder;
 use App\Support\Incidents\IncidentTypeWorkbenchService;
 use Illuminate\Http\JsonResponse;
@@ -21,6 +22,7 @@ class IncidentController extends Controller
     public function __construct(
         private readonly IncidentPayloadBuilder $incidentPayloads,
         private readonly IncidentTypeWorkbenchService $incidentTypes,
+        private readonly LegacyCallerPayloadUsageLogger $legacyCallerPayloads,
     ) {
     }
 
@@ -106,6 +108,11 @@ class IncidentController extends Controller
             'actual_caller_name' => ['nullable', 'required_without:actual_citizen_name', 'string', 'max:255'],
             'actual_caller_relationship' => ['nullable', 'string', 'max:255'],
         ]);
+        $this->legacyCallerPayloads->log(
+            $request,
+            'operator.actual-citizen',
+            $this->legacyCallerFields($request, ['actual_caller_name', 'actual_caller_relationship']),
+        );
 
         $incident->forceFill($this->normalizedActualCallerUpdates($validated))->save();
 
@@ -126,6 +133,11 @@ class IncidentController extends Controller
             'actual_caller_relationship' => ['nullable', 'string', 'max:255'],
             ...$this->callerAddressValidationRules(),
         ]);
+        $this->legacyCallerPayloads->log(
+            $request,
+            'operator.intake',
+            $this->legacyCallerFields($request, ['actual_caller_name', 'actual_caller_relationship']),
+        );
 
         $incident->forceFill([
             ...$this->normalizedActualCallerUpdates($validated),
@@ -509,6 +521,15 @@ class IncidentController extends Controller
         }
 
         return $validated[$callerKey] ?? $citizenValue;
+    }
+
+    /**
+     * @param array<int, string> $fields
+     * @return array<int, string>
+     */
+    private function legacyCallerFields(Request $request, array $fields): array
+    {
+        return array_values(array_filter($fields, fn (string $field): bool => $request->exists($field)));
     }
 
     /**

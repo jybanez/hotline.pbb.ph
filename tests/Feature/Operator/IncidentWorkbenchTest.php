@@ -328,6 +328,8 @@ class IncidentWorkbenchTest extends TestCase
 
     public function test_citizen_actual_fields_win_when_legacy_caller_aliases_conflict(): void
     {
+        Log::spy();
+
         $citizen = User::factory()->create([
             'role' => UserRole::Citizen,
         ]);
@@ -366,6 +368,17 @@ class IncidentWorkbenchTest extends TestCase
             'actual_caller_name' => 'Citizen Canonical',
             'actual_caller_relationship' => 'Neighbor',
         ]);
+
+        Log::shouldHaveReceived('info')
+            ->once()
+            ->with('Hotline legacy caller payload used.', \Mockery::on(
+                fn (array $context): bool => ($context['contract'] ?? null) === 'operator.actual-citizen'
+                    && ($context['fields'] ?? []) === ['actual_caller_name', 'actual_caller_relationship']
+                    && ($context['method'] ?? null) === 'POST'
+                    && ($context['path'] ?? null) === "api/operator/incidents/{$incidentId}/actual-citizen"
+                    && (int) ($context['user_id'] ?? 0) === (int) $operator->id
+                    && ($context['user_role'] ?? null) === UserRole::Operator->value
+            ));
     }
 
     public function test_operator_can_use_citizen_named_incident_aliases(): void

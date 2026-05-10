@@ -277,11 +277,16 @@ function publishOperatorCallerLocationPersisted(incident, fallbackLocation = nul
 }
 
 function normalizeCallerLocationPayload(payload = {}) {
-    const source = payload?.caller_location && typeof payload.caller_location === 'object'
-        ? payload.caller_location
-        : payload;
-    const latitude = Number(source?.latitude ?? payload?.caller_latitude ?? payload?.latitude ?? NaN);
-    const longitude = Number(source?.longitude ?? payload?.caller_longitude ?? payload?.longitude ?? NaN);
+    let source = payload;
+
+    if (payload?.citizen_location && typeof payload.citizen_location === 'object') {
+        source = payload.citizen_location;
+    } else if (payload?.caller_location && typeof payload.caller_location === 'object') {
+        source = payload.caller_location;
+    }
+
+    const latitude = Number(source?.latitude ?? payload?.citizen_latitude ?? payload?.caller_latitude ?? payload?.latitude ?? NaN);
+    const longitude = Number(source?.longitude ?? payload?.citizen_longitude ?? payload?.caller_longitude ?? payload?.longitude ?? NaN);
     const altitude = Number(source?.altitude ?? payload?.altitude ?? NaN);
     const altitudeAccuracy = Number(source?.altitude_accuracy ?? source?.altitudeAccuracy ?? payload?.altitude_accuracy ?? NaN);
     const heading = Number(source?.heading ?? payload?.heading ?? NaN);
@@ -314,8 +319,8 @@ function callerLocationAttemptPayload(payload = {}) {
     }
 
     return {
-        caller_latitude: location.latitude,
-        caller_longitude: location.longitude,
+        citizen_latitude: location.latitude,
+        citizen_longitude: location.longitude,
     };
 }
 

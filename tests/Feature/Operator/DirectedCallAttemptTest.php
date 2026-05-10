@@ -9,6 +9,7 @@ use App\Domain\Shared\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 class DirectedCallAttemptTest extends TestCase
@@ -43,14 +44,46 @@ class DirectedCallAttemptTest extends TestCase
 
         $this->actingAs($operator)
             ->postJson('/api/operator/call-attempts', [
-                'caller_id' => $caller->id,
-                'caller_latitude' => 10.330507150390998,
-                'caller_longitude' => 123.88256831994421,
+                'citizen_id' => $caller->id,
+                'citizen_latitude' => 10.330507150390998,
+                'citizen_longitude' => 123.88256831994421,
             ])
             ->assertCreated()
             ->assertJsonPath('ok', true)
             ->assertJsonPath('attempt.status', 'calling')
             ->assertJsonPath('operator_attempt.operator_id', $operator->id)
             ->assertJsonPath('operator_attempt.status', 'calling');
+    }
+
+    public function test_legacy_caller_directed_attempt_payload_fields_are_logged(): void
+    {
+        Log::spy();
+
+        $caller = User::factory()->create([
+            'role' => UserRole::Citizen,
+        ]);
+
+        $operator = User::factory()->create([
+            'role' => UserRole::Operator,
+        ]);
+
+        $this->actingAs($operator)
+            ->postJson('/api/operator/call-attempts', [
+                'caller_id' => $caller->id,
+                'caller_latitude' => 10.330507150390998,
+                'caller_longitude' => 123.88256831994421,
+            ])
+            ->assertCreated();
+
+        Log::shouldHaveReceived('info')
+            ->once()
+            ->with('Hotline legacy caller payload used.', \Mockery::on(
+                fn (array $context): bool => ($context['contract'] ?? null) === 'operator.call-attempt'
+                    && ($context['fields'] ?? []) === ['caller_id', 'caller_latitude', 'caller_longitude']
+                    && ($context['method'] ?? null) === 'POST'
+                    && ($context['path'] ?? null) === 'api/operator/call-attempts'
+                    && (int) ($context['user_id'] ?? 0) === (int) $operator->id
+                    && ($context['user_role'] ?? null) === UserRole::Operator->value
+            ));
     }
 }

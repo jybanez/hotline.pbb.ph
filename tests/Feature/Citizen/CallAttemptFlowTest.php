@@ -31,8 +31,8 @@ class CallAttemptFlowTest extends TestCase
         ]);
 
         $response = $this->actingAs($citizen)->postJson('/api/citizen/call-attempts', [
-            'caller_latitude' => 10.3306796,
-            'caller_longitude' => 123.8279630,
+            'citizen_latitude' => 10.3306796,
+            'citizen_longitude' => 123.8279630,
         ]);
 
         $response
@@ -56,6 +56,37 @@ class CallAttemptFlowTest extends TestCase
             ->assertOk()
             ->assertJsonPath('attempt.status', 'ended')
             ->assertJsonPath('attempt.outcome', 'cancelled_by_citizen');
+    }
+
+    public function test_legacy_caller_call_attempt_payload_fields_are_logged(): void
+    {
+        Log::spy();
+
+        $citizen = User::factory()->create([
+            'role' => UserRole::Citizen,
+        ]);
+
+        User::factory()->create([
+            'role' => UserRole::Operator,
+        ]);
+
+        $this->actingAs($citizen)
+            ->postJson('/api/citizen/call-attempts', [
+                'caller_latitude' => 10.3306796,
+                'caller_longitude' => 123.8279630,
+            ])
+            ->assertCreated();
+
+        Log::shouldHaveReceived('info')
+            ->once()
+            ->with('Hotline legacy caller payload used.', \Mockery::on(
+                fn (array $context): bool => ($context['contract'] ?? null) === 'citizen.call-attempt'
+                    && ($context['fields'] ?? []) === ['caller_latitude', 'caller_longitude']
+                    && ($context['method'] ?? null) === 'POST'
+                    && ($context['path'] ?? null) === 'api/citizen/call-attempts'
+                    && (int) ($context['user_id'] ?? 0) === (int) $citizen->id
+                    && ($context['user_role'] ?? null) === UserRole::Citizen->value
+            ));
     }
 
     public function test_citizen_can_mark_unanswered_call_attempt_as_timed_out(): void

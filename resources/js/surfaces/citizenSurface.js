@@ -62,8 +62,8 @@ function currentCallerOrientation() {
 
 function normalizeCallerLocation(position) {
     const coords = position?.coords ?? position;
-    const latitude = Number(coords?.latitude ?? coords?.caller_latitude ?? coords?.lat ?? NaN);
-    const longitude = Number(coords?.longitude ?? coords?.caller_longitude ?? coords?.lng ?? NaN);
+    const latitude = Number(coords?.latitude ?? coords?.citizen_latitude ?? coords?.caller_latitude ?? coords?.lat ?? NaN);
+    const longitude = Number(coords?.longitude ?? coords?.citizen_longitude ?? coords?.caller_longitude ?? coords?.lng ?? NaN);
     const orientation = currentCallerOrientation();
     const heading = normalizeHeadingDegrees(
         coords?.heading
@@ -162,9 +162,9 @@ function callerLocationPayload(location = callerLocationRuntime().lastLocation) 
     }
 
     return {
-        caller_latitude: nextLocation.latitude,
-        caller_longitude: nextLocation.longitude,
-        caller_location: nextLocation,
+        citizen_latitude: nextLocation.latitude,
+        citizen_longitude: nextLocation.longitude,
+        citizen_location: nextLocation,
     };
 }
 

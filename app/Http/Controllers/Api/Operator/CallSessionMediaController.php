@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Operator;
 use App\Domain\Calls\Models\CallSession;
 use App\Domain\Media\Models\Media;
 use App\Http\Controllers\Controller;
+use App\Support\Compatibility\LegacyCallerPayloadUsageLogger;
 use App\Support\Media\MediaAssemblyService;
 use App\Support\Media\MediaContractNormalizer;
 use Illuminate\Http\JsonResponse;
@@ -16,6 +17,7 @@ class CallSessionMediaController extends Controller
 {
     public function __construct(
         private readonly MediaAssemblyService $mediaAssembly,
+        private readonly LegacyCallerPayloadUsageLogger $legacyCallerPayloads,
     ) {
     }
 
@@ -35,6 +37,11 @@ class CallSessionMediaController extends Controller
             'started_at' => ['nullable', 'date'],
             'metadata' => ['nullable', 'array'],
         ]);
+        $this->legacyCallerPayloads->log(
+            $request,
+            'operator.call-session-media',
+            $this->legacyMediaFields($validated),
+        );
 
         $media = $this->mediaAssembly->createProcessingAsset($callSession, MediaContractNormalizer::normalizePayload($validated));
 
@@ -106,6 +113,25 @@ class CallSessionMediaController extends Controller
         $incident = $callSession->incident;
 
         return $incident && (int) $incident->operator_id === (int) $request->user()->id;
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @return array<int, string>
+     */
+    private function legacyMediaFields(array $payload): array
+    {
+        $fields = [];
+
+        if (($payload['type'] ?? null) === 'caller_video') {
+            $fields[] = 'type';
+        }
+
+        if (($payload['peer_role'] ?? null) === 'caller') {
+            $fields[] = 'peer_role';
+        }
+
+        return $fields;
     }
 
     private function canAccessMedia(Request $request, Media $media): bool

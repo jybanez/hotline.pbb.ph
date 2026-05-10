@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Media;
 
 use App\Http\Controllers\Controller;
+use App\Support\Compatibility\LegacyCallerPayloadUsageLogger;
 use App\Support\Media\MediaAssemblyService;
 use App\Support\Media\MediaContractNormalizer;
 use Illuminate\Http\JsonResponse;
@@ -12,6 +13,7 @@ class AssemblyController extends Controller
 {
     public function __construct(
         private readonly MediaAssemblyService $mediaAssembly,
+        private readonly LegacyCallerPayloadUsageLogger $legacyCallerPayloads,
     ) {
     }
 
@@ -32,6 +34,11 @@ class AssemblyController extends Controller
             'duration_seconds' => ['nullable', 'integer', 'min:0'],
             'metadata' => ['nullable', 'array'],
         ]);
+        $this->legacyCallerPayloads->log(
+            $request,
+            'media.assembly',
+            $this->legacyMediaFields($validated),
+        );
 
         $media = $this->mediaAssembly->registerCompletedAsset(MediaContractNormalizer::normalizePayload($validated));
 
@@ -39,5 +46,24 @@ class AssemblyController extends Controller
             'ok' => true,
             'media' => $media,
         ], 201);
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @return array<int, string>
+     */
+    private function legacyMediaFields(array $payload): array
+    {
+        $fields = [];
+
+        if (($payload['type'] ?? null) === 'caller_video') {
+            $fields[] = 'type';
+        }
+
+        if (($payload['peer_role'] ?? null) === 'caller') {
+            $fields[] = 'peer_role';
+        }
+
+        return $fields;
     }
 }
