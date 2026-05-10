@@ -4104,13 +4104,29 @@ async function mountWorkbenchNavbar(overlay, payload, stateOverride, close) {
 
                     if (activeCallSessionId) {
                         try {
+                            logCallFlow('operator', 'operator-hangup-api-request', {
+                                incidentId: Number(payload.id ?? 0) || null,
+                                callSessionId: activeCallSessionId,
+                            });
                             response = await fetchJson(`/api/operator/call-sessions/${activeCallSessionId}/hangup`, {
                                 method: 'post',
+                            });
+                            logCallFlow('operator', 'operator-hangup-api-success', {
+                                incidentId: Number(payload.id ?? 0) || null,
+                                callSessionId: activeCallSessionId,
+                                status: response?.call_session?.status ?? null,
+                                outcome: response?.call_session?.outcome ?? null,
+                                endedAt: response?.call_session?.ended_at ?? null,
                             });
                         } catch (error) {
                             if (Number(error?.response?.status ?? 0) !== 409) {
                                 throw error;
                             }
+                            logCallFlow('operator', 'operator-hangup-api-skipped', {
+                                incidentId: Number(payload.id ?? 0) || null,
+                                callSessionId: activeCallSessionId,
+                                reason: 'session-already-ended',
+                            });
                         }
                     }
 
@@ -4127,13 +4143,32 @@ async function mountWorkbenchNavbar(overlay, payload, stateOverride, close) {
                     appState.runtime.operatorWorkbenchCaptureManager?.setOfficialEndedAt?.(officialEndedAt);
                     void appState.runtime.operatorWorkbenchCaptureManager?.finalizeAll?.();
 
+                    logCallFlow('operator', 'operator-hangup-signal-send', {
+                        incidentId: Number(payload.id ?? 0) || null,
+                        callSessionId: activeCallSessionId || null,
+                        endedAt: officialEndedAt,
+                    });
                     appState.runtime.operatorWorkbenchCallRuntime?.sendHangup?.({
                         reason: 'ended-by-operator',
                         ended_at: officialEndedAt,
                     });
 
+                    logCallFlow('operator', 'operator-hangup-ui-refresh-start', {
+                        incidentId: Number(payload.id ?? 0) || null,
+                        callSessionId: activeCallSessionId || null,
+                    });
                     await refreshWorkbenchOverlay(payload, null);
+                    logCallFlow('operator', 'operator-hangup-ui-refresh-success', {
+                        incidentId: Number(payload.id ?? 0) || null,
+                        callSessionId: activeCallSessionId || null,
+                    });
                 } catch (error) {
+                    logCallFlow('operator', 'operator-hangup-failed', {
+                        incidentId: Number(payload.id ?? 0) || null,
+                        callSessionId: Number(deriveActiveCallSessionId(payload) ?? 0) || null,
+                        status: Number(error?.response?.status ?? 0) || null,
+                        message: String(error?.response?.data?.message ?? error?.message ?? 'Unknown hangup error'),
+                    });
                     showToast(error.response?.data?.message ?? 'Unable to end the active call.');
                 }
                 return;

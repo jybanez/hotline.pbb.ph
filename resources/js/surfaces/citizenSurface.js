@@ -3970,14 +3970,34 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
                 },
                 onHangupComplete() {
                     void (async () => {
+                        logCallFlow('citizen', 'live-call-hangup-complete-received', {
+                            incidentId: Number(payload.id ?? 0) || null,
+                            callSessionId: Number(latestSession.id ?? 0) || null,
+                        });
                         clearCallerLiveHangupTimers();
                         await close();
                         await renderSurface('citizen');
                     })();
                 },
-                onHangup() {
+                onHangup(eventPayload = {}) {
                     void (async () => {
+                        const endedAt = String(eventPayload?.meta?.ended_at ?? eventPayload?.ended_at ?? new Date().toISOString());
+                        const callSessionIdForHangup = Number(latestSession.id ?? 0);
+                        logCallFlow('citizen', 'live-call-hangup-received', {
+                            incidentId: Number(payload.id ?? 0) || null,
+                            callSessionId: callSessionIdForHangup || null,
+                            endedAt,
+                        });
                         clearCallerLiveHangupTimers();
+                        if (callSessionIdForHangup > 0) {
+                            payload = patchIncidentCallSession(payload, callSessionIdForHangup, {
+                                status: 'ended',
+                                outcome: 'ended_by_operator',
+                                ended_at: endedAt,
+                                updated_at: endedAt,
+                            });
+                            syncCallerCurrentIncident(payload);
+                        }
                         await close();
                         await renderSurface('citizen');
                     })();
