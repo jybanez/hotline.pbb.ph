@@ -2,7 +2,11 @@
 
 Date: 2026-04-04
 
-Status: Draft canonical contract pack
+Status: Draft canonical contract pack, with Phase 2 caller-to-citizen compatibility notes
+
+Phase 2 migration note:
+- `citizen` is the canonical public-user term.
+- Legacy `caller` route names, payload aliases, role values, database columns, media values, and outcome values remain documented only where they are still supported for temporary compatibility or where the document is preserving Phase 1 historical context.
 
 Purpose:
 - define Beta's canonical vocabularies
@@ -12,7 +16,8 @@ Purpose:
 ## 1. Canonical Code Constants
 
 ### Roles
-- `caller`
+- `citizen`
+- `caller` (legacy compatibility)
 - `operator`
 - `command`
 - `admin`

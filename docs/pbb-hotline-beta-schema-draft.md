@@ -2,7 +2,12 @@
 
 Date: 2026-04-04
 
-Status: Draft Phase 1 schema direction
+Status: Draft Phase 1 schema direction, with Phase 2 caller-to-citizen migration notes
+
+Phase 2 migration note:
+- New compatibility columns such as `citizen_id` sit beside legacy `caller_id` columns during the staged migration.
+- New runtime writes should populate citizen-facing values where those columns or protocol values exist.
+- Destructive removal or physical renaming of legacy caller columns/tables is deferred until final decommission approval.
 
 References:
 - [PBB Hotline Beta Contracts](./pbb-hotline-beta-contracts.md)
