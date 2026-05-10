@@ -25,6 +25,8 @@ assert.match(citizenSurface, /window\.addEventListener\('offline'/);
 assert.match(citizenSurface, /window\.addEventListener\('online'/);
 assert.match(citizenSurface, /phase:\s*'network_offline'/);
 assert.match(citizenSurface, /Waiting for network \.\.\./);
+assert.match(citizenSurface, /function updateCallerPendingOfflineOverlay/);
+assert.doesNotMatch(citizenSurface, /src="\/images\/hang-up\.svg"/);
 
 assert.doesNotMatch(citizenSurface, /\/api\/caller\//);
 assert.doesNotMatch(citizenSurface, /\/api\/realtime\/admission\/caller/);

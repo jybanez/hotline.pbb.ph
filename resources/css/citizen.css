@@ -224,6 +224,10 @@
     display: block;
 }
 
+.caller-pending-avatar[hidden] {
+    display: none;
+}
+
 .caller-pending-avatar-fallback {
     display: grid;
     place-items: center;

@@ -986,6 +986,22 @@ function callerPendingCanPauseForOffline(pending) {
         && ['discovering', 'operator_found', 'ringing', 'network_offline'].includes(String(pending?.phase ?? '').trim());
 }
 
+function updateCallerPendingOfflineOverlay() {
+    const overlay = appState.runtime.callerRoot?.querySelector?.('[data-caller-pending-overlay]');
+
+    if (!overlay) {
+        rerenderCallerInPlace();
+        return;
+    }
+
+    overlay.dataset.callerNetworkState = 'offline';
+    const status = overlay.querySelector('.caller-pending-status');
+
+    if (status) {
+        status.textContent = 'Waiting for network ...';
+    }
+}
+
 function pauseCallerCallRoutingForOffline(pending, reason = 'network-offline') {
     if (!callerPendingCanPauseForOffline(pending)) {
         return false;
@@ -1008,7 +1024,7 @@ function pauseCallerCallRoutingForOffline(pending, reason = 'network-offline') {
         operatorAttemptId: Number(pending?.operator_attempt_id ?? 0) || null,
         operatorId: Number(pending?.operator_id ?? 0) || null,
     });
-    rerenderCallerInPlace();
+    updateCallerPendingOfflineOverlay();
 
     return true;
 }
@@ -2394,7 +2410,13 @@ function switchCameraIconMarkup() {
 }
 
 function hangupIconMarkup() {
-    return '<img class="caller-live-action-icon caller-live-action-icon-hangup" src="/images/hang-up.svg" alt="" aria-hidden="true">';
+    return `
+        <svg class="caller-live-action-icon caller-live-action-icon-hangup" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M5.25 15.25c.95-1.7 3.6-2.9 6.75-2.9s5.8 1.2 6.75 2.9" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2"></path>
+            <path d="M7.1 13.95l-1.55 2.7c-.25.45-.1 1.02.35 1.27l1.9 1.08c.45.25 1.02.1 1.27-.35l.8-1.4" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.8"></path>
+            <path d="M16.9 13.95l1.55 2.7c.25.45.1 1.02-.35 1.27l-1.9 1.08c-.45.25-1.02.1-1.27-.35l-.8-1.4" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.8"></path>
+        </svg>
+    `;
 }
 
 async function stopCallerCameraStream({ preserveSelection = false } = {}) {
@@ -2700,7 +2722,7 @@ function renderCallerPendingOperatorAvatar(operator) {
     return `
         <span class="caller-pending-avatar-shell">
             ${avatarUrl
-                ? `<img class="caller-pending-avatar" src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(operatorName)}">`
+                ? `<img class="caller-pending-avatar" src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(operatorName)}" onerror="this.hidden=true;this.nextElementSibling.hidden=false;"><span class="caller-pending-avatar caller-pending-avatar-fallback" hidden>${escapeHtml(operatorName.slice(0, 2).toUpperCase())}</span>`
                 : `<span class="caller-pending-avatar caller-pending-avatar-fallback">${escapeHtml(operatorName.slice(0, 2).toUpperCase())}</span>`}
         </span>
     `;
