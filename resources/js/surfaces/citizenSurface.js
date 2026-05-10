@@ -3333,13 +3333,20 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
                 ...staticConversation,
                 composerApi: fallbackComposer,
             };
+        const existingRuntime = appState.runtime.callerLiveModal ?? null;
+        const existingCallRuntime = Number(existingRuntime?.latestSessionId ?? 0) === Number(latestSession?.id ?? 0)
+            ? existingRuntime.callRuntime ?? null
+            : null;
+
         logCallFlow('citizen', 'live-modal-call-runtime-mount', {
             incidentId: Number(payload.id ?? 0) || null,
             callSessionId: Number(latestSession?.id ?? 0) || null,
             operatorId: Number(payload?.operator?.id ?? 0) || null,
             needsConnectionGate,
+            reused: Boolean(existingCallRuntime),
         });
-        const callRuntime = latestSession?.id && payload?.operator?.id
+        const callRuntime = existingCallRuntime
+            ?? (latestSession?.id && payload?.operator?.id
             ? await mountRealtimeCallSession({
                 callSessionId: Number(latestSession.id),
                 viewerRole: 'citizen',
@@ -3387,6 +3394,9 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
                     })();
                 },
             })
+            : null);
+        const existingLocationWatchStop = existingCallRuntime
+            ? existingRuntime?.locationWatchStop ?? null
             : null;
 
         appState.runtime.callerLiveModal = {
@@ -3398,7 +3408,7 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
             composerApi: conversation.composerApi,
             chatRuntime: liveConversation,
             callRuntime,
-            locationWatchStop: startCallerLocationWatch(callRuntime),
+            locationWatchStop: existingLocationWatchStop ?? startCallerLocationWatch(callRuntime),
             disconnectOverlay: null,
             disconnectRequested: false,
             hangupConfirmReceived: false,

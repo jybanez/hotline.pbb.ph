@@ -2266,6 +2266,7 @@ async function mountRealtimeCallSession(options = {}) {
         sentReady: false,
         startedOffer: false,
         localStream: null,
+        localStreamPromise: null,
         localVideoStream: options.localVideoStream instanceof MediaStream ? options.localVideoStream : null,
         remoteAudioEl: null,
         remoteVideoEl: null,
@@ -2311,10 +2312,21 @@ async function mountRealtimeCallSession(options = {}) {
             return state.localStream;
         }
 
-        state.localStream = await navigator.mediaDevices.getUserMedia({
+        if (state.localStreamPromise) {
+            return state.localStreamPromise;
+        }
+
+        state.localStreamPromise = navigator.mediaDevices.getUserMedia({
             audio: true,
             video: false,
+        }).then((stream) => {
+            state.localStream = stream;
+            return stream;
+        }).finally(() => {
+            state.localStreamPromise = null;
         });
+
+        state.localStream = await state.localStreamPromise;
         logCallFlow(viewerRole, 'call-session-local-media-success', {
             callSessionId,
             audioTrackCount: state.localStream.getAudioTracks().length,
