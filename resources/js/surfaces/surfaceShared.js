@@ -3094,8 +3094,12 @@ async function mountRealtimeCallSession(options = {}) {
             },
         });
 
-        await ensureLocalStream();
         state.client.connect();
+
+        void ensureLocalStream().catch((error) => {
+            console.warn('Realtime call session local media acquisition failed.', error);
+            showToast('Unable to access the microphone for the live call.', 'error');
+        });
     } catch (error) {
         console.warn('Realtime call session is unavailable.', error);
         showToast('Live audio is unavailable right now.', 'warn');
