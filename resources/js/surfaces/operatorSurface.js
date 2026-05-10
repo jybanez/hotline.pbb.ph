@@ -1356,7 +1356,7 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                     fetchJson('/api/operator/call-attempts', {
                         method: 'post',
                         data: {
-                            caller_id: Number(payload.caller_id),
+                            citizen_id: Number(payload.citizen_id ?? payload.caller_id),
                             ...callerLocationAttemptPayload(payload),
                         },
                     }).then((response) => {
@@ -1472,7 +1472,7 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                     fetchJson('/api/operator/call-attempts', {
                         method: 'post',
                         data: {
-                            caller_id: callerId,
+                            citizen_id: callerId,
                             incident_id: incidentId,
                         },
                     }).then((response) => {

@@ -233,9 +233,9 @@ Legend:
 ## Deployment and Decommission
 
 - [~] Deploy citizen compatibility additions before removing caller contracts: local WAMP runtime migrated and owner live testing passed; final production deployment remains open.
-- [~] Monitor legacy caller route usage: local log snapshot on 2026-05-11 shows 453 local legacy route hits, all `POST /api/realtime/admission/caller`, last seen at `2026-05-10 14:39:54`; testing logs also contain expected legacy route coverage hits.
+- [~] Monitor legacy caller route usage: local log snapshot on 2026-05-11 shows 454 local legacy route hits, all `POST /api/realtime/admission/caller`, last seen at `2026-05-10 14:39:54`; testing logs also contain expected legacy route coverage hits.
 - [~] Monitor legacy caller Realtime event usage: local log snapshot on 2026-05-11 shows zero `Hotline legacy caller Realtime event used.` entries.
-- [~] Monitor legacy caller payload field usage if feasible: added `Hotline legacy caller payload used.` telemetry for call-attempt request aliases, operator actual-citizen/intake aliases, and legacy caller media protocol payload values; citizen/operator call-start frontends now send `citizen_latitude` and `citizen_longitude`.
+- [~] Monitor legacy caller payload field usage if feasible: local log snapshot on 2026-05-11 showed 12 runtime legacy payload hits, all operator call-attempt `caller_id` fields on `POST /api/operator/call-attempts`, last seen at `2026-05-11 03:53:39`; operator call-attempt frontend now sends `citizen_id`, and citizen/operator call-start frontends send `citizen_latitude` and `citizen_longitude`.
 - [ ] Confirm deployed clients have moved to citizen canonical routes and events.
 - [ ] Confirm Realtime shared service has moved to citizen canonical examples and fixtures.
 - [ ] Confirm Helper shared service has moved to citizen canonical examples and fixtures.
