@@ -233,10 +233,10 @@ Legend:
 ## Deployment and Decommission
 
 - [~] Deploy citizen compatibility additions before removing caller contracts: local WAMP runtime migrated and owner live testing passed; final production deployment remains open.
-- [~] Monitor legacy caller route usage: local log snapshot on 2026-05-11 shows 454 local legacy route hits, all `POST /api/realtime/admission/caller`, last seen at `2026-05-10 14:39:54`; testing logs also contain expected legacy route coverage hits.
+- [~] Monitor legacy caller route usage: local log snapshot on 2026-05-11 shows 454 local legacy route hits, all `POST /api/realtime/admission/caller`, last seen at `2026-05-10 14:39:54`; the 2026-05-11 04:06 live call used `/api/realtime/admission/citizen` and did not increase legacy route telemetry; testing logs also contain expected legacy route coverage hits.
 - [~] Monitor legacy caller Realtime event usage: local log snapshot on 2026-05-11 shows zero `Hotline legacy caller Realtime event used.` entries.
-- [~] Monitor legacy caller payload field usage if feasible: local log snapshot on 2026-05-11 showed 12 runtime legacy payload hits, all operator call-attempt `caller_id` fields on `POST /api/operator/call-attempts`, last seen at `2026-05-11 03:53:39`; operator call-attempt frontend now sends `citizen_id`, citizen/operator call-start frontends send `citizen_latitude` and `citizen_longitude`, and the 2026-05-11 04:02 live call did not increase runtime legacy payload telemetry.
-- [ ] Confirm deployed clients have moved to citizen canonical routes and events.
+- [~] Monitor legacy caller payload field usage if feasible: local log snapshot on 2026-05-11 showed 12 runtime legacy payload hits, all operator call-attempt `caller_id` fields on `POST /api/operator/call-attempts`, last seen at `2026-05-11 03:53:39`; operator call-attempt frontend now sends `citizen_id`, citizen/operator call-start frontends send `citizen_latitude` and `citizen_longitude`, and the 2026-05-11 04:02 and 04:06 live calls did not increase runtime legacy payload telemetry.
+- [~] Confirm deployed clients have moved to citizen canonical routes and events: local WAMP live-browser calls now use `/api/realtime/admission/citizen` and publish/handle `citizen.*` canonical events; production deployment and client-cache validation remain open before removing compatibility aliases.
 - [ ] Confirm Realtime shared service has moved to citizen canonical examples and fixtures.
 - [ ] Confirm Helper shared service has moved to citizen canonical examples and fixtures.
 - [ ] Confirm caller-to-citizen refactor completion and installed PWA compatibility window have passed.
