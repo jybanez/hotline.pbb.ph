@@ -326,6 +326,48 @@ class IncidentWorkbenchTest extends TestCase
         ]);
     }
 
+    public function test_citizen_actual_fields_win_when_legacy_caller_aliases_conflict(): void
+    {
+        $citizen = User::factory()->create([
+            'role' => UserRole::Citizen,
+        ]);
+
+        $operator = User::factory()->create([
+            'role' => UserRole::Operator,
+        ]);
+
+        $incidentId = DB::table('incidents')->insertGetId([
+            'caller_id' => $citizen->id,
+            'actual_caller_name' => $citizen->name,
+            'actual_caller_relationship' => 'Self',
+            'operator_id' => $operator->id,
+            'status' => IncidentStatus::Active->value,
+            'alert_level' => 'Normal',
+            'called_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($operator)
+            ->postJson("/api/operator/incidents/{$incidentId}/actual-citizen", [
+                'actual_citizen_name' => 'Citizen Canonical',
+                'actual_citizen_relationship' => 'Neighbor',
+                'actual_caller_name' => 'Legacy Caller',
+                'actual_caller_relationship' => 'Brother',
+            ])
+            ->assertOk()
+            ->assertJsonPath('incident.actual_citizen_name', 'Citizen Canonical')
+            ->assertJsonPath('incident.actual_citizen_relationship', 'Neighbor')
+            ->assertJsonPath('incident.actual_caller_name', 'Citizen Canonical')
+            ->assertJsonPath('incident.actual_caller_relationship', 'Neighbor');
+
+        $this->assertDatabaseHas('incidents', [
+            'id' => $incidentId,
+            'actual_caller_name' => 'Citizen Canonical',
+            'actual_caller_relationship' => 'Neighbor',
+        ]);
+    }
+
     public function test_operator_can_use_citizen_named_incident_aliases(): void
     {
         $citizen = User::factory()->create([
@@ -536,6 +578,51 @@ class IncidentWorkbenchTest extends TestCase
             'location_road' => 'Riverside Road',
             'location_barangay' => 'Guadalupe',
             'location_citymunicipality' => 'Cebu City',
+        ]);
+    }
+
+    public function test_intake_prefers_non_empty_citizen_fields_over_legacy_caller_aliases(): void
+    {
+        $caller = User::factory()->create([
+            'role' => UserRole::Citizen,
+        ]);
+
+        $operator = User::factory()->create([
+            'role' => UserRole::Operator,
+        ]);
+
+        $incidentId = DB::table('incidents')->insertGetId([
+            'caller_id' => $caller->id,
+            'actual_caller_name' => $caller->name,
+            'actual_caller_relationship' => 'Self',
+            'operator_id' => $operator->id,
+            'status' => IncidentStatus::Active->value,
+            'alert_level' => 'Normal',
+            'called_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($operator)
+            ->postJson("/api/operator/incidents/{$incidentId}/intake", [
+                'actual_citizen_name' => 'Canonical Intake',
+                'actual_citizen_relationship' => 'Witness',
+                'actual_caller_name' => 'Legacy Intake',
+                'actual_caller_relationship' => 'Sibling',
+                'location_barangay' => 'Guadalupe',
+            ])
+            ->assertOk()
+            ->assertJsonPath('incident.actual_citizen_name', 'Canonical Intake')
+            ->assertJsonPath('incident.actual_caller_name', 'Canonical Intake')
+            ->assertJsonPath('incident.actual_citizen_relationship', 'Witness')
+            ->assertJsonPath('incident.actual_caller_relationship', 'Witness')
+            ->assertJsonPath('incident.location_barangay', 'Guadalupe');
+
+        $this->assertDatabaseHas('incidents', [
+            'id' => $incidentId,
+            'actual_caller_name' => 'Canonical Intake',
+            'actual_caller_relationship' => 'Witness',
+            'location_barangay' => 'Guadalupe',
         ]);
     }
 }

@@ -480,13 +480,35 @@ class IncidentController extends Controller
      */
     private function normalizedActualCallerUpdates(array $validated): array
     {
-        $name = $validated['actual_citizen_name'] ?? $validated['actual_caller_name'];
-        $relationship = $validated['actual_citizen_relationship'] ?? $validated['actual_caller_relationship'] ?? null;
+        $name = $this->preferredCitizenAliasValue(
+            $validated,
+            'actual_citizen_name',
+            'actual_caller_name',
+        );
+        $relationship = $this->preferredCitizenAliasValue(
+            $validated,
+            'actual_citizen_relationship',
+            'actual_caller_relationship',
+        );
 
         return [
             'actual_caller_name' => trim((string) $name),
             'actual_caller_relationship' => is_string($relationship) ? trim($relationship) ?: null : null,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function preferredCitizenAliasValue(array $validated, string $citizenKey, string $callerKey): mixed
+    {
+        $citizenValue = $validated[$citizenKey] ?? null;
+
+        if (is_string($citizenValue) && trim($citizenValue) !== '') {
+            return $citizenValue;
+        }
+
+        return $validated[$callerKey] ?? $citizenValue;
     }
 
     /**
