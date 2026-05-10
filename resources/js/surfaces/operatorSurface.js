@@ -5610,6 +5610,9 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
             let callRuntime = null;
             let remoteDisconnectTimerId = null;
             let remoteDisconnectCompleting = false;
+            let operatorBrowserOfflineTimerId = null;
+            let operatorBrowserOfflineCompleting = false;
+            let operatorBrowserOfflineLocallyEnded = false;
             const notifyOperatorBrowserNetworkState = (offline) => {
                 const signalType = offline ? 'browser-offline' : 'browser-online';
                 const step = offline ? 'live-call-browser-offline' : 'live-call-browser-online';
@@ -5630,9 +5633,38 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
             };
             const handleOperatorBrowserOffline = () => {
                 notifyOperatorBrowserNetworkState(true);
+                scheduleOperatorBrowserOfflineCleanup();
             };
             const handleOperatorBrowserOnline = () => {
                 notifyOperatorBrowserNetworkState(false);
+                cancelOperatorBrowserOfflineCleanup();
+                if (operatorBrowserOfflineLocallyEnded && payload?.id) {
+                    void (async () => {
+                        try {
+                            logCallFlow('operator', 'operator-browser-online-refresh-start', {
+                                incidentId: Number(payload.id ?? 0) || null,
+                                callSessionId: activeSessionId,
+                            });
+                            const latestPayload = await fetchJson(`/api/operator/incidents/${payload.id}`);
+                            if (latestPayload) {
+                                payload = latestPayload;
+                                await refreshWorkbenchOverlay(payload, null);
+                            }
+                            logCallFlow('operator', 'operator-browser-online-refresh-success', {
+                                incidentId: Number(payload.id ?? 0) || null,
+                                callSessionId: activeSessionId,
+                            });
+                        } catch (error) {
+                            logCallFlow('operator', 'operator-browser-online-refresh-failed', {
+                                incidentId: Number(payload.id ?? 0) || null,
+                                callSessionId: activeSessionId,
+                                status: Number(error?.response?.status ?? 0) || null,
+                                message: String(error?.response?.data?.message ?? error?.message ?? 'Unknown refresh error'),
+                            });
+                            console.warn('Unable to refresh operator workbench after reconnect.', error);
+                        }
+                    })();
+                }
             };
 
             const clearRemoteDisconnectTimer = () => {
@@ -5642,6 +5674,15 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
 
                 window.clearTimeout(remoteDisconnectTimerId);
                 remoteDisconnectTimerId = null;
+            };
+
+            const clearOperatorBrowserOfflineTimer = () => {
+                if (!operatorBrowserOfflineTimerId) {
+                    return;
+                }
+
+                window.clearTimeout(operatorBrowserOfflineTimerId);
+                operatorBrowserOfflineTimerId = null;
             };
 
             const withRemoteDisconnectCleanupTimeout = (promise, label) => new Promise((resolve, reject) => {
@@ -5786,9 +5827,92 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                 }, OPERATOR_REMOTE_DISCONNECT_GRACE_MS);
             };
 
+            const completeOperatorBrowserOfflineCleanup = async () => {
+                if (operatorBrowserOfflineCompleting || !activeSessionId) {
+                    return;
+                }
+
+                operatorBrowserOfflineCompleting = true;
+                operatorBrowserOfflineLocallyEnded = true;
+                clearOperatorBrowserOfflineTimer();
+
+                const endedAt = new Date().toISOString();
+                logCallFlow('operator', 'operator-browser-offline-grace-elapsed', {
+                    incidentId: Number(payload.id ?? 0) || null,
+                    callSessionId: activeSessionId,
+                    endedAt,
+                });
+
+                try {
+                    dismissConnectionOverlay();
+                    void appState.runtime.operatorInitialIntakeModal?.close?.({ reason: 'operator-browser-offline' });
+                    captureManager?.setOfficialEndedAt?.(endedAt);
+                    void captureManager?.finalizeAll?.();
+                    callRuntime?.destroy?.();
+                    if (appState.runtime.operatorWorkbenchCallRuntime === callRuntime) {
+                        appState.runtime.operatorWorkbenchCallRuntime = null;
+                    }
+
+                    payload = patchIncidentCallSession(payload, activeSessionId, {
+                        status: 'ended',
+                        outcome: 'ended_by_operator',
+                        ended_at: endedAt,
+                        updated_at: endedAt,
+                    });
+
+                    logCallFlow('operator', 'operator-browser-offline-local-ui-refresh-start', {
+                        incidentId: Number(payload.id ?? 0) || null,
+                        callSessionId: activeSessionId,
+                    });
+                    await refreshWorkbenchOverlay(payload, null);
+                    logCallFlow('operator', 'operator-browser-offline-local-ui-refresh-success', {
+                        incidentId: Number(payload.id ?? 0) || null,
+                        callSessionId: activeSessionId,
+                    });
+                } catch (error) {
+                    operatorBrowserOfflineCompleting = false;
+                    logCallFlow('operator', 'operator-browser-offline-local-ui-refresh-failed', {
+                        incidentId: Number(payload.id ?? 0) || null,
+                        callSessionId: activeSessionId,
+                        message: String(error?.message ?? 'Unknown offline cleanup error'),
+                    });
+                    console.warn('Unable to update operator UI after browser offline timeout.', error);
+                }
+            };
+
+            const scheduleOperatorBrowserOfflineCleanup = () => {
+                if (operatorBrowserOfflineTimerId || operatorBrowserOfflineCompleting || operatorBrowserOfflineLocallyEnded) {
+                    return;
+                }
+
+                logCallFlow('operator', 'operator-browser-offline-grace-start', {
+                    incidentId: Number(payload.id ?? 0) || null,
+                    callSessionId: activeSessionId,
+                    graceMs: OPERATOR_REMOTE_DISCONNECT_GRACE_MS,
+                });
+
+                operatorBrowserOfflineTimerId = window.setTimeout(() => {
+                    operatorBrowserOfflineTimerId = null;
+                    void completeOperatorBrowserOfflineCleanup();
+                }, OPERATOR_REMOTE_DISCONNECT_GRACE_MS);
+            };
+
+            const cancelOperatorBrowserOfflineCleanup = () => {
+                if (!operatorBrowserOfflineTimerId) {
+                    return;
+                }
+
+                clearOperatorBrowserOfflineTimer();
+                logCallFlow('operator', 'operator-browser-offline-grace-cancelled', {
+                    incidentId: Number(payload.id ?? 0) || null,
+                    callSessionId: activeSessionId,
+                });
+            };
+
             instances.push({
                 destroy() {
                     clearRemoteDisconnectTimer();
+                    clearOperatorBrowserOfflineTimer();
                     window.removeEventListener('offline', handleOperatorBrowserOffline);
                     window.removeEventListener('online', handleOperatorBrowserOnline);
                 },
