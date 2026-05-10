@@ -34,6 +34,23 @@ const SESSION_WATCH_INTERVAL_MS = 5 * 1000;
 const HELPER_VENDOR_REV = '5af197a';
 const realtimeCallSessionRegistry = new Map();
 
+function isDebugFlagEnabled(storageKey, globalKey) {
+    if (typeof window === 'undefined') {
+        return false;
+    }
+
+    if (window[globalKey] === true) {
+        return true;
+    }
+
+    try {
+        const stored = window.localStorage?.getItem(storageKey) ?? window.sessionStorage?.getItem(storageKey);
+        return ['1', 'true', 'yes', 'on'].includes(String(stored ?? '').trim().toLowerCase());
+    } catch {
+        return false;
+    }
+}
+
 const appState = {
     bootstrap: null,
     operatorDashboard: null,
@@ -2328,7 +2345,7 @@ async function mountRealtimeCallSession(options = {}) {
     };
 
     const debugMedia = (event, detail = {}) => {
-        if (typeof console === 'undefined') {
+        if (!isDebugFlagEnabled('hotlineCallDebug', 'HOTLINE_CALL_DEBUG') || typeof console === 'undefined') {
             return;
         }
 

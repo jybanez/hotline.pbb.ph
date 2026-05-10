@@ -16,9 +16,25 @@ const OPERATOR_DISCOVERY_PRESENCE_HEARTBEAT_MS = 60000;
 const OPERATOR_CALL_TIMEOUT_FALLBACK_SECONDS = 30;
 const OPERATOR_REALTIME_RECONNECT_MIN_MS = 1000;
 const OPERATOR_REALTIME_RECONNECT_MAX_MS = 15000;
-const HOTLINE_MEDIA_DEBUG = true;
 const OPERATOR_MEDIA_CONSUMER_ENABLED = true;
 const OPERATOR_MEDIA_CHUNK_TRANSPORT = 'realtime-binary';
+
+function isDebugFlagEnabled(storageKey, globalKey) {
+    if (typeof window === 'undefined') {
+        return false;
+    }
+
+    if (window[globalKey] === true) {
+        return true;
+    }
+
+    try {
+        const stored = window.localStorage?.getItem(storageKey) ?? window.sessionStorage?.getItem(storageKey);
+        return ['1', 'true', 'yes', 'on'].includes(String(stored ?? '').trim().toLowerCase());
+    } catch {
+        return false;
+    }
+}
 
 function operatorDiscoveryClient() {
     return appState.runtime.operatorRealtimeStream?.client ?? null;
@@ -940,7 +956,7 @@ function playOperatorIncomingRingtone() {
 }
 
 function debugMediaCapture(event, detail = {}) {
-    if (!HOTLINE_MEDIA_DEBUG || typeof console === 'undefined') {
+    if (!isDebugFlagEnabled('hotlineMediaDebug', 'HOTLINE_MEDIA_DEBUG') || typeof console === 'undefined') {
         return;
     }
 
