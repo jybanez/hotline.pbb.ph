@@ -3188,8 +3188,7 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
     const callSessionId = Number(latestSession?.id ?? 0);
     const activeLiveModal = appState.runtime.callerLiveModal ?? null;
     const activeLiveOverlay = root.querySelector('[data-caller-live-modal]');
-
-    if (
+    const canReuseLiveRuntime = (
         callSessionId > 0
         && Number(activeLiveModal?.latestSessionId ?? 0) === callSessionId
         && (
@@ -3197,7 +3196,9 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
             || activeLiveModal?.callRuntime
             || activeLiveModal?.callRuntimePromise
         )
-    ) {
+    );
+
+    if (canReuseLiveRuntime && activeLiveOverlay) {
         logCallFlow('citizen', 'live-modal-reuse-existing-overlay', {
             incidentId: Number(payload.id ?? 0) || null,
             callSessionId,
@@ -3220,7 +3221,19 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
         return;
     }
 
-    closeCallerLiveModal(root);
+    if (canReuseLiveRuntime) {
+        logCallFlow('citizen', 'live-modal-rebuild-missing-overlay', {
+            incidentId: Number(payload.id ?? 0) || null,
+            callSessionId,
+            opening: Boolean(activeLiveModal?.opening),
+            hasCallRuntime: Boolean(activeLiveModal?.callRuntime),
+            hasCallRuntimePromise: Boolean(activeLiveModal?.callRuntimePromise),
+        });
+        fadeOutAndRemove(root.querySelector('[data-caller-live-modal]'));
+    } else {
+        closeCallerLiveModal(root);
+    }
+
     root.insertAdjacentHTML(
         'beforeend',
         renderCallerLiveCallModal(payload, latestSession, { transportOnly }),
@@ -3247,12 +3260,12 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
         threadApi: null,
         composerApi: null,
         chatRuntime: null,
-        callRuntime: null,
-        callRuntimePromise: null,
-        locationWatchStop: null,
-        disconnectOverlay: null,
-        disconnectRequested: false,
-        hangupConfirmReceived: false,
+        callRuntime: canReuseLiveRuntime ? activeLiveModal?.callRuntime ?? null : null,
+        callRuntimePromise: canReuseLiveRuntime ? activeLiveModal?.callRuntimePromise ?? null : null,
+        locationWatchStop: canReuseLiveRuntime ? activeLiveModal?.locationWatchStop ?? null : null,
+        disconnectOverlay: canReuseLiveRuntime ? activeLiveModal?.disconnectOverlay ?? null : null,
+        disconnectRequested: canReuseLiveRuntime ? Boolean(activeLiveModal?.disconnectRequested) : false,
+        hangupConfirmReceived: canReuseLiveRuntime ? Boolean(activeLiveModal?.hangupConfirmReceived) : false,
     };
 
     overlay?.querySelector('[data-caller-live-hangup]')?.addEventListener('click', () => {
