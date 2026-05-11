@@ -4,6 +4,7 @@ namespace App\Domain\Incidents\Models;
 
 use App\Domain\Media\Models\Media;
 use App\Domain\Messages\Models\IncidentMessage;
+use App\Domain\Shared\Concerns\SynchronizesCitizenIdentity;
 use App\Domain\Shared\Enums\AlertLevel;
 use App\Domain\Shared\Enums\IncidentStatus;
 use App\Domain\Teams\Models\TeamAssignment;
@@ -17,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Incident extends Model
 {
     use HasFactory;
+    use SynchronizesCitizenIdentity;
 
     protected $fillable = [
         'caller_id',
@@ -69,7 +71,7 @@ class Incident extends Model
 
     public function citizen(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'caller_id');
+        return $this->belongsTo(User::class, 'citizen_id');
     }
 
     public function operator(): BelongsTo

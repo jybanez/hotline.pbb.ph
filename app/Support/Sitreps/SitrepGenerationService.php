@@ -260,7 +260,7 @@ class SitrepGenerationService
         $numericTotal = collect($items)
             ->sum(fn (array $item) => is_numeric($item['value']) ? (float) $item['value'] : 0);
 
-        $assisted = $context['incidents']->pluck('caller_id')->filter()->unique()->count();
+        $assisted = $context['incidents']->pluck('citizen_id')->filter()->unique()->count();
 
         return [
             'citizens_assisted' => $assisted,

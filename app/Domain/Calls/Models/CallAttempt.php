@@ -2,6 +2,7 @@
 
 namespace App\Domain\Calls\Models;
 
+use App\Domain\Shared\Concerns\SynchronizesCitizenIdentity;
 use App\Domain\Shared\Enums\CallOutcome;
 use App\Domain\Shared\Enums\CallStatus;
 use App\Domain\Users\Models\User;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class CallAttempt extends Model
 {
     use HasFactory;
+    use SynchronizesCitizenIdentity;
 
     protected $fillable = [
         'caller_id',
@@ -51,7 +53,7 @@ class CallAttempt extends Model
 
     public function citizen(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'caller_id');
+        return $this->belongsTo(User::class, 'citizen_id');
     }
 
     public function getCitizenIdAttribute(): mixed

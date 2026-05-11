@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Api\Operator;
 
 use App\Domain\Incidents\Models\Incident;
 use App\Domain\Incidents\Models\IncidentType;
-use App\Domain\Teams\Models\ResourceType;
 use App\Domain\Shared\Enums\IncidentStatus;
 use App\Domain\Shared\Enums\TeamAssignmentStatus;
+use App\Domain\Teams\Models\ResourceType;
 use App\Http\Controllers\Controller;
 use App\Support\Incidents\IncidentPayloadBuilder;
 use App\Support\Incidents\IncidentTypeWorkbenchService;
@@ -21,8 +21,7 @@ class IncidentController extends Controller
     public function __construct(
         private readonly IncidentPayloadBuilder $incidentPayloads,
         private readonly IncidentTypeWorkbenchService $incidentTypes,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -33,6 +32,7 @@ class IncidentController extends Controller
 
         $incidents = Incident::query()
             ->with([
+                'citizen',
                 'caller',
                 'teamAssignments.team',
             ])
@@ -451,9 +451,9 @@ class IncidentController extends Controller
         return [
             'id' => $incident->id,
             'display_id' => str_pad((string) $incident->id, 6, '0', STR_PAD_LEFT),
-            'citizen_id' => $incident->caller_id,
+            'citizen_id' => $incident->citizen_id,
             'caller_id' => $incident->caller_id,
-            'citizen_avatar' => $incident->caller?->avatar,
+            'citizen_avatar' => ($incident->citizen ?? $incident->caller)?->avatar,
             'caller_avatar' => $incident->caller?->avatar,
             'actual_citizen_name' => $incident->actual_caller_name,
             'actual_caller_name' => $incident->actual_caller_name,

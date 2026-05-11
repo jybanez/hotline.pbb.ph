@@ -85,4 +85,127 @@ class CitizenCompatibilityColumnsTest extends TestCase
         $this->assertSame($citizen->id, $session->citizen_id);
         $this->assertSame($citizen->id, $location->citizen_id);
     }
+
+    public function test_citizen_relationships_use_citizen_id_as_active_identity_column(): void
+    {
+        $legacyCaller = User::factory()->create([
+            'role' => UserRole::Citizen,
+        ]);
+        $citizen = User::factory()->create([
+            'role' => UserRole::Citizen,
+        ]);
+        $operator = User::factory()->create([
+            'role' => UserRole::Operator,
+        ]);
+
+        $incident = Incident::query()->create([
+            'caller_id' => $legacyCaller->id,
+            'citizen_id' => $citizen->id,
+            'actual_caller_name' => $citizen->name,
+            'actual_caller_relationship' => 'Self',
+            'operator_id' => $operator->id,
+            'status' => IncidentStatus::Active,
+            'alert_level' => AlertLevel::Normal,
+            'called_at' => now(),
+        ]);
+
+        $attempt = CallAttempt::query()->create([
+            'caller_id' => $legacyCaller->id,
+            'citizen_id' => $citizen->id,
+            'incident_id' => $incident->id,
+            'answered_by_operator_id' => $operator->id,
+            'status' => CallStatus::InProgress,
+            'outcome' => CallOutcome::Answered,
+            'started_at' => now(),
+        ]);
+
+        $session = CallSession::query()->create([
+            'incident_id' => $incident->id,
+            'caller_id' => $legacyCaller->id,
+            'citizen_id' => $citizen->id,
+            'status' => CallStatus::InProgress,
+            'outcome' => CallOutcome::Answered,
+            'started_at' => now(),
+            'answered_at' => now(),
+        ]);
+
+        $location = IncidentCallerLocation::query()->create([
+            'incident_id' => $incident->id,
+            'caller_id' => $legacyCaller->id,
+            'citizen_id' => $citizen->id,
+            'operator_id' => $operator->id,
+            'call_session_id' => $session->id,
+            'latitude' => 10.3157,
+            'longitude' => 123.8854,
+            'captured_at' => now(),
+            'received_at' => now(),
+        ]);
+
+        $this->assertSame($citizen->id, $incident->citizen()->first()?->id);
+        $this->assertSame($legacyCaller->id, $incident->caller()->first()?->id);
+        $this->assertSame($citizen->id, $attempt->citizen()->first()?->id);
+        $this->assertSame($legacyCaller->id, $attempt->caller()->first()?->id);
+        $this->assertSame($citizen->id, $session->citizen()->first()?->id);
+        $this->assertSame($legacyCaller->id, $session->caller()->first()?->id);
+        $this->assertSame($citizen->id, $location->citizen()->first()?->id);
+        $this->assertSame($legacyCaller->id, $location->caller()->first()?->id);
+    }
+
+    public function test_citizen_incident_api_filters_by_citizen_id_not_caller_id(): void
+    {
+        $legacyCaller = User::factory()->create([
+            'role' => UserRole::Citizen,
+        ]);
+        $citizen = User::factory()->create([
+            'role' => UserRole::Citizen,
+        ]);
+        $operator = User::factory()->create([
+            'role' => UserRole::Operator,
+        ]);
+
+        $incident = Incident::query()->create([
+            'caller_id' => $legacyCaller->id,
+            'citizen_id' => $citizen->id,
+            'actual_caller_name' => $citizen->name,
+            'actual_caller_relationship' => 'Self',
+            'operator_id' => $operator->id,
+            'status' => IncidentStatus::Active,
+            'alert_level' => AlertLevel::Normal,
+            'called_at' => now(),
+        ]);
+
+        $this->actingAs($citizen)
+            ->getJson('/api/citizen/incidents/current')
+            ->assertOk()
+            ->assertJsonPath('incident.id', $incident->id)
+            ->assertJsonPath('incident.citizen_id', $citizen->id);
+
+        $this->actingAs($legacyCaller)
+            ->getJson('/api/citizen/incidents/current')
+            ->assertOk()
+            ->assertJsonPath('incident', null);
+    }
+
+    public function test_models_fill_missing_identity_side_for_rollback_sync(): void
+    {
+        $citizen = User::factory()->create([
+            'role' => UserRole::Citizen,
+        ]);
+        $operator = User::factory()->create([
+            'role' => UserRole::Operator,
+        ]);
+
+        $incident = Incident::query()->create([
+            'citizen_id' => $citizen->id,
+            'actual_caller_name' => $citizen->name,
+            'actual_caller_relationship' => 'Self',
+            'operator_id' => $operator->id,
+            'status' => IncidentStatus::Active,
+            'alert_level' => AlertLevel::Normal,
+            'called_at' => now(),
+        ]);
+
+        $this->assertSame($citizen->id, $incident->caller_id);
+        $this->assertSame($citizen->id, $incident->citizen_id);
+    }
 }

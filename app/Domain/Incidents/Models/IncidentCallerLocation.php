@@ -3,6 +3,7 @@
 namespace App\Domain\Incidents\Models;
 
 use App\Domain\Calls\Models\CallSession;
+use App\Domain\Shared\Concerns\SynchronizesCitizenIdentity;
 use App\Domain\Users\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class IncidentCallerLocation extends Model
 {
     use HasFactory;
+    use SynchronizesCitizenIdentity;
 
     protected $fillable = [
         'incident_id',
@@ -56,7 +58,7 @@ class IncidentCallerLocation extends Model
 
     public function citizen(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'caller_id');
+        return $this->belongsTo(User::class, 'citizen_id');
     }
 
     public function operator(): BelongsTo

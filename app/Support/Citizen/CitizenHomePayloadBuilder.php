@@ -15,8 +15,7 @@ class CitizenHomePayloadBuilder
         private readonly AvailabilityService $availability,
         private readonly SettingsService $settings,
         private readonly IncidentPayloadBuilder $incidentPayloads,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array<string, mixed>
@@ -24,13 +23,13 @@ class CitizenHomePayloadBuilder
     public function build(User $citizen): array
     {
         $currentIncident = Incident::query()
-            ->where('caller_id', $citizen->id)
+            ->where('citizen_id', $citizen->id)
             ->whereIn('status', [IncidentStatus::Active, IncidentStatus::Deferred])
             ->latest('id')
             ->first();
 
         $recentIncidents = Incident::query()
-            ->where('caller_id', $citizen->id)
+            ->where('citizen_id', $citizen->id)
             ->when($currentIncident, fn ($query) => $query->where('id', '!=', $currentIncident->id))
             ->latest('id')
             ->take(10)

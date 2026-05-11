@@ -21,8 +21,7 @@ class IncidentMessageController extends Controller
 {
     public function __construct(
         private readonly MediaBinaryResolver $mediaBinaries,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request, Incident $incident): JsonResponse
     {
@@ -174,7 +173,7 @@ class IncidentMessageController extends Controller
     {
         $user = $request->user();
 
-        return ((int) $incident->caller_id === (int) $user->id)
+        return ((int) $incident->citizen_id === (int) $user->id)
             || ((int) $incident->operator_id === (int) $user->id);
     }
 
@@ -201,7 +200,7 @@ class IncidentMessageController extends Controller
                 : ($user->role?->value ?? (string) $user->role),
         ];
 
-        if (!is_array($sender) || ($user->role ?? null) !== UserRole::Operator) {
+        if (! is_array($sender) || ($user->role ?? null) !== UserRole::Operator) {
             return $default;
         }
 
@@ -209,7 +208,7 @@ class IncidentMessageController extends Controller
         $senderRole = (string) ($sender['role'] ?? '');
 
         if (
-            (in_array($senderRole, UserRole::citizenValues(), true) && $senderId !== (int) $incident->caller_id)
+            (in_array($senderRole, UserRole::citizenValues(), true) && $senderId !== (int) $incident->citizen_id)
             || ($senderRole === UserRole::Operator->value && $senderId !== (int) $user->id)
         ) {
             abort(422, 'Invalid sender payload for incident message persistence.');
@@ -289,6 +288,7 @@ class IncidentMessageController extends Controller
 
         if ($width <= 0 || $height <= 0) {
             imagedestroy($source);
+
             return null;
         }
 

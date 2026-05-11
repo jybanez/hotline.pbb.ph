@@ -16,7 +16,7 @@ class IncidentMediaController extends Controller
             abort(404);
         }
 
-        $isCaller = (int) $incident->caller_id === (int) $request->user()->id;
+        $isCaller = (int) $incident->citizen_id === (int) $request->user()->id;
 
         $items = $incident->mediaItems()
             ->when($isCaller, fn ($query) => $query->whereIn('type', MediaContractNormalizer::citizenVideoTypes()))
@@ -49,7 +49,7 @@ class IncidentMediaController extends Controller
     {
         $user = $request->user();
 
-        return ((int) $incident->caller_id === (int) $user->id)
+        return ((int) $incident->citizen_id === (int) $user->id)
             || ((int) $incident->operator_id === (int) $user->id);
     }
 }

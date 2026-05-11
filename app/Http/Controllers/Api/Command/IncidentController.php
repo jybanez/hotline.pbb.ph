@@ -15,6 +15,7 @@ class IncidentController extends Controller
 
         $incidents = Incident::query()
             ->with([
+                'citizen',
                 'caller',
                 'teamAssignments.team',
                 'incidentTypes',
@@ -47,14 +48,16 @@ class IncidentController extends Controller
             'captured_at' => $incident->caller_location_captured_at?->toIso8601String(),
         ] : null;
 
+        $citizen = $incident->citizen ?? $incident->caller;
+
         return [
             'id' => $incident->id,
             'display_id' => str_pad((string) $incident->id, 6, '0', STR_PAD_LEFT),
-            'citizen_id' => $incident->caller_id,
+            'citizen_id' => $incident->citizen_id,
             'caller_id' => $incident->caller_id,
             'actual_citizen_name' => $incident->actual_caller_name,
             'actual_caller_name' => $incident->actual_caller_name,
-            'citizen_name' => $incident->actual_caller_name ?: ($incident->caller?->name ?? 'Unknown citizen'),
+            'citizen_name' => $incident->actual_caller_name ?: ($citizen?->name ?? 'Unknown citizen'),
             'caller_name' => $incident->actual_caller_name ?: ($incident->caller?->name ?? 'Unknown caller'),
             'status' => $status,
             'status_label' => $this->formatLabel($status),

@@ -19,12 +19,11 @@ class CallSessionService
 {
     public function __construct(
         private readonly AvailabilityService $availability,
-    ) {
-    }
+    ) {}
 
     public function startReconnect(User $caller, Incident $incident): CallSession
     {
-        if ((int) $incident->caller_id !== (int) $caller->id) {
+        if ((int) $incident->citizen_id !== (int) $caller->id) {
             throw new RuntimeException('You cannot reconnect to this incident.');
         }
 
@@ -86,7 +85,7 @@ class CallSessionService
     {
         $callSession->loadMissing('incident', 'participants');
 
-        if ((int) $callSession->caller_id !== (int) $caller->id) {
+        if ((int) $callSession->citizen_id !== (int) $caller->id) {
             throw new RuntimeException('You cannot cancel this reconnect request.');
         }
 
@@ -204,7 +203,7 @@ class CallSessionService
     {
         $callSession->loadMissing('incident', 'participants');
 
-        if ((int) $callSession->caller_id !== (int) $caller->id) {
+        if ((int) $callSession->citizen_id !== (int) $caller->id) {
             throw new RuntimeException('You cannot end this call session.');
         }
 
@@ -233,7 +232,7 @@ class CallSessionService
     {
         $callSession->loadMissing('incident', 'participants');
 
-        if ((int) $callSession->caller_id !== (int) $caller->id) {
+        if ((int) $callSession->citizen_id !== (int) $caller->id) {
             throw new RuntimeException('You cannot end this call session.');
         }
 
@@ -280,8 +279,7 @@ class CallSessionService
         User $operator,
         CallSession $callSession,
         CallOutcome $outcome,
-    ): CallSession
-    {
+    ): CallSession {
         $callSession->loadMissing('incident', 'participants');
         $incident = $callSession->incident;
 

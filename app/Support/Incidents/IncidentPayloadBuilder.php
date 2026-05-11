@@ -7,7 +7,6 @@ use App\Domain\Incidents\Models\IncidentCategory;
 use App\Domain\Incidents\Models\IncidentResourceNeeded;
 use App\Domain\Incidents\Models\IncidentType;
 use App\Domain\Incidents\Models\IncidentTypeDetail;
-use App\Domain\Shared\Enums\UserRole;
 use App\Domain\Teams\Models\ResourceType;
 use App\Domain\Teams\Models\Team;
 use App\Domain\Teams\Models\TeamCategory;
@@ -162,6 +161,7 @@ class IncidentPayloadBuilder
     public function buildWorkbenchPayload(Incident $incident, ?User $viewer = null, bool $includeLegacyAliases = true): array
     {
         $incident->loadMissing(
+            'citizen',
             'caller',
             'operator',
             'callSessions.participants',
@@ -189,18 +189,19 @@ class IncidentPayloadBuilder
             ->values();
         $currentCallSession = $sortedCallSessions->last();
 
-        $publicUser = $incident->caller ? [
-            'id' => $incident->caller->id,
-            'name' => $incident->caller->name,
-            'avatar' => $incident->caller->avatar,
-            'mobile' => $incident->caller->mobile,
+        $publicUserModel = $incident->citizen ?? $incident->caller;
+        $publicUser = $publicUserModel ? [
+            'id' => $publicUserModel->id,
+            'name' => $publicUserModel->name,
+            'avatar' => $publicUserModel->avatar,
+            'mobile' => $publicUserModel->mobile,
         ] : null;
         $publicUserLocation = $this->serializeCallerLocation($incident);
 
         return [
             'id' => $incident->id,
             'display_id' => str_pad((string) $incident->id, 6, '0', STR_PAD_LEFT),
-            'citizen_id' => $incident->caller_id,
+            'citizen_id' => $incident->citizen_id,
             ...$this->legacyAliases($includeLegacyAliases, [
                 'caller_id' => $incident->caller_id,
             ]),
@@ -454,7 +455,7 @@ class IncidentPayloadBuilder
         return [
             'id' => $session->id,
             'incident_id' => $session->incident_id,
-            'citizen_id' => $session->caller_id,
+            'citizen_id' => $session->citizen_id,
             ...$this->legacyAliases($includeLegacyAliases, [
                 'caller_id' => $session->caller_id,
             ]),
@@ -504,7 +505,7 @@ class IncidentPayloadBuilder
     }
 
     /**
-     * @param array<string, mixed> $aliases
+     * @param  array<string, mixed>  $aliases
      * @return array<string, mixed>
      */
     private function legacyAliases(bool $includeLegacyAliases, array $aliases): array

@@ -11,17 +11,17 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Str;
 use RuntimeException;
 
-require_once __DIR__ . '/../../../../realtime/sdk/php/pbb_realtime_backend_sdk.php';
+require_once __DIR__.'/../../../../realtime/sdk/php/pbb_realtime_backend_sdk.php';
 
 class RealtimeAdmissionService
 {
     private const REALTIME_AUDIENCE = 'pbb-realtime';
+
     private const HOTLINE_DISCOVERY_ROOM = 'presence.global.hotline';
 
     public function __construct(
         private readonly SettingsService $settings,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array<string, mixed>
@@ -213,7 +213,7 @@ class RealtimeAdmissionService
     }
 
     /**
-     * @param array<int, string> $capabilities
+     * @param  array<int, string>  $capabilities
      * @return array<string, mixed>
      */
     private function buildSettingsRoomAdmission(User $user, string $projectCode, string $room, array $capabilities): array
@@ -230,8 +230,8 @@ class RealtimeAdmissionService
     }
 
     /**
-     * @param array<int, string> $capabilities
-     * @param array<int, string> $allowedRoomPrefixes
+     * @param  array<int, string>  $capabilities
+     * @param  array<int, string>  $allowedRoomPrefixes
      * @return array<string, mixed>
      */
     private function buildSingleRoomAdmission(User $user, string $projectCode, string $room, array $capabilities, array $allowedRoomPrefixes): array
@@ -331,7 +331,7 @@ class RealtimeAdmissionService
         ];
 
         $currentIncident = Incident::query()
-            ->where('caller_id', $user->id)
+            ->where('citizen_id', $user->id)
             ->whereIn('status', ['Active', 'Deferred'])
             ->latest('id')
             ->first();
@@ -344,7 +344,7 @@ class RealtimeAdmissionService
     }
 
     /**
-     * @param array<int, string> $capabilities
+     * @param  array<int, string>  $capabilities
      * @return array<string, mixed>
      */
     private function buildIncidentChatAdmission(User $user, string $projectCode, Incident $incident, array $capabilities): array
@@ -361,7 +361,7 @@ class RealtimeAdmissionService
     }
 
     /**
-     * @param array<int, string> $capabilities
+     * @param  array<int, string>  $capabilities
      * @return array<string, mixed>
      */
     private function buildPresenceAdmission(User $user, string $projectCode, string $room, array $capabilities): array
@@ -399,7 +399,7 @@ class RealtimeAdmissionService
     }
 
     /**
-     * @param array<int, string> $capabilities
+     * @param  array<int, string>  $capabilities
      * @return array<string, mixed>
      */
     private function buildCallSessionAdmission(User $user, string $projectCode, CallSession $callSession, array $capabilities): array
@@ -443,7 +443,7 @@ class RealtimeAdmissionService
     }
 
     /**
-     * @param array<int, string> $capabilities
+     * @param  array<int, string>  $capabilities
      * @return array<string, mixed>
      */
     private function baseContext(
@@ -488,10 +488,10 @@ class RealtimeAdmissionService
         /** @var Incident|null $incident */
         $incident = Incident::query()
             ->whereKey($incidentId)
-            ->where('caller_id', $user->getKey())
+            ->where('citizen_id', $user->getKey())
             ->first();
 
-        if (!$incident) {
+        if (! $incident) {
             throw new AuthorizationException('Caller incident access denied.');
         }
 
@@ -504,10 +504,10 @@ class RealtimeAdmissionService
         $callSession = CallSession::query()
             ->with('incident')
             ->whereKey($callSessionId)
-            ->where('caller_id', $user->getKey())
+            ->where('citizen_id', $user->getKey())
             ->first();
 
-        if (!$callSession) {
+        if (! $callSession) {
             throw new AuthorizationException('Caller call session access denied.');
         }
 
@@ -541,7 +541,7 @@ class RealtimeAdmissionService
             })
             ->first();
 
-        if (!$incident) {
+        if (! $incident) {
             throw new AuthorizationException('Operator incident access denied.');
         }
 
@@ -563,7 +563,7 @@ class RealtimeAdmissionService
             })
             ->first();
 
-        if (!$callSession) {
+        if (! $callSession) {
             throw new AuthorizationException('Operator call session access denied.');
         }
 
@@ -610,7 +610,7 @@ class RealtimeAdmissionService
 
     private function incidentChatRoom(int $incidentId): string
     {
-        return 'chat.thread.incident.' . $incidentId;
+        return 'chat.thread.incident.'.$incidentId;
     }
 
     private function realtimeAppCode(): string
@@ -622,14 +622,14 @@ class RealtimeAdmissionService
 
     private function realtimeProjectCode(string $scope, string $fallback): string
     {
-        $value = trim((string) $this->settings->get('realtime_project_code_' . $scope));
+        $value = trim((string) $this->settings->get('realtime_project_code_'.$scope));
 
         return $value !== '' ? $value : $fallback;
     }
 
     private function callSessionRoom(int $callSessionId): string
     {
-        return 'call.session.' . $callSessionId;
+        return 'call.session.'.$callSessionId;
     }
 
     private function normalizeRealtimeWebsocketUrl(string $value): string
@@ -641,17 +641,17 @@ class RealtimeAdmissionService
         }
 
         if (Str::startsWith($trimmed, ['ws://', 'wss://'])) {
-            return preg_match('/\/realtime\/?$/', $trimmed) ? rtrim($trimmed, '/') : rtrim($trimmed, '/') . '/realtime';
+            return preg_match('/\/realtime\/?$/', $trimmed) ? rtrim($trimmed, '/') : rtrim($trimmed, '/').'/realtime';
         }
 
         if (Str::startsWith($trimmed, 'https://')) {
-            $trimmed = 'wss://' . ltrim(Str::after($trimmed, 'https://'), '/');
+            $trimmed = 'wss://'.ltrim(Str::after($trimmed, 'https://'), '/');
         } elseif (Str::startsWith($trimmed, 'http://')) {
-            $trimmed = 'ws://' . ltrim(Str::after($trimmed, 'http://'), '/');
+            $trimmed = 'ws://'.ltrim(Str::after($trimmed, 'http://'), '/');
         } else {
-            $trimmed = 'wss://' . ltrim($trimmed, '/');
+            $trimmed = 'wss://'.ltrim($trimmed, '/');
         }
 
-        return preg_match('/\/realtime\/?$/', $trimmed) ? rtrim($trimmed, '/') : rtrim($trimmed, '/') . '/realtime';
+        return preg_match('/\/realtime\/?$/', $trimmed) ? rtrim($trimmed, '/') : rtrim($trimmed, '/').'/realtime';
     }
 }

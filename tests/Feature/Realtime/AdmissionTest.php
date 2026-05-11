@@ -36,6 +36,7 @@ class AdmissionTest extends TestCase
 
         $incidentId = DB::table('incidents')->insertGetId([
             'caller_id' => $citizen->id,
+            'citizen_id' => $citizen->id,
             'actual_caller_name' => $citizen->name,
             'actual_caller_relationship' => 'Self',
             'operator_id' => $operator->id,
@@ -56,9 +57,9 @@ class AdmissionTest extends TestCase
             ->assertOk()
             ->assertJsonPath('app_code', 'clt_01KMXFPRXCTHJAG10DMACJFMYB')
             ->assertJsonPath('project_code', 'prj_01KMXG0AXB2S9CXS0YK4AFT2C9')
-            ->assertJsonPath('room', 'chat.thread.incident.' . $incidentId)
+            ->assertJsonPath('room', 'chat.thread.incident.'.$incidentId)
             ->assertJsonMissingPath('call_room')
-            ->assertJsonPath('session.allowed_rooms.0', 'chat.thread.incident.' . $incidentId)
+            ->assertJsonPath('session.allowed_rooms.0', 'chat.thread.incident.'.$incidentId)
             ->assertJsonPath('websocket_url', 'wss://realtime-beta.pbb.ph/realtime');
     }
 
@@ -95,6 +96,7 @@ class AdmissionTest extends TestCase
 
         $incidentId = DB::table('incidents')->insertGetId([
             'caller_id' => $citizen->id,
+            'citizen_id' => $citizen->id,
             'actual_caller_name' => $citizen->name,
             'actual_caller_relationship' => 'Self',
             'operator_id' => $operator->id,
@@ -108,6 +110,7 @@ class AdmissionTest extends TestCase
         $callSessionId = DB::table('call_sessions')->insertGetId([
             'incident_id' => $incidentId,
             'caller_id' => $citizen->id,
+            'citizen_id' => $citizen->id,
             'status' => CallStatus::InProgress->value,
             'outcome' => CallOutcome::Answered->value,
             'started_at' => now(),
@@ -125,10 +128,10 @@ class AdmissionTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('project_code', 'prj_01KMXG0AXB2S9CXS0YK4AFT2C9')
-            ->assertJsonPath('room', 'chat.thread.incident.' . $incidentId)
-            ->assertJsonPath('call_room', 'call.session.' . $callSessionId)
-            ->assertJsonPath('session.allowed_rooms.0', 'chat.thread.incident.' . $incidentId)
-            ->assertJsonPath('session.allowed_rooms.1', 'call.session.' . $callSessionId);
+            ->assertJsonPath('room', 'chat.thread.incident.'.$incidentId)
+            ->assertJsonPath('call_room', 'call.session.'.$callSessionId)
+            ->assertJsonPath('session.allowed_rooms.0', 'chat.thread.incident.'.$incidentId)
+            ->assertJsonPath('session.allowed_rooms.1', 'call.session.'.$callSessionId);
     }
 
     public function test_operator_dashboard_presence_admission_returns_presence_room(): void
@@ -165,6 +168,7 @@ class AdmissionTest extends TestCase
 
         $incidentId = DB::table('incidents')->insertGetId([
             'caller_id' => $citizen->id,
+            'citizen_id' => $citizen->id,
             'actual_caller_name' => $citizen->name,
             'actual_caller_relationship' => 'Self',
             'operator_id' => $operator->id,
@@ -201,7 +205,7 @@ class AdmissionTest extends TestCase
     }
 
     /**
-     * @param array<string, string> $overrides
+     * @param  array<string, string>  $overrides
      */
     private function storeRealtimeSettings(array $overrides = []): void
     {

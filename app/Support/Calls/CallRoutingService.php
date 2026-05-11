@@ -7,7 +7,6 @@ use App\Domain\Calls\Models\CallAttemptOperatorAttempt;
 use App\Domain\Calls\Models\CallParticipant;
 use App\Domain\Calls\Models\CallSession;
 use App\Domain\Incidents\Models\Incident;
-use App\Domain\Shared\Enums\AlertLevel;
 use App\Domain\Shared\Enums\CallOutcome;
 use App\Domain\Shared\Enums\CallStatus;
 use App\Domain\Shared\Enums\IncidentStatus;
@@ -25,8 +24,7 @@ class CallRoutingService
     public function __construct(
         private readonly AvailabilityService $availability,
         private readonly SettingsService $settings,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array{attempt: CallAttempt, operator_attempt: CallAttemptOperatorAttempt}
@@ -128,7 +126,7 @@ class CallRoutingService
             throw new RuntimeException('Operator is not assigned to this incident.');
         }
 
-        if ((int) $incident->caller_id !== (int) $caller->id) {
+        if ((int) $incident->citizen_id !== (int) $caller->id) {
             throw new RuntimeException('Caller does not match this incident.');
         }
 
@@ -179,7 +177,7 @@ class CallRoutingService
 
     public function cancelAttempt(User $caller, CallAttempt $attempt): CallAttempt
     {
-        if ((int) $attempt->caller_id !== (int) $caller->id) {
+        if ((int) $attempt->citizen_id !== (int) $caller->id) {
             throw new RuntimeException('You cannot cancel this call attempt.');
         }
 
@@ -208,7 +206,7 @@ class CallRoutingService
 
     public function timeoutAttempt(User $caller, CallAttempt $attempt): CallAttempt
     {
-        if ((int) $attempt->caller_id !== (int) $caller->id) {
+        if ((int) $attempt->citizen_id !== (int) $caller->id) {
             throw new RuntimeException('You cannot timeout this call attempt.');
         }
 
@@ -299,8 +297,7 @@ class CallRoutingService
         CallAttemptOperatorAttempt $operatorAttempt,
         CallOutcome $outcome,
         string $action,
-    ): CallAttempt
-    {
+    ): CallAttempt {
         $operatorAttempt->loadMissing('callAttempt');
         $attempt = $operatorAttempt->callAttempt;
 
@@ -355,7 +352,7 @@ class CallRoutingService
         }
 
         return DB::transaction(function () use ($attempt, $operator, $operatorAttempt) {
-            $caller = User::query()->findOrFail($attempt->caller_id);
+            $caller = User::query()->findOrFail($attempt->citizen_id);
             $incident = $attempt->incident_id
                 ? Incident::query()->findOrFail($attempt->incident_id)
                 : null;

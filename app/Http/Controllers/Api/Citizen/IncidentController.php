@@ -13,13 +13,12 @@ class IncidentController extends Controller
 {
     public function __construct(
         private readonly IncidentPayloadBuilder $incidentPayloads,
-    ) {
-    }
+    ) {}
 
     public function current(Request $request): JsonResponse
     {
         $incident = Incident::query()
-            ->where('caller_id', $request->user()->id)
+            ->where('citizen_id', $request->user()->id)
             ->whereIn('status', [IncidentStatus::Active, IncidentStatus::Deferred])
             ->latest('id')
             ->first();
@@ -32,13 +31,13 @@ class IncidentController extends Controller
     public function history(Request $request): JsonResponse
     {
         $currentOpenIncidentId = Incident::query()
-            ->where('caller_id', $request->user()->id)
+            ->where('citizen_id', $request->user()->id)
             ->whereIn('status', [IncidentStatus::Active, IncidentStatus::Deferred])
             ->latest('id')
             ->value('id');
 
         $history = Incident::query()
-            ->where('caller_id', $request->user()->id)
+            ->where('citizen_id', $request->user()->id)
             ->when($currentOpenIncidentId, fn ($query) => $query->where('id', '!=', $currentOpenIncidentId))
             ->latest('id')
             ->get();
@@ -50,7 +49,7 @@ class IncidentController extends Controller
 
     public function show(Request $request, Incident $incident): JsonResponse
     {
-        abort_unless((int) $incident->caller_id === (int) $request->user()->id, 404);
+        abort_unless((int) $incident->citizen_id === (int) $request->user()->id, 404);
 
         return response()->json(
             $this->buildIncidentPayload($request, $incident),

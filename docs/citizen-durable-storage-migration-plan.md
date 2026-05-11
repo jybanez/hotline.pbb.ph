@@ -58,15 +58,17 @@ Do not remove legacy report/SITREP keys until any external consumers have a noti
 
 ### Batch 5A: Switch Runtime Reads And Writes To Existing Citizen Columns
 
+Status: Complete in code on 2026-05-11; keep production observation active through the next live validation window.
+
 Goal: make `citizen_id` the active application column while keeping `caller_id` synchronized for rollback.
 
 Changes:
 
-- Update models so `citizen()` relationships use `citizen_id`.
-- Keep `caller()` relationships as deprecated aliases pointing to `caller_id` during the transition.
-- Update query filters from `caller_id` to `citizen_id` where the code is identifying the public user.
-- On new writes, set both `citizen_id` and `caller_id` to the same user id.
-- Add drift tests proving `citizen_id` is populated and used for newly created incidents, call attempts, call sessions, and incident location history.
+- [x] Update models so `citizen()` relationships use `citizen_id`.
+- [x] Keep `caller()` relationships as deprecated aliases pointing to `caller_id` during the transition.
+- [x] Update query filters from `caller_id` to `citizen_id` where the code is identifying the public user.
+- [x] On new writes, set both `citizen_id` and `caller_id` to the same user id.
+- [x] Add drift tests proving `citizen_id` is populated and used for newly created incidents, call attempts, call sessions, and incident location history.
 
 Rollback:
 
