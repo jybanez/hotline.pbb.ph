@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class ClearTestIncidents extends Command
@@ -112,7 +113,7 @@ class ClearTestIncidents extends Command
      */
     private function ids(string $table, string $column, array $ids): array
     {
-        if ($ids === []) {
+        if ($ids === [] || ! Schema::hasTable($table)) {
             return [];
         }
 
@@ -128,7 +129,7 @@ class ClearTestIncidents extends Command
      */
     private function deleteWhereIn(string $table, string $column, array $ids): int
     {
-        if ($ids === []) {
+        if ($ids === [] || ! Schema::hasTable($table)) {
             return 0;
         }
 
