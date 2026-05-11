@@ -15,7 +15,7 @@
       "tiles": [
         "https://mapserver.pbb.ph/tiles/terrain/{z}/{x}/{y}.png"
       ],
-      "tileSize": 256,
+      "tileSize": 512,
       "encoding": "mapbox",
       "minzoom": 0,
       "maxzoom": 12
@@ -25,7 +25,7 @@
       "tiles": [
         "https://mapserver.pbb.ph/tiles/terrain/{z}/{x}/{y}.png"
       ],
-      "tileSize": 256,
+      "tileSize": 512,
       "encoding": "mapbox",
       "minzoom": 0,
       "maxzoom": 12
@@ -34,14 +34,14 @@
   "glyphs": "https://mapserver.pbb.ph/tiles/glyphs/{fontstack}/{range}.pbf",
   "terrain": {
     "source": "terrain",
-    "exaggeration": 1.15
+    "exaggeration": 1.6
   },
   "layers": [
     {
       "id": "background",
       "type": "background",
       "paint": {
-        "background-color": "#000000"
+        "background-color": "#03080d"
       }
     },
     {
@@ -49,9 +49,10 @@
       "type": "hillshade",
       "source": "terrain-hillshade",
       "paint": {
-        "hillshade-shadow-color": "#0a1118",
-        "hillshade-highlight-color": "#1b2b3a",
-        "hillshade-accent-color": "#121f2b"
+        "hillshade-exaggeration": 0.75,
+        "hillshade-shadow-color": "#07131b",
+        "hillshade-highlight-color": "#40586a",
+        "hillshade-accent-color": "#233948"
       }
     },
     {
@@ -60,7 +61,7 @@
       "source": "osm",
       "source-layer": "landcover",
       "paint": {
-        "fill-color": "#0b141b",
+        "fill-color": "#0f1b23",
         "fill-opacity": 1
       }
     },
@@ -70,7 +71,7 @@
       "source": "osm",
       "source-layer": "landuse",
       "paint": {
-        "fill-color": "#0f1b25",
+        "fill-color": "#14232e",
         "fill-opacity": 0.85
       }
     },

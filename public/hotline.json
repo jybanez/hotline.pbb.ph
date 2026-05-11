@@ -21,7 +21,26 @@
     "poi": {
       "enabled": true,
       "sourceLayers": ["poi", "pois", "point", "points", "amenity"],
-      "excludedClasses": []
+      "excludedClasses": [
+        "gate",
+        "parking",
+        "parking_entrance",
+        "car_parking",
+        "bicycle_parking",
+        "motorcycle_parking",
+        "lift_gate",
+        "pitch",
+        "post",
+        "swimming_pool",
+        "office",
+        "shelter",
+        "bench",
+        "toilets",
+        "waste_basket",
+        "recycling",
+        "drinking_water",
+        "vending_machine"
+      ]
     }
   }
 }
