@@ -37,6 +37,9 @@ class ConfigureCriticalSessionLifetime
             'api/operator/*',
             'api/command',
             'api/command/*',
+            'api/realtime/admission/citizen',
+            'api/realtime/admission/operator',
+            'api/realtime/admission/command',
         )) {
             return true;
         }

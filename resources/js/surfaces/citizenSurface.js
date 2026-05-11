@@ -4042,6 +4042,8 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
             ? existingRuntime.callRuntimePromise ?? null
             : null;
 
+        let callRuntimeUnavailable = false;
+
         logCallFlow('citizen', 'live-modal-call-runtime-mount', {
             incidentId: Number(payload.id ?? 0) || null,
             callSessionId: callSessionId || null,
@@ -4114,6 +4116,19 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
                     resetCallerOperatorHeartbeatWatch('heartbeat');
                     cancelCallerOperatorDisconnectCleanup('heartbeat');
                 },
+                onUnavailable(error) {
+                    callRuntimeUnavailable = true;
+                    const status = Number(error?.response?.status ?? 0) || null;
+                    logCallFlow('citizen', 'live-call-runtime-unavailable', {
+                        incidentId: Number(payload.id ?? 0) || null,
+                        callSessionId: Number(latestSession.id ?? 0) || null,
+                        status,
+                    });
+
+                    if (status === 401 || status === 419) {
+                        showToast('Your session needs to be refreshed before resuming the call.', 'warn');
+                    }
+                },
                 onHangupConfirm() {
                     if (appState.runtime.callerLiveModal) {
                         appState.runtime.callerLiveModal.hangupConfirmReceived = true;
@@ -4170,6 +4185,22 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
             ? existingRuntime?.locationWatchStop ?? null
             : null;
         const currentRuntime = appState.runtime.callerLiveModal ?? null;
+
+        if (callRuntimeUnavailable && !callRuntime && latestSession?.id && payload?.operator?.id) {
+            const pending = getCallerPendingState();
+
+            if (
+                pending?.kind === 'reconnect'
+                && Number(pending?.incident_id ?? 0) === Number(payload.id ?? 0)
+                && String(pending?.phase ?? '').trim() === 'connecting'
+            ) {
+                clearCallerPendingState();
+            }
+
+            await close();
+            await renderSurface('citizen');
+            return;
+        }
 
         if (Number(currentRuntime?.latestSessionId ?? 0) !== callSessionId || !overlay.isConnected) {
             liveConversation?.destroy?.();

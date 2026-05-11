@@ -3364,6 +3364,11 @@ async function mountRealtimeCallSession(options = {}) {
             status: Number(error?.response?.status ?? 0) || null,
         });
         console.warn('Realtime call session is unavailable.', error);
+        try {
+            options.onUnavailable?.(error);
+        } catch (callbackError) {
+            console.warn('Realtime call session unavailable callback failed.', callbackError);
+        }
         showToast('Live audio is unavailable right now.', 'warn');
         return clearRegistryRuntime();
     }

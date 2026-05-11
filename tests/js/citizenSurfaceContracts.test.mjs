@@ -34,6 +34,8 @@ assert.match(citizenSurface, /label:\s*'OFFLINE'/);
 assert.match(citizenSurface, /This device is offline/);
 assert.match(citizenSurface, /data-caller-live-network-banner/);
 assert.match(citizenSurface, /live-call-browser-offline/);
+assert.match(citizenSurface, /live-call-runtime-unavailable/);
+assert.match(citizenSurface, /clearCallerPendingState\(\)/);
 assert.doesNotMatch(citizenSurface, /src="\/images\/hang-up\.svg"/);
 assert.match(realtimeSignalStrength, /navigator\.onLine === false/);
 assert.match(realtimeSignalStrength, /state:\s*'browser-offline'/);
