@@ -36,7 +36,9 @@ class CitizenHomePayloadBuilder
             ->get();
 
         return [
-            'current_open_incident' => $currentIncident ? $this->incidentPayloads->buildWorkbenchPayload($currentIncident, $citizen) : null,
+            'current_open_incident' => $currentIncident
+                ? $this->incidentPayloads->buildWorkbenchPayload($currentIncident, $citizen, includeLegacyAliases: false)
+                : null,
             'recent_incidents' => $this->incidentPayloads->buildHistoryList($recentIncidents),
             ...$this->incidentPayloads->buildWorkbenchLookups(),
             'availability' => $this->availability->callerAvailability(),

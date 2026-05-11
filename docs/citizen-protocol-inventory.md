@@ -31,7 +31,7 @@ The remaining `caller` usage is not a single rename class. It falls into these b
 - Realtime event names and payloads that need dual publish/listen behavior
 - Helper-facing adapter and UI copy that should become citizen-facing
 - media and call-session protocol values that need an explicit stability decision
-- reports/SITREP keys and prose that need citizen-facing output aliases
+- reports/SITREP keys and prose that now expose citizen-facing output without legacy caller-shaped keys
 - historical docs and tests that should be updated only after runtime behavior exists
 
 ## Current Snapshot After Phase 2 Slices
@@ -67,7 +67,7 @@ Intentional `caller` remains during compatibility:
 - legacy public routes and PWA assets: `/caller`, `/caller/offline`, `/api/caller/*`, `caller.webmanifest`, and `caller-sw.js`
 - legacy Realtime admission/events and telemetry while deployed clients migrate
 - DB columns/tables such as `caller_id`, `actual_caller_name`, `caller_location_*`, and `incident_caller_locations` until final decommission
-- legacy request/response aliases beside canonical citizen fields
+- remaining legacy request aliases are rejected on active write paths, and current response/report payloads now expose citizen-facing fields without legacy caller-shaped aliases
 - deprecated enum/protocol values such as `caller`, `caller_video`, `cancelled_by_caller`, and `ended_by_caller` where old rows or clients may still send/read them
 - tests that assert legacy compatibility
 - historical Phase 1 docs that are now explicitly marked as superseded or compatibility context
@@ -139,7 +139,7 @@ Primary files:
 
 Observed contracts:
 - persistence and authorization now use `citizen_id` for public-user identity on current incident/call/session flows, incident detail/location reads prefer `actual_citizen_*` / `citizen_location_*` columns, location history reads prefer `incident_citizen_locations`, and stored media/participant/outcome protocol values are migrated to citizen terminology; synchronized caller-shaped columns/tables and compatibility normalizers remain as rollback compatibility storage
-- canonical citizen and operator workbench incident payloads expose citizen-facing public-user aliases only; legacy `/api/caller/*` incident payloads still expose `caller`, `caller_id`, `actual_caller_name`, `actual_caller_relationship`, and `caller_location`
+- canonical citizen and operator workbench incident payloads expose citizen-facing public-user fields only; `/api/caller/*` routes have been removed, and command/operator summary plus SITREP payloads no longer expose legacy caller-shaped response/report aliases
 - canonical incident read payloads normalize historical `caller` participant/media roles and `caller_video` media type to citizen-facing output while leaving stored legacy rows readable
 - new call/session writes use citizen protocol values where the staged compatibility columns or enums exist
 - media logic stores citizen protocol values while retaining legacy caller values as readable compatibility inputs

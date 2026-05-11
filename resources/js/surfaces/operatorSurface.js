@@ -7480,7 +7480,7 @@ function operatorActiveIncidentCardElement(item, root) {
                 <strong>#${escapeHtml(item.display_id)}</strong>
                 <span class="operator-incident-status ${statusToneClass}">${escapeHtml(item.status)}</span>
             </div>
-            <span>${escapeHtml(item.actual_caller_name ?? 'Unknown caller')}</span>
+            <span>${escapeHtml(item.actual_citizen_name ?? 'Unknown citizen')}</span>
             <span class="operator-incident-elapsed" data-incident-elapsed></span>
         </div>
     `;
@@ -7519,7 +7519,7 @@ function operatorArchiveIncidentCardElement(item, root) {
                 <strong>#${escapeHtml(item.display_id)}</strong>
                 <span class="operator-incident-status ${statusToneClass}">${escapeHtml(item.status)}</span>
             </div>
-            <span>${escapeHtml(item.actual_caller_name ?? 'Unknown caller')}</span>
+            <span>${escapeHtml(item.actual_citizen_name ?? 'Unknown citizen')}</span>
             <span class="operator-incident-elapsed" data-incident-elapsed></span>
         </div>
     `;
@@ -7927,7 +7927,7 @@ function mountOperatorActiveList(root, dashboard, scope = root) {
         clearOperatorIncidentElapsedTimers('active');
         const filteredItems = filterOperatorItems(items, searchInput.value, [
             'display_id',
-            'actual_caller_name',
+            'actual_citizen_name',
             'status',
         ]);
 
@@ -8067,7 +8067,7 @@ function mountOperatorArchiveList(panel, root) {
         clearOperatorIncidentElapsedTimers('archive');
         const archiveItems = filterOperatorItems(items, searchInput.value, [
             'display_id',
-            'actual_caller_name',
+            'actual_citizen_name',
             'status',
         ]);
 

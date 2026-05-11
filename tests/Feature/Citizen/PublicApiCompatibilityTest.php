@@ -114,6 +114,22 @@ class PublicApiCompatibilityTest extends TestCase
 
         self::assertArrayNotHasKey('caller_id', $payload['current_call_session']);
         self::assertArrayNotHasKey('caller_id', $payload['call_history'][0]);
-    }
 
+        $homePayload = $this->actingAs($citizen)
+            ->getJson('/api/citizen/home')
+            ->assertOk()
+            ->assertJsonPath('current_open_incident.citizen_id', $citizen->id)
+            ->assertJsonPath('current_open_incident.actual_citizen_name', 'Maria Santos')
+            ->json('current_open_incident');
+
+        foreach ([
+            'caller_id',
+            'caller',
+            'actual_caller_name',
+            'actual_caller_relationship',
+            'caller_location',
+        ] as $legacyKey) {
+            self::assertArrayNotHasKey($legacyKey, $homePayload);
+        }
+    }
 }

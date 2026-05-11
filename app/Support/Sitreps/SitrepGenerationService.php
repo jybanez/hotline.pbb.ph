@@ -147,7 +147,6 @@ class SitrepGenerationService
             'resource_needs' => $resourceRows,
             'field_details' => $fieldDetails,
             'citizen_locations' => $callerLocations,
-            'caller_locations' => $callerLocations,
             'type_rows' => $typeRows,
             'type_counts' => $typeRows->countBy('name')->sortDesc(),
             'location_counts' => $incidents
@@ -264,7 +263,6 @@ class SitrepGenerationService
 
         return [
             'citizens_assisted' => $assisted,
-            'callers_assisted' => $assisted,
             'items' => $items,
             'numeric_total' => $numericTotal,
             'empty_state' => count($items) === 0 ? 'No population fields have been reported for this period.' : null,
@@ -374,7 +372,6 @@ class SitrepGenerationService
         return [
             'global_note' => 'Generated from current Hotline incident data. Unconfigured fields and missing values are reported as data-quality notes.',
             'missing_citizen_location_count' => $missingLocations,
-            'missing_caller_location_count' => $missingLocations,
             'incidents_without_type_count' => $withoutTypes,
             'incidents_without_assignment_count' => $withoutAssignments,
             'unmapped_field_count' => $context['field_details']
@@ -402,7 +399,6 @@ class SitrepGenerationService
     {
         return [
             'citizen_phone_numbers' => 'redacted',
-            'caller_phone_numbers' => 'redacted',
             'raw_chat_transcript' => 'omitted',
             'exact_coordinates' => 'omitted from public report',
             'media_links' => 'omitted unless approved',

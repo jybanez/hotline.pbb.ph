@@ -466,11 +466,12 @@ class IncidentWorkbenchTest extends TestCase
             ->getJson('/api/operator/incidents')
             ->assertOk()
             ->assertJsonPath('items.0.citizen_id', $citizen->id)
-            ->assertJsonPath('items.0.caller_id', $citizen->id)
             ->assertJsonPath('items.0.actual_citizen_name', 'Maria Santos')
-            ->assertJsonPath('items.0.actual_caller_name', 'Maria Santos')
             ->assertJsonPath('items.0.citizen_location.latitude', 10.3157)
-            ->assertJsonPath('items.0.caller_location.latitude', 10.3157);
+            ->assertJsonMissingPath('items.0.caller_id')
+            ->assertJsonMissingPath('items.0.actual_caller_name')
+            ->assertJsonMissingPath('items.0.caller_avatar')
+            ->assertJsonMissingPath('items.0.caller_location');
 
         $payload = $this->actingAs($operator)
             ->getJson("/api/operator/incidents/{$incidentId}")

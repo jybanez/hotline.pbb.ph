@@ -13,7 +13,7 @@ Completed compatibility groundwork:
 - `citizen_id` columns already exist beside `caller_id` on `incidents`, `call_attempts`, `call_sessions`, and `incident_caller_locations`.
 - Existing rows were backfilled from `caller_id` to `citizen_id`.
 - Runtime request validation now rejects legacy caller request fields on the live call/media write paths.
-- Runtime responses expose citizen-facing aliases for current public-user identity, location, media role, and report fields.
+- Runtime responses now expose citizen-facing public-user identity, location, media role, and report fields without legacy caller-shaped aliases on the citizen, operator summary/detail, command incident, and SITREP payloads.
 
 Remaining durable caller storage/history names:
 
@@ -39,9 +39,11 @@ Remaining durable caller storage/history names:
   - `call_participants.participant_role = caller`
   - `call_attempts.outcome = cancelled_by_caller`
   - `call_sessions.outcome = ended_by_caller`
-- Compatibility output/report keys:
-  - `caller_id`, `caller`, `actual_caller_*`, `caller_location`
-  - `caller_locations`, `missing_caller_location_count`, `caller_phone_numbers`, `callers_assisted`
+- Removed compatibility output/report keys:
+  - `caller_id`, `caller`, `actual_caller_*`, `caller_location` from citizen incident/home payloads and operator workbench detail payloads.
+  - `caller_id`, `actual_caller_name`, `caller_name`, and `caller_location` from command incident payloads.
+  - `caller_id`, `caller_avatar`, `actual_caller_name`, and `caller_location` from operator incident summary payloads.
+  - `caller_locations`, `missing_caller_location_count`, `caller_phone_numbers`, and `callers_assisted` from generated SITREP JSON.
 - Configuration compatibility:
   - `HOTLINE_CALLER_SESSION_LIFETIME`
   - `settings.caller_relationships`
@@ -140,14 +142,16 @@ Rollback:
 
 ### Batch 5E: Remove Legacy Output Keys And Deprecated Accessors
 
+Status: Partially complete in code on 2026-05-11; response/report aliases are removed, while deprecated model accessors and configuration fallbacks remain pending.
+
 Goal: remove caller-shaped response/report aliases after a consumer notification window.
 
 Changes:
 
-- Remove legacy response aliases from `IncidentPayloadBuilder` and command/citizen/operator payloads.
-- Remove `caller_locations`, `missing_caller_location_count`, `caller_phone_numbers`, and `callers_assisted` only after the report payload contract is versioned or consumers are confirmed migrated.
-- Remove deprecated `caller()` relationships or keep them only as internal historical accessors with no API exposure.
-- Remove `HOTLINE_CALLER_SESSION_LIFETIME` fallback and rename `settings.caller_relationships` to a citizen-named key if configuration consumers are migrated.
+- [x] Remove legacy response aliases from citizen incident/home payloads, operator workbench detail payloads, operator incident summaries, and command incident payloads.
+- [x] Remove `caller_locations`, `missing_caller_location_count`, `caller_phone_numbers`, and `callers_assisted` after report consumers were confirmed migrated or scoped out.
+- [ ] Remove deprecated `caller()` relationships or keep them only as internal historical accessors with no API exposure.
+- [ ] Remove `HOTLINE_CALLER_SESSION_LIFETIME` fallback and rename `settings.caller_relationships` to a citizen-named key if configuration consumers are migrated.
 
 Rollback:
 

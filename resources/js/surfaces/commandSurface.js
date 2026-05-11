@@ -1579,7 +1579,7 @@ function renderCommandIncidents(root) {
 function buildCommandIncidentRows(items) {
     return [...items].map((incident) => {
         const assignmentCount = Array.isArray(incident.team_assignments) ? incident.team_assignments.length : 0;
-        const callerLabel = incident.caller_name ?? incident.actual_caller_name ?? 'Unknown caller';
+        const citizenLabel = incident.citizen_name ?? incident.actual_citizen_name ?? 'Unknown citizen';
         const displayId = incident.display_id ?? String(incident.id).padStart(6, '0');
         const locationLabel = incident.location_label ?? 'Location unavailable';
         const statusLabel = incident.status_label ?? formatStatusLabel(incident.status);
@@ -1597,7 +1597,7 @@ function buildCommandIncidentRows(items) {
             status_key: statusKey,
             status_label: statusLabel,
             status_sort: commandIncidentStatusSortRank(statusKey),
-            caller_label: callerLabel,
+            citizen_label: citizenLabel,
             location_label: locationLabel,
             updated_label: formatCommandIncidentUpdatedAt(incident.updated_at),
             updated_sort: Date.parse(String(incident.updated_at ?? '')) || 0,
@@ -1869,7 +1869,7 @@ function createIncidentSummaryCell(row) {
 
     const primaryMeta = document.createElement('span');
     primaryMeta.className = 'command-incident-summary-primary';
-    primaryMeta.textContent = `${row.caller_label} · ${row.location_label}`;
+    primaryMeta.textContent = `${row.citizen_label} · ${row.location_label}`;
 
     const secondaryMeta = document.createElement('span');
     secondaryMeta.className = 'command-incident-summary-secondary';
@@ -2356,7 +2356,7 @@ function renderIncidentFallbackList(items) {
             ${items.map((item) => `
                 <article class="command-sitrep-fallback-card">
                     <strong>#${escapeHtml(item.display_id ?? item.id)}</strong>
-                    <span>${escapeHtml(item.caller_name ?? 'Unknown caller')} · ${escapeHtml(item.status_label ?? item.status ?? '')}</span>
+                    <span>${escapeHtml(item.citizen_name ?? 'Unknown citizen')} · ${escapeHtml(item.status_label ?? item.status ?? '')}</span>
                     <small>${escapeHtml(item.location_label ?? 'Location unavailable')}</small>
                 </article>
             `).join('')}

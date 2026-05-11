@@ -21,7 +21,7 @@ class CommandIncidentTest extends TestCase
         $this->withoutMiddleware(VerifyCsrfToken::class);
     }
 
-    public function test_command_incident_list_includes_citizen_payload_aliases(): void
+    public function test_command_incident_list_omits_legacy_caller_aliases(): void
     {
         $citizen = User::factory()->create([
             'role' => UserRole::Citizen,
@@ -50,12 +50,12 @@ class CommandIncidentTest extends TestCase
             ->getJson('/api/command/incidents')
             ->assertOk()
             ->assertJsonPath('items.0.citizen_id', $citizen->id)
-            ->assertJsonPath('items.0.caller_id', $citizen->id)
             ->assertJsonPath('items.0.actual_citizen_name', 'Maria Santos')
-            ->assertJsonPath('items.0.actual_caller_name', 'Maria Santos')
             ->assertJsonPath('items.0.citizen_name', 'Maria Santos')
-            ->assertJsonPath('items.0.caller_name', 'Maria Santos')
             ->assertJsonPath('items.0.citizen_location.latitude', 10.3157)
-            ->assertJsonPath('items.0.caller_location.latitude', 10.3157);
+            ->assertJsonMissingPath('items.0.caller_id')
+            ->assertJsonMissingPath('items.0.actual_caller_name')
+            ->assertJsonMissingPath('items.0.caller_name')
+            ->assertJsonMissingPath('items.0.caller_location');
     }
 }
