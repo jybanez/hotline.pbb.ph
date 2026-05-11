@@ -4609,9 +4609,15 @@ function renderCaller(root, bootstrap, home, primerReport) {
     const shouldPreserveLiveModalOverlay = existingLiveModalOverlay
         && shouldMountLiveCall
         && Number(appState.runtime.callerLiveModal?.latestSessionId ?? 0) === Number(latestSession?.id ?? 0);
+    const existingPendingOverlay = root.querySelector('[data-caller-pending-overlay]');
+    const shouldPreservePendingOverlay = existingPendingOverlay && activePendingState;
 
     if (shouldPreserveLiveModalOverlay) {
         existingLiveModalOverlay.remove();
+    }
+
+    if (shouldPreservePendingOverlay) {
+        existingPendingOverlay.remove();
     }
 
     appState.runtime.navbarActions = [];
@@ -4694,6 +4700,15 @@ function renderCaller(root, bootstrap, home, primerReport) {
     }
 
     if (showingReconnectCall || activePendingState) {
+        if (shouldPreservePendingOverlay) {
+            root.appendChild(existingPendingOverlay);
+            logCallFlow('citizen', 'pending-overlay-preserved-across-render', {
+                incidentId: Number(currentIncident?.id ?? activePendingState?.incident_id ?? 0) || null,
+                callSessionId: Number(activePendingState?.call_session_id ?? latestSession?.id ?? 0) || null,
+                phase: String(activePendingState?.phase ?? ''),
+            });
+        }
+
         showCallerPendingOverlay(root, activePendingState ?? pendingState, currentIncident, bootstrap?.alert_level);
     } else {
         closeCallerPendingOverlay(root);

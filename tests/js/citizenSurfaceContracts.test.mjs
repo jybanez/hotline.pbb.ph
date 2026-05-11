@@ -46,6 +46,7 @@ assert.match(citizenSurface, /product\.query\.request/);
 assert.match(citizenSurface, /hotline\.incident\.snapshot/);
 assert.match(citizenSurface, /product\.query\.response/);
 assert.match(citizenSurface, /post-call-incident-reconcile-query-timeout/);
+assert.match(citizenSurface, /pending-overlay-preserved-across-render/);
 assert.doesNotMatch(citizenSurface, /src="\/images\/hang-up\.svg"/);
 assert.match(realtimeSignalStrength, /navigator\.onLine === false/);
 assert.match(realtimeSignalStrength, /state:\s*'browser-offline'/);
