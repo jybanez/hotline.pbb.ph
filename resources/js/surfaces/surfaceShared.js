@@ -841,7 +841,6 @@ function installAxiosReauthInterceptor() {
                 && !url.includes('/api/csrf-token')
                 && !url.includes('/api/login')
                 && !url.includes('/api/reauth')
-                && !url.includes('/api/logout')
             );
 
             if (canRetryCsrf) {

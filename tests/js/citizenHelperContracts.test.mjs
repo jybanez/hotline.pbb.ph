@@ -6,6 +6,12 @@ const surfaceShared = await readFile(new URL('../../resources/js/surfaces/surfac
 
 assert.match(surfaceShared, /function publicViewerRoleAliases\(viewerRole\)/);
 assert.match(surfaceShared, /brandSubtitle:\s*bootstrap\?\.app\?\.version \? `v\$\{bootstrap\.app\.version\}` : 'hotline\.pbb\.ph'/);
+assert.match(surfaceShared, /const canRetryCsrf = \(\s*status === 419/);
+const csrfRetryBlock = surfaceShared.slice(
+  surfaceShared.indexOf('const canRetryCsrf = ('),
+  surfaceShared.indexOf('if (canRetryCsrf)')
+);
+assert.doesNotMatch(csrfRetryBlock, /!url\.includes\('\/api\/logout'\)/);
 assert.match(surfaceShared, /\['citizen', 'caller'\]\.includes\(viewerRole\)/);
 assert.match(surfaceShared, /function isPublicViewerRole\(viewerRole\)/);
 assert.match(surfaceShared, /viewerRoleAliases\.includes\(message\.sender_role\)/);
