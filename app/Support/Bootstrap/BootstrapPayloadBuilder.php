@@ -55,6 +55,11 @@ class BootstrapPayloadBuilder
 
         return [
             'authenticated' => $user !== null,
+            'app' => [
+                'name' => config('app.name'),
+                'version' => config('app.version'),
+                'release_date' => config('app.release_date'),
+            ],
             'user' => $user,
             'surface' => $surface,
             'alert_level' => $alertLevel->value,

@@ -25,6 +25,8 @@ class BootstrapTest extends TestCase
             ])
             ->assertJsonStructure(['csrf_token'])
             ->assertJsonPath('session_lifetime_minutes', 15)
+            ->assertJsonPath('app.version', '5F.1 Citizen Live Call Readiness')
+            ->assertJsonPath('app.release_date', '2026-05-12')
             ->assertJsonPath('settings.call_hold_seconds', 3)
             ->assertJsonPath('settings.call_timeout_seconds', 20)
             ->assertJsonPath('settings.reconnect_timeout_seconds', 20)
