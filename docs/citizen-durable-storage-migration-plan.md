@@ -160,7 +160,7 @@ Rollback:
 
 ### Batch 5F: Drop Caller Columns And Tables
 
-Status: Complete in code locally on 2026-05-11. Production rollout still requires the normal backup/release window.
+Status: Complete in code locally on 2026-05-11. Production rollout still requires the normal backup/release window documented in `docs/citizen-storage-5f-release-checklist.md`.
 
 Goal: destructive cleanup after production has run cleanly on citizen-named storage.
 
@@ -186,7 +186,7 @@ Changes:
 
 Rollback:
 
-- The 5F migration has a reverse path that recreates caller-shaped columns/table and backfills from citizen-named storage. Production rollout should still be treated as a destructive schema change with an explicit database backup and maintenance window.
+- The 5F migration has a reverse path that recreates caller-shaped columns/table and backfills from citizen-named storage. Production rollout should still be treated as a destructive schema change with an explicit database backup and maintenance window. Use `docs/citizen-storage-5f-release-checklist.md` for the release steps.
 
 ## Verification Gates
 
@@ -205,4 +205,4 @@ Before 5F:
 - [x] Run parity SQL for identity columns and location history before local cleanup. Test records were cleared before 5F.
 - [x] Run full feature test suite locally after 5F: `php artisan test tests\Feature` passed with 149 tests / 1028 assertions.
 - [ ] Run a live smoke test after production rollout: new call, reconnect, citizen hangup, operator hangup, terminal status update.
-- [ ] Capture backup/rollback steps in the release notes before production rollout.
+- [x] Capture backup/rollback steps in the release notes before production rollout: see `docs/citizen-storage-5f-release-checklist.md`.
