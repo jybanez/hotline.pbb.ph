@@ -58,6 +58,7 @@ class BootstrapPayloadBuilder
             'app' => [
                 'name' => config('app.name'),
                 'version' => config('app.version'),
+                'release_name' => config('app.release_name'),
                 'release_date' => config('app.release_date'),
             ],
             'user' => $user,
