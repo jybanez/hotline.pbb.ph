@@ -2,7 +2,7 @@ import { appState, availabilityPillClass, clearCallerPendingState, createIconMar
 import { renderSurface } from './renderSurface.js';
 import { buildAppEventPublishPayload, buildPresenceSubscribePayload, buildRoomJoinPayload, listPresenceRosterItems, parseRealtimeEnvelope, reducePresenceRosterEvent, RealtimeSocketClient } from '../../../../realtime/resources/js/sdk/index.js';
 import { mountRealtimeSignalStrength } from '../features/realtimeSignalStrength.js';
-import { citizenEventType, isLegacyCallerRealtimeEvent, legacyCallerEventType, withCitizenRealtimePayloadAliases } from '../realtime/citizenEvents.js';
+import { citizenEventType, withCitizenRealtimePayloadAliases } from '../realtime/citizenEvents.js';
 
 const CALL_DISCOVERY_ROOM = 'presence.global.hotline';
 const INCIDENT_MEDIA_ROOM_PREFIX = 'hotline.media.incident.';
@@ -483,26 +483,6 @@ function publishCallerCallFlow(eventType, payload = {}) {
     );
 }
 
-function logLegacyCallerRealtimeEventUsage(envelope) {
-    const eventType = String(envelope?.type ?? '').trim();
-
-    if (!isLegacyCallerRealtimeEvent(eventType)) {
-        return;
-    }
-
-    void fetchJson('/api/realtime/legacy-caller-events', {
-        method: 'post',
-        data: {
-            surface: 'citizen',
-            event_type: eventType,
-            canonical_event_type: citizenEventType(eventType),
-            room: String(envelope?.room ?? '').trim() || null,
-        },
-    }).catch((error) => {
-        console.warn('Legacy caller Realtime event telemetry failed.', error);
-    });
-}
-
 function callerLocationEventContext() {
     const liveModal = appState.runtime.callerLiveModal ?? null;
     const livePayload = liveModal?.payload && typeof liveModal.payload === 'object'
@@ -527,7 +507,7 @@ function publishCallerLocationUpdate(location) {
         return null;
     }
 
-    return publishCallerCallFlow('caller.location.updated', {
+    return publishCallerCallFlow('citizen.location.updated', {
         caller_id: Number(appState.bootstrap?.user?.id ?? 0),
         caller_name: String(appState.bootstrap?.user?.name ?? 'Caller'),
         ...context,
@@ -1284,7 +1264,7 @@ function publishCallerOperatorDiscoveryRequest(excludedOperatorIds = []) {
         void closeCallerPendingAndShowUnavailable(CALLER_OPERATOR_UNAVAILABLE_MESSAGE);
     }, callerDiscoveryResponseTimeoutMs());
 
-    const published = publishCallerCallFlow('caller.operator.available.request', {
+    const published = publishCallerCallFlow('citizen.operator.available.request', {
         caller_id: Number(appState.bootstrap?.user?.id ?? 0),
         excluded_operator_ids: excluded,
         ...callerLocationPayload(),
@@ -1319,7 +1299,7 @@ function retryCallerCallDiscoveryAfterMiss(pending, options = {}) {
     ]);
 
     if (markTimedOut && missedOperatorId > 0) {
-        publishCallerCallFlow('caller.call.timed_out', {
+        publishCallerCallFlow('citizen.call.timed_out', {
             call_attempt_id: missedAttemptId,
             call_attempt_operator_attempt_id: missedOperatorAttemptId,
             caller_id: callerId,
@@ -1414,7 +1394,7 @@ function scheduleCallerReconnectRingingTimeout(pending) {
             return;
         }
 
-        publishCallerCallFlow('caller.reconnect.timed_out', {
+        publishCallerCallFlow('citizen.reconnect.timed_out', {
             call_attempt_id: Number(latest.attempt_id ?? 0),
             call_attempt_operator_attempt_id: Number(latest.operator_attempt_id ?? 0),
             caller_id: Number(appState.bootstrap?.user?.id ?? 0),
@@ -1705,9 +1685,7 @@ async function connectCallerRealtimeStream(options = {}) {
                         .catch(showAlertToast);
                     return;
                 }
-                logLegacyCallerRealtimeEventUsage(envelope);
-
-                const eventType = legacyCallerEventType(envelope?.type);
+                const eventType = citizenEventType(envelope?.type);
                 const eventRoom = String(envelope?.room ?? '').trim();
                 const payload = withCitizenRealtimePayloadAliases(envelope?.payload);
 
@@ -1783,7 +1761,7 @@ async function connectCallerRealtimeStream(options = {}) {
 
                 const pendingState = getCallerPendingState();
 
-                if (eventType === 'caller.operator.available.response') {
+                if (eventType === 'citizen.operator.available.response') {
                     if (!pendingState || pendingState.kind !== 'new_call' || pendingState.operator_id) {
                         return;
                     }
@@ -1806,7 +1784,7 @@ async function connectCallerRealtimeStream(options = {}) {
                     scheduleCallerRingingTimeout(nextPendingState);
 
                     void captureCallerLocationOnce({ timeoutMs: 1500 }).then(() => {
-                        publishCallerCallFlow('caller.call.request', {
+                        publishCallerCallFlow('citizen.call.request', {
                             caller_id: Number(appState.bootstrap?.user?.id ?? 0),
                             operator_id: Number(payload.operator_id),
                             caller_name: String(appState.bootstrap?.user?.name ?? 'Caller'),
@@ -1820,7 +1798,7 @@ async function connectCallerRealtimeStream(options = {}) {
                     return;
                 }
 
-                if (eventType === 'caller.call.ringing') {
+                if (eventType === 'citizen.call.ringing') {
                     if (!pendingState || pendingState.kind !== 'new_call') {
                         return;
                     }
@@ -1846,7 +1824,7 @@ async function connectCallerRealtimeStream(options = {}) {
                     return;
                 }
 
-                if (eventType === 'caller.reconnect.availability.response') {
+                if (eventType === 'citizen.reconnect.availability.response') {
                     if (
                         !pendingState
                         || pendingState.kind !== 'reconnect'
@@ -1870,7 +1848,7 @@ async function connectCallerRealtimeStream(options = {}) {
                         phase: 'requesting',
                     });
 
-                    publishCallerCallFlow('caller.reconnect.request', {
+                    publishCallerCallFlow('citizen.reconnect.request', {
                         caller_id: Number(appState.bootstrap?.user?.id ?? 0),
                         incident_id: Number(payload.incident_id ?? 0),
                         operator_id: Number(payload.operator_id ?? 0),
@@ -1882,7 +1860,7 @@ async function connectCallerRealtimeStream(options = {}) {
                     return;
                 }
 
-                if (eventType === 'caller.reconnect.ringing') {
+                if (eventType === 'citizen.reconnect.ringing') {
                     if (
                         !pendingState
                         || pendingState.kind !== 'reconnect'
@@ -1906,7 +1884,7 @@ async function connectCallerRealtimeStream(options = {}) {
                     return;
                 }
 
-                if (eventType === 'caller.call.answered') {
+                if (eventType === 'citizen.call.answered') {
                     logCallFlow('citizen', 'call-answered-event-handling', {
                         incidentId: Number(payload.incident_id ?? 0) || null,
                         callSessionId: Number(payload.call_session_id ?? 0) || null,
@@ -1955,7 +1933,7 @@ async function connectCallerRealtimeStream(options = {}) {
                     return;
                 }
 
-                if (eventType === 'caller.reconnect.answered') {
+                if (eventType === 'citizen.reconnect.answered') {
                     if (
                         !pendingState
                         || pendingState.kind !== 'reconnect'
@@ -2002,7 +1980,7 @@ async function connectCallerRealtimeStream(options = {}) {
                     return;
                 }
 
-                if (eventType === 'caller.call.ready') {
+                if (eventType === 'citizen.call.ready') {
                     const callSessionId = Number(payload.call_session_id ?? 0);
                     const incidentId = Number(payload.incident_id ?? 0);
                     const answeredAt = String(payload.answered_at ?? '').trim() || new Date().toISOString();
@@ -2045,7 +2023,7 @@ async function connectCallerRealtimeStream(options = {}) {
                     return;
                 }
 
-                if (eventType === 'caller.reconnect.cancelled') {
+                if (eventType === 'citizen.reconnect.cancelled') {
                     if (!pendingState || pendingState.kind !== 'reconnect') {
                         return;
                     }
@@ -2061,7 +2039,7 @@ async function connectCallerRealtimeStream(options = {}) {
                     return;
                 }
 
-                if (eventType === 'caller.reconnect.declined' || eventType === 'caller.reconnect.timed_out') {
+                if (eventType === 'citizen.reconnect.declined' || eventType === 'citizen.reconnect.timed_out') {
                     if (!pendingState || pendingState.kind !== 'reconnect') {
                         return;
                     }
@@ -2079,7 +2057,7 @@ async function connectCallerRealtimeStream(options = {}) {
                     return;
                 }
 
-                if (eventType === 'caller.call.timed_out') {
+                if (eventType === 'citizen.call.timed_out') {
                     if (!pendingState || pendingState.kind !== 'new_call') {
                         return;
                     }
@@ -2093,12 +2071,12 @@ async function connectCallerRealtimeStream(options = {}) {
                     return;
                 }
 
-                if (eventType === 'caller.call.cancelled' || eventType === 'caller.call.declined') {
+                if (eventType === 'citizen.call.cancelled' || eventType === 'citizen.call.declined') {
                     if (!pendingState || pendingState.kind !== 'new_call') {
                         return;
                     }
 
-                    if (eventType === 'caller.call.cancelled') {
+                    if (eventType === 'citizen.call.cancelled') {
                         void (async () => {
                             clearCallerCallRoutingTimers();
                             await closeCallerPendingOverlay(appState.runtime.callerRoot);
@@ -4273,7 +4251,7 @@ async function runCallerReconnect(root, incidentId, noticeTarget = null) {
         created_at: new Date().toISOString(),
     });
 
-    publishCallerCallFlow('caller.reconnect.availability.request', {
+    publishCallerCallFlow('citizen.reconnect.availability.request', {
         caller_id: Number(appState.bootstrap?.user?.id ?? 0),
         incident_id: nextIncidentId,
         requested_at: new Date().toISOString(),
@@ -4523,7 +4501,7 @@ function renderCaller(root, bootstrap, home, primerReport) {
 
         try {
             if (pending?.kind === 'new_call' && pending.operator_attempt_id && pending.operator_id) {
-                publishCallerCallFlow('caller.call.cancel', {
+                publishCallerCallFlow('citizen.call.cancel', {
                     call_attempt_id: Number(pending.attempt_id ?? 0),
                     call_attempt_operator_attempt_id: Number(pending.operator_attempt_id),
                     caller_id: Number(appState.bootstrap?.user?.id ?? 0),
@@ -4532,7 +4510,7 @@ function renderCaller(root, bootstrap, home, primerReport) {
                 });
             }
             else if (pending?.kind === 'reconnect' && pending.operator_attempt_id && pending.operator_id) {
-                publishCallerCallFlow('caller.reconnect.cancel', {
+                publishCallerCallFlow('citizen.reconnect.cancel', {
                     call_attempt_id: Number(pending.attempt_id ?? 0),
                     call_attempt_operator_attempt_id: Number(pending.operator_attempt_id),
                     caller_id: Number(appState.bootstrap?.user?.id ?? 0),

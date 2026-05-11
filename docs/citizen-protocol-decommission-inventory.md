@@ -28,7 +28,7 @@ Remove after the final compatibility window:
 
 Remove after Realtime service examples and fixtures are confirmed canonical:
 
-- `resources/js/realtime/citizenEvents.js`: caller-to-citizen event map, reverse map, legacy detector, and payload alias helper.
+- `resources/js/realtime/citizenEvents.js`: caller-to-citizen event map, reverse map, and legacy detector. Keep payload field aliasing until Batch 3.
 - `resources/js/surfaces/citizenSurface.js` and `resources/js/surfaces/operatorSurface.js`: remaining `caller.*` event string inputs and `/api/realtime/legacy-caller-events` telemetry calls.
 - `routes/api/realtime.php`: `POST /api/realtime/legacy-caller-events`.
 - `app/Http/Controllers/Api/Realtime/LegacyCallerEventUsageController.php`.
@@ -85,7 +85,7 @@ Full removal needs a separate data migration plan, consumer notification window,
 
 Realtime shared-service, Helper shared-service, installed PWA, and durable storage/history scope confirmations are complete. Start with Batch 2 as the first removal PR; it removes runtime event compatibility without touching routes, installed PWA assets, or database-backed history. Then run:
 
-- `npm run test:js`
+- `node tests/js/citizenRealtimeEvents.test.mjs`
 - `npm run build`
 - `php artisan test --filter=Realtime`
 - Live smoke: new call, reconnect, operator hangup, citizen hangup, terminal status update.

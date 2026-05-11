@@ -8,7 +8,7 @@ import { createRealtimeOperatorMediaChunkTransport } from '../media/transports/r
 import { createDashboardMap } from '../maps/dashboardMap.js';
 import { createWorkbenchLocationMap } from '../maps/workbenchLocationMap.js';
 import { buildAppEventPublishPayload, buildPresencePublishPayload, buildPresenceSubscribePayload, buildRoomJoinPayload, listPresenceRosterItems, parseRealtimeEnvelope, reducePresenceRosterEvent, RealtimeSocketClient } from '../../../../realtime/resources/js/sdk/index.js';
-import { citizenEventType, isLegacyCallerRealtimeEvent, legacyCallerEventType, withCitizenRealtimePayloadAliases } from '../realtime/citizenEvents.js';
+import { citizenEventType, withCitizenRealtimePayloadAliases } from '../realtime/citizenEvents.js';
 
 const CALL_DISCOVERY_ROOM = 'presence.global.hotline';
 const INCIDENT_MEDIA_ROOM_PREFIX = 'hotline.media.incident.';
@@ -172,26 +172,6 @@ function publishOperatorCallFlow(eventType, payload = {}) {
         CALL_DISCOVERY_ROOM,
         buildAppEventPublishPayload(canonicalEventType, withCitizenRealtimePayloadAliases(payload)),
     );
-}
-
-function logLegacyCallerRealtimeEventUsage(envelope) {
-    const eventType = String(envelope?.type ?? '').trim();
-
-    if (!isLegacyCallerRealtimeEvent(eventType)) {
-        return;
-    }
-
-    void fetchJson('/api/realtime/legacy-caller-events', {
-        method: 'post',
-        data: {
-            surface: 'operator',
-            event_type: eventType,
-            canonical_event_type: citizenEventType(eventType),
-            room: String(envelope?.room ?? '').trim() || null,
-        },
-    }).catch((error) => {
-        console.warn('Legacy caller Realtime event telemetry failed.', error);
-    });
 }
 
 function operatorCallTimeoutMs() {
@@ -1217,9 +1197,7 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                     });
                     return;
                 }
-                logLegacyCallerRealtimeEventUsage(envelope);
-
-                const eventType = legacyCallerEventType(envelope?.type);
+                const eventType = citizenEventType(envelope?.type);
                 const eventRoom = String(envelope?.room ?? '').trim();
                 const payload = withCitizenRealtimePayloadAliases(envelope?.payload);
 
@@ -1271,14 +1249,14 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                     callerId: Number(payload?.caller_id ?? payload?.citizen_id ?? 0) || null,
                 });
 
-                if (eventType === 'caller.location.updated') {
+                if (eventType === 'citizen.location.updated') {
                     if (operatorCanReceiveCallerLocationUpdate(payload)) {
                         applyOperatorCallerLocationUpdate(payload);
                     }
                     return;
                 }
 
-                if (eventType === 'caller.operator.available.request') {
+                if (eventType === 'citizen.operator.available.request') {
                     logCallFlow('operator', 'availability-request-handling', {
                         callerId: Number(payload.caller_id ?? payload.citizen_id ?? 0) || null,
                         canAnswer: operatorCanAnswerDiscoveryRequest(),
@@ -1288,7 +1266,7 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                         return;
                     }
 
-                    publishOperatorCallFlow('caller.operator.available.response', {
+                    publishOperatorCallFlow('citizen.operator.available.response', {
                         caller_id: Number(payload.caller_id),
                         operator_id: Number(appState.bootstrap?.user?.id ?? 0),
                         operator_name: String(appState.bootstrap?.user?.name ?? 'Operator'),
@@ -1298,18 +1276,18 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                     return;
                 }
 
-                if (eventType === 'caller.operator.availability.probe') {
+                if (eventType === 'citizen.operator.availability.probe') {
                     return;
                 }
 
-                if (eventType === 'caller.reconnect.availability.request') {
+                if (eventType === 'citizen.reconnect.availability.request') {
                     const incidentId = Number(payload.incident_id ?? 0);
 
                     if (!operatorOwnsReconnectIncident(incidentId)) {
                         return;
                     }
 
-                    publishOperatorCallFlow('caller.reconnect.availability.response', {
+                    publishOperatorCallFlow('citizen.reconnect.availability.response', {
                         caller_id: Number(payload.caller_id ?? 0),
                         incident_id: incidentId,
                         operator_id: Number(appState.bootstrap?.user?.id ?? 0),
@@ -1321,7 +1299,7 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                     return;
                 }
 
-                if (eventType === 'caller.call.request') {
+                if (eventType === 'citizen.call.request') {
                     logCallFlow('operator', 'call-request-handling', {
                         callerId: Number(payload.caller_id ?? payload.citizen_id ?? 0) || null,
                         operatorId: Number(payload.operator_id ?? 0) || null,
@@ -1376,7 +1354,7 @@ async function connectOperatorRealtimeStream(root, options = {}) {
 
                         appState.runtime.operatorDiscoveryClaimed = true;
                         publishOperatorDiscoveryPresence();
-                        publishOperatorCallFlow('caller.call.ringing', {
+                        publishOperatorCallFlow('citizen.call.ringing', {
                             call_attempt_id: Number(response.attempt?.id),
                             call_attempt_operator_attempt_id: Number(response.operator_attempt?.id),
                             caller_id: Number(payload.caller_id),
@@ -1415,7 +1393,7 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                     return;
                 }
 
-                if (eventType === 'caller.reconnect.request') {
+                if (eventType === 'citizen.reconnect.request') {
                     const callerId = Number(payload.caller_id ?? 0);
                     const incidentId = Number(payload.incident_id ?? 0);
 
@@ -1427,7 +1405,7 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                     }
 
                     if (!operatorReconnectAvailability(incidentId)) {
-                        publishOperatorCallFlow('caller.reconnect.declined', {
+                        publishOperatorCallFlow('citizen.reconnect.declined', {
                             caller_id: Number(payload.caller_id ?? 0),
                             incident_id: incidentId,
                             operator_id: Number(appState.bootstrap?.user?.id ?? 0),
@@ -1440,7 +1418,7 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                     const existingReconnect = findPendingReconnectCall(callerId, incidentId);
 
                     if (existingReconnect?.call_attempt_id) {
-                        publishOperatorCallFlow('caller.reconnect.ringing', {
+                        publishOperatorCallFlow('citizen.reconnect.ringing', {
                             call_attempt_id: Number(existingReconnect.call_attempt_id ?? 0),
                             call_attempt_operator_attempt_id: Number(existingReconnect.id ?? 0),
                             caller_id: callerId,
@@ -1490,7 +1468,7 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                         };
 
                         upsertIncomingCallInDashboard(incomingItem);
-                        publishOperatorCallFlow('caller.reconnect.ringing', {
+                        publishOperatorCallFlow('citizen.reconnect.ringing', {
                             call_attempt_id: Number(response.attempt?.id ?? 0),
                             call_attempt_operator_attempt_id: Number(response.operator_attempt?.id ?? 0),
                             caller_id: callerId,
@@ -1511,7 +1489,7 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                             publishOperatorDiscoveryPresence();
                         }
 
-                        publishOperatorCallFlow('caller.reconnect.declined', {
+                        publishOperatorCallFlow('citizen.reconnect.declined', {
                             caller_id: Number(payload.caller_id ?? 0),
                             incident_id: incidentId,
                             operator_id: Number(appState.bootstrap?.user?.id ?? 0),
@@ -1523,7 +1501,7 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                     return;
                 }
 
-                if (eventType === 'caller.call.cancel') {
+                if (eventType === 'citizen.call.cancel') {
                     if (String(payload?.operator_id ?? '') !== String(appState.bootstrap?.user?.id ?? '')) {
                         return;
                     }
@@ -1552,7 +1530,7 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                         stopOperatorIncomingRingtone();
                         appState.runtime.operatorIncomingCallItem = null;
                         publishOperatorDiscoveryPresence();
-                        publishOperatorCallFlow('caller.call.cancelled', {
+                        publishOperatorCallFlow('citizen.call.cancelled', {
                             call_attempt_id: Number(payload.call_attempt_id ?? 0),
                             call_attempt_operator_attempt_id: Number(payload.call_attempt_operator_attempt_id ?? 0),
                             caller_id: Number(payload.caller_id ?? 0),
@@ -1566,7 +1544,7 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                     return;
                 }
 
-                if (eventType === 'caller.call.timed_out') {
+                if (eventType === 'citizen.call.timed_out') {
                     if (String(payload?.operator_id ?? '') !== String(appState.bootstrap?.user?.id ?? '')) {
                         return;
                     }
@@ -1588,7 +1566,7 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                     return;
                 }
 
-                if (eventType === 'caller.reconnect.timed_out') {
+                if (eventType === 'citizen.reconnect.timed_out') {
                     if (String(payload?.operator_id ?? '') !== String(appState.bootstrap?.user?.id ?? '')) {
                         return;
                     }
@@ -1618,7 +1596,7 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                     return;
                 }
 
-                if (eventType === 'caller.reconnect.cancel') {
+                if (eventType === 'citizen.reconnect.cancel') {
                     if (String(payload?.operator_id ?? '') !== String(appState.bootstrap?.user?.id ?? '')) {
                         return;
                     }
@@ -1642,7 +1620,7 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                         appState.runtime.operatorIncomingCallPhase = null;
                         removeIncomingCallFromDashboard(activeIncoming);
                         publishOperatorDiscoveryPresence();
-                        publishOperatorCallFlow('caller.reconnect.cancelled', {
+                        publishOperatorCallFlow('citizen.reconnect.cancelled', {
                             call_attempt_id: Number(payload.call_attempt_id ?? 0),
                             call_attempt_operator_attempt_id: Number(payload.call_attempt_operator_attempt_id ?? 0),
                             caller_id: Number(payload.caller_id ?? 0),
@@ -6108,7 +6086,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                     captureManager?.syncOperatorAudioMute?.(false);
                     captureManager?.markOperatorAudioUnmuted?.();
                     dismissConnectionOverlay();
-                    publishOperatorCallFlow('caller.call.ready', {
+                    publishOperatorCallFlow('citizen.call.ready', {
                         incident_id: Number(payload.id ?? 0),
                         call_session_id: activeSessionId,
                         citizen_id: Number(payload.citizen?.id ?? payload.citizen_id ?? 0),
@@ -6946,7 +6924,7 @@ async function openIncomingCallModal(root, item, phase = 'incoming') {
         const timeout = Boolean(options.timeout);
         const endpointAction = timeout ? 'timeout' : 'decline';
         const outcome = timeout ? 'timed_out' : 'declined_by_operator';
-        const eventType = timeout ? 'caller.call.timed_out' : 'caller.call.declined';
+        const eventType = timeout ? 'citizen.call.timed_out' : 'citizen.call.declined';
 
         if (item?.demo) {
             sessionStorage.setItem(dismissKey, '1');
@@ -6967,7 +6945,7 @@ async function openIncomingCallModal(root, item, phase = 'incoming') {
             publishOperatorDiscoveryPresence();
 
             if (item.kind === 'reconnect' && item.call_attempt_id) {
-                publishOperatorCallFlow(timeout ? 'caller.reconnect.timed_out' : 'caller.reconnect.declined', {
+                publishOperatorCallFlow(timeout ? 'citizen.reconnect.timed_out' : 'citizen.reconnect.declined', {
                     call_attempt_id: Number(item.call_attempt_id ?? 0),
                     call_attempt_operator_attempt_id: Number(item.id),
                     caller_id: Number(item.caller_id ?? 0),
@@ -7051,7 +7029,7 @@ async function openIncomingCallModal(root, item, phase = 'incoming') {
                     hasCallSessionPayload: Boolean(response.call_session),
                 });
 
-                publishOperatorCallFlow('caller.call.answered', {
+                publishOperatorCallFlow('citizen.call.answered', {
                     call_attempt_id: Number(response.attempt?.id ?? 0),
                     call_attempt_operator_attempt_id: Number(item.id),
                     incident_id: Number(response.incident?.id ?? 0),
@@ -7097,7 +7075,7 @@ async function openIncomingCallModal(root, item, phase = 'incoming') {
                     method: 'post',
                 });
 
-                publishOperatorCallFlow('caller.reconnect.answered', {
+                publishOperatorCallFlow('citizen.reconnect.answered', {
                     call_attempt_id: Number(response.attempt?.id ?? item.call_attempt_id ?? 0),
                     call_attempt_operator_attempt_id: Number(item.id),
                     incident_id: Number(response.incident?.id ?? item.incident_id ?? 0),
@@ -7145,7 +7123,7 @@ async function openIncomingCallModal(root, item, phase = 'incoming') {
                 method: 'post',
             });
 
-            publishOperatorCallFlow('caller.call.answered', {
+            publishOperatorCallFlow('citizen.call.answered', {
                 incident_id: Number(item.incident_id ?? 0),
                 call_session_id: Number(item.call_session_id ?? 0),
                 caller_id: Number(item.caller_id ?? 0),

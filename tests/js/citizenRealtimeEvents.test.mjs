@@ -1,73 +1,47 @@
 import assert from 'node:assert/strict';
 
 import {
-    CALLER_TO_CITIZEN_EVENT_TYPES,
     CITIZEN_EVENT_TYPES,
-    CITIZEN_TO_CALLER_EVENT_TYPES,
-    LEGACY_CALLER_EVENT_TYPES,
     citizenEventType,
     isCitizenRealtimeEvent,
-    isLegacyCallerRealtimeEvent,
-    legacyCallerEventType,
     withCitizenRealtimePayloadAliases,
 } from '../../resources/js/realtime/citizenEvents.js';
 
-const requiredMappings = {
-    'caller.operator.available.request': 'citizen.operator.available.request',
-    'caller.operator.available.response': 'citizen.operator.available.response',
-    'caller.call.request': 'citizen.call.request',
-    'caller.call.ringing': 'citizen.call.ringing',
-    'caller.call.cancel': 'citizen.call.cancel',
-    'caller.call.cancelled': 'citizen.call.cancelled',
-    'caller.call.declined': 'citizen.call.declined',
-    'caller.call.answered': 'citizen.call.answered',
-    'caller.call.ready': 'citizen.call.ready',
-    'caller.location.updated': 'citizen.location.updated',
-    'caller.reconnect.availability.request': 'citizen.reconnect.availability.request',
-    'caller.reconnect.availability.response': 'citizen.reconnect.availability.response',
-    'caller.reconnect.request': 'citizen.reconnect.request',
-    'caller.reconnect.ringing': 'citizen.reconnect.ringing',
-    'caller.reconnect.cancel': 'citizen.reconnect.cancel',
-    'caller.reconnect.cancelled': 'citizen.reconnect.cancelled',
-    'caller.reconnect.declined': 'citizen.reconnect.declined',
-    'caller.reconnect.timed_out': 'citizen.reconnect.timed_out',
-    'caller.reconnect.answered': 'citizen.reconnect.answered',
-};
+const requiredEvents = [
+    'citizen.operator.available.request',
+    'citizen.operator.available.response',
+    'citizen.operator.availability.probe',
+    'citizen.call.request',
+    'citizen.call.ringing',
+    'citizen.call.cancel',
+    'citizen.call.cancelled',
+    'citizen.call.declined',
+    'citizen.call.answered',
+    'citizen.call.ready',
+    'citizen.call.timed_out',
+    'citizen.location.updated',
+    'citizen.reconnect.availability.request',
+    'citizen.reconnect.availability.response',
+    'citizen.reconnect.request',
+    'citizen.reconnect.ringing',
+    'citizen.reconnect.cancel',
+    'citizen.reconnect.cancelled',
+    'citizen.reconnect.declined',
+    'citizen.reconnect.timed_out',
+    'citizen.reconnect.answered',
+];
 
-assert.deepEqual(
-    Object.fromEntries(
-        Object.entries(CALLER_TO_CITIZEN_EVENT_TYPES)
-            .filter(([callerEvent]) => Object.hasOwn(requiredMappings, callerEvent)),
-    ),
-    requiredMappings,
-);
-
-assert.equal(CITIZEN_EVENT_TYPES.length, LEGACY_CALLER_EVENT_TYPES.length);
+assert.deepEqual(CITIZEN_EVENT_TYPES, requiredEvents);
 assert.equal(CITIZEN_EVENT_TYPES.length, new Set(CITIZEN_EVENT_TYPES).size);
-assert.equal(LEGACY_CALLER_EVENT_TYPES.length, new Set(LEGACY_CALLER_EVENT_TYPES).size);
 
-for (const [callerEvent, citizenEvent] of Object.entries(CALLER_TO_CITIZEN_EVENT_TYPES)) {
-    assert.equal(CITIZEN_TO_CALLER_EVENT_TYPES[citizenEvent], callerEvent);
-    assert.equal(citizenEventType(callerEvent), citizenEvent);
-    assert.equal(citizenEventType(citizenEvent), citizenEvent);
-    assert.equal(legacyCallerEventType(citizenEvent), callerEvent);
-    assert.equal(legacyCallerEventType(callerEvent), callerEvent);
-    assert.equal(isLegacyCallerRealtimeEvent(callerEvent), true);
-    assert.equal(isCitizenRealtimeEvent(citizenEvent), true);
+for (const eventType of CITIZEN_EVENT_TYPES) {
+    assert.equal(citizenEventType(eventType), eventType);
+    assert.equal(isCitizenRealtimeEvent(eventType), true);
 }
 
-const canonicalFlowEvent = 'citizen.call.answered';
-const legacyCompatibilityEvent = 'caller.call.answered';
-
-assert.equal(citizenEventType(canonicalFlowEvent), canonicalFlowEvent);
-assert.equal(legacyCallerEventType(canonicalFlowEvent), legacyCompatibilityEvent);
-assert.equal(citizenEventType(legacyCompatibilityEvent), canonicalFlowEvent);
-assert.equal(legacyCallerEventType(legacyCompatibilityEvent), legacyCompatibilityEvent);
-
 assert.equal(citizenEventType('hotline.incident.updated'), 'hotline.incident.updated');
-assert.equal(legacyCallerEventType('hotline.incident.updated'), 'hotline.incident.updated');
-assert.equal(isLegacyCallerRealtimeEvent('hotline.incident.updated'), false);
 assert.equal(isCitizenRealtimeEvent('hotline.incident.updated'), false);
+assert.equal(isCitizenRealtimeEvent('caller.call.answered'), false);
 
 assert.deepEqual(
     withCitizenRealtimePayloadAliases({
