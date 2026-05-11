@@ -22,7 +22,7 @@ export async function renderSurface(surface, options = {}) {
         return;
     }
 
-    if (surface === 'citizen' || surface === 'caller') {
+    if (surface === 'citizen') {
         const { renderCitizenSurface } = await import('./citizenSurface.js');
         await renderCitizenSurface(root, bootstrap, options);
         return;

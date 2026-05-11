@@ -98,14 +98,13 @@ window.HotlineCitizenPwa = {
     isStandalone: isStandaloneCitizenPwa,
     offerInstall: offerCitizenPwaInstall,
 };
-window.HotlineCallerPwa = window.HotlineCitizenPwa;
 
 async function pingStandaloneCitizenSession() {
     if (!isStandaloneCitizenPwa()) {
         return;
     }
 
-    if (!appState.bootstrap?.authenticated || !['citizen', 'caller'].includes(appState.bootstrap?.user?.role)) {
+    if (!appState.bootstrap?.authenticated || appState.bootstrap?.user?.role !== 'citizen') {
         return;
     }
 

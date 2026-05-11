@@ -429,7 +429,7 @@ function resetCallerRealtimeJoinState() {
 }
 
 function scheduleCallerRealtimeReconnect() {
-    if (!appState.bootstrap?.authenticated || !['citizen', 'caller'].includes(appState.activeSurface)) {
+    if (!appState.bootstrap?.authenticated || appState.activeSurface !== 'citizen') {
         return;
     }
 
@@ -1535,7 +1535,7 @@ function resetCallerDiscoveryPresence() {
 }
 
 async function connectCallerRealtimeStream(options = {}) {
-    if (!appState.bootstrap?.authenticated || !['citizen', 'caller'].includes(appState.activeSurface)) {
+    if (!appState.bootstrap?.authenticated || appState.activeSurface !== 'citizen') {
         return;
     }
 
@@ -4389,7 +4389,7 @@ function renderCaller(root, bootstrap, home, primerReport) {
 
     appState.runtime.navbarActions = [];
 
-    const citizenPwa = window.HotlineCitizenPwa ?? window.HotlineCallerPwa;
+    const citizenPwa = window.HotlineCitizenPwa;
 
     if (!citizenPwa?.isStandalone?.()) {
         appState.runtime.navbarActions.push({

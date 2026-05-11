@@ -55,12 +55,13 @@ Replacement behavior: request validation accepts canonical `citizen_*`, `citizen
 
 ## Batch 4: PWA Alias Assets
 
-Remove only after installed PWA compatibility window has passed:
+Completed after installed PWA terminal-status validation passed:
 
-- `public/caller.webmanifest`.
-- `public/caller-sw.js`.
-- `/caller/offline` route and `/caller` navigation fallback entries in `public/citizen-sw.js`.
-- `window.HotlineCallerPwa` alias in `resources/js/entries/citizen.js`.
+- Removed `public/caller.webmanifest`.
+- Removed `public/caller-sw.js`.
+- Removed `/caller/offline` route in Batch 1, then removed `/caller` navigation fallback and `/caller` static cache entries from `public/citizen-sw.js`.
+- Removed `window.HotlineCallerPwa` alias in `resources/js/entries/citizen.js`.
+- Removed the remaining browser surface entry alias that allowed `renderSurface('caller')` to load the citizen surface.
 
 Keep `citizen-sw.js` cache cleanup for old `caller-pwa-*` caches until at least one additional production release after caller assets are removed.
 
@@ -84,7 +85,7 @@ Full removal needs a separate data migration plan, consumer notification window,
 
 ## Recommended First Removal PR
 
-Realtime shared-service, Helper shared-service, installed PWA, and durable storage/history scope confirmations are complete. Batch 1, Batch 2, and Batch 3 alias removals are complete. Installed PWA assets and database-backed history remain separately staged. Then run:
+Realtime shared-service, Helper shared-service, installed PWA, and durable storage/history scope confirmations are complete. Batch 1, Batch 2, Batch 3, and Batch 4 alias removals are complete. Database-backed history remains separately staged. Then run:
 
 - `node tests/js/citizenRealtimeEvents.test.mjs`
 - `npm run build`

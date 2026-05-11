@@ -3,9 +3,7 @@ const STATIC_CACHE = `${CACHE_VERSION}-static`;
 
 const STATIC_PATHS = [
     '/citizen/offline',
-    '/caller/offline',
     '/citizen.webmanifest',
-    '/caller.webmanifest',
     '/images/logo.png',
     '/favicon-192.png',
     '/favicon-512.png',
@@ -56,7 +54,7 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    if (request.mode === 'navigate' && (url.pathname.startsWith('/citizen') || url.pathname.startsWith('/caller'))) {
+    if (request.mode === 'navigate' && url.pathname.startsWith('/citizen')) {
         event.respondWith(networkFirstNavigation(request));
         return;
     }
@@ -70,8 +68,7 @@ async function networkFirstNavigation(request) {
     try {
         return await fetch(request);
     } catch (error) {
-        const cached = await caches.match('/citizen/offline')
-            ?? await caches.match('/caller/offline');
+        const cached = await caches.match('/citizen/offline');
 
         if (cached) {
             return cached;

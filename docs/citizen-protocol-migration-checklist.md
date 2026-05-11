@@ -2,7 +2,7 @@
 
 Date: 2026-05-10
 
-Status: Working tracker for Phase 2 caller-to-citizen migration; live-call readiness and incident status propagation validated, route/event/request-field alias cleanup completed, PWA assets and durable storage/history remain staged separately.
+Status: Working tracker for Phase 2 caller-to-citizen migration; live-call readiness and incident status propagation validated, route/event/request-field/PWA alias cleanup completed, and durable storage/history remains staged separately.
 
 Related plan:
 - [Citizen Protocol Migration Plan](citizen-protocol-migration-plan.md)
@@ -75,8 +75,8 @@ Legend:
 - [x] `/caller/offline` compatibility was provided during the support window and has now been removed in Batch 1 decommission.
 - [x] Add or verify `citizen.webmanifest`.
 - [x] Add or verify `citizen-sw.js`.
-- [x] Keep `caller.webmanifest` available for installed legacy PWAs.
-- [x] Keep `caller-sw.js` available for installed legacy PWAs.
+- [x] `caller.webmanifest` compatibility was provided during the installed PWA support window and has now been removed in Batch 4 decommission.
+- [x] `caller-sw.js` compatibility was provided during the installed PWA support window and has now been removed in Batch 4 decommission.
 - [x] Verify service-worker scope for `/citizen`.
 - [x] Verify offline behavior for `/citizen/offline`.
 - [x] Verify legacy installed caller PWA opens or redirects safely.
@@ -246,12 +246,12 @@ Legend:
 - [x] Remove caller event aliases: Batch 2 removed runtime `caller.*` Realtime event compatibility from the citizen/operator browser surfaces, deleted the `/api/realtime/legacy-caller-events` telemetry endpoint and controller, and updated the JS event contract to citizen-only event names.
 - [x] Remove caller request-field aliases: Batch 3 removed legacy caller request-body fallback/logging from call-attempt, actual-citizen/intake, media registration, media assembly, and internal media chunk ingest paths; canonical requests now use `citizen_*`, `citizen_video`, and `peer_role: citizen|operator` while durable database columns and historical media values remain unchanged.
 - [x] Remove caller route aliases: Batch 1 removed `/caller`, `/api/caller/*`, `/api/realtime/admission/caller`, caller-named operator route aliases, and the legacy caller route telemetry middleware.
-- [ ] Remove caller PWA assets only after compatibility window.
+- [x] Remove caller PWA assets only after compatibility window: Batch 4 removed `caller.webmanifest`, `caller-sw.js`, `/caller` service-worker fallbacks, and the browser PWA surface alias.
 - [ ] Remove caller database columns/tables after staged citizen migration and final decommission approval.
 
 Current decommission gate:
 - Do not remove caller-shaped database columns, historical media values, participant roles, outcomes, or legacy report keys in the first alias-removal PR; those are Batch 5 data-migration work.
-- The local and production-served readiness passes proved current `/citizen` flows are canonical, including live call setup, hangup/reconnect handling, operator offline recovery, and post-call status propagation. Legacy route and payload telemetry stayed flat through the live validation window. Realtime shared-service, Helper shared-service, installed PWA terminal-status, and durable storage/history scope confirmations are complete. Batch 1 route alias removal, Batch 2 Realtime event alias removal, and Batch 3 request-field alias removal are complete; PWA assets remain separately staged.
+- The local and production-served readiness passes proved current `/citizen` flows are canonical, including live call setup, hangup/reconnect handling, operator offline recovery, and post-call status propagation. Legacy route and payload telemetry stayed flat through the live validation window. Realtime shared-service, Helper shared-service, installed PWA terminal-status, and durable storage/history scope confirmations are complete. Batch 1 route alias removal, Batch 2 Realtime event alias removal, Batch 3 request-field alias removal, and Batch 4 PWA asset removal are complete.
 
 ## Open Decisions Tracker
 

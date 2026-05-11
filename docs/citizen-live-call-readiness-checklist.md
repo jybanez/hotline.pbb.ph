@@ -113,4 +113,4 @@ If the machine restarts, restart the Realtime daemon before retesting.
 - Canonical new Hotline writes now use citizen values where this phase has switched runtime behavior.
 - Canonical request bodies now use `citizen_*`, `citizen_video`, and `peer_role: citizen|operator`; legacy caller request-field fallbacks have been removed from the live call/media write paths.
 - Historical pre-refactor rows can still contain legacy caller values; the live-test verification above only covers newly written rows from this readiness pass.
-- Destructive removal of caller columns and PWA assets is still deferred until final decommission approval.
+- Destructive removal of caller columns remains deferred until final decommission approval; legacy caller PWA assets were removed after the installed PWA validation window.

@@ -29,20 +29,20 @@ class SurfaceAccessTest extends TestCase
             ->assertSee('/citizen.webmanifest', false);
     }
 
-    public function test_citizen_pwa_assets_exist_while_legacy_caller_assets_wait_for_pwa_batch(): void
+    public function test_citizen_pwa_assets_exist_and_legacy_caller_assets_are_removed(): void
     {
         self::assertFileExists(public_path('citizen.webmanifest'));
         self::assertFileExists(public_path('citizen-sw.js'));
-        self::assertFileExists(public_path('caller.webmanifest'));
-        self::assertFileExists(public_path('caller-sw.js'));
+        self::assertFileDoesNotExist(public_path('caller.webmanifest'));
+        self::assertFileDoesNotExist(public_path('caller-sw.js'));
 
         $citizenManifest = file_get_contents(public_path('citizen.webmanifest'));
         $citizenServiceWorker = file_get_contents(public_path('citizen-sw.js'));
-        $legacyCallerServiceWorker = file_get_contents(public_path('caller-sw.js'));
 
         self::assertStringContainsString('/citizen?source=pwa', $citizenManifest);
         self::assertStringContainsString('/citizen/offline', $citizenServiceWorker);
-        self::assertStringContainsString('/citizen.webmanifest', $legacyCallerServiceWorker);
+        self::assertStringNotContainsString('/caller/offline', $citizenServiceWorker);
+        self::assertStringNotContainsString('/caller.webmanifest', $citizenServiceWorker);
     }
 
     public function test_wrong_role_is_redirected_to_unauthorized_screen(): void

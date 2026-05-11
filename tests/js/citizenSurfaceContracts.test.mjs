@@ -9,10 +9,11 @@ const realtimeSignalStrength = await readFile(new URL('../../resources/js/featur
 assert.match(citizenEntry, /renderSurface\('citizen'\)/);
 assert.match(citizenEntry, /navigator\.serviceWorker\.register\('\/citizen-sw\.js'/);
 assert.match(citizenEntry, /window\.HotlineCitizenPwa\s*=/);
-assert.match(citizenEntry, /window\.HotlineCallerPwa\s*=\s*window\.HotlineCitizenPwa/);
+assert.doesNotMatch(citizenEntry, /HotlineCallerPwa/);
 assert.match(citizenEntry, /\/api\/session\/ping\?surface=citizen/);
 
-assert.match(renderSurface, /surface === 'citizen' \|\| surface === 'caller'/);
+assert.match(renderSurface, /surface === 'citizen'/);
+assert.doesNotMatch(renderSurface, /surface === 'caller'/);
 assert.match(renderSurface, /renderCitizenSurface/);
 
 assert.match(citizenSurface, /fetchJson\('\/api\/citizen\/home'\)/);
@@ -20,7 +21,7 @@ assert.match(citizenSurface, /fetchJson\('\/api\/realtime\/admission\/citizen'/)
 assert.match(citizenSurface, /requestPrefix:\s*'citizen_surface'/);
 assert.match(citizenSurface, /admissionPath:\s*'\/api\/realtime\/admission\/citizen'/);
 assert.match(citizenSurface, /brandHref:\s*'\/citizen'/);
-assert.match(citizenSurface, /window\.HotlineCitizenPwa \?\? window\.HotlineCallerPwa/);
+assert.doesNotMatch(citizenSurface, /HotlineCallerPwa/);
 assert.match(citizenSurface, /Citizen Realtime surface stream unavailable\./);
 assert.match(citizenSurface, /window\.addEventListener\('offline'/);
 assert.match(citizenSurface, /window\.addEventListener\('online'/);
