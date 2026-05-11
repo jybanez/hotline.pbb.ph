@@ -32,6 +32,7 @@ const SESSION_ACTIVITY_STALE_MS = 30 * 1000;
 const SESSION_KEEPALIVE_MIN_INTERVAL_MS = 15 * 1000;
 const SESSION_WATCH_INTERVAL_MS = 5 * 1000;
 const CALL_SESSION_HEARTBEAT_MS = 2000;
+const CALL_SESSION_KEEPALIVE_MS = 60 * 1000;
 const HELPER_VENDOR_REV = '5af197a';
 const realtimeCallSessionRegistry = new Map();
 
@@ -2375,6 +2376,7 @@ async function mountRealtimeCallSession(options = {}) {
         callRoom: '',
         mediaMuted: Boolean(options.startMuted),
         heartbeatTimerId: null,
+        sessionKeepaliveTimerId: null,
     };
 
     const debugMedia = (event, detail = {}) => {
@@ -2868,6 +2870,32 @@ async function mountRealtimeCallSession(options = {}) {
         state.heartbeatTimerId = window.setInterval(sendHeartbeatSignal, CALL_SESSION_HEARTBEAT_MS);
     };
 
+    const stopCallSessionKeepalive = () => {
+        if (!state.sessionKeepaliveTimerId) {
+            return;
+        }
+
+        window.clearInterval(state.sessionKeepaliveTimerId);
+        state.sessionKeepaliveTimerId = null;
+    };
+
+    const sendCallSessionKeepalive = () => {
+        if (!appState.bootstrap?.authenticated || appState.runtime.keepaliveInFlight) {
+            return;
+        }
+
+        void pingSessionKeepalive();
+    };
+
+    const startCallSessionKeepalive = () => {
+        if (state.sessionKeepaliveTimerId) {
+            return;
+        }
+
+        sendCallSessionKeepalive();
+        state.sessionKeepaliveTimerId = window.setInterval(sendCallSessionKeepalive, CALL_SESSION_KEEPALIVE_MS);
+    };
+
     const resetRemotePeerConnection = (targetUserId) => {
         const remoteId = String(targetUserId ?? '').trim();
 
@@ -3328,6 +3356,7 @@ async function mountRealtimeCallSession(options = {}) {
                     if (state.joinedRoom) {
                         sendReadySignal();
                         startCallHeartbeat();
+                        startCallSessionKeepalive();
                     }
                     return;
                 }
@@ -3376,6 +3405,7 @@ async function mountRealtimeCallSession(options = {}) {
         destroy() {
             state.active = false;
             stopCallHeartbeat();
+            stopCallSessionKeepalive();
 
             Object.values(conferenceState.peerConnections ?? {}).forEach((peerConnection) => {
                 try {

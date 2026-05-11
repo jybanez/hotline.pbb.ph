@@ -12,3 +12,11 @@ assert.match(surfaceShared, /const alreadyNormalized = Object\.prototype\.hasOwn
 assert.match(surfaceShared, /senderName: message\.senderName \?\? formatStatusLabel/);
 assert.match(surfaceShared, /timestamp: message\.timestamp \?\? formatDateTime\(message\.created_at\)/);
 assert.match(surfaceShared, /name: attachment\.name \?\? attachment\.original_filename/);
+
+assert.match(surfaceShared, /const CALL_SESSION_KEEPALIVE_MS = 60 \* 1000/);
+assert.match(surfaceShared, /sessionKeepaliveTimerId: null/);
+assert.match(surfaceShared, /const stopCallSessionKeepalive = \(\) => \{/);
+assert.match(surfaceShared, /const sendCallSessionKeepalive = \(\) => \{[\s\S]+pingSessionKeepalive\(\)/);
+assert.match(surfaceShared, /state\.sessionKeepaliveTimerId = window\.setInterval\(sendCallSessionKeepalive, CALL_SESSION_KEEPALIVE_MS\)/);
+assert.match(surfaceShared, /startCallHeartbeat\(\);\s+startCallSessionKeepalive\(\);/);
+assert.match(surfaceShared, /stopCallHeartbeat\(\);\s+stopCallSessionKeepalive\(\);/);
