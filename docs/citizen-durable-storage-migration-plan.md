@@ -45,8 +45,8 @@ Remaining durable caller storage/history names:
   - `caller_id`, `caller_avatar`, `actual_caller_name`, and `caller_location` from operator incident summary payloads.
   - `caller_locations`, `missing_caller_location_count`, `caller_phone_numbers`, and `callers_assisted` from generated SITREP JSON.
 - Configuration compatibility:
-  - `HOTLINE_CALLER_SESSION_LIFETIME`
-  - `settings.caller_relationships`
+  - `HOTLINE_CALLER_SESSION_LIFETIME` fallback removed.
+  - `settings.caller_relationships` renamed to `settings.citizen_relationships`.
 
 ## Non-Goals For The First Batch 5 PR
 
@@ -142,7 +142,7 @@ Rollback:
 
 ### Batch 5E: Remove Legacy Output Keys And Deprecated Accessors
 
-Status: Partially complete in code on 2026-05-11; response/report aliases are removed, while deprecated model accessors and configuration fallbacks remain pending.
+Status: Complete in code on 2026-05-11 for non-destructive cleanup; deprecated model relationships remain only as internal historical accessors until final storage drop.
 
 Goal: remove caller-shaped response/report aliases after a consumer notification window.
 
@@ -150,8 +150,8 @@ Changes:
 
 - [x] Remove legacy response aliases from citizen incident/home payloads, operator workbench detail payloads, operator incident summaries, and command incident payloads.
 - [x] Remove `caller_locations`, `missing_caller_location_count`, `caller_phone_numbers`, and `callers_assisted` after report consumers were confirmed migrated or scoped out.
-- [ ] Remove deprecated `caller()` relationships or keep them only as internal historical accessors with no API exposure.
-- [ ] Remove `HOTLINE_CALLER_SESSION_LIFETIME` fallback and rename `settings.caller_relationships` to a citizen-named key if configuration consumers are migrated.
+- [x] Keep deprecated `caller()` relationships only as internal historical accessors with no API exposure.
+- [x] Remove `HOTLINE_CALLER_SESSION_LIFETIME` fallback and rename `settings.caller_relationships` to a citizen-named key.
 
 Rollback:
 

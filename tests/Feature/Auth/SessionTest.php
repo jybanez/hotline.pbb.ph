@@ -23,6 +23,8 @@ class SessionTest extends TestCase
 
     public function test_operator_login_uses_critical_session_and_can_log_out(): void
     {
+        $this->assertNull(config('session.caller_lifetime'));
+
         $user = User::factory()->create([
             'email' => 'operator@example.test',
             'password' => Hash::make('secret-password'),

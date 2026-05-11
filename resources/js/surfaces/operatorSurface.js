@@ -3957,7 +3957,7 @@ function renderWorkbench(payload, stateOverride = null) {
 }
 
 function workbenchRelationshipOptions() {
-    return (appState.bootstrap?.lookups?.caller_relationships ?? [])
+    return (appState.bootstrap?.lookups?.citizen_relationships ?? [])
         .map((label) => String(label ?? '').trim())
         .filter(Boolean)
         .map((label) => ({ value: label, label }));

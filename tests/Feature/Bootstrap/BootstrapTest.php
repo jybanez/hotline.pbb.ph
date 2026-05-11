@@ -27,7 +27,9 @@ class BootstrapTest extends TestCase
             ->assertJsonPath('session_lifetime_minutes', 15)
             ->assertJsonPath('settings.call_hold_seconds', 3)
             ->assertJsonPath('settings.call_timeout_seconds', 20)
-            ->assertJsonPath('settings.reconnect_timeout_seconds', 20);
+            ->assertJsonPath('settings.reconnect_timeout_seconds', 20)
+            ->assertJsonPath('lookups.citizen_relationships.0', 'Self')
+            ->assertJsonMissingPath('lookups.caller_relationships');
     }
 
     public function test_operator_bootstrap_uses_critical_session_lifetime(): void
@@ -43,6 +45,8 @@ class BootstrapTest extends TestCase
             ->assertJsonPath('authenticated', true)
             ->assertJsonPath('surface', 'operator')
             ->assertJsonPath('user.role', UserRole::Operator->value)
-            ->assertJsonPath('session_lifetime_minutes', (int) config('session.critical_lifetime'));
+            ->assertJsonPath('session_lifetime_minutes', (int) config('session.critical_lifetime'))
+            ->assertJsonPath('lookups.citizen_relationships.0', 'Self')
+            ->assertJsonMissingPath('lookups.caller_relationships');
     }
 }

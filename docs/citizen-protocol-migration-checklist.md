@@ -63,7 +63,7 @@ Legend:
 - [x] Canonical citizen route access is available.
 - [x] Legacy caller route access still works for compatible users.
 - [x] Session lifetime supports `HOTLINE_CITIZEN_SESSION_LIFETIME`.
-- [x] Session lifetime keeps `HOTLINE_CALLER_SESSION_LIFETIME` fallback compatibility.
+- [x] `HOTLINE_CALLER_SESSION_LIFETIME` fallback compatibility was removed after citizen session config consumers migrated.
 - [x] Confirm all new seed users use `citizen`.
 - [x] Confirm factories and test helpers default to `citizen` where appropriate.
 - [x] Add migration or mapping plan for persisted users with role value `caller`.

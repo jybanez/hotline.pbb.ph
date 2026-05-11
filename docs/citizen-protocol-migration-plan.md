@@ -44,7 +44,7 @@ Current compatibility:
 - global role value `citizen`
 - legacy role value `caller`
 - middleware accepts citizen-compatible role values
-- session config supports both `HOTLINE_CITIZEN_SESSION_LIFETIME` and `HOTLINE_CALLER_SESSION_LIFETIME`
+- session config supports `HOTLINE_CITIZEN_SESSION_LIFETIME`; the legacy `HOTLINE_CALLER_SESSION_LIFETIME` fallback was removed after compatibility migration
 
 Phase 2 work:
 - confirm all new seeders, factories, authorization tests, and UI labels use `citizen`

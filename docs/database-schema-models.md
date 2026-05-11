@@ -444,7 +444,7 @@ Keys seen in code and seeders:
 - `voice_gender`
 - `system_alert_level`
 - `escalation_rules`
-- `caller_relationships`
+- `citizen_relationships`
 - `instance_id`
 - `hub_address`
 - `hub_lat`

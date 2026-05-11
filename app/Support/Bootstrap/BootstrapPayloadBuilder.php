@@ -12,7 +12,7 @@ use Illuminate\Support\Arr;
 
 class BootstrapPayloadBuilder
 {
-    private const CALLER_RELATIONSHIP_OPTIONS = [
+    private const CITIZEN_RELATIONSHIP_OPTIONS = [
         'Self',
         'Parent',
         'Child',
@@ -37,8 +37,7 @@ class BootstrapPayloadBuilder
         private readonly CitizenHomePayloadBuilder $citizenHomePayloadBuilder,
         private readonly IncidentPayloadBuilder $incidentPayloadBuilder,
         private readonly SettingsService $settings,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array<string, mixed>
@@ -63,7 +62,7 @@ class BootstrapPayloadBuilder
             'settings' => Arr::where($settings, static fn ($value) => $value !== null),
             'surface_payload' => $this->surfacePayload($user, $surface),
             'lookups' => [
-                'caller_relationships' => self::CALLER_RELATIONSHIP_OPTIONS,
+                'citizen_relationships' => self::CITIZEN_RELATIONSHIP_OPTIONS,
             ],
         ];
     }

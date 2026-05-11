@@ -48,7 +48,6 @@ Hotline uses Laravel web sessions for all surfaces, but citizen sessions are int
 Environment settings:
 - `SESSION_LIFETIME`: normal operator/admin/command session lifetime, in minutes. Local default is `15`.
 - `HOTLINE_CITIZEN_SESSION_LIFETIME`: citizen session lifetime, in minutes. Default is `43200` minutes, or 30 days.
-- `HOTLINE_CALLER_SESSION_LIFETIME`: legacy alias for citizen session lifetime.
 
 Citizen session behavior:
 - citizen login uses Laravel remember-login
