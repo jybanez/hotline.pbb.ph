@@ -11,6 +11,7 @@ This inventory separates temporary caller compatibility from durable storage/his
 - Legacy caller Realtime event telemetry stayed at zero.
 - Legacy caller payload telemetry stayed flat at 12 local entries, last seen at `2026-05-11 03:53:39`.
 - Production terminal-status validation confirmed the citizen active incident clears after the terminal update and post-call reconcile.
+- Realtime shared-service, Helper shared-service, installed PWA, and durable storage/history scope confirmations are complete.
 
 ## Batch 1: Route Aliases
 
@@ -72,11 +73,17 @@ Do not remove in the alias cleanup PR:
 - Legacy role enum value `caller` and historical call outcomes such as `ended_by_caller`.
 - SITREP/report labels that describe historical caller data.
 
-These need a separate data migration plan and explicit rollback strategy.
+Review status as of 2026-05-11:
+
+- The following are durable schema/history names, not temporary runtime aliases: `incidents.caller_id`, `incidents.actual_caller_name`, `incidents.actual_caller_relationship`, `incidents.caller_location_*`, `call_attempts.caller_id`, `call_sessions.caller_id`, `incident_caller_locations`, `media.type = caller_video`, `media.peer_role = caller`, `call_participants.participant_role = caller`, and call outcomes such as `ended_by_caller`.
+- Current report/SITREP payloads already expose citizen aliases beside legacy caller keys where external consumers may exist, including `citizens_assisted`, `citizen_locations`, `missing_citizen_location_count`, and `citizen_phone_numbers`.
+- These durable names do not block Batch 2, Batch 3, or Batch 4 alias cleanup, provided those batches do not rename database columns, rewrite historical media rows, or remove legacy report keys.
+
+Full removal needs a separate data migration plan, consumer notification window, backfill scripts, and explicit rollback strategy.
 
 ## Recommended First Removal PR
 
-Realtime shared-service confirmation is complete as of 2026-05-10 14:36:33 in the shared PBB chat log. Start with Batch 2 as the first removal PR; it removes runtime event compatibility without touching routes, installed PWA assets, or database-backed history. Then run:
+Realtime shared-service, Helper shared-service, installed PWA, and durable storage/history scope confirmations are complete. Start with Batch 2 as the first removal PR; it removes runtime event compatibility without touching routes, installed PWA assets, or database-backed history. Then run:
 
 - `npm run test:js`
 - `npm run build`
