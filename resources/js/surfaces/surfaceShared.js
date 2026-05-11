@@ -2028,26 +2028,58 @@ function isPublicViewerRole(viewerRole) {
 function normalizeChatMessages(messages, viewerRole) {
     const viewerRoleAliases = publicViewerRoleAliases(viewerRole);
 
-    return (Array.isArray(messages) ? messages : []).map((message) => ({
-        id: String(message.id),
-        direction: viewerRoleAliases.includes(message.sender_role)
-            ? 'outgoing'
-            : (message.type === 'system' ? 'system' : 'incoming'),
-        senderName: message.sender_name ?? formatStatusLabel(message.sender_role ?? 'Unknown'),
-        senderSubtitle: formatStatusLabel(message.sender_role ?? 'message'),
-        text: message.body ?? '',
-        timestamp: formatDateTime(message.created_at),
-        state: viewerRoleAliases.includes(message.sender_role) ? 'sent' : undefined,
-        attachments: (Array.isArray(message.attachments) ? message.attachments : []).map((attachment) => ({
+    return (Array.isArray(messages) ? messages : []).map((message) => {
+        const alreadyNormalized = Object.prototype.hasOwnProperty.call(message ?? {}, 'direction')
+            || Object.prototype.hasOwnProperty.call(message ?? {}, 'senderName')
+            || Object.prototype.hasOwnProperty.call(message ?? {}, 'text')
+            || Object.prototype.hasOwnProperty.call(message ?? {}, 'timestamp');
+
+        if (alreadyNormalized) {
+            return {
+                id: String(message.id),
+                direction: String(message.direction ?? 'incoming'),
+                senderName: message.senderName ?? formatStatusLabel(message.senderRole ?? message.sender_role ?? 'Unknown'),
+                senderSubtitle: message.senderSubtitle ?? formatStatusLabel(message.senderRole ?? message.sender_role ?? 'message'),
+                text: message.text ?? message.body ?? '',
+                timestamp: message.timestamp ?? formatDateTime(message.created_at),
+                state: message.state,
+                attachments: normalizeChatMessageAttachments(message.attachments),
+            };
+        }
+
+        return {
+            id: String(message.id),
+            direction: viewerRoleAliases.includes(message.sender_role)
+                ? 'outgoing'
+                : (message.type === 'system' ? 'system' : 'incoming'),
+            senderName: message.sender_name ?? formatStatusLabel(message.sender_role ?? 'Unknown'),
+            senderSubtitle: formatStatusLabel(message.sender_role ?? 'message'),
+            text: message.body ?? '',
+            timestamp: formatDateTime(message.created_at),
+            state: viewerRoleAliases.includes(message.sender_role) ? 'sent' : undefined,
+            attachments: normalizeChatMessageAttachments(message.attachments),
+        };
+    });
+}
+
+function normalizeChatMessageAttachments(attachments) {
+    return (Array.isArray(attachments) ? attachments : []).map((attachment) => {
+        const storedPath = attachment.stored_path ?? attachment.url ?? '';
+        const thumbnailPath = attachment.thumbnail_path
+            ?? attachment.preview_url
+            ?? attachment.previewUrl
+            ?? storedPath;
+
+        return {
             id: String(attachment.id),
-            kind: mapAttachmentKind(attachment.type, attachment.mime_type),
-            name: attachment.original_filename,
-            url: normalizeAttachmentStoredUrl(attachment.stored_path),
-            previewUrl: normalizeAttachmentStoredUrl(attachment.thumbnail_path ?? attachment.stored_path),
-            posterUrl: normalizeAttachmentStoredUrl(attachment.thumbnail_path ?? attachment.stored_path),
-            mimeType: attachment.mime_type,
-        })),
-    }));
+            kind: attachment.kind ?? mapAttachmentKind(attachment.type, attachment.mime_type ?? attachment.mimeType),
+            name: attachment.name ?? attachment.original_filename,
+            url: normalizeAttachmentStoredUrl(storedPath),
+            previewUrl: normalizeAttachmentStoredUrl(thumbnailPath),
+            posterUrl: normalizeAttachmentStoredUrl(attachment.poster_url ?? attachment.posterUrl ?? thumbnailPath),
+            mimeType: attachment.mimeType ?? attachment.mime_type,
+        };
+    });
 }
 
 function normalizeAttachmentStoredUrl(value) {

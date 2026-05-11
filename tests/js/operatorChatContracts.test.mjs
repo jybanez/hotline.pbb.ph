@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+
+const operatorSurface = await readFile(new URL('../../resources/js/surfaces/operatorSurface.js', import.meta.url), 'utf8');
+const surfaceShared = await readFile(new URL('../../resources/js/surfaces/surfaceShared.js', import.meta.url), 'utf8');
+
+assert.match(operatorSurface, /const liveMessages = appState\.runtime\.operatorWorkbenchChat\?\.getMessages\?\.\(\)/);
+assert.match(operatorSurface, /payload\.messages = liveMessages/);
+
+assert.match(surfaceShared, /function normalizeChatMessageAttachments\(attachments\)/);
+assert.match(surfaceShared, /const alreadyNormalized = Object\.prototype\.hasOwnProperty\.call\(message \?\? \{\}, 'direction'\)/);
+assert.match(surfaceShared, /senderName: message\.senderName \?\? formatStatusLabel/);
+assert.match(surfaceShared, /timestamp: message\.timestamp \?\? formatDateTime\(message\.created_at\)/);
+assert.match(surfaceShared, /name: attachment\.name \?\? attachment\.original_filename/);
