@@ -1142,7 +1142,7 @@ function mountSurfaceChrome(root, surface, bootstrap) {
 
     appState.helper.navbar = appState.helper.createNavbar(navHost, {}, {
         brandText: 'PBB Hotline Beta',
-        brandSubtitle: 'hotline.pbb.ph',
+        brandSubtitle: bootstrap?.app?.version ? `v${bootstrap.app.version}` : 'hotline.pbb.ph',
         activeId,
         items,
         actions,

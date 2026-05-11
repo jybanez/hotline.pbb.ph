@@ -5,6 +5,7 @@ const citizenSurface = await readFile(new URL('../../resources/js/surfaces/citiz
 const surfaceShared = await readFile(new URL('../../resources/js/surfaces/surfaceShared.js', import.meta.url), 'utf8');
 
 assert.match(surfaceShared, /function publicViewerRoleAliases\(viewerRole\)/);
+assert.match(surfaceShared, /brandSubtitle:\s*bootstrap\?\.app\?\.version \? `v\$\{bootstrap\.app\.version\}` : 'hotline\.pbb\.ph'/);
 assert.match(surfaceShared, /\['citizen', 'caller'\]\.includes\(viewerRole\)/);
 assert.match(surfaceShared, /function isPublicViewerRole\(viewerRole\)/);
 assert.match(surfaceShared, /viewerRoleAliases\.includes\(message\.sender_role\)/);
