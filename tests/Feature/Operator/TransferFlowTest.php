@@ -36,8 +36,8 @@ class TransferFlowTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $caller->id,
-            'actual_caller_name' => $caller->name,
+            'citizen_id' => $caller->id,
+            'actual_citizen_name' => $caller->name,
             'operator_id' => $fromOperator->id,
             'status' => IncidentStatus::Active->value,
             'alert_level' => 'Normal',
@@ -86,8 +86,8 @@ class TransferFlowTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $caller->id,
-            'actual_caller_name' => $caller->name,
+            'citizen_id' => $caller->id,
+            'actual_citizen_name' => $caller->name,
             'operator_id' => $fromOperator->id,
             'status' => IncidentStatus::Active->value,
             'alert_level' => 'Normal',

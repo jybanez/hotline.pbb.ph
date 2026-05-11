@@ -254,9 +254,9 @@ class IncidentTypeFieldCrudTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => User::factory()->create(['role' => UserRole::Citizen])->id,
-            'actual_caller_name' => 'Caller One',
-            'actual_caller_relationship' => 'self',
+            'citizen_id' => User::factory()->create(['role' => UserRole::Citizen])->id,
+            'actual_citizen_name' => 'Caller One',
+            'actual_citizen_relationship' => 'self',
             'operator_id' => User::factory()->create(['role' => UserRole::Operator])->id,
             'status' => 'active',
             'alert_level' => 'normal',

@@ -203,7 +203,7 @@ class IncidentPayloadBuilder
             'display_id' => str_pad((string) $incident->id, 6, '0', STR_PAD_LEFT),
             'citizen_id' => $incident->citizen_id,
             ...$this->legacyAliases($includeLegacyAliases, [
-                'caller_id' => $incident->caller_id,
+                'caller_id' => $incident->citizen_id,
             ]),
             'citizen' => $publicUser,
             ...$this->legacyAliases($includeLegacyAliases, [
@@ -212,8 +212,8 @@ class IncidentPayloadBuilder
             'actual_citizen_name' => $incident->actual_citizen_name,
             'actual_citizen_relationship' => $incident->actual_citizen_relationship,
             ...$this->legacyAliases($includeLegacyAliases, [
-                'actual_caller_name' => $incident->actual_caller_name,
-                'actual_caller_relationship' => $incident->actual_caller_relationship,
+                'actual_caller_name' => $incident->actual_citizen_name,
+                'actual_caller_relationship' => $incident->actual_citizen_relationship,
             ]),
             'latitude' => $incident->latitude,
             'longitude' => $incident->longitude,
@@ -457,7 +457,7 @@ class IncidentPayloadBuilder
             'incident_id' => $session->incident_id,
             'citizen_id' => $session->citizen_id,
             ...$this->legacyAliases($includeLegacyAliases, [
-                'caller_id' => $session->caller_id,
+                'caller_id' => $session->citizen_id,
             ]),
             'status' => $session->status->value,
             'outcome' => $session->outcome?->value,

@@ -17,7 +17,6 @@ class CallAttempt extends Model
     use SynchronizesCitizenIdentity;
 
     protected $fillable = [
-        'caller_id',
         'citizen_id',
         'incident_id',
         'answered_by_operator_id',
@@ -48,7 +47,7 @@ class CallAttempt extends Model
 
     public function caller(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'caller_id');
+        return $this->belongsTo(User::class, 'citizen_id');
     }
 
     public function citizen(): BelongsTo
@@ -59,5 +58,10 @@ class CallAttempt extends Model
     public function getCitizenIdAttribute(): mixed
     {
         return $this->attributes['citizen_id'] ?? $this->caller_id;
+    }
+
+    public function getCallerIdAttribute(): mixed
+    {
+        return $this->attributes['caller_id'] ?? $this->attributes['citizen_id'] ?? null;
     }
 }

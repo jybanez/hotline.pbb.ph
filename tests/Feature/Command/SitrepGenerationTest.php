@@ -498,9 +498,9 @@ class SitrepGenerationTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $caller->id,
-            'actual_caller_name' => 'Maria Santos',
-            'actual_caller_relationship' => 'self',
+            'citizen_id' => $caller->id,
+            'actual_citizen_name' => 'Maria Santos',
+            'actual_citizen_relationship' => 'self',
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active->value,
             'alert_level' => 'Elevated',
@@ -582,7 +582,7 @@ class SitrepGenerationTest extends TestCase
         DB::table('call_sessions')->insert([
             [
                 'incident_id' => $incidentId,
-                'caller_id' => $caller->id,
+                'citizen_id' => $caller->id,
                 'status' => 'ended',
                 'outcome' => 'ended_by_operator',
                 'started_at' => now()->subHours(2),
@@ -593,7 +593,7 @@ class SitrepGenerationTest extends TestCase
             ],
             [
                 'incident_id' => $incidentId,
-                'caller_id' => $caller->id,
+                'citizen_id' => $caller->id,
                 'status' => 'ended',
                 'outcome' => 'ended_by_operator',
                 'started_at' => now()->subHour(),

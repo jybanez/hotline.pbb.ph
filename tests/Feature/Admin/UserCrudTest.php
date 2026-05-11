@@ -94,8 +94,8 @@ class UserCrudTest extends TestCase
         ]);
 
         DB::table('incidents')->insert([
-            'caller_id' => $caller->id,
-            'actual_caller_name' => $caller->name,
+            'citizen_id' => $caller->id,
+            'actual_citizen_name' => $caller->name,
             'operator_id' => $operator->id,
             'status' => 'Active',
             'alert_level' => 'Normal',
@@ -109,7 +109,7 @@ class UserCrudTest extends TestCase
             ->assertStatus(409)
             ->assertJsonPath('ok', false)
             ->assertJsonPath('references.0.table', 'incidents')
-            ->assertJsonPath('references.0.column', 'caller_id')
+            ->assertJsonPath('references.0.column', 'citizen_id')
             ->assertJsonPath('references.0.label', 'Incidents as citizen');
     }
 

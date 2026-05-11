@@ -54,11 +54,9 @@ class AnswerCallAttemptTest extends TestCase
         $this->assertDatabaseCount('call_sessions', 1);
         $this->assertDatabaseCount('call_participants', 2);
         $this->assertDatabaseHas('incidents', [
-            'caller_id' => $caller->id,
             'citizen_id' => $caller->id,
         ]);
         $this->assertDatabaseHas('call_sessions', [
-            'caller_id' => $caller->id,
             'citizen_id' => $caller->id,
         ]);
         $this->assertDatabaseHas('call_participants', [
@@ -221,9 +219,8 @@ class AnswerCallAttemptTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $citizen->id,
             'citizen_id' => $citizen->id,
-            'actual_caller_name' => $citizen->name,
+            'actual_citizen_name' => $citizen->name,
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active->value,
             'alert_level' => 'Normal',
@@ -234,7 +231,6 @@ class AnswerCallAttemptTest extends TestCase
 
         $callSessionId = DB::table('call_sessions')->insertGetId([
             'incident_id' => $incidentId,
-            'caller_id' => $citizen->id,
             'citizen_id' => $citizen->id,
             'status' => 'in_progress',
             'outcome' => 'answered',

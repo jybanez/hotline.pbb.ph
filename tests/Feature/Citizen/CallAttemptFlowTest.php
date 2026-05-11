@@ -45,7 +45,6 @@ class CallAttemptFlowTest extends TestCase
 
         $this->assertDatabaseHas('call_attempts', [
             'id' => $attemptId,
-            'caller_id' => $citizen->id,
             'citizen_id' => $citizen->id,
         ]);
         $this->assertDatabaseCount('incidents', 0);

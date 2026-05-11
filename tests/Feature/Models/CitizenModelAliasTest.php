@@ -5,7 +5,6 @@ namespace Tests\Feature\Models;
 use App\Domain\Calls\Models\CallAttempt;
 use App\Domain\Calls\Models\CallSession;
 use App\Domain\Incidents\Models\Incident;
-use App\Domain\Incidents\Models\IncidentCallerLocation;
 use App\Domain\Incidents\Models\IncidentCitizenLocation;
 use App\Domain\Shared\Enums\AlertLevel;
 use App\Domain\Shared\Enums\CallOutcome;
@@ -20,7 +19,7 @@ class CitizenModelAliasTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_incident_exposes_citizen_aliases_over_caller_storage(): void
+    public function test_incident_exposes_legacy_accessors_over_citizen_storage(): void
     {
         $citizen = User::factory()->create([
             'role' => UserRole::Citizen,
@@ -30,24 +29,13 @@ class CitizenModelAliasTest extends TestCase
         ]);
 
         $incident = Incident::query()->create([
-            'caller_id' => $citizen->id,
-            'actual_caller_name' => $citizen->name,
-            'actual_caller_relationship' => 'Self',
+            'citizen_id' => $citizen->id,
+            'actual_citizen_name' => $citizen->name,
+            'actual_citizen_relationship' => 'Self',
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active,
             'alert_level' => AlertLevel::Normal,
             'called_at' => now(),
-        ]);
-
-        IncidentCallerLocation::query()->create([
-            'incident_id' => $incident->id,
-            'caller_id' => $citizen->id,
-            'citizen_id' => $citizen->id,
-            'operator_id' => $operator->id,
-            'latitude' => 10.3157,
-            'longitude' => 123.8854,
-            'captured_at' => now(),
-            'received_at' => now(),
         ]);
 
         IncidentCitizenLocation::query()->create([
@@ -63,13 +51,13 @@ class CitizenModelAliasTest extends TestCase
         $incident->refresh();
 
         $this->assertSame($citizen->id, $incident->citizen_id);
+        $this->assertSame($citizen->id, $incident->caller_id);
         $this->assertSame($citizen->id, $incident->citizen()->first()?->id);
         $this->assertSame($citizen->id, $incident->caller()->first()?->id);
         $this->assertSame(1, $incident->citizenLocations()->count());
-        $this->assertSame(1, $incident->callerLocations()->count());
     }
 
-    public function test_call_models_expose_citizen_aliases_over_caller_storage(): void
+    public function test_call_models_expose_legacy_accessors_over_citizen_storage(): void
     {
         $citizen = User::factory()->create([
             'role' => UserRole::Citizen,
@@ -79,9 +67,9 @@ class CitizenModelAliasTest extends TestCase
         ]);
 
         $incident = Incident::query()->create([
-            'caller_id' => $citizen->id,
-            'actual_caller_name' => $citizen->name,
-            'actual_caller_relationship' => 'Self',
+            'citizen_id' => $citizen->id,
+            'actual_citizen_name' => $citizen->name,
+            'actual_citizen_relationship' => 'Self',
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active,
             'alert_level' => AlertLevel::Normal,
@@ -89,7 +77,7 @@ class CitizenModelAliasTest extends TestCase
         ]);
 
         $attempt = CallAttempt::query()->create([
-            'caller_id' => $citizen->id,
+            'citizen_id' => $citizen->id,
             'incident_id' => $incident->id,
             'answered_by_operator_id' => $operator->id,
             'status' => CallStatus::InProgress,
@@ -99,7 +87,7 @@ class CitizenModelAliasTest extends TestCase
 
         $session = CallSession::query()->create([
             'incident_id' => $incident->id,
-            'caller_id' => $citizen->id,
+            'citizen_id' => $citizen->id,
             'status' => CallStatus::InProgress,
             'outcome' => CallOutcome::Answered,
             'started_at' => now(),
@@ -107,14 +95,16 @@ class CitizenModelAliasTest extends TestCase
         ]);
 
         $this->assertSame($citizen->id, $attempt->citizen_id);
+        $this->assertSame($citizen->id, $attempt->caller_id);
         $this->assertSame($citizen->id, $attempt->citizen()->first()?->id);
         $this->assertSame($citizen->id, $attempt->caller()->first()?->id);
         $this->assertSame($citizen->id, $session->citizen_id);
+        $this->assertSame($citizen->id, $session->caller_id);
         $this->assertSame($citizen->id, $session->citizen()->first()?->id);
         $this->assertSame($citizen->id, $session->caller()->first()?->id);
     }
 
-    public function test_incident_location_exposes_citizen_alias_over_caller_storage(): void
+    public function test_incident_location_uses_citizen_storage(): void
     {
         $citizen = User::factory()->create([
             'role' => UserRole::Citizen,
@@ -124,18 +114,18 @@ class CitizenModelAliasTest extends TestCase
         ]);
 
         $incident = Incident::query()->create([
-            'caller_id' => $citizen->id,
-            'actual_caller_name' => $citizen->name,
-            'actual_caller_relationship' => 'Self',
+            'citizen_id' => $citizen->id,
+            'actual_citizen_name' => $citizen->name,
+            'actual_citizen_relationship' => 'Self',
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active,
             'alert_level' => AlertLevel::Normal,
             'called_at' => now(),
         ]);
 
-        $location = IncidentCallerLocation::query()->create([
+        $location = IncidentCitizenLocation::query()->create([
             'incident_id' => $incident->id,
-            'caller_id' => $citizen->id,
+            'citizen_id' => $citizen->id,
             'operator_id' => $operator->id,
             'latitude' => 10.3157,
             'longitude' => 123.8854,
@@ -145,6 +135,5 @@ class CitizenModelAliasTest extends TestCase
 
         $this->assertSame($citizen->id, $location->citizen_id);
         $this->assertSame($citizen->id, $location->citizen()->first()?->id);
-        $this->assertSame($citizen->id, $location->caller()->first()?->id);
     }
 }

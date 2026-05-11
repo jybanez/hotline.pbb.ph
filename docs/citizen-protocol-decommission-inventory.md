@@ -67,13 +67,12 @@ Keep `citizen-sw.js` cache cleanup for old `caller-pwa-*` caches until at least 
 
 ## Batch 5: Durable Storage And History Names
 
-Planned separately in [Citizen Durable Storage Migration Plan](citizen-durable-storage-migration-plan.md). Do not remove in the alias cleanup PR:
+Implemented locally in [Citizen Durable Storage Migration Plan](citizen-durable-storage-migration-plan.md):
 
-- Database columns and model attributes such as `caller_id`, `actual_caller_name`, `caller_location_*`.
-- `incident_caller_locations` table and related historical relationships.
-- Historical media values such as `caller_video` and `peer_role: caller`.
-- Legacy role enum value `caller` and historical call outcomes such as `ended_by_caller`.
-- SITREP/report labels that describe historical caller data.
+- Dropped database columns and table: `incidents.caller_id`, `incidents.actual_caller_name`, `incidents.actual_caller_relationship`, `incidents.caller_location_*`, `call_attempts.caller_id`, `call_sessions.caller_id`, and `incident_caller_locations`.
+- Kept citizen storage as canonical: `citizen_id`, `actual_citizen_*`, `citizen_location_*`, and `incident_citizen_locations`.
+- Historical media values and enum normalizers remain readable for old rows, while current migrations/tests ensure caller protocol values are converted to citizen values.
+- Deprecated legacy read accessors remain internal compatibility only and resolve from citizen storage.
 
 Review status as of 2026-05-11:
 
@@ -81,13 +80,13 @@ Review status as of 2026-05-11:
 - Current report/SITREP payloads already expose citizen aliases beside legacy caller keys where external consumers may exist, including `citizens_assisted`, `citizen_locations`, `missing_citizen_location_count`, and `citizen_phone_numbers`.
 - These durable names do not block Batch 2, Batch 3, or Batch 4 alias cleanup, provided those batches do not rename database columns, rewrite historical media rows, or remove legacy report keys.
 
-Full removal needs staged runtime switching, data backfill, consumer notification windows, parity checks, and an explicit rollback strategy.
+Full storage removal is implemented in code and verified locally. Production rollout still needs backup/release notes and a live smoke test.
 
-## Recommended First Removal PR
+## Recommended Verification
 
-Realtime shared-service, Helper shared-service, installed PWA, and durable storage/history scope confirmations are complete. Batch 1, Batch 2, Batch 3, and Batch 4 alias removals are complete. Database-backed history remains separately staged. Then run:
+Realtime shared-service, Helper shared-service, installed PWA, and durable storage/history scope confirmations are complete. Batch 1, Batch 2, Batch 3, Batch 4, and Batch 5A-F are complete in code. Before production rollout, run:
 
 - `node tests/js/citizenRealtimeEvents.test.mjs`
 - `npm run build`
-- `php artisan test --filter=Realtime`
+- `php artisan test tests\Feature`
 - Live smoke: new call, reconnect, operator hangup, citizen hangup, terminal status update.

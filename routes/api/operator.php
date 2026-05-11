@@ -23,7 +23,7 @@ Route::middleware(['auth', 'role:operator'])->prefix('/operator')->group(functio
     Route::post('/incidents/{incident}/intake', [IncidentController::class, 'updateIntake']);
     Route::post('/incidents/{incident}/citizen-address', [IncidentController::class, 'updateCallerAddress']);
     Route::post('/incidents/{incident}/citizen-location', [IncidentController::class, 'updateCallerLocation']);
-    Route::get('/incidents/{incident}/citizen-locations', [IncidentController::class, 'callerLocations']);
+    Route::get('/incidents/{incident}/citizen-locations', [IncidentController::class, 'citizenLocations']);
     Route::post('/incidents/{incident}/incident-types/{incidentType}', [IncidentController::class, 'attachIncidentType']);
     Route::delete('/incidents/{incident}/incident-types/{incidentType}', [IncidentController::class, 'removeIncidentType']);
     Route::post('/incidents/{incident}/incident-types/{incidentType}/details', [IncidentController::class, 'updateIncidentTypeDetail']);

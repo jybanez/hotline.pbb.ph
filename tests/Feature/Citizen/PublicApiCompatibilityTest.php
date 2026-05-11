@@ -49,10 +49,10 @@ class PublicApiCompatibilityTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $citizen->id,
             'citizen_id' => $citizen->id,
-            'actual_caller_name' => 'Maria Santos',
-            'actual_caller_relationship' => 'Self',
+            'citizen_id' => $citizen->id,
+            'actual_citizen_name' => 'Maria Santos',
+            'actual_citizen_relationship' => 'Self',
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active->value,
             'alert_level' => 'Normal',
@@ -65,7 +65,7 @@ class PublicApiCompatibilityTest extends TestCase
 
         $callSessionId = DB::table('call_sessions')->insertGetId([
             'incident_id' => $incidentId,
-            'caller_id' => $citizen->id,
+            'citizen_id' => $citizen->id,
             'citizen_id' => $citizen->id,
             'status' => 'ended',
             'outcome' => 'ended_by_operator',

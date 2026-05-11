@@ -23,28 +23,19 @@ class Incident extends Model
     use SynchronizesCitizenIncidentDetails;
 
     protected $fillable = [
-        'caller_id',
         'citizen_id',
-        'actual_caller_name',
         'actual_citizen_name',
-        'actual_caller_relationship',
         'actual_citizen_relationship',
         'operator_id',
         'status',
         'alert_level',
         'latitude',
         'longitude',
-        'caller_location_accuracy',
         'citizen_location_accuracy',
-        'caller_altitude',
         'citizen_altitude',
-        'caller_altitude_accuracy',
         'citizen_altitude_accuracy',
-        'caller_heading',
         'citizen_heading',
-        'caller_heading_source',
         'citizen_heading_source',
-        'caller_location_captured_at',
         'citizen_location_captured_at',
         'location',
         'location_road',
@@ -64,15 +55,10 @@ class Incident extends Model
             'alert_level' => AlertLevel::class,
             'latitude' => 'decimal:7',
             'longitude' => 'decimal:7',
-            'caller_location_accuracy' => 'decimal:2',
             'citizen_location_accuracy' => 'decimal:2',
-            'caller_altitude' => 'decimal:2',
             'citizen_altitude' => 'decimal:2',
-            'caller_altitude_accuracy' => 'decimal:2',
             'citizen_altitude_accuracy' => 'decimal:2',
-            'caller_heading' => 'decimal:2',
             'citizen_heading' => 'decimal:2',
-            'caller_location_captured_at' => 'datetime',
             'citizen_location_captured_at' => 'datetime',
             'called_at' => 'datetime',
             'resolved_at' => 'datetime',
@@ -81,7 +67,7 @@ class Incident extends Model
 
     public function caller(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'caller_id');
+        return $this->belongsTo(User::class, 'citizen_id');
     }
 
     public function citizen(): BelongsTo
@@ -111,7 +97,7 @@ class Incident extends Model
 
     public function callerLocations(): HasMany
     {
-        return $this->hasMany(IncidentCallerLocation::class)
+        return $this->hasMany(IncidentCitizenLocation::class)
             ->orderBy('captured_at')
             ->orderBy('id');
     }
@@ -158,9 +144,19 @@ class Incident extends Model
         return $this->attributes['citizen_id'] ?? $this->caller_id;
     }
 
+    public function getCallerIdAttribute(): mixed
+    {
+        return $this->attributes['caller_id'] ?? $this->attributes['citizen_id'] ?? null;
+    }
+
     public function getActualCitizenNameAttribute(): mixed
     {
         return $this->attributes['actual_citizen_name'] ?? $this->actual_caller_name;
+    }
+
+    public function getActualCallerNameAttribute(): mixed
+    {
+        return $this->attributes['actual_caller_name'] ?? $this->attributes['actual_citizen_name'] ?? null;
     }
 
     public function getActualCitizenRelationshipAttribute(): mixed
@@ -168,9 +164,19 @@ class Incident extends Model
         return $this->attributes['actual_citizen_relationship'] ?? $this->actual_caller_relationship;
     }
 
+    public function getActualCallerRelationshipAttribute(): mixed
+    {
+        return $this->attributes['actual_caller_relationship'] ?? $this->attributes['actual_citizen_relationship'] ?? null;
+    }
+
     public function getCitizenLocationAccuracyAttribute(): mixed
     {
         return $this->attributes['citizen_location_accuracy'] ?? $this->caller_location_accuracy;
+    }
+
+    public function getCallerLocationAccuracyAttribute(): mixed
+    {
+        return $this->attributes['caller_location_accuracy'] ?? $this->attributes['citizen_location_accuracy'] ?? null;
     }
 
     public function getCitizenAltitudeAttribute(): mixed
@@ -178,9 +184,19 @@ class Incident extends Model
         return $this->attributes['citizen_altitude'] ?? $this->caller_altitude;
     }
 
+    public function getCallerAltitudeAttribute(): mixed
+    {
+        return $this->attributes['caller_altitude'] ?? $this->attributes['citizen_altitude'] ?? null;
+    }
+
     public function getCitizenAltitudeAccuracyAttribute(): mixed
     {
         return $this->attributes['citizen_altitude_accuracy'] ?? $this->caller_altitude_accuracy;
+    }
+
+    public function getCallerAltitudeAccuracyAttribute(): mixed
+    {
+        return $this->attributes['caller_altitude_accuracy'] ?? $this->attributes['citizen_altitude_accuracy'] ?? null;
     }
 
     public function getCitizenHeadingAttribute(): mixed
@@ -188,9 +204,19 @@ class Incident extends Model
         return $this->attributes['citizen_heading'] ?? $this->caller_heading;
     }
 
+    public function getCallerHeadingAttribute(): mixed
+    {
+        return $this->attributes['caller_heading'] ?? $this->attributes['citizen_heading'] ?? null;
+    }
+
     public function getCitizenHeadingSourceAttribute(): mixed
     {
         return $this->attributes['citizen_heading_source'] ?? $this->caller_heading_source;
+    }
+
+    public function getCallerHeadingSourceAttribute(): mixed
+    {
+        return $this->attributes['caller_heading_source'] ?? $this->attributes['citizen_heading_source'] ?? null;
     }
 
     public function getCitizenLocationCapturedAtAttribute(): mixed
@@ -198,5 +224,12 @@ class Incident extends Model
         $value = $this->attributes['citizen_location_captured_at'] ?? null;
 
         return $value === null ? $this->caller_location_captured_at : $this->asDateTime($value);
+    }
+
+    public function getCallerLocationCapturedAtAttribute(): mixed
+    {
+        $value = $this->attributes['caller_location_captured_at'] ?? $this->attributes['citizen_location_captured_at'] ?? null;
+
+        return $value === null ? null : $this->asDateTime($value);
     }
 }

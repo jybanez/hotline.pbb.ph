@@ -50,7 +50,6 @@ class CallRoutingService
 
         return DB::transaction(function () use ($caller, $latitude, $longitude, $operator) {
             $attempt = CallAttempt::query()->create([
-                'caller_id' => $caller->id,
                 'citizen_id' => $caller->id,
                 'status' => CallStatus::Calling,
                 'caller_latitude' => $latitude,
@@ -87,7 +86,6 @@ class CallRoutingService
 
         return DB::transaction(function () use ($caller, $latitude, $longitude, $operator) {
             $attempt = CallAttempt::query()->create([
-                'caller_id' => $caller->id,
                 'citizen_id' => $caller->id,
                 'status' => CallStatus::Calling,
                 'caller_latitude' => $latitude,
@@ -154,7 +152,6 @@ class CallRoutingService
 
         return DB::transaction(function () use ($caller, $incident, $operator) {
             $attempt = CallAttempt::query()->create([
-                'caller_id' => $caller->id,
                 'citizen_id' => $caller->id,
                 'incident_id' => $incident->id,
                 'status' => CallStatus::Calling,
@@ -365,11 +362,8 @@ class CallRoutingService
                 $alertLevel = $this->settings->currentAlertLevel();
 
                 $incident = Incident::query()->create([
-                    'caller_id' => $caller->id,
                     'citizen_id' => $caller->id,
-                    'actual_caller_name' => $caller->name,
                     'actual_citizen_name' => $caller->name,
-                    'actual_caller_relationship' => 'Self',
                     'actual_citizen_relationship' => 'Self',
                     'operator_id' => $operator->id,
                     'status' => IncidentStatus::Active,
@@ -406,7 +400,6 @@ class CallRoutingService
 
             $callSession = CallSession::query()->create([
                 'incident_id' => $incident->id,
-                'caller_id' => $caller->id,
                 'citizen_id' => $caller->id,
                 'status' => CallStatus::InProgress,
                 'started_at' => $attempt->started_at ?? now(),

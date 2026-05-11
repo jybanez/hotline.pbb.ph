@@ -78,7 +78,7 @@ class SitrepGenerationService
                 'incidentTypeDetails.incidentType',
                 'incidentResourcesNeeded.resourceType',
                 'teamAssignments.team',
-                'callerLocations',
+                'citizenLocations',
             ]);
 
         if ($preparedBy->role === UserRole::Operator) {
@@ -111,7 +111,7 @@ class SitrepGenerationService
         $teamAssignments = $incidents->flatMap(fn (Incident $incident) => $incident->teamAssignments);
         $resourceNeeds = $incidents->flatMap(fn (Incident $incident) => $incident->incidentResourcesNeeded);
         $fieldDetails = $incidents->flatMap(fn (Incident $incident) => $incident->incidentTypeDetails);
-        $callerLocations = $incidents->flatMap(fn (Incident $incident) => $incident->callerLocations);
+        $citizenLocations = $incidents->flatMap(fn (Incident $incident) => $incident->citizenLocations);
 
         $typeRows = collect();
         foreach ($incidents as $incident) {
@@ -146,7 +146,7 @@ class SitrepGenerationService
             'team_assignments' => $teamAssignments,
             'resource_needs' => $resourceRows,
             'field_details' => $fieldDetails,
-            'citizen_locations' => $callerLocations,
+            'citizen_locations' => $citizenLocations,
             'type_rows' => $typeRows,
             'type_counts' => $typeRows->countBy('name')->sortDesc(),
             'location_counts' => $incidents

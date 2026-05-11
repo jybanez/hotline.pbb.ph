@@ -33,8 +33,8 @@ class DirectedCallAttemptTest extends TestCase
         ]);
 
         Incident::query()->create([
-            'caller_id' => $caller->id,
-            'actual_caller_name' => $caller->name,
+            'citizen_id' => $caller->id,
+            'actual_citizen_name' => $caller->name,
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Deferred,
             'alert_level' => AlertLevel::Normal,

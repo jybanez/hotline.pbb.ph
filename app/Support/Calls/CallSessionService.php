@@ -63,7 +63,6 @@ class CallSessionService
         return DB::transaction(function () use ($caller, $incident) {
             $callSession = CallSession::query()->create([
                 'incident_id' => $incident->id,
-                'caller_id' => $caller->id,
                 'citizen_id' => $caller->id,
                 'status' => CallStatus::Calling,
                 'started_at' => now(),

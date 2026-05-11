@@ -32,15 +32,15 @@ class CommandIncidentTest extends TestCase
         ]);
 
         DB::table('incidents')->insert([
-            'caller_id' => $citizen->id,
-            'actual_caller_name' => 'Maria Santos',
-            'actual_caller_relationship' => 'Self',
+            'citizen_id' => $citizen->id,
+            'actual_citizen_name' => 'Maria Santos',
+            'actual_citizen_relationship' => 'Self',
             'operator_id' => User::factory()->create(['role' => UserRole::Operator])->id,
             'status' => IncidentStatus::Active->value,
             'alert_level' => 'Normal',
             'latitude' => 10.3157,
             'longitude' => 123.8854,
-            'caller_location_accuracy' => 12,
+            'citizen_location_accuracy' => 12,
             'called_at' => now(),
             'created_at' => now(),
             'updated_at' => now(),

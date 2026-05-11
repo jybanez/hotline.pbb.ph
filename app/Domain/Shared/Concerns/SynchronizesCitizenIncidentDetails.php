@@ -27,6 +27,7 @@ trait SynchronizesCitizenIncidentDetails
 
                 $citizenValue = $attributes[$citizenColumn] ?? null;
                 $callerValue = $attributes[$callerColumn] ?? null;
+                $hasCallerColumn = Schema::hasColumn($table, $callerColumn);
 
                 if ($citizenValue === null && $callerValue !== null) {
                     $model->setAttribute($citizenColumn, $callerValue);
@@ -34,8 +35,12 @@ trait SynchronizesCitizenIncidentDetails
                     continue;
                 }
 
-                if ($callerValue === null && $citizenValue !== null) {
+                if ($hasCallerColumn && $callerValue === null && $citizenValue !== null) {
                     $model->setAttribute($callerColumn, $citizenValue);
+                }
+
+                if (! $hasCallerColumn) {
+                    unset($model->{$callerColumn});
                 }
             }
         });

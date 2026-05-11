@@ -5,7 +5,6 @@ namespace Tests\Feature\Database;
 use App\Domain\Calls\Models\CallAttempt;
 use App\Domain\Calls\Models\CallSession;
 use App\Domain\Incidents\Models\Incident;
-use App\Domain\Incidents\Models\IncidentCallerLocation;
 use App\Domain\Incidents\Models\IncidentCitizenLocation;
 use App\Domain\Shared\Concerns\SynchronizesCitizenIdentity;
 use App\Domain\Shared\Concerns\SynchronizesCitizenIncidentDetails;
@@ -26,56 +25,57 @@ class CitizenCompatibilityColumnsTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_citizen_id_columns_exist_beside_caller_id_columns(): void
+    public function test_caller_storage_columns_and_tables_are_removed_after_5f(): void
     {
-        foreach (['incidents', 'call_attempts', 'call_sessions', 'incident_caller_locations'] as $table) {
-            $this->assertTrue(Schema::hasColumn($table, 'caller_id'), "{$table} is missing caller_id");
+        foreach (['incidents', 'call_attempts', 'call_sessions'] as $table) {
             $this->assertTrue(Schema::hasColumn($table, 'citizen_id'), "{$table} is missing citizen_id");
+            $this->assertFalse(Schema::hasColumn($table, 'caller_id'), "{$table} still has caller_id");
         }
 
-        $this->assertTrue(Schema::hasTable('incident_citizen_locations'));
-        $this->assertFalse(Schema::hasColumn('incident_citizen_locations', 'caller_id'));
-        $this->assertTrue(Schema::hasColumn('incident_citizen_locations', 'citizen_id'));
-    }
-
-    public function test_citizen_detail_columns_exist_beside_caller_detail_columns(): void
-    {
         foreach ([
-            'actual_citizen_name',
-            'actual_citizen_relationship',
-            'citizen_location_accuracy',
-            'citizen_altitude',
-            'citizen_altitude_accuracy',
-            'citizen_heading',
-            'citizen_heading_source',
-            'citizen_location_captured_at',
+            'actual_caller_name',
+            'actual_caller_relationship',
+            'caller_location_accuracy',
+            'caller_altitude',
+            'caller_altitude_accuracy',
+            'caller_heading',
+            'caller_heading_source',
+            'caller_location_captured_at',
         ] as $column) {
-            $this->assertTrue(Schema::hasColumn('incidents', $column), "incidents is missing {$column}");
+            $this->assertFalse(Schema::hasColumn('incidents', $column), "incidents still has {$column}");
         }
+
+        $this->assertFalse(Schema::hasTable('incident_caller_locations'));
+        $this->assertTrue(Schema::hasTable('incident_citizen_locations'));
+        $this->assertTrue(Schema::hasColumn('incident_citizen_locations', 'citizen_id'));
+        $this->assertFalse(Schema::hasColumn('incident_citizen_locations', 'caller_id'));
     }
 
-    public function test_models_can_read_citizen_id_from_new_compatibility_columns(): void
+    public function test_models_expose_legacy_accessors_from_citizen_storage(): void
     {
-        $citizen = User::factory()->create([
-            'role' => UserRole::Citizen,
-        ]);
-        $operator = User::factory()->create([
-            'role' => UserRole::Operator,
-        ]);
+        $citizen = User::factory()->create(['role' => UserRole::Citizen]);
+        $operator = User::factory()->create(['role' => UserRole::Operator]);
+        $capturedAt = now()->subMinute()->startOfSecond();
 
         $incident = Incident::query()->create([
-            'caller_id' => $citizen->id,
             'citizen_id' => $citizen->id,
-            'actual_caller_name' => $citizen->name,
-            'actual_caller_relationship' => 'Self',
+            'actual_citizen_name' => 'Canonical Citizen Name',
+            'actual_citizen_relationship' => 'Self',
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active,
             'alert_level' => AlertLevel::Normal,
+            'latitude' => 10.3157,
+            'longitude' => 123.8854,
+            'citizen_location_accuracy' => 12,
+            'citizen_altitude' => 20,
+            'citizen_altitude_accuracy' => 3,
+            'citizen_heading' => 45,
+            'citizen_heading_source' => 'gps',
+            'citizen_location_captured_at' => $capturedAt,
             'called_at' => now(),
         ]);
 
         $attempt = CallAttempt::query()->create([
-            'caller_id' => $citizen->id,
             'citizen_id' => $citizen->id,
             'incident_id' => $incident->id,
             'answered_by_operator_id' => $operator->id,
@@ -86,7 +86,6 @@ class CitizenCompatibilityColumnsTest extends TestCase
 
         $session = CallSession::query()->create([
             'incident_id' => $incident->id,
-            'caller_id' => $citizen->id,
             'citizen_id' => $citizen->id,
             'status' => CallStatus::InProgress,
             'outcome' => CallOutcome::Answered,
@@ -94,35 +93,27 @@ class CitizenCompatibilityColumnsTest extends TestCase
             'answered_at' => now(),
         ]);
 
-        $location = IncidentCallerLocation::query()->create([
-            'incident_id' => $incident->id,
-            'caller_id' => $citizen->id,
-            'citizen_id' => $citizen->id,
-            'operator_id' => $operator->id,
-            'call_session_id' => $session->id,
-            'latitude' => 10.3157,
-            'longitude' => 123.8854,
-            'captured_at' => now(),
-            'received_at' => now(),
-        ]);
-
         $this->assertSame($citizen->id, $incident->citizen_id);
-        $this->assertSame($citizen->id, $attempt->citizen_id);
-        $this->assertSame($citizen->id, $session->citizen_id);
-        $this->assertSame($citizen->id, $location->citizen_id);
+        $this->assertSame($citizen->id, $incident->caller_id);
+        $this->assertSame('Canonical Citizen Name', $incident->actual_citizen_name);
+        $this->assertSame('Canonical Citizen Name', $incident->actual_caller_name);
+        $this->assertSame('Self', $incident->actual_caller_relationship);
+        $this->assertSame(12.0, (float) $incident->caller_location_accuracy);
+        $this->assertSame(20.0, (float) $incident->caller_altitude);
+        $this->assertSame(3.0, (float) $incident->caller_altitude_accuracy);
+        $this->assertSame(45.0, (float) $incident->caller_heading);
+        $this->assertSame('gps', $incident->caller_heading_source);
+        $this->assertTrue($incident->caller_location_captured_at->equalTo($capturedAt));
+        $this->assertSame($citizen->id, $attempt->caller_id);
+        $this->assertSame($citizen->id, $session->caller_id);
     }
 
     public function test_incident_citizen_locations_store_citizen_history_without_caller_id(): void
     {
-        $citizen = User::factory()->create([
-            'role' => UserRole::Citizen,
-        ]);
-        $operator = User::factory()->create([
-            'role' => UserRole::Operator,
-        ]);
+        $citizen = User::factory()->create(['role' => UserRole::Citizen]);
+        $operator = User::factory()->create(['role' => UserRole::Operator]);
 
         $incident = Incident::query()->create([
-            'caller_id' => $citizen->id,
             'citizen_id' => $citizen->id,
             'actual_citizen_name' => $citizen->name,
             'actual_citizen_relationship' => 'Self',
@@ -146,91 +137,18 @@ class CitizenCompatibilityColumnsTest extends TestCase
 
         $this->assertSame($citizen->id, $location->citizen()->first()?->id);
         $this->assertSame(1, $incident->citizenLocations()->count());
-        $this->assertSame(0, $incident->callerLocations()->count());
     }
 
-    public function test_citizen_relationships_use_citizen_id_as_active_identity_column(): void
+    public function test_citizen_incident_api_filters_by_citizen_id(): void
     {
-        $legacyCaller = User::factory()->create([
-            'role' => UserRole::Citizen,
-        ]);
-        $citizen = User::factory()->create([
-            'role' => UserRole::Citizen,
-        ]);
-        $operator = User::factory()->create([
-            'role' => UserRole::Operator,
-        ]);
+        $otherCitizen = User::factory()->create(['role' => UserRole::Citizen]);
+        $citizen = User::factory()->create(['role' => UserRole::Citizen]);
+        $operator = User::factory()->create(['role' => UserRole::Operator]);
 
         $incident = Incident::query()->create([
-            'caller_id' => $legacyCaller->id,
             'citizen_id' => $citizen->id,
-            'actual_caller_name' => $citizen->name,
-            'actual_caller_relationship' => 'Self',
-            'operator_id' => $operator->id,
-            'status' => IncidentStatus::Active,
-            'alert_level' => AlertLevel::Normal,
-            'called_at' => now(),
-        ]);
-
-        $attempt = CallAttempt::query()->create([
-            'caller_id' => $legacyCaller->id,
-            'citizen_id' => $citizen->id,
-            'incident_id' => $incident->id,
-            'answered_by_operator_id' => $operator->id,
-            'status' => CallStatus::InProgress,
-            'outcome' => CallOutcome::Answered,
-            'started_at' => now(),
-        ]);
-
-        $session = CallSession::query()->create([
-            'incident_id' => $incident->id,
-            'caller_id' => $legacyCaller->id,
-            'citizen_id' => $citizen->id,
-            'status' => CallStatus::InProgress,
-            'outcome' => CallOutcome::Answered,
-            'started_at' => now(),
-            'answered_at' => now(),
-        ]);
-
-        $location = IncidentCallerLocation::query()->create([
-            'incident_id' => $incident->id,
-            'caller_id' => $legacyCaller->id,
-            'citizen_id' => $citizen->id,
-            'operator_id' => $operator->id,
-            'call_session_id' => $session->id,
-            'latitude' => 10.3157,
-            'longitude' => 123.8854,
-            'captured_at' => now(),
-            'received_at' => now(),
-        ]);
-
-        $this->assertSame($citizen->id, $incident->citizen()->first()?->id);
-        $this->assertSame($legacyCaller->id, $incident->caller()->first()?->id);
-        $this->assertSame($citizen->id, $attempt->citizen()->first()?->id);
-        $this->assertSame($legacyCaller->id, $attempt->caller()->first()?->id);
-        $this->assertSame($citizen->id, $session->citizen()->first()?->id);
-        $this->assertSame($legacyCaller->id, $session->caller()->first()?->id);
-        $this->assertSame($citizen->id, $location->citizen()->first()?->id);
-        $this->assertSame($legacyCaller->id, $location->caller()->first()?->id);
-    }
-
-    public function test_citizen_incident_api_filters_by_citizen_id_not_caller_id(): void
-    {
-        $legacyCaller = User::factory()->create([
-            'role' => UserRole::Citizen,
-        ]);
-        $citizen = User::factory()->create([
-            'role' => UserRole::Citizen,
-        ]);
-        $operator = User::factory()->create([
-            'role' => UserRole::Operator,
-        ]);
-
-        $incident = Incident::query()->create([
-            'caller_id' => $legacyCaller->id,
-            'citizen_id' => $citizen->id,
-            'actual_caller_name' => $citizen->name,
-            'actual_caller_relationship' => 'Self',
+            'actual_citizen_name' => $citizen->name,
+            'actual_citizen_relationship' => 'Self',
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active,
             'alert_level' => AlertLevel::Normal,
@@ -243,142 +161,20 @@ class CitizenCompatibilityColumnsTest extends TestCase
             ->assertJsonPath('incident.id', $incident->id)
             ->assertJsonPath('incident.citizen_id', $citizen->id);
 
-        $this->actingAs($legacyCaller)
+        $this->actingAs($otherCitizen)
             ->getJson('/api/citizen/incidents/current')
             ->assertOk()
             ->assertJsonPath('incident', null);
     }
 
-    public function test_models_fill_missing_identity_side_for_rollback_sync(): void
-    {
-        $citizen = User::factory()->create([
-            'role' => UserRole::Citizen,
-        ]);
-        $operator = User::factory()->create([
-            'role' => UserRole::Operator,
-        ]);
-
-        $incident = Incident::query()->create([
-            'citizen_id' => $citizen->id,
-            'actual_caller_name' => $citizen->name,
-            'actual_caller_relationship' => 'Self',
-            'operator_id' => $operator->id,
-            'status' => IncidentStatus::Active,
-            'alert_level' => AlertLevel::Normal,
-            'called_at' => now(),
-        ]);
-
-        $row = DB::table('incidents')->where('id', $incident->id)->first();
-
-        $this->assertSame($citizen->id, (int) $row->caller_id);
-        $this->assertSame($citizen->id, (int) $row->citizen_id);
-    }
-
-    public function test_incident_detail_accessors_prefer_citizen_columns(): void
-    {
-        $citizen = User::factory()->create([
-            'role' => UserRole::Citizen,
-        ]);
-        $operator = User::factory()->create([
-            'role' => UserRole::Operator,
-        ]);
-        $capturedAt = now()->subMinute()->startOfSecond();
-
-        $incident = Incident::query()->create([
-            'caller_id' => $citizen->id,
-            'citizen_id' => $citizen->id,
-            'actual_caller_name' => 'Legacy Caller Name',
-            'actual_citizen_name' => 'Canonical Citizen Name',
-            'actual_caller_relationship' => 'Legacy Relationship',
-            'actual_citizen_relationship' => 'Canonical Relationship',
-            'operator_id' => $operator->id,
-            'status' => IncidentStatus::Active,
-            'alert_level' => AlertLevel::Normal,
-            'latitude' => 10.3157,
-            'longitude' => 123.8854,
-            'caller_location_accuracy' => 99,
-            'citizen_location_accuracy' => 12,
-            'caller_altitude' => 300,
-            'citizen_altitude' => 20,
-            'caller_altitude_accuracy' => 30,
-            'citizen_altitude_accuracy' => 3,
-            'caller_heading' => 180,
-            'citizen_heading' => 45,
-            'caller_heading_source' => 'legacy',
-            'citizen_heading_source' => 'gps',
-            'caller_location_captured_at' => $capturedAt->copy()->subMinute(),
-            'citizen_location_captured_at' => $capturedAt,
-            'called_at' => now(),
-        ]);
-
-        $this->assertSame('Canonical Citizen Name', $incident->actual_citizen_name);
-        $this->assertSame('Legacy Caller Name', $incident->actual_caller_name);
-        $this->assertSame('Canonical Relationship', $incident->actual_citizen_relationship);
-        $this->assertSame('Legacy Relationship', $incident->actual_caller_relationship);
-        $this->assertSame(12.0, (float) $incident->citizen_location_accuracy);
-        $this->assertSame(99.0, (float) $incident->caller_location_accuracy);
-        $this->assertSame(20.0, (float) $incident->citizen_altitude);
-        $this->assertSame(3.0, (float) $incident->citizen_altitude_accuracy);
-        $this->assertSame(45.0, (float) $incident->citizen_heading);
-        $this->assertSame('gps', $incident->citizen_heading_source);
-        $this->assertTrue($incident->citizen_location_captured_at->equalTo($capturedAt));
-    }
-
-    public function test_incident_details_fill_missing_side_for_rollback_sync(): void
-    {
-        $citizen = User::factory()->create([
-            'role' => UserRole::Citizen,
-        ]);
-        $operator = User::factory()->create([
-            'role' => UserRole::Operator,
-        ]);
-        $capturedAt = now()->subMinute()->startOfSecond();
-
-        $incident = Incident::query()->create([
-            'caller_id' => $citizen->id,
-            'citizen_id' => $citizen->id,
-            'actual_citizen_name' => 'Canonical Citizen Name',
-            'actual_citizen_relationship' => 'Self',
-            'operator_id' => $operator->id,
-            'status' => IncidentStatus::Active,
-            'alert_level' => AlertLevel::Normal,
-            'latitude' => 10.3157,
-            'longitude' => 123.8854,
-            'citizen_location_accuracy' => 12,
-            'citizen_altitude' => 20,
-            'citizen_altitude_accuracy' => 3,
-            'citizen_heading' => 45,
-            'citizen_heading_source' => 'gps',
-            'citizen_location_captured_at' => $capturedAt,
-            'called_at' => now(),
-        ]);
-
-        $row = DB::table('incidents')->where('id', $incident->id)->first();
-
-        $this->assertSame('Canonical Citizen Name', $row->actual_caller_name);
-        $this->assertSame('Canonical Citizen Name', $row->actual_citizen_name);
-        $this->assertSame('Self', $row->actual_caller_relationship);
-        $this->assertSame('Self', $row->actual_citizen_relationship);
-        $this->assertSame('12', (string) $row->caller_location_accuracy);
-        $this->assertSame('12', (string) $row->citizen_location_accuracy);
-        $this->assertSame('20', (string) $row->caller_altitude);
-        $this->assertSame('20', (string) $row->citizen_altitude);
-        $this->assertSame('3', (string) $row->caller_altitude_accuracy);
-        $this->assertSame('3', (string) $row->citizen_altitude_accuracy);
-        $this->assertSame('45', (string) $row->caller_heading);
-        $this->assertSame('45', (string) $row->citizen_heading);
-        $this->assertSame('gps', $row->caller_heading_source);
-        $this->assertSame('gps', $row->citizen_heading_source);
-    }
-
     public function test_citizen_sync_traits_ignore_columns_missing_from_legacy_schema(): void
     {
-        Schema::create('legacy_incident_sync_probe', function (Blueprint $table): void {
+        Schema::create('citizen_sync_probe', function (Blueprint $table): void {
             $table->id();
-            $table->unsignedBigInteger('caller_id')->nullable();
-            $table->string('actual_caller_name')->nullable();
-            $table->string('actual_caller_relationship')->nullable();
-            $table->decimal('caller_location_accuracy', 10, 2)->nullable();
+            $table->unsignedBigInteger('citizen_id')->nullable();
+            $table->string('actual_citizen_name')->nullable();
+            $table->string('actual_citizen_relationship')->nullable();
+            $table->decimal('citizen_location_accuracy', 10, 2)->nullable();
         });
 
         try {
@@ -387,7 +183,7 @@ class CitizenCompatibilityColumnsTest extends TestCase
                 use SynchronizesCitizenIdentity;
                 use SynchronizesCitizenIncidentDetails;
 
-                protected $table = 'legacy_incident_sync_probe';
+                protected $table = 'citizen_sync_probe';
 
                 public $timestamps = false;
 
@@ -395,38 +191,33 @@ class CitizenCompatibilityColumnsTest extends TestCase
             };
 
             $created = $model->newQuery()->create([
-                'caller_id' => 123,
                 'citizen_id' => 123,
-                'actual_caller_name' => 'Legacy Caller',
+                'citizen_id' => 123,
                 'actual_citizen_name' => 'Legacy Caller',
-                'actual_caller_relationship' => 'Self',
+                'actual_citizen_name' => 'Canonical Citizen',
+                'actual_citizen_relationship' => 'Legacy Self',
                 'actual_citizen_relationship' => 'Self',
-                'caller_location_accuracy' => 8,
+                'citizen_location_accuracy' => 99,
                 'citizen_location_accuracy' => 8,
             ]);
 
-            $row = DB::table('legacy_incident_sync_probe')->where('id', $created->getKey())->first();
+            $row = DB::table('citizen_sync_probe')->where('id', $created->getKey())->first();
 
-            $this->assertSame(123, (int) $row->caller_id);
-            $this->assertSame('Legacy Caller', $row->actual_caller_name);
-            $this->assertSame('Self', $row->actual_caller_relationship);
-            $this->assertSame('8', (string) $row->caller_location_accuracy);
+            $this->assertSame(123, (int) $row->citizen_id);
+            $this->assertSame('Canonical Citizen', $row->actual_citizen_name);
+            $this->assertSame('Self', $row->actual_citizen_relationship);
+            $this->assertSame('8', (string) $row->citizen_location_accuracy);
         } finally {
-            Schema::dropIfExists('legacy_incident_sync_probe');
+            Schema::dropIfExists('citizen_sync_probe');
         }
     }
 
     public function test_protocol_value_migration_converts_legacy_caller_values_to_citizen_values(): void
     {
-        $citizen = User::factory()->create([
-            'role' => UserRole::Citizen,
-        ]);
-        $operator = User::factory()->create([
-            'role' => UserRole::Operator,
-        ]);
+        $citizen = User::factory()->create(['role' => UserRole::Citizen]);
+        $operator = User::factory()->create(['role' => UserRole::Operator]);
 
         $incident = Incident::query()->create([
-            'caller_id' => $citizen->id,
             'citizen_id' => $citizen->id,
             'actual_citizen_name' => $citizen->name,
             'actual_citizen_relationship' => 'Self',
@@ -437,7 +228,6 @@ class CitizenCompatibilityColumnsTest extends TestCase
         ]);
 
         $attempt = CallAttempt::query()->create([
-            'caller_id' => $citizen->id,
             'citizen_id' => $citizen->id,
             'incident_id' => $incident->id,
             'answered_by_operator_id' => $operator->id,
@@ -449,7 +239,6 @@ class CitizenCompatibilityColumnsTest extends TestCase
 
         $session = CallSession::query()->create([
             'incident_id' => $incident->id,
-            'caller_id' => $citizen->id,
             'citizen_id' => $citizen->id,
             'status' => CallStatus::Ended,
             'outcome' => 'ended_by_caller',

@@ -34,9 +34,9 @@ class IncidentMessagePersistenceTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $caller->id,
-            'actual_caller_name' => $caller->name,
-            'actual_caller_relationship' => 'Self',
+            'citizen_id' => $caller->id,
+            'actual_citizen_name' => $caller->name,
+            'actual_citizen_relationship' => 'Self',
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active->value,
             'alert_level' => 'Normal',
@@ -105,9 +105,9 @@ class IncidentMessagePersistenceTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $caller->id,
-            'actual_caller_name' => $caller->name,
-            'actual_caller_relationship' => 'Self',
+            'citizen_id' => $caller->id,
+            'actual_citizen_name' => $caller->name,
+            'actual_citizen_relationship' => 'Self',
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active->value,
             'alert_level' => 'Normal',
@@ -142,9 +142,9 @@ class IncidentMessagePersistenceTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $caller->id,
-            'actual_caller_name' => $caller->name,
-            'actual_caller_relationship' => 'Self',
+            'citizen_id' => $caller->id,
+            'actual_citizen_name' => $caller->name,
+            'actual_citizen_relationship' => 'Self',
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active->value,
             'alert_level' => 'Normal',

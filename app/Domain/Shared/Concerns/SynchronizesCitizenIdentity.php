@@ -24,15 +24,18 @@ trait SynchronizesCitizenIdentity
             $attributes = $model->getAttributes();
             $callerId = $attributes['caller_id'] ?? null;
             $citizenId = $attributes['citizen_id'] ?? null;
+            $hasCallerColumn = Schema::hasColumn($model->getTable(), 'caller_id');
 
             if ($citizenId === null && $callerId !== null) {
                 $model->setAttribute('citizen_id', $callerId);
-
-                return;
             }
 
-            if ($callerId === null && $citizenId !== null) {
+            if ($hasCallerColumn && $callerId === null && $citizenId !== null) {
                 $model->setAttribute('caller_id', $citizenId);
+            }
+
+            if (! $hasCallerColumn) {
+                unset($model->caller_id);
             }
         });
     }

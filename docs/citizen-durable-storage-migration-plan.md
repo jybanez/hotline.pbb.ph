@@ -2,20 +2,21 @@
 
 Date: 2026-05-11
 
-Status: Batch 5 planning inventory after route, Realtime event, request-field, and PWA alias removal.
+Status: Batch 5F implemented locally on 2026-05-11 after route, Realtime event, request-field, PWA alias, output alias, and storage compatibility cleanup.
 
 This plan covers caller-named database columns, table names, historical enum values, and report payload keys. These names are not temporary browser/API aliases. They are persisted data contracts and need staged migrations with rollback points.
 
 ## Current State
 
-Completed compatibility groundwork:
+Completed migration state:
 
-- `citizen_id` columns already exist beside `caller_id` on `incidents`, `call_attempts`, `call_sessions`, and `incident_caller_locations`.
-- Existing rows were backfilled from `caller_id` to `citizen_id`.
+- `citizen_id` columns are the only public-user identity columns on `incidents`, `call_attempts`, and `call_sessions`.
+- `incident_citizen_locations` is the only active citizen location-history table.
 - Runtime request validation now rejects legacy caller request fields on the live call/media write paths.
 - Runtime responses now expose citizen-facing public-user identity, location, media role, and report fields without legacy caller-shaped aliases on the citizen, operator summary/detail, command incident, and SITREP payloads.
+- Deprecated internal `caller()` / `caller_id` read accessors now resolve from citizen storage and do not query dropped caller columns.
 
-Remaining durable caller storage/history names:
+Removed durable caller storage/history names:
 
 - Identity columns:
   - `incidents.caller_id`
@@ -159,6 +160,8 @@ Rollback:
 
 ### Batch 5F: Drop Caller Columns And Tables
 
+Status: Complete in code locally on 2026-05-11. Production rollout still requires the normal backup/release window.
+
 Goal: destructive cleanup after production has run cleanly on citizen-named storage.
 
 Prerequisites:
@@ -175,14 +178,15 @@ Prerequisites:
 
 Changes:
 
-- Drop `caller_id` columns from the four public-user tables.
-- Drop `actual_caller_*` and `caller_location_*` incident columns.
-- Drop `incident_caller_locations`.
-- Remove deprecated enum cases only if no persisted rows can hydrate them.
+- [x] Drop `caller_id` columns from `incidents`, `call_attempts`, and `call_sessions`.
+- [x] Drop `actual_caller_*` and `caller_location_*` incident columns.
+- [x] Drop `incident_caller_locations`.
+- [x] Keep deprecated read accessors and validation rejection tests so legacy names remain readable only as in-memory compatibility aliases where needed.
+- [ ] Remove deprecated enum cases only if no persisted rows can hydrate them.
 
 Rollback:
 
-- Requires restoring from backup or running reverse migrations that recreate and backfill from citizen-named storage. Treat this as a production change with an explicit database backup and maintenance window.
+- The 5F migration has a reverse path that recreates caller-shaped columns/table and backfills from citizen-named storage. Production rollout should still be treated as a destructive schema change with an explicit database backup and maintenance window.
 
 ## Verification Gates
 
@@ -198,7 +202,7 @@ Before 5D:
 
 Before 5F:
 
-- Run parity SQL for identity columns and location history.
-- Run full test suite.
-- Run a live smoke test: new call, reconnect, citizen hangup, operator hangup, terminal status update.
-- Capture backup/rollback steps in the release notes.
+- [x] Run parity SQL for identity columns and location history before local cleanup. Test records were cleared before 5F.
+- [x] Run full feature test suite locally after 5F: `php artisan test tests\Feature` passed with 149 tests / 1028 assertions.
+- [ ] Run a live smoke test after production rollout: new call, reconnect, citizen hangup, operator hangup, terminal status update.
+- [ ] Capture backup/rollback steps in the release notes before production rollout.

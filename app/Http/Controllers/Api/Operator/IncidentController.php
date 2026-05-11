@@ -207,9 +207,8 @@ class IncidentController extends Controller
             }
         }
 
-        $callerLocation = [
+        $citizenLocation = [
             'incident_id' => $incident->id,
-            'caller_id' => $incident->caller_id,
             'citizen_id' => $incident->citizen_id,
             'operator_id' => $incident->operator_id,
             'call_session_id' => $callSessionId,
@@ -226,13 +225,7 @@ class IncidentController extends Controller
             'created_at' => $receivedAt,
             'updated_at' => $receivedAt,
         ];
-        $this->insertExistingColumns('incident_caller_locations', $callerLocation);
-
-        if (Schema::hasTable('incident_citizen_locations')) {
-            $citizenLocation = $callerLocation;
-            unset($citizenLocation['caller_id']);
-            $this->insertExistingColumns('incident_citizen_locations', $citizenLocation);
-        }
+        $this->insertExistingColumns('incident_citizen_locations', $citizenLocation);
 
         if ($incident->citizen_location_captured_at && $capturedAt->lt($incident->citizen_location_captured_at)) {
             return response()->json([
@@ -245,17 +238,11 @@ class IncidentController extends Controller
         $incident->forceFill([
             'latitude' => (float) $validated['latitude'],
             'longitude' => (float) $validated['longitude'],
-            'caller_location_accuracy' => isset($validated['accuracy']) ? (float) $validated['accuracy'] : null,
             'citizen_location_accuracy' => isset($validated['accuracy']) ? (float) $validated['accuracy'] : null,
-            'caller_altitude' => isset($validated['altitude']) ? (float) $validated['altitude'] : null,
             'citizen_altitude' => isset($validated['altitude']) ? (float) $validated['altitude'] : null,
-            'caller_altitude_accuracy' => isset($validated['altitude_accuracy']) ? (float) $validated['altitude_accuracy'] : null,
             'citizen_altitude_accuracy' => isset($validated['altitude_accuracy']) ? (float) $validated['altitude_accuracy'] : null,
-            'caller_heading' => isset($validated['heading']) ? (float) $validated['heading'] : null,
             'citizen_heading' => isset($validated['heading']) ? (float) $validated['heading'] : null,
-            'caller_heading_source' => $validated['heading_source'] ?? null,
             'citizen_heading_source' => $validated['heading_source'] ?? null,
-            'caller_location_captured_at' => $capturedAt,
             'citizen_location_captured_at' => $capturedAt,
         ])->save();
 
@@ -265,7 +252,7 @@ class IncidentController extends Controller
         ]);
     }
 
-    public function callerLocations(Request $request, Incident $incident): JsonResponse
+    public function citizenLocations(Request $request, Incident $incident): JsonResponse
     {
         abort_unless((int) $incident->operator_id === (int) $request->user()->id, 404);
 
@@ -505,9 +492,7 @@ class IncidentController extends Controller
         $relationship = $validated['actual_citizen_relationship'] ?? null;
 
         return [
-            'actual_caller_name' => trim((string) $validated['actual_citizen_name']),
             'actual_citizen_name' => trim((string) $validated['actual_citizen_name']),
-            'actual_caller_relationship' => is_string($relationship) ? trim($relationship) ?: null : null,
             'actual_citizen_relationship' => is_string($relationship) ? trim($relationship) ?: null : null,
         ];
     }
@@ -517,6 +502,10 @@ class IncidentController extends Controller
      */
     private function insertExistingColumns(string $table, array $row): void
     {
+        if (! Schema::hasTable($table)) {
+            return;
+        }
+
         $columns = array_flip(Schema::getColumnListing($table));
 
         DB::table($table)->insert(array_intersect_key($row, $columns));

@@ -32,9 +32,9 @@ class IncidentWorkbenchTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $caller->id,
-            'actual_caller_name' => 'Maria Santos',
-            'actual_caller_relationship' => 'self',
+            'citizen_id' => $caller->id,
+            'actual_citizen_name' => 'Maria Santos',
+            'actual_citizen_relationship' => 'self',
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active->value,
             'alert_level' => 'Normal',
@@ -69,8 +69,8 @@ class IncidentWorkbenchTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $caller->id,
-            'actual_caller_name' => 'Maria Santos',
+            'citizen_id' => $caller->id,
+            'actual_citizen_name' => 'Maria Santos',
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active->value,
             'alert_level' => 'Normal',
@@ -83,7 +83,7 @@ class IncidentWorkbenchTest extends TestCase
             [
                 'id' => 1001,
                 'incident_id' => $incidentId,
-                'caller_id' => $caller->id,
+                'citizen_id' => $caller->id,
                 'status' => 'ended',
                 'outcome' => 'ended_by_caller',
                 'started_at' => now()->subMinutes(3),
@@ -95,7 +95,7 @@ class IncidentWorkbenchTest extends TestCase
             [
                 'id' => 1002,
                 'incident_id' => $incidentId,
-                'caller_id' => $caller->id,
+                'citizen_id' => $caller->id,
                 'status' => 'in_progress',
                 'outcome' => null,
                 'started_at' => now()->subSeconds(20),
@@ -128,8 +128,8 @@ class IncidentWorkbenchTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $caller->id,
-            'actual_caller_name' => 'Maria Santos',
+            'citizen_id' => $caller->id,
+            'actual_citizen_name' => 'Maria Santos',
             'operator_id' => $owner->id,
             'status' => IncidentStatus::Active->value,
             'alert_level' => 'Normal',
@@ -170,8 +170,8 @@ class IncidentWorkbenchTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $caller->id,
-            'actual_caller_name' => 'Maria Santos',
+            'citizen_id' => $caller->id,
+            'actual_citizen_name' => 'Maria Santos',
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active->value,
             'alert_level' => 'Normal',
@@ -209,8 +209,8 @@ class IncidentWorkbenchTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $caller->id,
-            'actual_caller_name' => 'Maria Santos',
+            'citizen_id' => $caller->id,
+            'actual_citizen_name' => 'Maria Santos',
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active->value,
             'alert_level' => 'Normal',
@@ -250,9 +250,9 @@ class IncidentWorkbenchTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $caller->id,
-            'actual_caller_name' => 'Maria Santos',
-            'actual_caller_relationship' => 'Self',
+            'citizen_id' => $caller->id,
+            'actual_citizen_name' => 'Maria Santos',
+            'actual_citizen_relationship' => 'Self',
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active->value,
             'alert_level' => 'Normal',
@@ -273,8 +273,8 @@ class IncidentWorkbenchTest extends TestCase
 
         $this->assertDatabaseHas('incidents', [
             'id' => $incidentId,
-            'actual_caller_name' => 'Juan Dela Cruz',
-            'actual_caller_relationship' => 'Brother',
+            'actual_citizen_name' => 'Juan Dela Cruz',
+            'actual_citizen_relationship' => 'Brother',
         ]);
     }
 
@@ -289,8 +289,8 @@ class IncidentWorkbenchTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $caller->id,
-            'actual_caller_name' => $caller->name,
+            'citizen_id' => $caller->id,
+            'actual_citizen_name' => $caller->name,
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active->value,
             'alert_level' => 'Normal',
@@ -336,9 +336,9 @@ class IncidentWorkbenchTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $citizen->id,
-            'actual_caller_name' => $citizen->name,
-            'actual_caller_relationship' => 'Self',
+            'citizen_id' => $citizen->id,
+            'actual_citizen_name' => $citizen->name,
+            'actual_citizen_relationship' => 'Self',
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active->value,
             'alert_level' => 'Normal',
@@ -359,8 +359,8 @@ class IncidentWorkbenchTest extends TestCase
 
         $this->assertDatabaseHas('incidents', [
             'id' => $incidentId,
-            'actual_caller_name' => $citizen->name,
-            'actual_caller_relationship' => 'Self',
+            'actual_citizen_name' => $citizen->name,
+            'actual_citizen_relationship' => 'Self',
         ]);
     }
 
@@ -375,9 +375,9 @@ class IncidentWorkbenchTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $citizen->id,
-            'actual_caller_name' => $citizen->name,
-            'actual_caller_relationship' => 'Self',
+            'citizen_id' => $citizen->id,
+            'actual_citizen_name' => $citizen->name,
+            'actual_citizen_relationship' => 'Self',
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active->value,
             'alert_level' => 'Normal',
@@ -425,11 +425,6 @@ class IncidentWorkbenchTest extends TestCase
             ->assertJsonPath('items.0.latitude', 10.3157)
             ->assertJsonPath('items.0.longitude', 123.8854);
 
-        $this->assertDatabaseHas('incident_caller_locations', [
-            'incident_id' => $incidentId,
-            'caller_id' => $citizen->id,
-            'citizen_id' => $citizen->id,
-        ]);
         $this->assertDatabaseHas('incident_citizen_locations', [
             'incident_id' => $incidentId,
             'citizen_id' => $citizen->id,
@@ -448,15 +443,15 @@ class IncidentWorkbenchTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $citizen->id,
-            'actual_caller_name' => 'Maria Santos',
-            'actual_caller_relationship' => 'Self',
+            'citizen_id' => $citizen->id,
+            'actual_citizen_name' => 'Maria Santos',
+            'actual_citizen_relationship' => 'Self',
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active->value,
             'alert_level' => 'Normal',
             'latitude' => 10.3157,
             'longitude' => 123.8854,
-            'caller_location_accuracy' => 12,
+            'citizen_location_accuracy' => 12,
             'called_at' => now(),
             'created_at' => now(),
             'updated_at' => now(),
@@ -505,9 +500,9 @@ class IncidentWorkbenchTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $caller->id,
-            'actual_caller_name' => $caller->name,
-            'actual_caller_relationship' => 'Self',
+            'citizen_id' => $caller->id,
+            'actual_citizen_name' => $caller->name,
+            'actual_citizen_relationship' => 'Self',
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active->value,
             'alert_level' => 'Normal',
@@ -537,8 +532,8 @@ class IncidentWorkbenchTest extends TestCase
 
         $this->assertDatabaseHas('incidents', [
             'id' => $incidentId,
-            'actual_caller_name' => 'Juan Dela Cruz',
-            'actual_caller_relationship' => 'Brother',
+            'actual_citizen_name' => 'Juan Dela Cruz',
+            'actual_citizen_relationship' => 'Brother',
             'location_road' => 'Riverside Road',
             'location_barangay' => 'Guadalupe',
             'location_citymunicipality' => 'Cebu City',
@@ -556,9 +551,9 @@ class IncidentWorkbenchTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $caller->id,
-            'actual_caller_name' => $caller->name,
-            'actual_caller_relationship' => 'Self',
+            'citizen_id' => $caller->id,
+            'actual_citizen_name' => $caller->name,
+            'actual_citizen_relationship' => 'Self',
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active->value,
             'alert_level' => 'Normal',
@@ -580,8 +575,8 @@ class IncidentWorkbenchTest extends TestCase
 
         $this->assertDatabaseHas('incidents', [
             'id' => $incidentId,
-            'actual_caller_name' => $caller->name,
-            'actual_caller_relationship' => 'Self',
+            'actual_citizen_name' => $caller->name,
+            'actual_citizen_relationship' => 'Self',
             'location_barangay' => null,
         ]);
     }

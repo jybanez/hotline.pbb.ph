@@ -24,8 +24,8 @@ class AvailabilityTest extends TestCase
         ]);
 
         DB::table('incidents')->insert([
-            'caller_id' => $caller->id,
-            'actual_caller_name' => $caller->name,
+            'citizen_id' => $caller->id,
+            'actual_citizen_name' => $caller->name,
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active->value,
             'alert_level' => 'Normal',
@@ -64,8 +64,8 @@ class AvailabilityTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $caller->id,
-            'actual_caller_name' => $caller->name,
+            'citizen_id' => $caller->id,
+            'actual_citizen_name' => $caller->name,
             'operator_id' => $currentOperator->id,
             'status' => IncidentStatus::Deferred->value,
             'alert_level' => 'Normal',
@@ -76,7 +76,7 @@ class AvailabilityTest extends TestCase
 
         DB::table('call_sessions')->insert([
             'incident_id' => $incidentId,
-            'caller_id' => $caller->id,
+            'citizen_id' => $caller->id,
             'status' => 'calling',
             'started_at' => now(),
             'created_at' => now(),
@@ -134,8 +134,8 @@ class AvailabilityTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $caller->id,
-            'actual_caller_name' => $caller->name,
+            'citizen_id' => $caller->id,
+            'actual_citizen_name' => $caller->name,
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Deferred->value,
             'alert_level' => 'Normal',
@@ -196,8 +196,8 @@ class AvailabilityTest extends TestCase
         ]);
 
         DB::table('incidents')->insert([
-            'caller_id' => $citizen->id,
-            'actual_caller_name' => $citizen->name,
+            'citizen_id' => $citizen->id,
+            'actual_citizen_name' => $citizen->name,
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active->value,
             'alert_level' => 'Normal',

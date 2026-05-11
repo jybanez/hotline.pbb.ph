@@ -147,9 +147,9 @@ class FinalizeStaleCallMediaCommandTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $caller->id,
-            'actual_caller_name' => $caller->name,
-            'actual_caller_relationship' => 'Self',
+            'citizen_id' => $caller->id,
+            'actual_citizen_name' => $caller->name,
+            'actual_citizen_relationship' => 'Self',
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active->value,
             'alert_level' => 'Normal',
@@ -161,7 +161,7 @@ class FinalizeStaleCallMediaCommandTest extends TestCase
         DB::table('call_sessions')->insert([
             'id' => 1,
             'incident_id' => $incidentId,
-            'caller_id' => $caller->id,
+            'citizen_id' => $caller->id,
             'status' => CallStatus::Ended->value,
             'outcome' => CallOutcome::EndedByOperator->value,
             'started_at' => now()->subMinutes(4),

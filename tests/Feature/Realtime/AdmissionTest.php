@@ -35,10 +35,9 @@ class AdmissionTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $citizen->id,
             'citizen_id' => $citizen->id,
-            'actual_caller_name' => $citizen->name,
-            'actual_caller_relationship' => 'Self',
+            'actual_citizen_name' => $citizen->name,
+            'actual_citizen_relationship' => 'Self',
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active->value,
             'alert_level' => AlertLevel::Normal->value,
@@ -95,10 +94,9 @@ class AdmissionTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $citizen->id,
             'citizen_id' => $citizen->id,
-            'actual_caller_name' => $citizen->name,
-            'actual_caller_relationship' => 'Self',
+            'actual_citizen_name' => $citizen->name,
+            'actual_citizen_relationship' => 'Self',
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active->value,
             'alert_level' => AlertLevel::Normal->value,
@@ -109,7 +107,6 @@ class AdmissionTest extends TestCase
 
         $callSessionId = DB::table('call_sessions')->insertGetId([
             'incident_id' => $incidentId,
-            'caller_id' => $citizen->id,
             'citizen_id' => $citizen->id,
             'status' => CallStatus::InProgress->value,
             'outcome' => CallOutcome::Answered->value,
@@ -167,10 +164,9 @@ class AdmissionTest extends TestCase
         ]);
 
         $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $citizen->id,
             'citizen_id' => $citizen->id,
-            'actual_caller_name' => $citizen->name,
-            'actual_caller_relationship' => 'Self',
+            'actual_citizen_name' => $citizen->name,
+            'actual_citizen_relationship' => 'Self',
             'operator_id' => $operator->id,
             'status' => IncidentStatus::Active->value,
             'alert_level' => AlertLevel::Normal->value,
