@@ -366,4 +366,90 @@ class CitizenCompatibilityColumnsTest extends TestCase
         $this->assertSame('gps', $row->caller_heading_source);
         $this->assertSame('gps', $row->citizen_heading_source);
     }
+
+    public function test_protocol_value_migration_converts_legacy_caller_values_to_citizen_values(): void
+    {
+        $citizen = User::factory()->create([
+            'role' => UserRole::Citizen,
+        ]);
+        $operator = User::factory()->create([
+            'role' => UserRole::Operator,
+        ]);
+
+        $incident = Incident::query()->create([
+            'caller_id' => $citizen->id,
+            'citizen_id' => $citizen->id,
+            'actual_citizen_name' => $citizen->name,
+            'actual_citizen_relationship' => 'Self',
+            'operator_id' => $operator->id,
+            'status' => IncidentStatus::Active,
+            'alert_level' => AlertLevel::Normal,
+            'called_at' => now(),
+        ]);
+
+        $attempt = CallAttempt::query()->create([
+            'caller_id' => $citizen->id,
+            'citizen_id' => $citizen->id,
+            'incident_id' => $incident->id,
+            'answered_by_operator_id' => $operator->id,
+            'status' => CallStatus::Ended,
+            'outcome' => 'cancelled_by_caller',
+            'started_at' => now(),
+            'ended_at' => now(),
+        ]);
+
+        $session = CallSession::query()->create([
+            'incident_id' => $incident->id,
+            'caller_id' => $citizen->id,
+            'citizen_id' => $citizen->id,
+            'status' => CallStatus::Ended,
+            'outcome' => 'ended_by_caller',
+            'started_at' => now(),
+            'answered_at' => now(),
+            'ended_at' => now(),
+        ]);
+
+        DB::table('call_participants')->insert([
+            'call_session_id' => $session->id,
+            'user_id' => $citizen->id,
+            'participant_role' => 'caller',
+            'joined_at' => now(),
+            'created_at' => now(),
+        ]);
+
+        DB::table('media')->insert([
+            'incident_id' => $incident->id,
+            'call_session_id' => $session->id,
+            'type' => 'caller_video',
+            'peer_user_id' => $citizen->id,
+            'peer_role' => 'caller',
+            'peer_label' => $citizen->name,
+            'path' => 'media/caller-video.mp4',
+            'created_at' => now(),
+            'available_at' => now(),
+        ]);
+
+        $migration = require database_path('migrations/2026_05_11_000003_migrate_caller_protocol_values_to_citizen.php');
+        $migration->up();
+
+        $this->assertDatabaseHas('call_attempts', [
+            'id' => $attempt->id,
+            'outcome' => 'cancelled_by_citizen',
+        ]);
+        $this->assertDatabaseHas('call_sessions', [
+            'id' => $session->id,
+            'outcome' => 'ended_by_citizen',
+        ]);
+        $this->assertDatabaseHas('call_participants', [
+            'call_session_id' => $session->id,
+            'user_id' => $citizen->id,
+            'participant_role' => 'citizen',
+        ]);
+        $this->assertDatabaseHas('media', [
+            'incident_id' => $incident->id,
+            'call_session_id' => $session->id,
+            'type' => 'citizen_video',
+            'peer_role' => 'citizen',
+        ]);
+    }
 }

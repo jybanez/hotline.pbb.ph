@@ -138,7 +138,7 @@ Primary files:
 - `app/Http/Controllers/Api/Citizen/CallAttemptController.php`
 
 Observed contracts:
-- persistence and authorization now use `citizen_id` for public-user identity on current incident/call/session flows, incident detail/location reads prefer `actual_citizen_*` / `citizen_location_*` columns, and location history reads prefer `incident_citizen_locations`; synchronized caller-shaped columns/tables remain as rollback compatibility storage
+- persistence and authorization now use `citizen_id` for public-user identity on current incident/call/session flows, incident detail/location reads prefer `actual_citizen_*` / `citizen_location_*` columns, location history reads prefer `incident_citizen_locations`, and stored media/participant/outcome protocol values are migrated to citizen terminology; synchronized caller-shaped columns/tables and compatibility normalizers remain as rollback compatibility storage
 - canonical citizen and operator workbench incident payloads expose citizen-facing public-user aliases only; legacy `/api/caller/*` incident payloads still expose `caller`, `caller_id`, `actual_caller_name`, `actual_caller_relationship`, and `caller_location`
 - canonical incident read payloads normalize historical `caller` participant/media roles and `caller_video` media type to citizen-facing output while leaving stored legacy rows readable
 - new call/session writes use citizen protocol values where the staged compatibility columns or enums exist

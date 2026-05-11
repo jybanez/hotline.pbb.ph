@@ -119,18 +119,20 @@ Rollback:
 
 ### Batch 5D: Migrate Historical Protocol Values
 
+Status: Complete in code on 2026-05-11; keep production observation active through the next live validation window.
+
 Goal: convert stored media, participant, and outcome values to citizen terminology.
 
 Changes:
 
-- Backfill:
+- [x] Backfill:
   - `media.type: caller_video -> citizen_video`
   - `media.peer_role: caller -> citizen`
   - `call_participants.participant_role: caller -> citizen`
   - `call_attempts.outcome: cancelled_by_caller -> cancelled_by_citizen`
   - `call_sessions.outcome: ended_by_caller -> ended_by_citizen`
-- Keep `MediaContractNormalizer` and `CallOutcome::canonical()` until after all consumers and tests no longer need legacy values.
-- Add idempotent migration checks so re-running the migration is safe.
+- [x] Keep `MediaContractNormalizer` and `CallOutcome::canonical()` until after all consumers and tests no longer need legacy values.
+- [x] Add idempotent migration checks so re-running the migration is safe.
 
 Rollback:
 
