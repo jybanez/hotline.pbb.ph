@@ -4490,8 +4490,18 @@ async function runCallerReconnect(root, incidentId, noticeTarget = null) {
 }
 
 async function openCallerIncident(root, incidentId) {
-    const payload = await fetchJson(`/api/citizen/incidents/${incidentId}`);
-    await showCallerIncidentOverlay(root, payload);
+    try {
+        const payload = await fetchJson(`/api/citizen/incidents/${incidentId}`);
+        await showCallerIncidentOverlay(root, payload);
+    } catch (error) {
+        const status = Number(error?.response?.status ?? 0);
+
+        if (status === 401 || status === 419) {
+            return;
+        }
+
+        showToast(error?.response?.data?.message ?? 'Unable to open incident.');
+    }
 }
 
 async function showCallerIncidentOverlay(root, payload) {
@@ -4723,8 +4733,8 @@ function renderCaller(root, bootstrap, home, primerReport) {
             return;
         }
 
-        button.addEventListener('click', async () => {
-            await openCallerIncident(root, button.dataset.openCallerIncident);
+        button.addEventListener('click', () => {
+            void openCallerIncident(root, button.dataset.openCallerIncident);
         });
     });
 

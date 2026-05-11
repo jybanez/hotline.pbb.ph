@@ -864,6 +864,7 @@ function installAxiosReauthInterceptor() {
             if (
                 (status === 401 || status === 419)
                 && appState.bootstrap?.authenticated
+                && error?.config
                 && !url.includes('/api/login')
                 && !url.includes('/api/reauth')
                 && !url.includes('/api/logout')
@@ -874,8 +875,21 @@ function installAxiosReauthInterceptor() {
                     retriedCsrf: Boolean(error?.config?._hotlineCsrfRetried),
                 });
 
-                if (isCriticalSession() && await restoreCriticalSession()) {
-                    return Promise.reject(error);
+                if (
+                    isCriticalSession()
+                    && !error.config._hotlineSessionRestoredRetried
+                    && await restoreCriticalSession()
+                ) {
+                    const retryConfig = {
+                        ...error.config,
+                        _hotlineSessionRestoredRetried: true,
+                        headers: {
+                            ...(error.config.headers ?? {}),
+                            ...csrfRequestHeaders(currentCsrfToken()),
+                        },
+                    };
+
+                    return window.axios(retryConfig);
                 }
 
                 await openReauthModal();

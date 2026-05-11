@@ -7,6 +7,8 @@ const surfaceShared = await readFile(new URL('../../resources/js/surfaces/surfac
 assert.match(surfaceShared, /function publicViewerRoleAliases\(viewerRole\)/);
 assert.match(surfaceShared, /brandSubtitle:\s*bootstrap\?\.app\?\.version \? `v\$\{bootstrap\.app\.version\}` : 'hotline\.pbb\.ph'/);
 assert.match(surfaceShared, /const canRetryCsrf = \(\s*status === 419/);
+assert.match(surfaceShared, /_hotlineSessionRestoredRetried: true/);
+assert.match(surfaceShared, /return window\.axios\(retryConfig\)/);
 const csrfRetryBlock = surfaceShared.slice(
   surfaceShared.indexOf('const canRetryCsrf = ('),
   surfaceShared.indexOf('if (canRetryCsrf)')
@@ -29,6 +31,8 @@ assert.match(citizenSurface, /helper\.incidentTypesHelper\(panel/);
 assert.match(citizenSurface, /helper\.incidentAssignmentsHelper\(panel/);
 assert.match(citizenSurface, /helper\.createTabs\(tabsHost/);
 assert.match(citizenSurface, /trackSurfaceInstance\(mountChatComposer/);
+assert.match(citizenSurface, /async function openCallerIncident\(root, incidentId\) \{[\s\S]+status === 401 \|\| status === 419[\s\S]+return;/);
+assert.match(citizenSurface, /button\.addEventListener\('click', \(\) => \{\s+void openCallerIncident\(root, button\.dataset\.openCallerIncident\);/);
 
 assert.doesNotMatch(citizenSurface, /viewerRole: 'caller'/);
 assert.doesNotMatch(citizenSurface, /mountChatThread\([^;\n]+, 'caller'/);
