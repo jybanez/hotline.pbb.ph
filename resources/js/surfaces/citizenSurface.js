@@ -674,6 +674,31 @@ function clearCallerPostCallIncidentReconcileTimers() {
     appState.runtime.callerPostCallIncidentReconcileTimers = [];
 }
 
+function shouldRerenderAfterIncidentReconcile(currentIncident, serverIncident) {
+    if (!currentIncident || !serverIncident) {
+        return true;
+    }
+
+    if (Number(currentIncident?.id ?? 0) !== Number(serverIncident?.id ?? 0)) {
+        return true;
+    }
+
+    if (String(currentIncident?.status ?? '').trim() !== String(serverIncident?.status ?? '').trim()) {
+        return true;
+    }
+
+    const currentSession = latestCallSession(currentIncident);
+    const serverSession = latestCallSession(serverIncident);
+
+    return (
+        Number(currentSession?.id ?? 0) !== Number(serverSession?.id ?? 0)
+        || String(currentSession?.status ?? '').trim() !== String(serverSession?.status ?? '').trim()
+        || String(currentSession?.outcome ?? '').trim() !== String(serverSession?.outcome ?? '').trim()
+        || String(currentSession?.answered_at ?? '').trim() !== String(serverSession?.answered_at ?? '').trim()
+        || String(currentSession?.ended_at ?? '').trim() !== String(serverSession?.ended_at ?? '').trim()
+    );
+}
+
 async function reconcileCallerCurrentIncidentFromHome(incidentId, reason = 'post-call') {
     const expectedIncidentId = Number(incidentId ?? 0);
 
@@ -713,10 +738,13 @@ async function reconcileCallerCurrentIncidentFromHome(incidentId, reason = 'post
         }
 
         if (serverIncident && serverIncidentId === expectedIncidentId) {
+            const shouldRerender = shouldRerenderAfterIncidentReconcile(currentIncident, serverIncident);
+
             logCallFlow('citizen', 'post-call-incident-reconcile-synced', {
                 incidentId: expectedIncidentId,
                 status: String(serverIncident.status ?? ''),
                 reason,
+                rerender: shouldRerender,
             });
             syncCallerCurrentIncident(serverIncident);
 
@@ -727,7 +755,10 @@ async function reconcileCallerCurrentIncidentFromHome(incidentId, reason = 'post
                 });
             }
 
-            rerenderCallerInPlace();
+            if (shouldRerender) {
+                rerenderCallerInPlace();
+            }
+
             return true;
         }
 
