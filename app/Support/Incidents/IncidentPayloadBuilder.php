@@ -209,8 +209,8 @@ class IncidentPayloadBuilder
             ...$this->legacyAliases($includeLegacyAliases, [
                 'caller' => $publicUser,
             ]),
-            'actual_citizen_name' => $incident->actual_caller_name,
-            'actual_citizen_relationship' => $incident->actual_caller_relationship,
+            'actual_citizen_name' => $incident->actual_citizen_name,
+            'actual_citizen_relationship' => $incident->actual_citizen_relationship,
             ...$this->legacyAliases($includeLegacyAliases, [
                 'actual_caller_name' => $incident->actual_caller_name,
                 'actual_caller_relationship' => $incident->actual_caller_relationship,
@@ -407,12 +407,12 @@ class IncidentPayloadBuilder
         return [
             'latitude' => (float) $incident->latitude,
             'longitude' => (float) $incident->longitude,
-            'accuracy' => $incident->caller_location_accuracy === null ? null : (float) $incident->caller_location_accuracy,
-            'altitude' => $incident->caller_altitude === null ? null : (float) $incident->caller_altitude,
-            'altitude_accuracy' => $incident->caller_altitude_accuracy === null ? null : (float) $incident->caller_altitude_accuracy,
-            'heading' => $incident->caller_heading === null ? null : (float) $incident->caller_heading,
-            'heading_source' => $incident->caller_heading_source,
-            'captured_at' => $incident->caller_location_captured_at?->toIso8601String(),
+            'accuracy' => $incident->citizen_location_accuracy === null ? null : (float) $incident->citizen_location_accuracy,
+            'altitude' => $incident->citizen_altitude === null ? null : (float) $incident->citizen_altitude,
+            'altitude_accuracy' => $incident->citizen_altitude_accuracy === null ? null : (float) $incident->citizen_altitude_accuracy,
+            'heading' => $incident->citizen_heading === null ? null : (float) $incident->citizen_heading,
+            'heading_source' => $incident->citizen_heading_source,
+            'captured_at' => $incident->citizen_location_captured_at?->toIso8601String(),
         ];
     }
 

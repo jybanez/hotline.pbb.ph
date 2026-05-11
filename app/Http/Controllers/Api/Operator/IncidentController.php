@@ -226,7 +226,7 @@ class IncidentController extends Controller
             'updated_at' => $receivedAt,
         ]);
 
-        if ($incident->caller_location_captured_at && $capturedAt->lt($incident->caller_location_captured_at)) {
+        if ($incident->citizen_location_captured_at && $capturedAt->lt($incident->citizen_location_captured_at)) {
             return response()->json([
                 'ok' => true,
                 'ignored' => true,
@@ -238,11 +238,17 @@ class IncidentController extends Controller
             'latitude' => (float) $validated['latitude'],
             'longitude' => (float) $validated['longitude'],
             'caller_location_accuracy' => isset($validated['accuracy']) ? (float) $validated['accuracy'] : null,
+            'citizen_location_accuracy' => isset($validated['accuracy']) ? (float) $validated['accuracy'] : null,
             'caller_altitude' => isset($validated['altitude']) ? (float) $validated['altitude'] : null,
+            'citizen_altitude' => isset($validated['altitude']) ? (float) $validated['altitude'] : null,
             'caller_altitude_accuracy' => isset($validated['altitude_accuracy']) ? (float) $validated['altitude_accuracy'] : null,
+            'citizen_altitude_accuracy' => isset($validated['altitude_accuracy']) ? (float) $validated['altitude_accuracy'] : null,
             'caller_heading' => isset($validated['heading']) ? (float) $validated['heading'] : null,
+            'citizen_heading' => isset($validated['heading']) ? (float) $validated['heading'] : null,
             'caller_heading_source' => $validated['heading_source'] ?? null,
+            'citizen_heading_source' => $validated['heading_source'] ?? null,
             'caller_location_captured_at' => $capturedAt,
+            'citizen_location_captured_at' => $capturedAt,
         ])->save();
 
         return response()->json([
@@ -440,12 +446,12 @@ class IncidentController extends Controller
         $location = $incident->latitude !== null && $incident->longitude !== null ? [
             'latitude' => (float) $incident->latitude,
             'longitude' => (float) $incident->longitude,
-            'accuracy' => $incident->caller_location_accuracy === null ? null : (float) $incident->caller_location_accuracy,
-            'altitude' => $incident->caller_altitude === null ? null : (float) $incident->caller_altitude,
-            'altitude_accuracy' => $incident->caller_altitude_accuracy === null ? null : (float) $incident->caller_altitude_accuracy,
-            'heading' => $incident->caller_heading === null ? null : (float) $incident->caller_heading,
-            'heading_source' => $incident->caller_heading_source,
-            'captured_at' => $incident->caller_location_captured_at?->toIso8601String(),
+            'accuracy' => $incident->citizen_location_accuracy === null ? null : (float) $incident->citizen_location_accuracy,
+            'altitude' => $incident->citizen_altitude === null ? null : (float) $incident->citizen_altitude,
+            'altitude_accuracy' => $incident->citizen_altitude_accuracy === null ? null : (float) $incident->citizen_altitude_accuracy,
+            'heading' => $incident->citizen_heading === null ? null : (float) $incident->citizen_heading,
+            'heading_source' => $incident->citizen_heading_source,
+            'captured_at' => $incident->citizen_location_captured_at?->toIso8601String(),
         ] : null;
 
         return [
@@ -455,7 +461,7 @@ class IncidentController extends Controller
             'caller_id' => $incident->caller_id,
             'citizen_avatar' => ($incident->citizen ?? $incident->caller)?->avatar,
             'caller_avatar' => $incident->caller?->avatar,
-            'actual_citizen_name' => $incident->actual_caller_name,
+            'actual_citizen_name' => $incident->actual_citizen_name,
             'actual_caller_name' => $incident->actual_caller_name,
             'status' => $incident->status->value,
             'latitude' => $incident->latitude,
@@ -496,7 +502,9 @@ class IncidentController extends Controller
 
         return [
             'actual_caller_name' => trim((string) $validated['actual_citizen_name']),
+            'actual_citizen_name' => trim((string) $validated['actual_citizen_name']),
             'actual_caller_relationship' => is_string($relationship) ? trim($relationship) ?: null : null,
+            'actual_citizen_relationship' => is_string($relationship) ? trim($relationship) ?: null : null,
         ];
     }
 

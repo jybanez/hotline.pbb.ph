@@ -76,11 +76,13 @@ Rollback:
 
 ### Batch 5B: Add Citizen-Named Detail Columns
 
+Status: Complete in code on 2026-05-11; keep production observation active through the next live validation window.
+
 Goal: stop writing public-user details into `actual_caller_*` and `caller_location_*`.
 
 Changes:
 
-- Add nullable columns:
+- [x] Add nullable columns:
   - `incidents.actual_citizen_name`
   - `incidents.actual_citizen_relationship`
   - `incidents.citizen_location_accuracy`
@@ -89,9 +91,9 @@ Changes:
   - `incidents.citizen_heading`
   - `incidents.citizen_heading_source`
   - `incidents.citizen_location_captured_at`
-- Backfill from the current caller-named columns.
-- Update writes to populate both citizen-named and caller-named detail columns.
-- Update reads to prefer citizen-named columns with caller-named fallback.
+- [x] Backfill from the current caller-named columns.
+- [x] Update writes to populate both citizen-named and caller-named detail columns.
+- [x] Update reads to prefer citizen-named columns with caller-named fallback.
 
 Rollback:
 

@@ -40,12 +40,12 @@ class IncidentController extends Controller
         $location = $latitude !== null && $longitude !== null ? [
             'latitude' => $latitude,
             'longitude' => $longitude,
-            'accuracy' => $incident->caller_location_accuracy === null ? null : (float) $incident->caller_location_accuracy,
-            'altitude' => $incident->caller_altitude === null ? null : (float) $incident->caller_altitude,
-            'altitude_accuracy' => $incident->caller_altitude_accuracy === null ? null : (float) $incident->caller_altitude_accuracy,
-            'heading' => $incident->caller_heading === null ? null : (float) $incident->caller_heading,
-            'heading_source' => $incident->caller_heading_source,
-            'captured_at' => $incident->caller_location_captured_at?->toIso8601String(),
+            'accuracy' => $incident->citizen_location_accuracy === null ? null : (float) $incident->citizen_location_accuracy,
+            'altitude' => $incident->citizen_altitude === null ? null : (float) $incident->citizen_altitude,
+            'altitude_accuracy' => $incident->citizen_altitude_accuracy === null ? null : (float) $incident->citizen_altitude_accuracy,
+            'heading' => $incident->citizen_heading === null ? null : (float) $incident->citizen_heading,
+            'heading_source' => $incident->citizen_heading_source,
+            'captured_at' => $incident->citizen_location_captured_at?->toIso8601String(),
         ] : null;
 
         $citizen = $incident->citizen ?? $incident->caller;
@@ -55,9 +55,9 @@ class IncidentController extends Controller
             'display_id' => str_pad((string) $incident->id, 6, '0', STR_PAD_LEFT),
             'citizen_id' => $incident->citizen_id,
             'caller_id' => $incident->caller_id,
-            'actual_citizen_name' => $incident->actual_caller_name,
+            'actual_citizen_name' => $incident->actual_citizen_name,
             'actual_caller_name' => $incident->actual_caller_name,
-            'citizen_name' => $incident->actual_caller_name ?: ($citizen?->name ?? 'Unknown citizen'),
+            'citizen_name' => $incident->actual_citizen_name ?: ($citizen?->name ?? 'Unknown citizen'),
             'caller_name' => $incident->actual_caller_name ?: ($incident->caller?->name ?? 'Unknown caller'),
             'status' => $status,
             'status_label' => $this->formatLabel($status),

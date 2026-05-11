@@ -5,6 +5,7 @@ namespace App\Domain\Incidents\Models;
 use App\Domain\Media\Models\Media;
 use App\Domain\Messages\Models\IncidentMessage;
 use App\Domain\Shared\Concerns\SynchronizesCitizenIdentity;
+use App\Domain\Shared\Concerns\SynchronizesCitizenIncidentDetails;
 use App\Domain\Shared\Enums\AlertLevel;
 use App\Domain\Shared\Enums\IncidentStatus;
 use App\Domain\Teams\Models\TeamAssignment;
@@ -19,23 +20,32 @@ class Incident extends Model
 {
     use HasFactory;
     use SynchronizesCitizenIdentity;
+    use SynchronizesCitizenIncidentDetails;
 
     protected $fillable = [
         'caller_id',
         'citizen_id',
         'actual_caller_name',
+        'actual_citizen_name',
         'actual_caller_relationship',
+        'actual_citizen_relationship',
         'operator_id',
         'status',
         'alert_level',
         'latitude',
         'longitude',
         'caller_location_accuracy',
+        'citizen_location_accuracy',
         'caller_altitude',
+        'citizen_altitude',
         'caller_altitude_accuracy',
+        'citizen_altitude_accuracy',
         'caller_heading',
+        'citizen_heading',
         'caller_heading_source',
+        'citizen_heading_source',
         'caller_location_captured_at',
+        'citizen_location_captured_at',
         'location',
         'location_road',
         'location_suburb',
@@ -55,10 +65,15 @@ class Incident extends Model
             'latitude' => 'decimal:7',
             'longitude' => 'decimal:7',
             'caller_location_accuracy' => 'decimal:2',
+            'citizen_location_accuracy' => 'decimal:2',
             'caller_altitude' => 'decimal:2',
+            'citizen_altitude' => 'decimal:2',
             'caller_altitude_accuracy' => 'decimal:2',
+            'citizen_altitude_accuracy' => 'decimal:2',
             'caller_heading' => 'decimal:2',
+            'citizen_heading' => 'decimal:2',
             'caller_location_captured_at' => 'datetime',
+            'citizen_location_captured_at' => 'datetime',
             'called_at' => 'datetime',
             'resolved_at' => 'datetime',
         ];
@@ -141,5 +156,47 @@ class Incident extends Model
     public function getCitizenIdAttribute(): mixed
     {
         return $this->attributes['citizen_id'] ?? $this->caller_id;
+    }
+
+    public function getActualCitizenNameAttribute(): mixed
+    {
+        return $this->attributes['actual_citizen_name'] ?? $this->actual_caller_name;
+    }
+
+    public function getActualCitizenRelationshipAttribute(): mixed
+    {
+        return $this->attributes['actual_citizen_relationship'] ?? $this->actual_caller_relationship;
+    }
+
+    public function getCitizenLocationAccuracyAttribute(): mixed
+    {
+        return $this->attributes['citizen_location_accuracy'] ?? $this->caller_location_accuracy;
+    }
+
+    public function getCitizenAltitudeAttribute(): mixed
+    {
+        return $this->attributes['citizen_altitude'] ?? $this->caller_altitude;
+    }
+
+    public function getCitizenAltitudeAccuracyAttribute(): mixed
+    {
+        return $this->attributes['citizen_altitude_accuracy'] ?? $this->caller_altitude_accuracy;
+    }
+
+    public function getCitizenHeadingAttribute(): mixed
+    {
+        return $this->attributes['citizen_heading'] ?? $this->caller_heading;
+    }
+
+    public function getCitizenHeadingSourceAttribute(): mixed
+    {
+        return $this->attributes['citizen_heading_source'] ?? $this->caller_heading_source;
+    }
+
+    public function getCitizenLocationCapturedAtAttribute(): mixed
+    {
+        $value = $this->attributes['citizen_location_captured_at'] ?? null;
+
+        return $value === null ? $this->caller_location_captured_at : $this->asDateTime($value);
     }
 }
