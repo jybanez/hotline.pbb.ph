@@ -15,7 +15,7 @@ return [
 
     'name' => env('APP_NAME', 'PBB Hotline Beta'),
 
-    'version' => env('APP_VERSION', '5.6.1'),
+    'version' => env('APP_VERSION', '1-5.6.1'),
 
     'release_name' => env('APP_RELEASE_NAME', 'Citizen Live Call Readiness'),
 
