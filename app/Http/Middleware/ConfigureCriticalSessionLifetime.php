@@ -25,16 +25,12 @@ class ConfigureCriticalSessionLifetime
     private function isCriticalSessionRequest(Request $request): bool
     {
         if ($request->is(
-            'caller',
-            'caller/*',
             'citizen',
             'citizen/*',
             'operator',
             'operator/*',
             'command',
             'command/*',
-            'api/caller',
-            'api/caller/*',
             'api/citizen',
             'api/citizen/*',
             'api/operator',
@@ -46,7 +42,7 @@ class ConfigureCriticalSessionLifetime
         }
 
         if ($request->is('api/bootstrap', 'api/session/ping')) {
-            return in_array($request->query('surface'), ['citizen', 'caller', 'operator', 'command'], true);
+            return in_array($request->query('surface'), ['citizen', 'operator', 'command'], true);
         }
 
         return false;

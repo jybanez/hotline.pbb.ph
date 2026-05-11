@@ -8,7 +8,6 @@ use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 class IncidentWorkbenchTest extends TestCase
@@ -263,14 +262,14 @@ class IncidentWorkbenchTest extends TestCase
         ]);
 
         $this->actingAs($operator)
-            ->postJson("/api/operator/incidents/{$incidentId}/actual-caller", [
+            ->postJson("/api/operator/incidents/{$incidentId}/actual-citizen", [
                 'actual_citizen_name' => 'Juan Dela Cruz',
                 'actual_citizen_relationship' => 'Brother',
             ])
             ->assertOk()
             ->assertJsonPath('ok', true)
-            ->assertJsonPath('incident.actual_caller_name', 'Juan Dela Cruz')
-            ->assertJsonPath('incident.actual_caller_relationship', 'Brother');
+            ->assertJsonPath('incident.actual_citizen_name', 'Juan Dela Cruz')
+            ->assertJsonPath('incident.actual_citizen_relationship', 'Brother');
 
         $this->assertDatabaseHas('incidents', [
             'id' => $incidentId,
@@ -301,7 +300,7 @@ class IncidentWorkbenchTest extends TestCase
         ]);
 
         $this->actingAs($operator)
-            ->postJson("/api/operator/incidents/{$incidentId}/caller-address", [
+            ->postJson("/api/operator/incidents/{$incidentId}/citizen-address", [
                 'location' => 'Sitio Riverside, Barangay Guadalupe, Cebu City, Philippines',
                 'location_road' => 'Riverside Road',
                 'location_suburb' => 'Sitio Riverside',
@@ -431,46 +430,6 @@ class IncidentWorkbenchTest extends TestCase
             'caller_id' => $citizen->id,
             'citizen_id' => $citizen->id,
         ]);
-    }
-
-    public function test_legacy_caller_operator_routes_are_logged(): void
-    {
-        Log::spy();
-
-        $citizen = User::factory()->create([
-            'role' => UserRole::Citizen,
-        ]);
-
-        $operator = User::factory()->create([
-            'role' => UserRole::Operator,
-        ]);
-
-        $incidentId = DB::table('incidents')->insertGetId([
-            'caller_id' => $citizen->id,
-            'actual_caller_name' => $citizen->name,
-            'operator_id' => $operator->id,
-            'status' => IncidentStatus::Active->value,
-            'alert_level' => 'Normal',
-            'called_at' => now(),
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        $this->actingAs($operator)
-            ->postJson("/api/operator/incidents/{$incidentId}/caller-address", [
-                'location_barangay' => 'Guadalupe',
-            ])
-            ->assertOk();
-
-        Log::shouldHaveReceived('info')
-            ->once()
-            ->with('Hotline legacy caller route used.', \Mockery::on(
-                fn (array $context): bool => ($context['contract'] ?? null) === 'operator.caller-address'
-                    && ($context['method'] ?? null) === 'POST'
-                    && ($context['path'] ?? null) === "api/operator/incidents/{$incidentId}/caller-address"
-                    && (int) ($context['user_id'] ?? 0) === (int) $operator->id
-                    && ($context['user_role'] ?? null) === UserRole::Operator->value
-            ));
     }
 
     public function test_operator_incident_payload_omits_legacy_caller_aliases(): void

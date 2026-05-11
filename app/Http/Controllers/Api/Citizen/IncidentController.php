@@ -65,7 +65,7 @@ class IncidentController extends Controller
         return $this->incidentPayloads->buildWorkbenchPayload(
             $incident,
             $request->user(),
-            includeLegacyAliases: str_starts_with($request->path(), 'api/caller/'),
+            includeLegacyAliases: false,
         );
     }
 }

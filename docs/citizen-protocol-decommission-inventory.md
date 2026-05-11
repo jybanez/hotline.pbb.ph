@@ -15,14 +15,15 @@ This inventory separates temporary caller compatibility from durable storage/his
 
 ## Batch 1: Route Aliases
 
-Remove after the final compatibility window:
+Completed on branch `codex/citizen-live-call-readiness` after the final compatibility window:
 
-- `routes/web/citizen.php`: `/caller`, `/caller/`, `/caller/offline`.
-- `routes/api/citizen.php`: `/api/caller/*` loop branch and `legacy.caller:public-api` middleware.
-- `routes/api/realtime.php`: `POST /api/realtime/admission/caller`.
-- `app/Http/Controllers/Api/Realtime/AdmissionController.php`: `caller()` delegating method.
-- `app/Http/Middleware/LogLegacyCallerRouteUsage.php` and `bootstrap/app.php` alias registration.
-- Route compatibility tests in `tests/Feature/Routing/SurfaceAccessTest.php`, `tests/Feature/Citizen/PublicApiCompatibilityTest.php`, and legacy sections of `tests/Feature/Realtime/AdmissionTest.php`.
+- Removed `routes/web/citizen.php` `/caller`, `/caller/`, and `/caller/offline`.
+- Removed `routes/api/citizen.php` `/api/caller/*` loop branch and `legacy.caller:public-api` middleware.
+- Removed `routes/api/realtime.php` `POST /api/realtime/admission/caller`.
+- Removed `routes/api/operator.php` caller-named operator compatibility aliases after citizen-named routes were already in place.
+- Removed `app/Http/Controllers/Api/Realtime/AdmissionController.php` `caller()` delegating method.
+- Removed `app/Http/Middleware/LogLegacyCallerRouteUsage.php` and `bootstrap/app.php` alias registration.
+- Replaced route compatibility tests with route-removal coverage in `tests/Feature/Routing/SurfaceAccessTest.php`, `tests/Feature/Citizen/PublicApiCompatibilityTest.php`, `tests/Feature/Realtime/AdmissionTest.php`, and operator workbench tests.
 
 ## Batch 2: Realtime Event Aliases
 
@@ -83,7 +84,7 @@ Full removal needs a separate data migration plan, consumer notification window,
 
 ## Recommended First Removal PR
 
-Realtime shared-service, Helper shared-service, installed PWA, and durable storage/history scope confirmations are complete. Batch 2 and Batch 3 alias removals are complete. Route aliases, installed PWA assets, and database-backed history remain separately staged. Then run:
+Realtime shared-service, Helper shared-service, installed PWA, and durable storage/history scope confirmations are complete. Batch 1, Batch 2, and Batch 3 alias removals are complete. Installed PWA assets and database-backed history remain separately staged. Then run:
 
 - `node tests/js/citizenRealtimeEvents.test.mjs`
 - `npm run build`

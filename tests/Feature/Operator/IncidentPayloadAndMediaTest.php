@@ -199,10 +199,10 @@ class IncidentPayloadAndMediaTest extends TestCase
         ]);
 
         $this->actingAs($caller)
-            ->getJson("/api/caller/incidents/{$incidentId}")
+            ->getJson("/api/citizen/incidents/{$incidentId}")
             ->assertOk()
             ->assertJsonCount(2, 'media')
-            ->assertJsonPath('media.0.type', 'caller_video')
+            ->assertJsonPath('media.0.type', 'citizen_video')
             ->assertJsonPath('media.1.type', 'citizen_video');
 
         $this->actingAs($caller)

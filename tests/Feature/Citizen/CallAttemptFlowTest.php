@@ -6,7 +6,6 @@ use App\Domain\Shared\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 class CallAttemptFlowTest extends TestCase
@@ -118,26 +117,14 @@ class CallAttemptFlowTest extends TestCase
             ->assertJsonPath('ok', false);
     }
 
-    public function test_legacy_caller_api_routes_are_logged(): void
+    public function test_legacy_caller_api_route_is_removed(): void
     {
-        Log::spy();
-
         $citizen = User::factory()->create([
             'role' => UserRole::Citizen,
         ]);
 
         $this->actingAs($citizen)
             ->getJson('/api/caller/home')
-            ->assertOk();
-
-        Log::shouldHaveReceived('info')
-            ->once()
-            ->with('Hotline legacy caller route used.', \Mockery::on(
-                fn (array $context): bool => ($context['contract'] ?? null) === 'public-api'
-                    && ($context['method'] ?? null) === 'GET'
-                    && ($context['path'] ?? null) === 'api/caller/home'
-                    && (int) ($context['user_id'] ?? 0) === (int) $citizen->id
-                    && ($context['user_role'] ?? null) === UserRole::Citizen->value
-            ));
+            ->assertNotFound();
     }
 }

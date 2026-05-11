@@ -19,19 +19,11 @@ Route::middleware(['auth', 'role:operator'])->prefix('/operator')->group(functio
     Route::get('/incidents/{incident}', [IncidentController::class, 'show']);
     Route::post('/incidents/{incident}/status', [IncidentController::class, 'updateStatus']);
     Route::post('/incidents/{incident}/actual-citizen', [IncidentController::class, 'updateActualCaller']);
-    Route::post('/incidents/{incident}/actual-caller', [IncidentController::class, 'updateActualCaller'])
-        ->middleware('legacy.caller:operator.actual-caller');
     Route::post('/incidents/{incident}/other-details', [IncidentController::class, 'updateOtherDetails']);
     Route::post('/incidents/{incident}/intake', [IncidentController::class, 'updateIntake']);
     Route::post('/incidents/{incident}/citizen-address', [IncidentController::class, 'updateCallerAddress']);
-    Route::post('/incidents/{incident}/caller-address', [IncidentController::class, 'updateCallerAddress'])
-        ->middleware('legacy.caller:operator.caller-address');
     Route::post('/incidents/{incident}/citizen-location', [IncidentController::class, 'updateCallerLocation']);
-    Route::post('/incidents/{incident}/caller-location', [IncidentController::class, 'updateCallerLocation'])
-        ->middleware('legacy.caller:operator.caller-location');
     Route::get('/incidents/{incident}/citizen-locations', [IncidentController::class, 'callerLocations']);
-    Route::get('/incidents/{incident}/caller-locations', [IncidentController::class, 'callerLocations'])
-        ->middleware('legacy.caller:operator.caller-locations');
     Route::post('/incidents/{incident}/incident-types/{incidentType}', [IncidentController::class, 'attachIncidentType']);
     Route::delete('/incidents/{incident}/incident-types/{incidentType}', [IncidentController::class, 'removeIncidentType']);
     Route::post('/incidents/{incident}/incident-types/{incidentType}/details', [IncidentController::class, 'updateIncidentTypeDetail']);
@@ -43,8 +35,6 @@ Route::middleware(['auth', 'role:operator'])->prefix('/operator')->group(functio
     Route::post('/call-attempt-operator-attempts/{attempt}/decline', [CallAttemptOperatorAttemptController::class, 'decline']);
     Route::post('/call-attempt-operator-attempts/{attempt}/timeout', [CallAttemptOperatorAttemptController::class, 'timeout']);
     Route::post('/call-attempt-operator-attempts/{attempt}/citizen-cancel', [CallAttemptOperatorAttemptController::class, 'cancelByCaller']);
-    Route::post('/call-attempt-operator-attempts/{attempt}/caller-cancel', [CallAttemptOperatorAttemptController::class, 'cancelByCaller'])
-        ->middleware('legacy.caller:operator.caller-cancel');
     Route::post('/call-sessions/{callSession}/answer', [CallSessionController::class, 'answer']);
     Route::post('/call-sessions/{callSession}/ready', [CallSessionController::class, 'ready']);
     Route::post('/call-sessions/{callSession}/hangup', [CallSessionController::class, 'hangup']);

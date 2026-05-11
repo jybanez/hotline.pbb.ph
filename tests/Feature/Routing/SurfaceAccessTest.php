@@ -11,13 +11,13 @@ class SurfaceAccessTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_guest_is_redirected_to_public_home_when_opening_legacy_caller_surface(): void
+    public function test_legacy_caller_surface_route_is_removed(): void
     {
         $this->get('/caller')
-            ->assertRedirect(route('public.home'));
+            ->assertNotFound();
     }
 
-    public function test_citizen_user_can_open_citizen_and_legacy_caller_surfaces(): void
+    public function test_citizen_user_can_open_citizen_surface(): void
     {
         $citizen = User::factory()->create([
             'role' => UserRole::Citizen,
@@ -27,13 +27,9 @@ class SurfaceAccessTest extends TestCase
             ->get('/citizen')
             ->assertOk()
             ->assertSee('/citizen.webmanifest', false);
-
-        $this->actingAs($citizen)
-            ->get('/caller')
-            ->assertOk();
     }
 
-    public function test_citizen_pwa_assets_exist_and_keep_legacy_caller_compatibility(): void
+    public function test_citizen_pwa_assets_exist_while_legacy_caller_assets_wait_for_pwa_batch(): void
     {
         self::assertFileExists(public_path('citizen.webmanifest'));
         self::assertFileExists(public_path('citizen-sw.js'));
@@ -46,9 +42,7 @@ class SurfaceAccessTest extends TestCase
 
         self::assertStringContainsString('/citizen?source=pwa', $citizenManifest);
         self::assertStringContainsString('/citizen/offline', $citizenServiceWorker);
-        self::assertStringContainsString('/caller/offline', $citizenServiceWorker);
         self::assertStringContainsString('/citizen.webmanifest', $legacyCallerServiceWorker);
-        self::assertStringContainsString('/caller/offline', $legacyCallerServiceWorker);
     }
 
     public function test_wrong_role_is_redirected_to_unauthorized_screen(): void

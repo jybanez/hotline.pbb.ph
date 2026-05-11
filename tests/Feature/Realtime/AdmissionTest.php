@@ -12,7 +12,6 @@ use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 class AdmissionTest extends TestCase
@@ -185,10 +184,8 @@ class AdmissionTest extends TestCase
             ->assertJsonPath('message', 'Realtime token signing secret is not configured.');
     }
 
-    public function test_legacy_caller_admission_endpoint_still_accepts_citizen_users(): void
+    public function test_legacy_caller_admission_endpoint_is_removed(): void
     {
-        Log::spy();
-
         $citizen = User::factory()->create([
             'role' => UserRole::Citizen,
         ]);
@@ -200,19 +197,7 @@ class AdmissionTest extends TestCase
                 'context_type' => 'settings_stream',
                 'context_id' => 0,
             ])
-            ->assertOk()
-            ->assertJsonPath('room', 'hotline.settings.global')
-            ->assertJsonPath('session.allowed_rooms.0', 'hotline.settings.global');
-
-        Log::shouldHaveReceived('info')
-            ->once()
-            ->with('Hotline legacy caller route used.', \Mockery::on(
-                fn (array $context): bool => ($context['contract'] ?? null) === 'realtime.admission'
-                    && ($context['method'] ?? null) === 'POST'
-                    && ($context['path'] ?? null) === 'api/realtime/admission/caller'
-                    && (int) ($context['user_id'] ?? 0) === (int) $citizen->id
-                    && ($context['user_role'] ?? null) === UserRole::Citizen->value
-            ));
+            ->assertNotFound();
     }
 
     /**

@@ -325,17 +325,8 @@ class IncidentController extends Controller
         return $this->incidentPayloads->buildWorkbenchPayload(
             $incident,
             $request->user(),
-            includeLegacyAliases: $this->isLegacyOperatorAliasRoute($request),
+            includeLegacyAliases: false,
         );
-    }
-
-    private function isLegacyOperatorAliasRoute(Request $request): bool
-    {
-        $path = $request->path();
-
-        return str_contains($path, '/actual-caller')
-            || str_contains($path, '/caller-address')
-            || str_contains($path, '/caller-location');
     }
 
     public function attachIncidentType(Request $request, Incident $incident, IncidentType $incidentType): JsonResponse

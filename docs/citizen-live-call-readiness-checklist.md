@@ -93,7 +93,7 @@ npm run build
 - [x] Operator long offline during fresh new active call exits stale operator live-call UI locally and reconciles from server when online.
 - [x] Operator short offline during fresh new active call cancels grace and keeps the call live.
 - [x] Recent live-test DB rows from call session `195` onward contain zero `caller` values in `call_sessions.outcome`, `call_participants.participant_role`, or `media.type`/`media.peer_role`.
-- [x] Citizen incident read payloads omit legacy `caller_*` aliases while legacy `/api/caller/*` read endpoints keep compatibility aliases.
+- [x] Citizen incident read payloads omit legacy `caller_*` aliases; legacy `/api/caller/*` read endpoints were removed after the compatibility window.
 - [x] Operator workbench incident read payloads omit legacy `caller_*` aliases and normalize historical caller participant/media values to citizen-facing output.
 - [x] Recent live-test Laravel log window contains no ERROR, CRITICAL, or Exception entries.
 
@@ -107,11 +107,10 @@ If the machine restarts, restart the Realtime daemon before retesting.
 
 ## Known Notes
 
-- Legacy `/caller` and `/api/caller/*` route aliases remain during the compatibility window; runtime caller event aliases have been removed.
-- Existing legacy tabs may still call `/api/realtime/admission/caller`; fresh `/citizen` sessions use `/api/realtime/admission/citizen`.
-- Fresh `/api/citizen/incidents/*` read payloads use citizen-facing keys only for public-user identity/location/session aliases; legacy `/api/caller/incidents/*` remains alias-compatible.
+- Legacy `/caller`, `/api/caller/*`, and `/api/realtime/admission/caller` route aliases have been removed after the compatibility window.
+- Fresh `/api/citizen/incidents/*` read payloads use citizen-facing keys only for public-user identity/location/session aliases.
 - Fresh `/api/operator/incidents/*` workbench read payloads use citizen-facing public-user aliases and normalize historical `caller` participant/media values in JSON output; explicit legacy operator alias routes remain accepted during the compatibility window.
 - Canonical new Hotline writes now use citizen values where this phase has switched runtime behavior.
 - Canonical request bodies now use `citizen_*`, `citizen_video`, and `peer_role: citizen|operator`; legacy caller request-field fallbacks have been removed from the live call/media write paths.
 - Historical pre-refactor rows can still contain legacy caller values; the live-test verification above only covers newly written rows from this readiness pass.
-- Destructive removal of caller columns, routes, and PWA assets is still deferred until final decommission approval.
+- Destructive removal of caller columns and PWA assets is still deferred until final decommission approval.

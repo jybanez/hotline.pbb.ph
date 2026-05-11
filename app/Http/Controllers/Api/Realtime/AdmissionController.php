@@ -28,11 +28,6 @@ class AdmissionController extends Controller
         );
     }
 
-    public function caller(Request $request): JsonResponse
-    {
-        return $this->citizen($request);
-    }
-
     public function operator(Request $request): JsonResponse
     {
         return $this->respond(

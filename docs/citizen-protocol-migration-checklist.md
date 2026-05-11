@@ -2,7 +2,7 @@
 
 Date: 2026-05-10
 
-Status: Working tracker for Phase 2 caller-to-citizen migration; live-call readiness and incident status propagation validated, final legacy decommission still gated by telemetry and compatibility-window checks.
+Status: Working tracker for Phase 2 caller-to-citizen migration; live-call readiness and incident status propagation validated, route/event/request-field alias cleanup completed, PWA assets and durable storage/history remain staged separately.
 
 Related plan:
 - [Citizen Protocol Migration Plan](citizen-protocol-migration-plan.md)
@@ -70,9 +70,9 @@ Legend:
 ## Web Routes and PWA
 
 - [x] `/citizen` is canonical.
-- [x] `/caller` is legacy-compatible.
+- [x] `/caller` compatibility was provided during the support window and has now been removed in Batch 1 decommission.
 - [x] `/citizen/offline` exists.
-- [x] `/caller/offline` exists.
+- [x] `/caller/offline` compatibility was provided during the support window and has now been removed in Batch 1 decommission.
 - [x] Add or verify `citizen.webmanifest`.
 - [x] Add or verify `citizen-sw.js`.
 - [x] Keep `caller.webmanifest` available for installed legacy PWAs.
@@ -85,7 +85,7 @@ Legend:
 ## Public-User API Routes
 
 - [x] `/api/citizen/*` prefix exists.
-- [x] `/api/caller/*` prefix remains available.
+- [x] `/api/caller/*` compatibility was provided during the support window and has now been removed in Batch 1 decommission.
 - [x] Confirm all citizen surface frontend calls use `/api/citizen/*` where possible.
 - [x] Add tests proving `/api/citizen/*` and `/api/caller/*` route pairs return equivalent results during compatibility.
 - [x] Add legacy caller public API usage logging if telemetry is required.
@@ -98,10 +98,10 @@ Legend:
 - [x] Add canonical citizen alias for `/api/operator/incidents/{incident}/caller-location`.
 - [x] Add canonical citizen alias for `/api/operator/incidents/{incident}/caller-locations`.
 - [x] Add canonical citizen alias for `/api/operator/call-attempt-operator-attempts/{attempt}/caller-cancel`.
-- [x] Keep all caller-named operator routes as compatibility aliases.
+- [x] Caller-named operator compatibility routes were kept during the support window and have now been removed in Batch 1 decommission.
 - [x] Update operator frontend calls to use citizen-named routes where appropriate.
 - [x] Add route tests for each citizen alias.
-- [x] Add route tests proving caller aliases remain compatible.
+- [x] Replace route compatibility tests with route-removal coverage after Batch 1 decommission.
 - [x] Add legacy caller operator route usage logging if telemetry is required.
 
 ## API Payloads
@@ -137,9 +137,9 @@ Legend:
 ## Realtime Admission
 
 - [x] `/api/realtime/admission/citizen` is canonical.
-- [x] `/api/realtime/admission/caller` remains compatible.
+- [x] `/api/realtime/admission/caller` compatibility was provided during the support window and has now been removed in Batch 1 decommission.
 - [x] `RealtimeAdmissionService::forCitizen()` exists.
-- [x] Legacy caller admission method remains as compatibility wrapper.
+- [x] Legacy caller admission wrapper was provided during the support window and has now been removed in Batch 1 decommission.
 - [x] Confirm Realtime shared service documentation uses citizen admission path: Hotline owns `/api/realtime/admission/citizen`; Realtime docs do not own that endpoint path.
 - [x] Add Realtime-side fixture/example updates if needed: needed in Realtime docs/tests; scope recorded in [Citizen Realtime Coordination](citizen-realtime-coordination.md).
 - [x] Add telemetry for legacy caller admission path.
@@ -245,12 +245,13 @@ Legend:
 - [ ] Remove caller route aliases.
 - [x] Remove caller event aliases: Batch 2 removed runtime `caller.*` Realtime event compatibility from the citizen/operator browser surfaces, deleted the `/api/realtime/legacy-caller-events` telemetry endpoint and controller, and updated the JS event contract to citizen-only event names.
 - [x] Remove caller request-field aliases: Batch 3 removed legacy caller request-body fallback/logging from call-attempt, actual-citizen/intake, media registration, media assembly, and internal media chunk ingest paths; canonical requests now use `citizen_*`, `citizen_video`, and `peer_role: citizen|operator` while durable database columns and historical media values remain unchanged.
+- [x] Remove caller route aliases: Batch 1 removed `/caller`, `/api/caller/*`, `/api/realtime/admission/caller`, caller-named operator route aliases, and the legacy caller route telemetry middleware.
 - [ ] Remove caller PWA assets only after compatibility window.
 - [ ] Remove caller database columns/tables after staged citizen migration and final decommission approval.
 
 Current decommission gate:
 - Do not remove caller-shaped database columns, historical media values, participant roles, outcomes, or legacy report keys in the first alias-removal PR; those are Batch 5 data-migration work.
-- The local and production-served readiness passes proved current `/citizen` flows are canonical, including live call setup, hangup/reconnect handling, operator offline recovery, and post-call status propagation. Legacy route and payload telemetry stayed flat through the live validation window. Realtime shared-service, Helper shared-service, installed PWA terminal-status, and durable storage/history scope confirmations are complete. Batch 2 Realtime event alias removal and Batch 3 request-field alias removal are complete; route aliases and PWA assets remain separately staged.
+- The local and production-served readiness passes proved current `/citizen` flows are canonical, including live call setup, hangup/reconnect handling, operator offline recovery, and post-call status propagation. Legacy route and payload telemetry stayed flat through the live validation window. Realtime shared-service, Helper shared-service, installed PWA terminal-status, and durable storage/history scope confirmations are complete. Batch 1 route alias removal, Batch 2 Realtime event alias removal, and Batch 3 request-field alias removal are complete; PWA assets remain separately staged.
 
 ## Open Decisions Tracker
 
