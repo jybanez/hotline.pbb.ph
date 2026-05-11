@@ -7,12 +7,16 @@ use App\Domain\Calls\Models\CallSession;
 use App\Domain\Incidents\Models\Incident;
 use App\Domain\Incidents\Models\IncidentCallerLocation;
 use App\Domain\Incidents\Models\IncidentCitizenLocation;
+use App\Domain\Shared\Concerns\SynchronizesCitizenIdentity;
+use App\Domain\Shared\Concerns\SynchronizesCitizenIncidentDetails;
 use App\Domain\Shared\Enums\AlertLevel;
 use App\Domain\Shared\Enums\CallOutcome;
 use App\Domain\Shared\Enums\CallStatus;
 use App\Domain\Shared\Enums\IncidentStatus;
 use App\Domain\Shared\Enums\UserRole;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -365,6 +369,51 @@ class CitizenCompatibilityColumnsTest extends TestCase
         $this->assertSame('45', (string) $row->citizen_heading);
         $this->assertSame('gps', $row->caller_heading_source);
         $this->assertSame('gps', $row->citizen_heading_source);
+    }
+
+    public function test_citizen_sync_traits_ignore_columns_missing_from_legacy_schema(): void
+    {
+        Schema::create('legacy_incident_sync_probe', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('caller_id')->nullable();
+            $table->string('actual_caller_name')->nullable();
+            $table->string('actual_caller_relationship')->nullable();
+            $table->decimal('caller_location_accuracy', 10, 2)->nullable();
+        });
+
+        try {
+            $model = new class extends Model
+            {
+                use SynchronizesCitizenIdentity;
+                use SynchronizesCitizenIncidentDetails;
+
+                protected $table = 'legacy_incident_sync_probe';
+
+                public $timestamps = false;
+
+                protected $guarded = [];
+            };
+
+            $created = $model->newQuery()->create([
+                'caller_id' => 123,
+                'citizen_id' => 123,
+                'actual_caller_name' => 'Legacy Caller',
+                'actual_citizen_name' => 'Legacy Caller',
+                'actual_caller_relationship' => 'Self',
+                'actual_citizen_relationship' => 'Self',
+                'caller_location_accuracy' => 8,
+                'citizen_location_accuracy' => 8,
+            ]);
+
+            $row = DB::table('legacy_incident_sync_probe')->where('id', $created->getKey())->first();
+
+            $this->assertSame(123, (int) $row->caller_id);
+            $this->assertSame('Legacy Caller', $row->actual_caller_name);
+            $this->assertSame('Self', $row->actual_caller_relationship);
+            $this->assertSame('8', (string) $row->caller_location_accuracy);
+        } finally {
+            Schema::dropIfExists('legacy_incident_sync_probe');
+        }
     }
 
     public function test_protocol_value_migration_converts_legacy_caller_values_to_citizen_values(): void

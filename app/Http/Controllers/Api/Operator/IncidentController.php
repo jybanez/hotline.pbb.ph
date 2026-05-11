@@ -14,6 +14,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 
 class IncidentController extends Controller
@@ -225,11 +226,13 @@ class IncidentController extends Controller
             'created_at' => $receivedAt,
             'updated_at' => $receivedAt,
         ];
-        DB::table('incident_caller_locations')->insert($callerLocation);
+        $this->insertExistingColumns('incident_caller_locations', $callerLocation);
 
-        $citizenLocation = $callerLocation;
-        unset($citizenLocation['caller_id']);
-        DB::table('incident_citizen_locations')->insert($citizenLocation);
+        if (Schema::hasTable('incident_citizen_locations')) {
+            $citizenLocation = $callerLocation;
+            unset($citizenLocation['caller_id']);
+            $this->insertExistingColumns('incident_citizen_locations', $citizenLocation);
+        }
 
         if ($incident->citizen_location_captured_at && $capturedAt->lt($incident->citizen_location_captured_at)) {
             return response()->json([
@@ -507,6 +510,16 @@ class IncidentController extends Controller
             'actual_caller_relationship' => is_string($relationship) ? trim($relationship) ?: null : null,
             'actual_citizen_relationship' => is_string($relationship) ? trim($relationship) ?: null : null,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    private function insertExistingColumns(string $table, array $row): void
+    {
+        $columns = array_flip(Schema::getColumnListing($table));
+
+        DB::table($table)->insert(array_intersect_key($row, $columns));
     }
 
     /**
