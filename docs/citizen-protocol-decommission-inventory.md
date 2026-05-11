@@ -67,7 +67,7 @@ Keep `citizen-sw.js` cache cleanup for old `caller-pwa-*` caches until at least 
 
 ## Batch 5: Durable Storage And History Names
 
-Do not remove in the alias cleanup PR:
+Planned separately in [Citizen Durable Storage Migration Plan](citizen-durable-storage-migration-plan.md). Do not remove in the alias cleanup PR:
 
 - Database columns and model attributes such as `caller_id`, `actual_caller_name`, `caller_location_*`.
 - `incident_caller_locations` table and related historical relationships.
@@ -81,7 +81,7 @@ Review status as of 2026-05-11:
 - Current report/SITREP payloads already expose citizen aliases beside legacy caller keys where external consumers may exist, including `citizens_assisted`, `citizen_locations`, `missing_citizen_location_count`, and `citizen_phone_numbers`.
 - These durable names do not block Batch 2, Batch 3, or Batch 4 alias cleanup, provided those batches do not rename database columns, rewrite historical media rows, or remove legacy report keys.
 
-Full removal needs a separate data migration plan, consumer notification window, backfill scripts, and explicit rollback strategy.
+Full removal needs staged runtime switching, data backfill, consumer notification windows, parity checks, and an explicit rollback strategy.
 
 ## Recommended First Removal PR
 

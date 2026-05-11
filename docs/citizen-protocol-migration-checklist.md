@@ -10,6 +10,9 @@ Related plan:
 Related inventory:
 - [Citizen Protocol Inventory](citizen-protocol-inventory.md)
 
+Related durable storage plan:
+- [Citizen Durable Storage Migration Plan](citizen-durable-storage-migration-plan.md)
+
 Legend:
 - `[x]` done
 - `[ ]` todo
@@ -131,7 +134,7 @@ Legend:
 - [x] Backfill citizen columns/tables from caller columns/tables.
 - [x] Switch writes after read compatibility exists.
 - [x] Add rollback-safe migrations.
-- [ ] Defer destructive caller column/table removal until final decommission.
+- [~] Plan destructive caller column/table removal through staged Batch 5 storage migration.
 - [x] Update `BlockedDeleteInspectorService` labels to citizen-facing wording without breaking table checks.
 
 ## Realtime Admission
@@ -242,15 +245,14 @@ Legend:
 - [x] Confirm Helper shared service has moved to citizen canonical examples and fixtures: PBB Helper confirmed on 2026-05-11 04:36:42 in the shared chat log that it reviewed `C:\wamp64\www\hotline-helpers`, updated canonical device-selector wording from caller/operator to citizen/operator in `docs\ui-device-selector-proposal.md`, `docs\ui-device-selector-implementation-checklist.md`, and `demos\demo.device.selector.html`, verified the demo with a localhost/headless load check, and left only intentional Helper API/domain compatibility, historical sample data, generic programming docs, or unrelated local sample references.
 - [x] Confirm caller-to-citizen refactor completion and installed PWA compatibility window have passed: installed PWA terminal-status validation passed with two terminal-status samples. The 2026-05-11 04:40 installed citizen PWA run for incident 204 used `/api/realtime/admission/citizen`, applied the terminal incident update at 20:40:48Z, and post-call reconciliation ignored the incident after `currentIncidentId` cleared to `null` at 20:40:53Z and again at 20:41:06Z. The 2026-05-11 04:42 installed citizen PWA run for incident 205 used `/api/realtime/admission/citizen`, applied the terminal incident update at 20:42:15Z, and post-call reconciliation ignored the incident after `currentIncidentId` cleared to `null` at 20:42:24Z.
 - [x] Confirm historical data/report consumers are migrated or explicitly scoped out of alias cleanup: report/SITREP payloads already expose citizen aliases beside legacy caller keys, and the 2026-05-11 durable storage/history review classified database-backed caller names, historical media values, participant roles, and call outcomes as Batch 5 data-migration work that does not block Batch 2, Batch 3, or Batch 4 alias cleanup.
-- [ ] Remove caller route aliases.
 - [x] Remove caller event aliases: Batch 2 removed runtime `caller.*` Realtime event compatibility from the citizen/operator browser surfaces, deleted the `/api/realtime/legacy-caller-events` telemetry endpoint and controller, and updated the JS event contract to citizen-only event names.
 - [x] Remove caller request-field aliases: Batch 3 removed legacy caller request-body fallback/logging from call-attempt, actual-citizen/intake, media registration, media assembly, and internal media chunk ingest paths; canonical requests now use `citizen_*`, `citizen_video`, and `peer_role: citizen|operator` while durable database columns and historical media values remain unchanged.
 - [x] Remove caller route aliases: Batch 1 removed `/caller`, `/api/caller/*`, `/api/realtime/admission/caller`, caller-named operator route aliases, and the legacy caller route telemetry middleware.
 - [x] Remove caller PWA assets only after compatibility window: Batch 4 removed `caller.webmanifest`, `caller-sw.js`, `/caller` service-worker fallbacks, and the browser PWA surface alias.
-- [ ] Remove caller database columns/tables after staged citizen migration and final decommission approval.
+- [~] Remove caller database columns/tables after staged citizen migration and final decommission approval: Batch 5 storage plan is documented; implementation remains pending.
 
 Current decommission gate:
-- Do not remove caller-shaped database columns, historical media values, participant roles, outcomes, or legacy report keys in the first alias-removal PR; those are Batch 5 data-migration work.
+- Do not remove caller-shaped database columns, historical media values, participant roles, outcomes, or legacy report keys in the alias-removal PRs; those are Batch 5 data-migration work.
 - The local and production-served readiness passes proved current `/citizen` flows are canonical, including live call setup, hangup/reconnect handling, operator offline recovery, and post-call status propagation. Legacy route and payload telemetry stayed flat through the live validation window. Realtime shared-service, Helper shared-service, installed PWA terminal-status, and durable storage/history scope confirmations are complete. Batch 1 route alias removal, Batch 2 Realtime event alias removal, Batch 3 request-field alias removal, and Batch 4 PWA asset removal are complete.
 
 ## Open Decisions Tracker
