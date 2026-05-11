@@ -430,6 +430,11 @@ class IncidentWorkbenchTest extends TestCase
             'caller_id' => $citizen->id,
             'citizen_id' => $citizen->id,
         ]);
+        $this->assertDatabaseHas('incident_citizen_locations', [
+            'incident_id' => $incidentId,
+            'citizen_id' => $citizen->id,
+            'source' => 'test',
+        ]);
     }
 
     public function test_operator_incident_payload_omits_legacy_caller_aliases(): void

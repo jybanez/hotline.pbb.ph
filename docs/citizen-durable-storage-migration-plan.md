@@ -101,15 +101,17 @@ Rollback:
 
 ### Batch 5C: Introduce `incident_citizen_locations`
 
+Status: Complete in code on 2026-05-11; keep production observation active through the next live validation window.
+
 Goal: move location history to a citizen-named table without losing old history.
 
 Changes:
 
-- Create `incident_citizen_locations` with the same shape as `incident_caller_locations`, using `citizen_id`.
-- Backfill from `incident_caller_locations`.
-- Update new writes to write both tables for one release, or write citizen table first and mirror caller table in the same transaction.
-- Update reads to prefer `incident_citizen_locations`.
-- Add count/parity checks for incident id, session id, coordinates, timestamps, and source.
+- [x] Create `incident_citizen_locations` with the same shape as `incident_caller_locations`, using `citizen_id`.
+- [x] Backfill from `incident_caller_locations`.
+- [x] Update new writes to write both tables for one release, or write citizen table first and mirror caller table in the same transaction.
+- [x] Update reads to prefer `incident_citizen_locations`.
+- [x] Add count/parity checks for incident id, session id, coordinates, timestamps, and source.
 
 Rollback:
 

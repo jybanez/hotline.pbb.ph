@@ -69,6 +69,7 @@ class ClearTestIncidents extends Command
             $summary['incident_messages'] = $this->deleteWhereIn('incident_messages', 'id', $messageIds);
 
             $summary['media'] = $this->deleteWhereIn('media', 'incident_id', $incidentIds);
+            $summary['incident_citizen_locations'] = $this->deleteWhereIn('incident_citizen_locations', 'incident_id', $incidentIds);
             $summary['incident_caller_locations'] = $this->deleteWhereIn('incident_caller_locations', 'incident_id', $incidentIds);
 
             $summary['call_participants'] = $this->deleteWhereIn('call_participants', 'call_session_id', $callSessionIds);

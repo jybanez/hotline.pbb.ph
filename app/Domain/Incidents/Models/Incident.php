@@ -118,7 +118,7 @@ class Incident extends Model
 
     public function citizenLocations(): HasMany
     {
-        return $this->hasMany(IncidentCallerLocation::class)
+        return $this->hasMany(IncidentCitizenLocation::class)
             ->orderBy('captured_at')
             ->orderBy('id');
     }

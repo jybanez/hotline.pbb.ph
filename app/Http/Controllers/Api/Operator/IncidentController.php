@@ -206,7 +206,7 @@ class IncidentController extends Controller
             }
         }
 
-        DB::table('incident_caller_locations')->insert([
+        $callerLocation = [
             'incident_id' => $incident->id,
             'caller_id' => $incident->caller_id,
             'citizen_id' => $incident->citizen_id,
@@ -224,7 +224,12 @@ class IncidentController extends Controller
             'received_at' => $receivedAt,
             'created_at' => $receivedAt,
             'updated_at' => $receivedAt,
-        ]);
+        ];
+        DB::table('incident_caller_locations')->insert($callerLocation);
+
+        $citizenLocation = $callerLocation;
+        unset($citizenLocation['caller_id']);
+        DB::table('incident_citizen_locations')->insert($citizenLocation);
 
         if ($incident->citizen_location_captured_at && $capturedAt->lt($incident->citizen_location_captured_at)) {
             return response()->json([
@@ -269,7 +274,7 @@ class IncidentController extends Controller
         $limit = (int) ($validated['limit'] ?? 500);
         $since = isset($validated['since']) ? Carbon::parse($validated['since']) : null;
 
-        $locations = $incident->callerLocations()
+        $locations = $incident->citizenLocations()
             ->when($since, fn ($query) => $query->where('captured_at', '>=', $since))
             ->latest('captured_at')
             ->limit($limit)

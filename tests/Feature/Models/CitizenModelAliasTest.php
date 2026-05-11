@@ -6,6 +6,7 @@ use App\Domain\Calls\Models\CallAttempt;
 use App\Domain\Calls\Models\CallSession;
 use App\Domain\Incidents\Models\Incident;
 use App\Domain\Incidents\Models\IncidentCallerLocation;
+use App\Domain\Incidents\Models\IncidentCitizenLocation;
 use App\Domain\Shared\Enums\AlertLevel;
 use App\Domain\Shared\Enums\CallOutcome;
 use App\Domain\Shared\Enums\CallStatus;
@@ -41,6 +42,17 @@ class CitizenModelAliasTest extends TestCase
         IncidentCallerLocation::query()->create([
             'incident_id' => $incident->id,
             'caller_id' => $citizen->id,
+            'citizen_id' => $citizen->id,
+            'operator_id' => $operator->id,
+            'latitude' => 10.3157,
+            'longitude' => 123.8854,
+            'captured_at' => now(),
+            'received_at' => now(),
+        ]);
+
+        IncidentCitizenLocation::query()->create([
+            'incident_id' => $incident->id,
+            'citizen_id' => $citizen->id,
             'operator_id' => $operator->id,
             'latitude' => 10.3157,
             'longitude' => 123.8854,

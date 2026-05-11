@@ -6,6 +6,7 @@ use App\Domain\Calls\Models\CallAttempt;
 use App\Domain\Calls\Models\CallSession;
 use App\Domain\Incidents\Models\Incident;
 use App\Domain\Incidents\Models\IncidentCallerLocation;
+use App\Domain\Incidents\Models\IncidentCitizenLocation;
 use App\Domain\Shared\Enums\AlertLevel;
 use App\Domain\Shared\Enums\CallOutcome;
 use App\Domain\Shared\Enums\CallStatus;
@@ -27,6 +28,10 @@ class CitizenCompatibilityColumnsTest extends TestCase
             $this->assertTrue(Schema::hasColumn($table, 'caller_id'), "{$table} is missing caller_id");
             $this->assertTrue(Schema::hasColumn($table, 'citizen_id'), "{$table} is missing citizen_id");
         }
+
+        $this->assertTrue(Schema::hasTable('incident_citizen_locations'));
+        $this->assertFalse(Schema::hasColumn('incident_citizen_locations', 'caller_id'));
+        $this->assertTrue(Schema::hasColumn('incident_citizen_locations', 'citizen_id'));
     }
 
     public function test_citizen_detail_columns_exist_beside_caller_detail_columns(): void
@@ -101,6 +106,43 @@ class CitizenCompatibilityColumnsTest extends TestCase
         $this->assertSame($citizen->id, $attempt->citizen_id);
         $this->assertSame($citizen->id, $session->citizen_id);
         $this->assertSame($citizen->id, $location->citizen_id);
+    }
+
+    public function test_incident_citizen_locations_store_citizen_history_without_caller_id(): void
+    {
+        $citizen = User::factory()->create([
+            'role' => UserRole::Citizen,
+        ]);
+        $operator = User::factory()->create([
+            'role' => UserRole::Operator,
+        ]);
+
+        $incident = Incident::query()->create([
+            'caller_id' => $citizen->id,
+            'citizen_id' => $citizen->id,
+            'actual_citizen_name' => $citizen->name,
+            'actual_citizen_relationship' => 'Self',
+            'operator_id' => $operator->id,
+            'status' => IncidentStatus::Active,
+            'alert_level' => AlertLevel::Normal,
+            'called_at' => now(),
+        ]);
+
+        $location = IncidentCitizenLocation::query()->create([
+            'incident_id' => $incident->id,
+            'citizen_id' => $citizen->id,
+            'operator_id' => $operator->id,
+            'latitude' => 10.3157,
+            'longitude' => 123.8854,
+            'accuracy' => 16,
+            'source' => 'test',
+            'captured_at' => now(),
+            'received_at' => now(),
+        ]);
+
+        $this->assertSame($citizen->id, $location->citizen()->first()?->id);
+        $this->assertSame(1, $incident->citizenLocations()->count());
+        $this->assertSame(0, $incident->callerLocations()->count());
     }
 
     public function test_citizen_relationships_use_citizen_id_as_active_identity_column(): void
