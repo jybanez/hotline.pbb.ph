@@ -156,6 +156,24 @@ function logCallFlow(surface, step, detail = {}) {
     });
 }
 
+function logSessionKeepaliveDecision(step, detail = {}) {
+    if (!isDebugFlagEnabled('hotlineSessionDebug', 'HOTLINE_SESSION_DEBUG') || typeof console === 'undefined' || typeof console.info !== 'function') {
+        return;
+    }
+
+    const safeDetail = detail && typeof detail === 'object' && !Array.isArray(detail)
+        ? detail
+        : {};
+
+    console.info('[hotline.session.keepalive]', {
+        timestamp: new Date().toISOString(),
+        surface: appState.activeSurface ?? appState.bootstrap?.surface ?? 'unknown',
+        role: appState.bootstrap?.user?.role ?? null,
+        step: String(step ?? '').trim() || 'unknown',
+        ...safeDetail,
+    });
+}
+
 function escapeHtml(value) {
     return String(value ?? '')
         .replaceAll('&', '&amp;')
@@ -270,13 +288,7 @@ function setCsrfToken(nextToken) {
 }
 
 function sessionLifetimeMinutes() {
-    const lifetime = Math.max(1, Number(appState.bootstrap?.session_lifetime_minutes ?? 15) || 15);
-
-    if (isCriticalSession()) {
-        return Math.max(lifetime, 43200);
-    }
-
-    return lifetime;
+    return Math.max(1, Number(appState.bootstrap?.session_lifetime_minutes ?? 15) || 15);
 }
 
 function touchSessionServerClock(value = null) {
@@ -418,20 +430,34 @@ function wasRecentlyActive() {
 
 function shouldAttemptSessionKeepalive(remainingMs) {
     if (!appState.bootstrap?.authenticated || appState.helper.reauthOpening || appState.runtime.keepaliveInFlight) {
+        logSessionKeepaliveDecision('skip-unavailable', { remainingMs });
         return false;
     }
 
     if (!isCriticalSession() && (document.visibilityState !== 'visible' || !document.hasFocus())) {
+        logSessionKeepaliveDecision('skip-background-non-critical', { remainingMs });
         return false;
     }
 
     if (remainingMs > sessionKeepaliveWindowMs()) {
+        logSessionKeepaliveDecision('skip-before-window', {
+            remainingMs,
+            keepaliveWindowMs: sessionKeepaliveWindowMs(),
+        });
         return false;
     }
 
     const lastKeepaliveAt = Number(appState.runtime.lastKeepaliveAt ?? 0);
 
-    return !lastKeepaliveAt || ((Date.now() - lastKeepaliveAt) >= SESSION_KEEPALIVE_MIN_INTERVAL_MS);
+    const allowed = !lastKeepaliveAt || ((Date.now() - lastKeepaliveAt) >= SESSION_KEEPALIVE_MIN_INTERVAL_MS);
+
+    logSessionKeepaliveDecision(allowed ? 'allow' : 'skip-min-interval', {
+        remainingMs,
+        keepaliveWindowMs: sessionKeepaliveWindowMs(),
+        lastKeepaliveAgeMs: lastKeepaliveAt ? Date.now() - lastKeepaliveAt : null,
+    });
+
+    return allowed;
 }
 
 async function pingSessionKeepalive() {
@@ -447,15 +473,24 @@ async function pingSessionKeepalive() {
         const pingUrl = criticalSurface
             ? `/api/session/ping?surface=${encodeURIComponent(criticalSurface)}`
             : '/api/session/ping';
+        logSessionKeepaliveDecision('ping-start', { pingUrl });
         const payload = await fetchJson(pingUrl);
         const pingData = payload?.data ?? payload;
 
         setCsrfToken(pingData?.csrf_token ?? payload?.csrf_token ?? null);
         touchSessionServerClock(pingData?.touched_at ?? payload?.touched_at ?? null);
 
+        logSessionKeepaliveDecision('ping-success', {
+            pingUrl,
+            lifetimeMinutes: sessionLifetimeMinutes(),
+        });
         return true;
     } catch (error) {
         const status = error?.response?.status;
+        logSessionKeepaliveDecision('ping-error', {
+            status,
+            message: String(error?.message ?? ''),
+        });
 
         if (status === 401 || status === 419) {
             if (isCriticalSession() && await restoreCriticalSession()) {
@@ -536,6 +571,7 @@ async function restoreCriticalSession() {
 
 async function checkSessionExpiryWatcher() {
     if (!appState.bootstrap?.authenticated || appState.helper.reauthOpening || appState.runtime.reauthPrompting) {
+        logSessionKeepaliveDecision('watcher-skip-unavailable');
         return;
     }
 
@@ -543,11 +579,24 @@ async function checkSessionExpiryWatcher() {
     const lastTouchClientAt = Number(appState.runtime.lastServerTouchClientAt ?? 0);
 
     if (!lastTouchAt || !lastTouchClientAt) {
+        logSessionKeepaliveDecision('watcher-skip-missing-clock', {
+            lastTouchAt,
+            lastTouchClientAt,
+        });
         return;
     }
 
     const lifetimeMs = sessionLifetimeMinutes() * 60 * 1000;
     const remainingMs = lifetimeMs - (Date.now() - lastTouchClientAt);
+    logSessionKeepaliveDecision('watcher-check', {
+        lifetimeMinutes: sessionLifetimeMinutes(),
+        lifetimeMs,
+        remainingMs,
+        keepaliveWindowMs: sessionKeepaliveWindowMs(),
+        critical: isCriticalSession(),
+        visible: document.visibilityState,
+        focused: document.hasFocus(),
+    });
 
     if (remainingMs > 0) {
         if (shouldAttemptSessionKeepalive(remainingMs) && (wasRecentlyActive() || isCriticalSession())) {

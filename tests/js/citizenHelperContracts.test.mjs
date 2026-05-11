@@ -9,6 +9,10 @@ assert.match(surfaceShared, /brandSubtitle:\s*bootstrap\?\.app\?\.version \? `v\
 assert.match(surfaceShared, /const canRetryCsrf = \(\s*status === 419/);
 assert.match(surfaceShared, /_hotlineSessionRestoredRetried: true/);
 assert.match(surfaceShared, /return window\.axios\(retryConfig\)/);
+assert.match(surfaceShared, /function sessionLifetimeMinutes\(\) \{\s+return Math\.max\(1, Number\(appState\.bootstrap\?\.session_lifetime_minutes \?\? 15\) \|\| 15\);\s+\}/);
+assert.doesNotMatch(surfaceShared, /return Math\.max\(lifetime, 43200\)/);
+assert.match(surfaceShared, /function logSessionKeepaliveDecision\(step, detail = \{\}\)/);
+assert.match(surfaceShared, /hotlineSessionDebug/);
 const csrfRetryBlock = surfaceShared.slice(
   surfaceShared.indexOf('const canRetryCsrf = ('),
   surfaceShared.indexOf('if (canRetryCsrf)')
