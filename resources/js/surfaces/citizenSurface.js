@@ -9,6 +9,7 @@ const INCIDENT_MEDIA_ROOM_PREFIX = 'hotline.media.incident.';
 const INCIDENT_UPDATE_EVENT = 'hotline.incident.updated';
 const TERMINAL_INCIDENT_STATUSES = new Set(['Discarded', 'Resolved']);
 const CALLER_POST_CALL_RECONCILE_DELAYS_MS = [1500, 5000, 12000, 25000];
+const CALLER_PRODUCT_QUERY_RESPONSE_TIMEOUT_MS = 8000;
 const CALLER_HANGUP_CONFIRM_TIMEOUT_MS = 3000;
 const CALLER_HANGUP_COMPLETE_TIMEOUT_MS = 10000;
 const CALLER_DISCOVERY_RESPONSE_TIMEOUT_MIN_MS = 1500;
@@ -641,6 +642,8 @@ function applyCallerIncidentPatch(incidentId, patch = {}) {
     const nextStatus = String(nextIncident?.status ?? '').trim();
 
     if (TERMINAL_INCIDENT_STATUSES.has(nextStatus)) {
+        clearCallerPostCallIncidentReconcileTimers();
+        clearCallerProductQueryRequestsForIncident(nextIncidentId);
         syncCallerCurrentIncident(null);
         clearCallerPendingState();
         destroyCallerIncidentOverlay(root);
@@ -672,6 +675,146 @@ function clearCallerPostCallIncidentReconcileTimers() {
 
     timers.forEach((timerId) => window.clearTimeout(timerId));
     appState.runtime.callerPostCallIncidentReconcileTimers = [];
+}
+
+function callerProductQueryRuntime() {
+    if (!appState.runtime.callerProductQueries) {
+        appState.runtime.callerProductQueries = {
+            pending: {},
+        };
+    }
+
+    return appState.runtime.callerProductQueries;
+}
+
+function callerProductQueryRequestId() {
+    return `qry_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function clearCallerProductQueryRequest(requestId) {
+    const runtime = callerProductQueryRuntime();
+    const pending = runtime.pending?.[requestId] ?? null;
+
+    if (pending?.timeoutId) {
+        window.clearTimeout(pending.timeoutId);
+    }
+
+    delete runtime.pending[requestId];
+}
+
+function clearCallerProductQueryRequestsForIncident(incidentId) {
+    const expectedIncidentId = Number(incidentId ?? 0);
+    const runtime = callerProductQueryRuntime();
+
+    Object.entries(runtime.pending ?? {}).forEach(([requestId, pending]) => {
+        if (expectedIncidentId <= 0 || Number(pending?.incidentId ?? 0) === expectedIncidentId) {
+            clearCallerProductQueryRequest(requestId);
+        }
+    });
+}
+
+function requestCallerIncidentSnapshotViaRealtime(incidentId, reason = 'post-call') {
+    const expectedIncidentId = Number(incidentId ?? 0);
+    const client = callerDiscoveryClient();
+
+    if (expectedIncidentId <= 0 || !client?.isOpen?.()) {
+        return false;
+    }
+
+    const currentIncidentId = Number(appState.runtime.callerHome?.current_open_incident?.id ?? 0);
+
+    if (currentIncidentId !== expectedIncidentId) {
+        return false;
+    }
+
+    const requestId = callerProductQueryRequestId();
+    const payload = buildAppEventPublishPayload('product.query.request', {
+        schema_version: 1,
+        request_id: requestId,
+        query: 'hotline.incident.snapshot',
+        context: {
+            incident_id: expectedIncidentId,
+        },
+        projection: {
+            preset: 'status',
+        },
+        client_state: {
+            reason,
+            last_seen_status: String(appState.runtime.callerHome?.current_open_incident?.status ?? ''),
+            last_seen_version: String(appState.runtime.callerHome?.current_open_incident?.updated_at ?? ''),
+        },
+    }, {
+        correlationId: requestId,
+    });
+
+    const sent = client.sendRequest('app.event.publish', CALL_DISCOVERY_ROOM, payload);
+
+    if (!sent) {
+        return false;
+    }
+
+    logCallFlow('citizen', 'post-call-incident-reconcile-query-sent', {
+        incidentId: expectedIncidentId,
+        requestId,
+        reason,
+    });
+
+    const timeoutId = window.setTimeout(() => {
+        clearCallerProductQueryRequest(requestId);
+        logCallFlow('citizen', 'post-call-incident-reconcile-query-timeout', {
+            incidentId: expectedIncidentId,
+            requestId,
+            reason,
+        });
+        void reconcileCallerCurrentIncidentFromHome(expectedIncidentId, `${reason}-query-timeout`);
+    }, CALLER_PRODUCT_QUERY_RESPONSE_TIMEOUT_MS);
+
+    callerProductQueryRuntime().pending[requestId] = {
+        incidentId: expectedIncidentId,
+        reason,
+        timeoutId,
+    };
+
+    return true;
+}
+
+function handleCallerProductQueryResponse(payload = {}) {
+    const requestId = String(payload?.request_id ?? '').trim();
+    const query = String(payload?.query ?? '').trim();
+    const runtime = callerProductQueryRuntime();
+    const pending = requestId ? runtime.pending?.[requestId] ?? null : null;
+
+    if (!requestId || !pending || query !== 'hotline.incident.snapshot') {
+        return false;
+    }
+
+    clearCallerProductQueryRequest(requestId);
+
+    const expectedIncidentId = Number(pending.incidentId ?? 0);
+    const responseIncidentId = Number(payload?.context?.incident_id ?? payload?.data?.incident?.id ?? 0);
+    const incident = payload?.data?.incident && typeof payload.data.incident === 'object'
+        ? payload.data.incident
+        : null;
+    const status = String(payload?.status ?? '').trim();
+
+    logCallFlow('citizen', 'post-call-incident-reconcile-query-response', {
+        incidentId: responseIncidentId || expectedIncidentId || null,
+        requestId,
+        query,
+        status,
+    });
+
+    if (status !== 'ok' || !incident || responseIncidentId !== expectedIncidentId) {
+        return true;
+    }
+
+    applyCallerIncidentPatch(expectedIncidentId, {
+        status: incident.status,
+        updated_at: incident.updated_at ?? null,
+        resolved_at: incident.resolved_at ?? null,
+    });
+
+    return true;
 }
 
 function shouldRerenderAfterIncidentReconcile(currentIncident, serverIncident) {
@@ -706,6 +849,18 @@ async function reconcileCallerCurrentIncidentFromHome(incidentId, reason = 'post
         return false;
     }
 
+    const currentIncident = appState.runtime.callerHome?.current_open_incident ?? null;
+    const currentIncidentId = Number(currentIncident?.id ?? 0);
+
+    if (currentIncidentId !== expectedIncidentId) {
+        logCallFlow('citizen', 'post-call-incident-reconcile-skipped', {
+            incidentId: expectedIncidentId,
+            currentIncidentId: currentIncidentId || null,
+            reason,
+        });
+        return false;
+    }
+
     logCallFlow('citizen', 'post-call-incident-reconcile-start', {
         incidentId: expectedIncidentId,
         reason,
@@ -715,8 +870,6 @@ async function reconcileCallerCurrentIncidentFromHome(incidentId, reason = 'post
         const home = await fetchJson('/api/citizen/home');
         const serverIncident = home?.current_open_incident ?? null;
         const serverIncidentId = Number(serverIncident?.id ?? 0);
-        const currentIncident = appState.runtime.callerHome?.current_open_incident ?? null;
-        const currentIncidentId = Number(currentIncident?.id ?? 0);
 
         appState.runtime.callerHome = {
             ...(appState.runtime.callerHome ?? {}),
@@ -724,6 +877,7 @@ async function reconcileCallerCurrentIncidentFromHome(incidentId, reason = 'post
         };
 
         if (!serverIncident && currentIncidentId === expectedIncidentId) {
+            clearCallerPostCallIncidentReconcileTimers();
             logCallFlow('citizen', 'post-call-incident-reconcile-cleared', {
                 incidentId: expectedIncidentId,
                 reason,
@@ -788,6 +942,12 @@ function scheduleCallerPostCallIncidentReconciliation(incidentId, reason = 'post
     }
 
     clearCallerPostCallIncidentReconcileTimers();
+
+    if (requestCallerIncidentSnapshotViaRealtime(expectedIncidentId, reason)) {
+        appState.runtime.callerPostCallIncidentReconcileTimers = [];
+        return;
+    }
+
     appState.runtime.callerPostCallIncidentReconcileTimers = CALLER_POST_CALL_RECONCILE_DELAYS_MS.map((delayMs) => (
         window.setTimeout(() => {
             void reconcileCallerCurrentIncidentFromHome(expectedIncidentId, reason);
@@ -1738,6 +1898,11 @@ async function connectCallerRealtimeStream(options = {}) {
                 }
 
                 if (!eventType || !joinedRooms.has(CALL_DISCOVERY_ROOM)) {
+                    return;
+                }
+
+                if (eventType === 'product.query.response') {
+                    handleCallerProductQueryResponse(payload);
                     return;
                 }
 

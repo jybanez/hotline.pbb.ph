@@ -36,6 +36,16 @@ assert.match(citizenSurface, /data-caller-live-network-banner/);
 assert.match(citizenSurface, /live-call-browser-offline/);
 assert.match(citizenSurface, /live-call-runtime-unavailable/);
 assert.match(citizenSurface, /clearCallerPendingState\(\)/);
+assert.match(
+  citizenSurface,
+  /clearCallerPostCallIncidentReconcileTimers\(\);\s+clearCallerProductQueryRequestsForIncident\(nextIncidentId\);\s+syncCallerCurrentIncident\(null\)/
+);
+assert.match(citizenSurface, /post-call-incident-reconcile-skipped/);
+assert.match(citizenSurface, /currentIncidentId !== expectedIncidentId/);
+assert.match(citizenSurface, /product\.query\.request/);
+assert.match(citizenSurface, /hotline\.incident\.snapshot/);
+assert.match(citizenSurface, /product\.query\.response/);
+assert.match(citizenSurface, /post-call-incident-reconcile-query-timeout/);
 assert.doesNotMatch(citizenSurface, /src="\/images\/hang-up\.svg"/);
 assert.match(realtimeSignalStrength, /navigator\.onLine === false/);
 assert.match(realtimeSignalStrength, /state:\s*'browser-offline'/);

@@ -95,6 +95,25 @@ class RealtimeEventPublishService
 
     /**
      * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    public function publishProductQueryResponse(string $room, array $payload): array
+    {
+        return $this->publish(
+            projectCode: $this->projectCode('server', 'prj_hotline_server'),
+            room: $room,
+            eventType: 'product.query.response',
+            payload: $payload,
+            meta: [
+                'source' => 'backend',
+                'source_module' => 'hotline-beta',
+            ],
+            eventId: 'evt_hotline_product_query_' . Str::ulid(),
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $payload
      * @param array<string, mixed> $meta
      * @return array<string, mixed>
      */
