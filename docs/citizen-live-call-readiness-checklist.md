@@ -107,10 +107,11 @@ If the machine restarts, restart the Realtime daemon before retesting.
 
 ## Known Notes
 
-- Legacy `/caller`, `/api/caller/*`, and caller event aliases remain during the compatibility window.
+- Legacy `/caller` and `/api/caller/*` route aliases remain during the compatibility window; runtime caller event aliases have been removed.
 - Existing legacy tabs may still call `/api/realtime/admission/caller`; fresh `/citizen` sessions use `/api/realtime/admission/citizen`.
 - Fresh `/api/citizen/incidents/*` read payloads use citizen-facing keys only for public-user identity/location/session aliases; legacy `/api/caller/incidents/*` remains alias-compatible.
 - Fresh `/api/operator/incidents/*` workbench read payloads use citizen-facing public-user aliases and normalize historical `caller` participant/media values in JSON output; explicit legacy operator alias routes remain accepted during the compatibility window.
 - Canonical new Hotline writes now use citizen values where this phase has switched runtime behavior.
+- Canonical request bodies now use `citizen_*`, `citizen_video`, and `peer_role: citizen|operator`; legacy caller request-field fallbacks have been removed from the live call/media write paths.
 - Historical pre-refactor rows can still contain legacy caller values; the live-test verification above only covers newly written rows from this readiness pass.
-- Destructive removal of caller columns, routes, PWA assets, and event aliases is still deferred until final decommission approval.
+- Destructive removal of caller columns, routes, and PWA assets is still deferred until final decommission approval.

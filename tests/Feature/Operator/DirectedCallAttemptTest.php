@@ -9,7 +9,6 @@ use App\Domain\Shared\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 class DirectedCallAttemptTest extends TestCase
@@ -55,10 +54,8 @@ class DirectedCallAttemptTest extends TestCase
             ->assertJsonPath('operator_attempt.status', 'calling');
     }
 
-    public function test_legacy_caller_directed_attempt_payload_fields_are_logged(): void
+    public function test_legacy_caller_directed_attempt_payload_fields_are_rejected(): void
     {
-        Log::spy();
-
         $caller = User::factory()->create([
             'role' => UserRole::Citizen,
         ]);
@@ -73,17 +70,9 @@ class DirectedCallAttemptTest extends TestCase
                 'caller_latitude' => 10.330507150390998,
                 'caller_longitude' => 123.88256831994421,
             ])
-            ->assertCreated();
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['citizen_id', 'caller_id', 'caller_latitude', 'caller_longitude']);
 
-        Log::shouldHaveReceived('info')
-            ->once()
-            ->with('Hotline legacy caller payload used.', \Mockery::on(
-                fn (array $context): bool => ($context['contract'] ?? null) === 'operator.call-attempt'
-                    && ($context['fields'] ?? []) === ['caller_id', 'caller_latitude', 'caller_longitude']
-                    && ($context['method'] ?? null) === 'POST'
-                    && ($context['path'] ?? null) === 'api/operator/call-attempts'
-                    && (int) ($context['user_id'] ?? 0) === (int) $operator->id
-                    && ($context['user_role'] ?? null) === UserRole::Operator->value
-            ));
+        $this->assertDatabaseCount('call_attempts', 0);
     }
 }

@@ -38,19 +38,19 @@ Expected replacement: surfaces publish and compare `citizen.*` event names direc
 
 ## Batch 3: Request Payload Aliases
 
-Remove after route/event alias cleanup has shipped:
+Completed on branch `codex/citizen-live-call-readiness` after route/event alias cleanup shipped:
 
-- `app/Support/Compatibility/LegacyCallerPayloadUsageLogger.php`.
-- Legacy field acceptance in citizen/operator/media controllers:
+- Removed `app/Support/Compatibility/LegacyCallerPayloadUsageLogger.php`.
+- Removed legacy field acceptance in citizen/operator/media controllers:
   - `app/Http/Controllers/Api/Citizen/CallAttemptController.php`
   - `app/Http/Controllers/Api/Operator/CallAttemptController.php`
   - `app/Http/Controllers/Api/Operator/IncidentController.php`
   - `app/Http/Controllers/Api/Operator/CallSessionMediaController.php`
   - `app/Http/Controllers/Api/Media/AssemblyController.php`
   - `app/Http/Controllers/Api/Internal/MediaChunkIngressController.php`
-- Tests whose only purpose is legacy caller payload logging.
+- Replaced tests whose only purpose was legacy caller payload logging with canonical-only validation coverage.
 
-Expected replacement: request validation accepts canonical `citizen_*` fields only, while durable database columns remain unchanged in this batch.
+Replacement behavior: request validation accepts canonical `citizen_*`, `citizen_video`, and `peer_role: citizen|operator` fields only, while durable database columns and historical media values remain unchanged in this batch.
 
 ## Batch 4: PWA Alias Assets
 
@@ -83,7 +83,7 @@ Full removal needs a separate data migration plan, consumer notification window,
 
 ## Recommended First Removal PR
 
-Realtime shared-service, Helper shared-service, installed PWA, and durable storage/history scope confirmations are complete. Start with Batch 2 as the first removal PR; it removes runtime event compatibility without touching routes, installed PWA assets, or database-backed history. Then run:
+Realtime shared-service, Helper shared-service, installed PWA, and durable storage/history scope confirmations are complete. Batch 2 and Batch 3 alias removals are complete. Route aliases, installed PWA assets, and database-backed history remain separately staged. Then run:
 
 - `node tests/js/citizenRealtimeEvents.test.mjs`
 - `npm run build`

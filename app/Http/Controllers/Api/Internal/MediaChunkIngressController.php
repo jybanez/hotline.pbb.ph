@@ -6,7 +6,6 @@ use App\Domain\Calls\Models\CallSession;
 use App\Domain\Media\Models\Media;
 use App\Domain\Shared\Enums\UserRole;
 use App\Http\Controllers\Controller;
-use App\Support\Compatibility\LegacyCallerPayloadUsageLogger;
 use App\Support\Media\MediaContractNormalizer;
 use App\Support\Media\MediaAssemblyService;
 use App\Support\Settings\SettingsService;
@@ -19,7 +18,6 @@ class MediaChunkIngressController extends Controller
     public function __construct(
         private readonly MediaAssemblyService $mediaAssembly,
         private readonly SettingsService $settings,
-        private readonly LegacyCallerPayloadUsageLogger $legacyCallerPayloads,
     ) {
     }
 
@@ -39,9 +37,9 @@ class MediaChunkIngressController extends Controller
             'incident_id' => ['required', 'integer', 'min:1'],
             'call_session_id' => ['required', 'integer', 'min:1'],
             'media_id' => ['required', 'integer', 'min:1'],
-            'type' => ['required', 'string', 'in:audio_peer,caller_video,citizen_video'],
+            'type' => ['required', 'string', 'in:audio_peer,citizen_video'],
             'peer_user_id' => ['nullable', 'integer'],
-            'peer_role' => ['nullable', 'string', 'in:citizen,caller,operator'],
+            'peer_role' => ['nullable', 'string', 'in:citizen,operator'],
             'track_kind' => ['required', 'string', 'in:audio,video'],
             'mime_type' => ['required', 'string', 'max:255'],
             'extension' => ['nullable', 'string', 'max:16'],
@@ -55,11 +53,6 @@ class MediaChunkIngressController extends Controller
             'project_code' => ['nullable', 'string', 'max:255'],
             'room' => ['nullable', 'string', 'max:255'],
         ]);
-        $this->legacyCallerPayloads->log(
-            $request,
-            'internal.media-chunk',
-            $this->legacyMediaFields($validated),
-        );
 
         $validated = MediaContractNormalizer::normalizePayload($validated);
 
@@ -166,25 +159,6 @@ class MediaChunkIngressController extends Controller
             'project_code' => $payload['project_code'] ?? $input['project_code'] ?? $sender['project_code'] ?? null,
             'room' => $payload['room'] ?? $input['room'] ?? null,
         ];
-    }
-
-    /**
-     * @param array<string, mixed> $payload
-     * @return array<int, string>
-     */
-    private function legacyMediaFields(array $payload): array
-    {
-        $fields = [];
-
-        if (($payload['type'] ?? null) === 'caller_video') {
-            $fields[] = 'type';
-        }
-
-        if (($payload['peer_role'] ?? null) === 'caller') {
-            $fields[] = 'peer_role';
-        }
-
-        return $fields;
     }
 
     /**

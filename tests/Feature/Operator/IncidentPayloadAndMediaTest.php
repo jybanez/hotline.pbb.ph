@@ -467,14 +467,14 @@ class IncidentPayloadAndMediaTest extends TestCase
 
         $createResponse = $this->actingAs($operator)
             ->postJson('/api/operator/call-sessions/1/media', [
-                'type' => 'caller_video',
+                'type' => 'citizen_video',
                 'peer_user_id' => $caller->id,
-                'peer_role' => 'caller',
+                'peer_role' => 'citizen',
                 'peer_label' => $caller->name,
                 'mime_type' => 'video/webm;codecs=vp8',
                 'extension' => 'webm',
                 'track_kind' => 'video',
-                'segment_key' => 'caller-cam-1',
+                'segment_key' => 'citizen-cam-1',
             ])
             ->assertCreated();
 
@@ -537,12 +537,12 @@ class IncidentPayloadAndMediaTest extends TestCase
             ->postJson('/api/operator/call-sessions/1/media', [
                 'type' => 'audio_peer',
                 'peer_user_id' => $caller->id,
-                'peer_role' => 'caller',
+                'peer_role' => 'citizen',
                 'peer_label' => $caller->name,
                 'mime_type' => 'audio/webm;codecs=opus',
                 'extension' => 'weba',
                 'track_kind' => 'audio',
-                'segment_key' => 'caller-audio-test',
+                'segment_key' => 'citizen-audio-test',
             ])
             ->assertCreated();
 
@@ -585,12 +585,12 @@ class IncidentPayloadAndMediaTest extends TestCase
             ->postJson('/api/operator/call-sessions/1/media', [
                 'type' => 'audio_peer',
                 'peer_user_id' => $caller->id,
-                'peer_role' => 'caller',
+                'peer_role' => 'citizen',
                 'peer_label' => $caller->name,
                 'mime_type' => 'audio/webm;codecs=opus',
                 'extension' => 'weba',
                 'track_kind' => 'audio',
-                'segment_key' => 'caller-audio-salvage',
+                'segment_key' => 'citizen-audio-salvage',
             ])
             ->assertCreated();
 

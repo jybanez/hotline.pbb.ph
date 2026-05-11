@@ -3,9 +3,7 @@
 namespace App\Http\Controllers\Api\Media;
 
 use App\Http\Controllers\Controller;
-use App\Support\Compatibility\LegacyCallerPayloadUsageLogger;
 use App\Support\Media\MediaAssemblyService;
-use App\Support\Media\MediaContractNormalizer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -13,7 +11,6 @@ class AssemblyController extends Controller
 {
     public function __construct(
         private readonly MediaAssemblyService $mediaAssembly,
-        private readonly LegacyCallerPayloadUsageLogger $legacyCallerPayloads,
     ) {
     }
 
@@ -26,21 +23,16 @@ class AssemblyController extends Controller
         $validated = $request->validate([
             'incident_id' => ['required', 'integer'],
             'call_session_id' => ['required', 'integer'],
-            'type' => ['required', 'string', 'in:audio_peer,caller_video,citizen_video'],
+            'type' => ['required', 'string', 'in:audio_peer,citizen_video'],
             'peer_user_id' => ['nullable', 'integer'],
-            'peer_role' => ['nullable', 'string'],
+            'peer_role' => ['nullable', 'string', 'in:citizen,operator'],
             'peer_label' => ['nullable', 'string'],
             'path' => ['required', 'string', 'max:2048'],
             'duration_seconds' => ['nullable', 'integer', 'min:0'],
             'metadata' => ['nullable', 'array'],
         ]);
-        $this->legacyCallerPayloads->log(
-            $request,
-            'media.assembly',
-            $this->legacyMediaFields($validated),
-        );
 
-        $media = $this->mediaAssembly->registerCompletedAsset(MediaContractNormalizer::normalizePayload($validated));
+        $media = $this->mediaAssembly->registerCompletedAsset($validated);
 
         return response()->json([
             'ok' => true,
@@ -48,22 +40,4 @@ class AssemblyController extends Controller
         ], 201);
     }
 
-    /**
-     * @param array<string, mixed> $payload
-     * @return array<int, string>
-     */
-    private function legacyMediaFields(array $payload): array
-    {
-        $fields = [];
-
-        if (($payload['type'] ?? null) === 'caller_video') {
-            $fields[] = 'type';
-        }
-
-        if (($payload['peer_role'] ?? null) === 'caller') {
-            $fields[] = 'peer_role';
-        }
-
-        return $fields;
-    }
 }

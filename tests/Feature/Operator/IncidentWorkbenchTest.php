@@ -264,8 +264,8 @@ class IncidentWorkbenchTest extends TestCase
 
         $this->actingAs($operator)
             ->postJson("/api/operator/incidents/{$incidentId}/actual-caller", [
-                'actual_caller_name' => 'Juan Dela Cruz',
-                'actual_caller_relationship' => 'Brother',
+                'actual_citizen_name' => 'Juan Dela Cruz',
+                'actual_citizen_relationship' => 'Brother',
             ])
             ->assertOk()
             ->assertJsonPath('ok', true)
@@ -326,10 +326,8 @@ class IncidentWorkbenchTest extends TestCase
         ]);
     }
 
-    public function test_citizen_actual_fields_win_when_legacy_caller_aliases_conflict(): void
+    public function test_legacy_actual_caller_payload_fields_are_rejected(): void
     {
-        Log::spy();
-
         $citizen = User::factory()->create([
             'role' => UserRole::Citizen,
         ]);
@@ -357,26 +355,14 @@ class IncidentWorkbenchTest extends TestCase
                 'actual_caller_name' => 'Legacy Caller',
                 'actual_caller_relationship' => 'Brother',
             ])
-            ->assertOk()
-            ->assertJsonPath('incident.actual_citizen_name', 'Citizen Canonical')
-            ->assertJsonPath('incident.actual_citizen_relationship', 'Neighbor');
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['actual_caller_name', 'actual_caller_relationship']);
 
         $this->assertDatabaseHas('incidents', [
             'id' => $incidentId,
-            'actual_caller_name' => 'Citizen Canonical',
-            'actual_caller_relationship' => 'Neighbor',
+            'actual_caller_name' => $citizen->name,
+            'actual_caller_relationship' => 'Self',
         ]);
-
-        Log::shouldHaveReceived('info')
-            ->once()
-            ->with('Hotline legacy caller payload used.', \Mockery::on(
-                fn (array $context): bool => ($context['contract'] ?? null) === 'operator.actual-citizen'
-                    && ($context['fields'] ?? []) === ['actual_caller_name', 'actual_caller_relationship']
-                    && ($context['method'] ?? null) === 'POST'
-                    && ($context['path'] ?? null) === "api/operator/incidents/{$incidentId}/actual-citizen"
-                    && (int) ($context['user_id'] ?? 0) === (int) $operator->id
-                    && ($context['user_role'] ?? null) === UserRole::Operator->value
-            ));
     }
 
     public function test_operator_can_use_citizen_named_incident_aliases(): void
@@ -567,8 +553,8 @@ class IncidentWorkbenchTest extends TestCase
 
         $this->actingAs($operator)
             ->postJson("/api/operator/incidents/{$incidentId}/intake", [
-                'actual_caller_name' => 'Juan Dela Cruz',
-                'actual_caller_relationship' => 'Brother',
+                'actual_citizen_name' => 'Juan Dela Cruz',
+                'actual_citizen_relationship' => 'Brother',
                 'location' => 'Riverside Road, Sitio Riverside, Barangay Guadalupe, Cebu City, Philippines',
                 'location_road' => 'Riverside Road',
                 'location_suburb' => 'Sitio Riverside',
@@ -594,7 +580,7 @@ class IncidentWorkbenchTest extends TestCase
         ]);
     }
 
-    public function test_intake_prefers_non_empty_citizen_fields_over_legacy_caller_aliases(): void
+    public function test_intake_rejects_legacy_actual_caller_payload_fields(): void
     {
         $caller = User::factory()->create([
             'role' => UserRole::Citizen,
@@ -624,16 +610,14 @@ class IncidentWorkbenchTest extends TestCase
                 'actual_caller_relationship' => 'Sibling',
                 'location_barangay' => 'Guadalupe',
             ])
-            ->assertOk()
-            ->assertJsonPath('incident.actual_citizen_name', 'Canonical Intake')
-            ->assertJsonPath('incident.actual_citizen_relationship', 'Witness')
-            ->assertJsonPath('incident.location_barangay', 'Guadalupe');
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['actual_caller_name', 'actual_caller_relationship']);
 
         $this->assertDatabaseHas('incidents', [
             'id' => $incidentId,
-            'actual_caller_name' => 'Canonical Intake',
-            'actual_caller_relationship' => 'Witness',
-            'location_barangay' => 'Guadalupe',
+            'actual_caller_name' => $caller->name,
+            'actual_caller_relationship' => 'Self',
+            'location_barangay' => null,
         ]);
     }
 }

@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api\Citizen;
 use App\Domain\Calls\Models\CallAttempt;
 use App\Http\Controllers\Controller;
 use App\Support\Calls\CallRoutingService;
-use App\Support\Compatibility\LegacyCallerPayloadUsageLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use RuntimeException;
@@ -14,7 +13,6 @@ class CallAttemptController extends Controller
 {
     public function __construct(
         private readonly CallRoutingService $callRouting,
-        private readonly LegacyCallerPayloadUsageLogger $legacyCallerPayloads,
     ) {
     }
 
@@ -23,17 +21,12 @@ class CallAttemptController extends Controller
         $validated = $request->validate([
             'citizen_latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'citizen_longitude' => ['nullable', 'numeric', 'between:-180,180'],
-            'caller_latitude' => ['nullable', 'numeric', 'between:-90,90'],
-            'caller_longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'caller_latitude' => ['prohibited'],
+            'caller_longitude' => ['prohibited'],
         ]);
-        $this->legacyCallerPayloads->log(
-            $request,
-            'citizen.call-attempt',
-            $this->legacyCallerFields($request, ['caller_latitude', 'caller_longitude']),
-        );
 
-        $latitude = $validated['citizen_latitude'] ?? $validated['caller_latitude'] ?? null;
-        $longitude = $validated['citizen_longitude'] ?? $validated['caller_longitude'] ?? null;
+        $latitude = $validated['citizen_latitude'] ?? null;
+        $longitude = $validated['citizen_longitude'] ?? null;
 
         try {
             $result = $this->callRouting->startNewAttempt(
@@ -89,12 +82,4 @@ class CallAttemptController extends Controller
         ]);
     }
 
-    /**
-     * @param array<int, string> $fields
-     * @return array<int, string>
-     */
-    private function legacyCallerFields(Request $request, array $fields): array
-    {
-        return array_values(array_filter($fields, fn (string $field): bool => $request->exists($field)));
-    }
 }
