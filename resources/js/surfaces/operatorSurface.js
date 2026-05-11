@@ -1886,6 +1886,35 @@ function formatWorkbenchDuration(startAt, endAt) {
         .join(':');
 }
 
+function workbenchCallSummaryEndTime(payload) {
+    if (!isTerminalIncidentStatus(payload?.status)) {
+        return null;
+    }
+
+    return payload?.resolved_at ?? payload?.updated_at ?? null;
+}
+
+function mountWorkbenchCallSummaryTimer(overlay, payload) {
+    const durationNode = overlay?.querySelector?.('[data-workbench-call-duration]');
+
+    if (!durationNode || isTerminalIncidentStatus(payload?.status)) {
+        return null;
+    }
+
+    const updateDuration = () => {
+        durationNode.textContent = formatWorkbenchDuration(payload?.called_at, new Date().toISOString());
+    };
+
+    updateDuration();
+    const timerId = window.setInterval(updateDuration, 1000);
+
+    return {
+        destroy() {
+            window.clearInterval(timerId);
+        },
+    };
+}
+
 function workbenchCallState(payload, stateOverride = null) {
     if (stateOverride === 'active' || stateOverride === 'inactive') {
         return stateOverride;
@@ -3885,12 +3914,21 @@ async function mountOrUpdateWorkbenchLocationMap(overlay, payload = {}) {
 function renderWorkbench(payload, stateOverride = null) {
     const callState = workbenchCallState(payload, stateOverride);
     const isActive = callState === 'active';
+    const isTerminal = isTerminalIncidentStatus(payload?.status);
     const callerName = escapeHtml(workbenchCallerName(payload));
     const callerMobile = escapeHtml(workbenchCallerMobile(payload));
-    const duration = formatWorkbenchDuration(payload.called_at, payload.updated_at);
+    const endedAtValue = workbenchCallSummaryEndTime(payload);
+    const duration = formatWorkbenchDuration(payload.called_at, endedAtValue ?? new Date().toISOString());
     const calledAt = formatWorkbenchDateTimeCompact(payload.called_at);
-    const endedAt = formatWorkbenchDateTimeCompact(payload.updated_at);
+    const endedAt = formatWorkbenchDateTimeCompact(endedAtValue);
     const locationMarkup = renderWorkbenchCallerLocationMarkup(payload);
+    const endedAtMarkup = isTerminal
+        ? `
+                            <article>
+                                <span>Datetime Ended</span>
+                                <strong>${escapeHtml(endedAt)}</strong>
+                            </article>`
+        : '';
 
     return `
         <div class="overlay-backdrop operator-workbench-backdrop" data-workbench-overlay>
@@ -3909,12 +3947,8 @@ function renderWorkbench(payload, stateOverride = null) {
                             </article>
                             <article class="operator-workbench-report-duration">
                                 <span>Duration</span>
-                                <strong>${escapeHtml(duration)}</strong>
-                            </article>
-                            <article>
-                                <span>Datetime Ended</span>
-                                <strong>${escapeHtml(endedAt)}</strong>
-                            </article>
+                                <strong data-workbench-call-duration>${escapeHtml(duration)}</strong>
+                            </article>${endedAtMarkup}
                         </div>
                         <div class="operator-workbench-card operator-workbench-location-card">
                             <div class="operator-workbench-card-head">
@@ -6472,6 +6506,10 @@ async function presentWorkbench(root, payload, stateOverride = null, options = {
     appState.runtime.operatorWorkbenchOverlay = overlay;
     appState.runtime.operatorWorkbenchRoot = root;
     appState.runtime.operatorWorkbenchInstances = overlayInstances;
+    const callSummaryTimer = mountWorkbenchCallSummaryTimer(overlay, payload);
+    if (callSummaryTimer) {
+        overlayInstances.push(callSummaryTimer);
+    }
     appState.runtime.operatorInitialIntakeModal?.close?.({ reason: 'workbench-replaced' });
     appState.runtime.operatorWorkbenchCallRuntime = null;
     appState.runtime.operatorWorkbenchCaptureManager = null;
@@ -6785,6 +6823,10 @@ async function refreshWorkbenchOverlay(payload, stateOverride = null, options = 
     overlay.innerHTML = nextOverlay.innerHTML;
 
     const overlayInstances = [];
+    const callSummaryTimer = mountWorkbenchCallSummaryTimer(overlay, payload);
+    if (callSummaryTimer) {
+        overlayInstances.push(callSummaryTimer);
+    }
     const close = () => {
         clearOperatorWorkbenchCallStatusPoll();
         sessionStorage.removeItem(OPERATOR_WORKBENCH_KEY);

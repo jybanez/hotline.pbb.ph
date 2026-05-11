@@ -20,3 +20,10 @@ assert.match(surfaceShared, /const sendCallSessionKeepalive = \(\) => \{[\s\S]+p
 assert.match(surfaceShared, /state\.sessionKeepaliveTimerId = window\.setInterval\(sendCallSessionKeepalive, CALL_SESSION_KEEPALIVE_MS\)/);
 assert.match(surfaceShared, /startCallHeartbeat\(\);\s+startCallSessionKeepalive\(\);/);
 assert.match(surfaceShared, /stopCallHeartbeat\(\);\s+stopCallSessionKeepalive\(\);/);
+
+assert.match(operatorSurface, /function workbenchCallSummaryEndTime\(payload\)/);
+assert.match(operatorSurface, /function mountWorkbenchCallSummaryTimer\(overlay, payload\)/);
+assert.match(operatorSurface, /isTerminalIncidentStatus\(payload\?\.status\)/);
+assert.match(operatorSurface, /data-workbench-call-duration/);
+assert.match(operatorSurface, /const endedAtMarkup = isTerminal[\s\S]+Datetime Ended/);
+assert.match(operatorSurface, /const callSummaryTimer = mountWorkbenchCallSummaryTimer\(overlay, payload\)/);
