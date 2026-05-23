@@ -43,4 +43,8 @@ return [
         'token' => env('MEDIA_ASSEMBLY_TOKEN'),
     ],
 
+    'realtime_publish' => [
+        'ca_bundle' => env('HOTLINE_REALTIME_CA_BUNDLE'),
+    ],
+
 ];

@@ -973,7 +973,7 @@ function playOperatorIncomingRingtone() {
     }
 
     try {
-        const audio = new Audio('/storage/audio/ringtone.mp3');
+        const audio = new Audio('/audio/ringtone.mp3');
         audio.loop = true;
         audio.preload = 'auto';
         audio.volume = 1;

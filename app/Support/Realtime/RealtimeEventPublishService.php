@@ -299,33 +299,47 @@ class RealtimeEventPublishService
      */
     private function requestFactory(array &$transferStats): PendingRequest
     {
+        $options = [
+            'version' => 1.1,
+            'curl' => [
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            ],
+            'on_stats' => static function (TransferStats $stats) use (&$transferStats): void {
+                $handlerStats = $stats->getHandlerStats();
+
+                $transferStats = [
+                    'effective_uri' => (string) $stats->getEffectiveUri(),
+                    'requested_http_version' => '1.1',
+                    'namelookup_time_ms' => self::secondsToMilliseconds($handlerStats['namelookup_time'] ?? null),
+                    'connect_time_ms' => self::secondsToMilliseconds($handlerStats['connect_time'] ?? null),
+                    'appconnect_time_ms' => self::secondsToMilliseconds($handlerStats['appconnect_time'] ?? null),
+                    'pretransfer_time_ms' => self::secondsToMilliseconds($handlerStats['pretransfer_time'] ?? null),
+                    'starttransfer_time_ms' => self::secondsToMilliseconds($handlerStats['starttransfer_time'] ?? null),
+                    'total_time_ms' => self::secondsToMilliseconds($handlerStats['total_time'] ?? null),
+                    'primary_ip' => $handlerStats['primary_ip'] ?? null,
+                    'primary_port' => $handlerStats['primary_port'] ?? null,
+                    'http_version' => $handlerStats['http_version'] ?? null,
+                    'redirect_count' => $handlerStats['redirect_count'] ?? null,
+                ];
+            },
+        ];
+
+        $caBundle = $this->configuredCaBundle();
+        if ($caBundle !== null) {
+            $options['verify'] = $caBundle;
+        }
+
         return Http::acceptJson()
             ->connectTimeout(3)
             ->timeout(15)
-            ->withOptions([
-                'version' => 1.1,
-                'curl' => [
-                    CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-                ],
-                'on_stats' => static function (TransferStats $stats) use (&$transferStats): void {
-                    $handlerStats = $stats->getHandlerStats();
+            ->withOptions($options);
+    }
 
-                    $transferStats = [
-                        'effective_uri' => (string) $stats->getEffectiveUri(),
-                        'requested_http_version' => '1.1',
-                        'namelookup_time_ms' => self::secondsToMilliseconds($handlerStats['namelookup_time'] ?? null),
-                        'connect_time_ms' => self::secondsToMilliseconds($handlerStats['connect_time'] ?? null),
-                        'appconnect_time_ms' => self::secondsToMilliseconds($handlerStats['appconnect_time'] ?? null),
-                        'pretransfer_time_ms' => self::secondsToMilliseconds($handlerStats['pretransfer_time'] ?? null),
-                        'starttransfer_time_ms' => self::secondsToMilliseconds($handlerStats['starttransfer_time'] ?? null),
-                        'total_time_ms' => self::secondsToMilliseconds($handlerStats['total_time'] ?? null),
-                        'primary_ip' => $handlerStats['primary_ip'] ?? null,
-                        'primary_port' => $handlerStats['primary_port'] ?? null,
-                        'http_version' => $handlerStats['http_version'] ?? null,
-                        'redirect_count' => $handlerStats['redirect_count'] ?? null,
-                    ];
-                },
-            ]);
+    private function configuredCaBundle(): ?string
+    {
+        $path = trim((string) config('services.realtime_publish.ca_bundle', ''));
+
+        return $path !== '' && is_file($path) ? $path : null;
     }
 
     private function shouldBypassRealtimeProxy(string $endpoint): bool

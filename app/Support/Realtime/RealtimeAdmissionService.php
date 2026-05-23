@@ -11,7 +11,7 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Str;
 use RuntimeException;
 
-require_once __DIR__.'/../../../../realtime/sdk/php/pbb_realtime_backend_sdk.php';
+require_once __DIR__.'/Sdk/pbb_realtime_backend_sdk.php';
 
 class RealtimeAdmissionService
 {
@@ -106,6 +106,7 @@ class RealtimeAdmissionService
                     'session.connect',
                     'room.join',
                     'event.publish',
+                    'presence.subscribe',
                     'presence.publish',
                 ],
             ),
