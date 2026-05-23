@@ -1,0 +1,270 @@
+{
+  "schema_version": 1,
+  "app": "pbb-hotline",
+  "name": "PBB Hotline",
+  "milestone": 1,
+  "version": "5.6.1",
+  "display_version": "v1-5.6.1",
+  "release_date": "2026-05-12",
+  "release_name": "Citizen Live Call Readiness",
+  "build": {
+    "version": "5.6.1",
+    "id": "source-template",
+    "built_at": null,
+    "git_commit": null,
+    "builder": "tools/build-hotline-bundle.php"
+  },
+  "update": {
+    "contract_version": 1,
+    "channel": "testing",
+    "immutable_release": false,
+    "from_versions": ["5.6.1"],
+    "compatibility": "same-version-rebuild",
+    "requires_database_migration": false,
+    "requires_data_prep_rerun": false,
+    "requires_service_restart": true,
+    "rollback_supported": true
+  },
+  "type": "laravel",
+  "requires": {
+    "os": ["windows", "linux"],
+    "php": ">=8.2",
+    "php_extensions": ["bcmath", "curl", "fileinfo", "gd", "intl", "json", "mbstring", "openssl", "pdo", "pdo_mysql", "sodium", "tokenizer", "xml", "zip"],
+    "mysql": ">=8.0",
+    "node": "not-required-assets-built",
+    "composer": "not-required-vendor-bundled",
+    "ffmpeg": "required",
+    "ffprobe": "required",
+    "apps": {
+      "pbb-realtime": "required",
+      "pbb-mapserver": "required-for-map-tiles",
+      "pbb-relay": "optional-for-sitrep-transport",
+      "pbb-maestro": "optional-for-monitoring"
+    }
+  },
+  "installer": {
+    "interactive": "installer/index.php",
+    "unattended": "installer/install-run.php",
+    "status": "installer/status.php",
+    "schema": "installer/schema/install.schema.json",
+    "database": {
+      "fresh_install_strategy": "baseline_schema",
+      "baseline_schema": {
+        "path": "database/schema/hotline-schema-mysql.sql",
+        "engine": "mysql",
+        "generated_at": "2026-05-18T07:10:00Z",
+        "source": "current-release-schema"
+      },
+      "upgrade_strategy": "laravel_migrations",
+      "baseline_schema_legacy": {
+        "path": "database/schema/hotline-schema-mysql.sql",
+        "driver": "mysql",
+        "fresh_install_method": "baseline_schema",
+        "migration_count": 49
+      }
+    },
+    "tools": {
+      "populate_initial_data": {
+        "path": "tools/populate-initial-data.php",
+        "description": "Load Hotline non-transactional reference data: incident catalog, resource catalog, default resource needs, response teams, and team inventories. Operators and dispatch defaults are outside this Data Prep scope.",
+        "config_section": "hotline.populate",
+        "default_source": "resources/data/hotline/reference-data.json",
+        "docs": "installer/docs/hotline-reference-data-prep.md",
+        "managed_groups": [
+          "incident_categories",
+          "incident_types",
+          "incident_type_fields",
+          "resource_type_categories",
+          "resource_types",
+          "incident_type_default_resources",
+          "team_categories",
+          "teams",
+          "team_resource_inventories"
+        ],
+        "excluded_groups": [
+          "operators",
+          "dispatch_defaults"
+        ],
+        "required": false
+      },
+      "apply_runtime_settings": {
+        "path": "tools/data-prep/apply-settings.php",
+        "description": "Apply Kit/Realtime-provided Hotline runtime settings, including Realtime URL, client code, project scope codes, and Realtime secrets.",
+        "config_section": "hotline.data_prep.apply_settings",
+        "required": false
+      }
+    }
+  },
+  "data_prep": {
+    "version": 1,
+    "capabilities": {
+      "prepare_data": true,
+      "apply_settings": true,
+      "verify": true
+    },
+    "tools": {
+      "prepare_data": {
+        "path": "tools/populate-initial-data.php",
+        "config_section": "hotline.populate",
+        "description": "Prepare fixed Hotline reference data for the initial standalone Data Prep scope."
+      },
+      "apply_settings": {
+        "path": "tools/data-prep/apply-settings.php",
+        "config_section": "hotline.data_prep.apply_settings",
+        "description": "Apply Realtime runtime settings for Hotline. Media ingest uses the Hotline Operator project scope."
+      },
+      "verify": {
+        "path": "tools/data-prep/verify.php",
+        "config_section": "hotline.data_prep.verify",
+        "description": "Verify required Hotline reference-data tables and, when requested, Realtime runtime settings."
+      }
+    },
+    "sources": {
+      "reference_data": "resources/data/hotline/reference-data.json"
+    },
+    "managed_groups": [
+      "incident_categories",
+      "incident_types",
+      "incident_type_fields",
+      "resource_type_categories",
+      "resource_types",
+      "incident_type_default_resources",
+      "team_categories",
+      "teams",
+      "team_resource_inventories"
+    ],
+    "excluded_groups": [
+      "operators",
+      "dispatch_defaults"
+    ],
+    "runtime_settings": {
+      "realtime_client_code": "clt_PBB_HOTLINE",
+      "realtime_project_code_server": "prj_HOTLINE_SERVER",
+      "realtime_project_code_caller": "prj_HOTLINE_CITIZEN",
+      "realtime_project_code_operator": "prj_HOTLINE_OPERATOR",
+      "realtime_project_code_command": "prj_HOTLINE_COMMAND",
+      "realtime_project_code_media_ingest": "prj_HOTLINE_OPERATOR"
+    },
+    "notes": "Hotline Data Prep prepares fixed reference data and applies Realtime runtime settings. Media ingest intentionally shares the Hotline Operator project scope; no dedicated prj_HOTLINE_MEDIA scope is required."
+  },
+  "health": {
+    "http": "/up",
+    "bootstrap": "/api/bootstrap?surface=public",
+    "public": "/",
+    "citizen": "/citizen",
+    "operator": "/operator",
+    "command": "/command",
+    "admin": "/admin"
+  },
+  "first_admin": {
+    "strategy": "create_if_missing",
+    "name": "PBB Administrator",
+    "email": "admin@pbb.local",
+    "overwrite_existing": false,
+    "must_change_password": false,
+    "password_policy": {
+      "min_length": 12,
+      "requires": ["uppercase", "lowercase", "number"],
+      "rejects": ["blank", "placeholder", "weak"]
+    },
+    "reporting": "never print raw passwords in reports, manifests, logs, or status output"
+  },
+  "services": [
+    {
+      "id": "pbb-hotline-web",
+      "name": "PBB Hotline Web",
+      "kind": "web",
+      "command": "Nginx/Apache PHP handler pointing at public/",
+      "required": true,
+      "healthcheck": "/api/bootstrap?surface=public"
+    },
+    {
+      "id": "pbb-hotline-queue",
+      "name": "PBB Hotline Queue Worker",
+      "kind": "worker",
+      "command": "php artisan queue:work --queue=default --sleep=1 --tries=3 --timeout=90",
+      "required": true,
+      "healthcheck": "php artisan queue:failed"
+    },
+    {
+      "id": "pbb-hotline-scheduler",
+      "name": "PBB Hotline Scheduler",
+      "kind": "scheduler",
+      "command": "php artisan schedule:run",
+      "required": true,
+      "healthcheck": "php artisan schedule:list"
+    }
+  ],
+  "artifacts": {
+    "install_manifest": "storage/app/installer/install-manifest.json",
+    "install_report": "storage/app/installer/install-report.json",
+    "install_log": "storage/app/installer/install.log",
+    "service_artifacts": "storage/app/installer/services",
+    "baseline_schema": "database/schema/hotline-schema-mysql.sql",
+    "helper_runtime": {
+      "prepared_path": "storage/app/installer/helper-runtime/helpers.pbb.ph",
+      "release_target": "public/vendor/helpers.pbb.ph",
+      "build_time_source_tool": "tools/prepare-helper-runtime.php",
+      "distributable": "include prepared runtime only; exclude the build_time_source_tool from installable bundles",
+      "include_policy": "bundle runtime only: js/ui/ui.loader.js, dist/helpers.ui.bundle.min.js, dist/helpers.ui.bundle.min.css, package.json, and boot.*.json metadata when present"
+    }
+  },
+  "distributable": {
+    "include": [
+      "app/",
+      "artisan",
+      "bootstrap/",
+      "config/",
+      "database/",
+      "composer.json",
+      "installer/",
+      "public/",
+      "resources/",
+      "resources/data/hotline/reference-data.json",
+      "routes/",
+      "vendor/",
+      ".env.example",
+      "checksums.sha256",
+      "release.json",
+      "README.md",
+      "tools/populate-initial-data.php",
+      "tools/data-prep/apply-settings.php",
+      "tools/data-prep/verify.php",
+      "installer/docs/hotline-reference-data-prep.md"
+    ],
+    "exclude": [
+      ".env",
+      ".git/",
+      ".codex/",
+      ".scaffold_tmp/",
+      ".tmp*/",
+      ".vscode/",
+      "docs/",
+      "node_modules/",
+      "outputs/",
+      "storage/",
+      "tests/",
+      "tmp/",
+      "tools/prepare-helper-runtime.php",
+      "app/Console/Commands/ClearTestIncidents.php",
+      "app/Console/Commands/SeedSampleSitrepIncidents.php",
+      "database/seeders/DevUsersSeeder.php",
+      ".codex_tmp_*",
+      ".editorconfig",
+      ".gitattributes",
+      ".gitignore",
+      ".gitmodules",
+      ".phpunit.result.cache",
+      "composer.lock",
+      "package.json",
+      "package-lock.json",
+      "phpunit.xml",
+      "vite.config.js",
+      "*.crt",
+      "*.key",
+      "*.pem",
+      "*.bak-*"
+    ],
+    "notes": "Installable bundles must ship generated runtime artifacts only. Do not include local env files, TLS key/cert material, package-builder tools, tests, temp output, git metadata, frontend/composer build inputs, demo/test Artisan commands, or dev-only seeders."
+  }
+}

@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hotline.pbb.ph/installer/schema/install.schema.json",
+  "title": "PBB Hotline installer config",
+  "type": "object",
+  "required": ["mode", "app", "database", "admin", "hotline"],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["fresh", "upgrade", "repair", "preflight"]
+    },
+    "kit": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "run_id": { "type": "string" },
+        "node_id": { "type": "string" },
+        "operator": { "type": "string" },
+        "timezone": { "type": "string" }
+      }
+    },
+    "app": {
+      "type": "object",
+      "required": ["install_path", "app_url"],
+      "additionalProperties": true,
+      "properties": {
+        "install_path": { "type": "string", "minLength": 1 },
+        "public_path": { "type": "string" },
+        "app_url": { "type": "string", "format": "uri" },
+        "app_env": { "type": "string" },
+        "app_debug": { "type": "boolean" },
+        "session_domain": { "type": "string" },
+        "force_https": { "type": "boolean" }
+      }
+    },
+    "database": {
+      "type": "object",
+      "required": ["host", "database", "username"],
+      "additionalProperties": true,
+      "properties": {
+        "driver": { "type": "string", "enum": ["mysql"] },
+        "host": { "type": "string", "minLength": 1 },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "database": { "type": "string", "minLength": 1 },
+        "username": { "type": "string", "minLength": 1 },
+        "password": { "type": "string" }
+      }
+    },
+    "admin": {
+      "type": "object",
+      "required": ["email", "password"],
+      "additionalProperties": true,
+      "properties": {
+        "strategy": { "type": "string", "enum": ["create_if_missing"] },
+        "name": { "type": "string", "minLength": 1 },
+        "email": { "type": "string", "format": "email" },
+        "password": { "type": "string", "minLength": 12 },
+        "mobile": { "type": "string" },
+        "must_change_password": { "type": "boolean" },
+        "overwrite_existing": { "type": "boolean" }
+      }
+    },
+    "hotline": {
+      "type": "object",
+      "required": ["media_assembly_token", "realtime_token_signing_secret"],
+      "additionalProperties": true,
+      "properties": {
+        "citizen_session_lifetime": { "type": "integer", "minimum": 1 },
+        "normal_session_lifetime": { "type": "integer", "minimum": 1 },
+        "media_assembly_token": { "type": "string", "minLength": 8 },
+        "ffmpeg_binary": { "type": "string" },
+        "ffprobe_binary": { "type": "string" },
+        "sitrep_enabled": { "type": "boolean" },
+        "sitrep_node_binary": { "type": "string" },
+        "playwright_browsers_path": { "type": "string" },
+        "realtime_url": { "type": "string", "format": "uri" },
+        "realtime_client_code": { "type": "string" },
+        "realtime_project_code_server": { "type": "string" },
+        "realtime_project_code_caller": { "type": "string" },
+        "realtime_project_code_operator": { "type": "string" },
+        "realtime_project_code_command": { "type": "string" },
+        "realtime_project_code_media_ingest": { "type": "string" },
+        "realtime_backend_ingress_secret": { "type": "string" },
+        "realtime_media_ingest_secret": { "type": "string" },
+        "realtime_token_signing_secret": { "type": "string", "minLength": 8 },
+        "realtime_ca_bundle": { "type": "string" },
+        "relay_url": { "type": "string" },
+        "relay_token": { "type": "string" },
+        "map_server_url": { "type": "string" },
+        "populate": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "sources": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "reference_data": { "type": "string" },
+                "incident_catalog": { "type": "string" },
+                "resource_catalog": { "type": "string" },
+                "teams": { "type": "string" }
+              }
+            },
+            "options": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "overwrite_existing": { "type": "boolean" },
+                "include_demo_data": { "type": "boolean" },
+                "deactivate_missing": { "type": "boolean" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "services": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "target_os": { "type": "string", "enum": ["windows", "linux"] },
+        "manager": { "type": "string", "enum": ["windows-service", "scheduled-task", "systemd", "manual"] },
+        "startup_mode": { "type": "string", "enum": ["automatic", "manual"] },
+        "registration_mode": { "type": "string", "enum": ["generate", "register", "manual", "template"] }
+      }
+    },
+    "options": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "write_env": { "type": "boolean" },
+        "database_setup": { "type": "string", "enum": ["baseline_schema", "migrations"] },
+        "run_migrations": { "type": "boolean" },
+        "use_baseline_schema": { "type": "boolean" },
+        "seed_settings": { "type": "boolean" },
+        "create_admin": { "type": "boolean" },
+        "cache_config": { "type": "boolean" },
+        "validate_after_install": { "type": "boolean" },
+        "overwrite_env": { "type": "boolean" },
+        "register_services": { "type": "boolean" }
+      }
+    }
+  }
+}

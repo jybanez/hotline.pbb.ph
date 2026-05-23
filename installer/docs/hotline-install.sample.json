@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "mode": "fresh",
+  "kit": {
+    "run_id": "kit_20260515_001",
+    "node_id": "hub-a",
+    "operator": "installer-admin",
+    "timezone": "Asia/Manila"
+  },
+  "app": {
+    "install_path": "C:\\wamp64\\www\\pbb\\hotline",
+    "public_path": "C:\\wamp64\\www\\pbb\\hotline\\public",
+    "app_url": "https://hotline.pbb.ph",
+    "app_env": "production",
+    "app_debug": false,
+    "session_domain": "hotline.pbb.ph",
+    "force_https": true
+  },
+  "database": {
+    "driver": "mysql",
+    "host": "127.0.0.1",
+    "port": 3306,
+    "database": "pbb_hotline",
+    "username": "root",
+    "password": ""
+  },
+  "admin": {
+    "strategy": "create_if_missing",
+    "name": "PBB Administrator",
+    "email": "admin@pbb.local",
+    "password": "replace-with-strong-admin-password",
+    "mobile": "09170000001",
+    "must_change_password": false,
+    "overwrite_existing": false
+  },
+  "hotline": {
+    "citizen_session_lifetime": 43200,
+    "normal_session_lifetime": 15,
+    "media_assembly_token": "replace-with-kit-generated-token",
+    "ffmpeg_binary": "bin\\ffmpeg\\ffmpeg.exe",
+    "ffprobe_binary": "bin\\ffmpeg\\ffprobe.exe",
+    "sitrep_enabled": true,
+    "sitrep_node_binary": "node",
+    "playwright_browsers_path": "C:\\wamp64\\www\\pbb\\hotline\\storage\\app\\playwright-browsers",
+    "realtime_url": "https://realtime.pbb.ph",
+    "realtime_client_code": "clt_PBB_HOTLINE",
+    "realtime_project_code_server": "prj_HOTLINE_SERVER",
+    "realtime_project_code_caller": "prj_HOTLINE_CITIZEN",
+    "realtime_project_code_operator": "prj_HOTLINE_OPERATOR",
+    "realtime_project_code_command": "prj_HOTLINE_COMMAND",
+    "realtime_project_code_media_ingest": "prj_HOTLINE_OPERATOR",
+    "realtime_backend_ingress_secret": "replace-with-kit-generated-secret",
+    "realtime_media_ingest_secret": "replace-with-kit-generated-secret",
+    "realtime_token_signing_secret": "replace-with-kit-generated-secret",
+    "realtime_ca_bundle": "C:\\wamp64\\bin\\php\\php8.2.29\\cacert.pem",
+    "relay_url": "https://relay.pbb.ph",
+    "relay_token": "replace-with-kit-generated-token",
+    "map_server_url": "https://mapserver.pbb.ph",
+    "populate": {
+      "enabled": false,
+      "sources": {
+        "reference_data": "resources/data/hotline/reference-data.json"
+      },
+      "options": {
+        "overwrite_existing": true,
+        "include_demo_data": false,
+        "deactivate_missing": false
+      }
+    }
+  },
+  "services": {
+    "target_os": "windows",
+    "manager": "scheduled-task",
+    "startup_mode": "automatic",
+    "registration_mode": "generate"
+  },
+  "options": {
+    "write_env": true,
+    "database_setup": "baseline_schema",
+    "run_migrations": true,
+    "use_baseline_schema": true,
+    "seed_settings": true,
+    "create_admin": true,
+    "cache_config": true,
+    "validate_after_install": true,
+    "overwrite_env": false,
+    "register_services": false
+  }
+}
