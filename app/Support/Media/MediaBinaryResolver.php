@@ -33,16 +33,16 @@ class MediaBinaryResolver
      */
     private function resolve(mixed $configuredPath, array $localCandidates, string $fallback): string
     {
-        $configured = is_string($configuredPath) ? trim($configuredPath) : '';
-
-        if ($configured !== '') {
-            return $configured;
-        }
-
         foreach ($localCandidates as $candidate) {
             if (is_file($candidate)) {
                 return $candidate;
             }
+        }
+
+        $configured = is_string($configuredPath) ? trim($configuredPath) : '';
+
+        if ($configured !== '') {
+            return $configured;
         }
 
         return $fallback;
