@@ -7,11 +7,11 @@ Hotline Beta is the PBB emergency-call and operator-dispatch surface. The curren
 ### Media Binaries
 
 Hotline resolves media tools in this order:
+- repo-local bundled binaries in `bin/ffmpeg/`
 - `HOTLINE_FFMPEG_BINARY` / `HOTLINE_FFPROBE_BINARY`
-- repo-local binaries in `bin/ffmpeg/`
 - system `ffmpeg` / `ffprobe` on `PATH`
 
-The intended local Windows setup is:
+Release bundles must include Hotline-owned Windows binaries:
 - `C:\wamp64\www\pbb\hotline\bin\ffmpeg\ffmpeg.exe`
 - `C:\wamp64\www\pbb\hotline\bin\ffmpeg\ffprobe.exe`
 
@@ -29,6 +29,8 @@ Recommended explicit override:
 HOTLINE_FFMPEG_BINARY=/opt/ffmpeg/bin/ffmpeg
 HOTLINE_FFPROBE_BINARY=/opt/ffmpeg/bin/ffprobe
 ```
+
+Explicit overrides are fallback values only when the bundled app-owned binary for the current platform is not present. Fresh Kit installs should not depend on third-party application paths such as Jellyfin.
 
 ### Build
 
