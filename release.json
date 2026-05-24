@@ -213,6 +213,7 @@
     "include": [
       "app/",
       "artisan",
+      "bin/ffmpeg/",
       "bootstrap/",
       "config/",
       "database/",

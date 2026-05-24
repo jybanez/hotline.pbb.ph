@@ -50,6 +50,8 @@ $requiredPaths = [
     'public/build/manifest.json',
     'public/vendor/helpers.pbb.ph/dist/helpers.ui.bundle.min.js',
     'public/vendor/helpers.pbb.ph/dist/helpers.ui.bundle.min.css',
+    'bin/ffmpeg/ffmpeg.exe',
+    'bin/ffmpeg/ffprobe.exe',
     'database/schema/hotline-schema-mysql.sql',
     'resources/data/hotline/reference-data.json',
     'installer/install-run.php',
