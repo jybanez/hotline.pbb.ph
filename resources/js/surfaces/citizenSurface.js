@@ -622,7 +622,7 @@ function callerWorkbenchLookups() {
 }
 
 function currentAudioGraphStyle() {
-    return String(appState.bootstrap?.settings?.audio_graph_style ?? 'vu').trim() || 'vu';
+    return String(appState.bootstrap?.settings?.audio_graph_style ?? 'tsunami').trim() || 'tsunami';
 }
 
 function applyCallerIncidentPatch(incidentId, patch = {}) {

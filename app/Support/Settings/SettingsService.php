@@ -13,12 +13,12 @@ class SettingsService
     public function defaults(): array
     {
         return [
-            'call_hold_seconds' => 3,
+            'call_hold_seconds' => 1,
             'call_timeout_seconds' => 20,
             'reconnect_timeout_seconds' => 20,
             'alert_level' => AlertLevel::Normal->value,
             'alert_voice' => 'default',
-            'audio_graph_style' => 'vu',
+            'audio_graph_style' => 'tsunami',
             'realtime_client_code' => 'clt_01KMXFPRXCTHJAG10DMACJFMYB',
             'realtime_project_code_server' => 'prj_01KNGH5A0VAVWDT5Y8B35F2CV6',
             'realtime_project_code_caller' => 'prj_01KMXG0AXB2S9CXS0YK4AFT2C9',

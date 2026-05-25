@@ -938,7 +938,7 @@ function settingsEditorData(state) {
                         id: 'call_hold_seconds',
                         kind: 'number',
                         label: 'Call Hold Seconds',
-                        value: values.call_hold_seconds ?? 3,
+                        value: values.call_hold_seconds ?? 1,
                         help: 'Number of seconds the citizen must hold the main button before routing starts.',
                     },
                     {
@@ -984,7 +984,7 @@ function settingsEditorData(state) {
                         id: 'audio_graph_style',
                         kind: 'select',
                         label: 'Audio Graph Style',
-                        value: values.audio_graph_style ?? 'vu',
+                        value: values.audio_graph_style ?? 'tsunami',
                         options: [
                             { value: 'vu', label: 'VU Meter' },
                             { value: 'dots', label: 'Dots' },
@@ -3662,7 +3662,7 @@ async function saveSettings() {
         nextSettings.call_hold_seconds = Number(state.settings.draft.call_hold_seconds ?? nextSettings.call_hold_seconds ?? 0);
         nextSettings.call_timeout_seconds = Number(state.settings.draft.call_timeout_seconds ?? nextSettings.call_timeout_seconds ?? 0);
         nextSettings.reconnect_timeout_seconds = Number(state.settings.draft.reconnect_timeout_seconds ?? nextSettings.reconnect_timeout_seconds ?? 0);
-        nextSettings.audio_graph_style = String(state.settings.draft.audio_graph_style ?? nextSettings.audio_graph_style ?? 'vu').trim() || 'vu';
+        nextSettings.audio_graph_style = String(state.settings.draft.audio_graph_style ?? nextSettings.audio_graph_style ?? 'tsunami').trim() || 'tsunami';
 
         const nextBootstrap = {
             ...(adminRuntime.bootstrap ?? appState.bootstrap ?? {}),
