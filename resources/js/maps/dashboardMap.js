@@ -7,6 +7,7 @@ const DEFAULT_MAP_CONFIG = {
     minZoom: 8,
     maxZoom: 18,
     styleUrl: '/maps/operator-vector-style.json',
+    mapServerUrl: 'https://mapserver.pbb.ph',
     assets: {
         script: '/vendor/maplibre/maplibre-gl.js',
         css: '/vendor/maplibre/maplibre-gl.css',
@@ -22,6 +23,10 @@ const DEFAULT_MAP_CONFIG = {
         sourceLayers: ['poi', 'pois', 'point', 'points', 'amenity'],
         excludedClasses: [],
     },
+    boundary: {
+        enabled: false,
+        url: '',
+    },
 };
 
 const SOURCE_ID = 'hotline-dashboard-incidents';
@@ -31,6 +36,9 @@ const LABEL_LAYER_ID = 'hotline-dashboard-incidents-label';
 const POI_SOURCE_ID = 'hotline-dashboard-poi';
 const POI_CIRCLE_LAYER_ID = 'hotline-dashboard-poi-circle';
 const POI_LABEL_LAYER_ID = 'hotline-dashboard-poi-label';
+const BOUNDARY_SOURCE_ID = 'hotline-dashboard-hub-boundary';
+const BOUNDARY_FILL_LAYER_ID = 'hotline-dashboard-hub-boundary-fill';
+const BOUNDARY_LINE_LAYER_ID = 'hotline-dashboard-hub-boundary-line';
 
 let configPromise = null;
 let maplibrePromise = null;
@@ -50,6 +58,10 @@ function mergeMapConfig(config) {
         poi: {
             ...DEFAULT_MAP_CONFIG.poi,
             ...(config?.poi ?? {}),
+        },
+        boundary: {
+            ...DEFAULT_MAP_CONFIG.boundary,
+            ...(config?.boundary ?? {}),
         },
     };
 }
@@ -296,6 +308,62 @@ function addIncidentLayers(map) {
     }
 }
 
+function boundaryFeatureCount(boundary) {
+    return Array.isArray(boundary?.features) ? boundary.features.length : 0;
+}
+
+async function loadBoundaryGeoJson(config) {
+    if (config?.boundary?.enabled === false) {
+        return null;
+    }
+
+    const boundaryUrl = String(config?.boundary?.url ?? '').trim();
+
+    if (!boundaryUrl) {
+        return null;
+    }
+
+    const geojson = await fetchMapJson(boundaryUrl);
+
+    return geojson?.type === 'FeatureCollection' && boundaryFeatureCount(geojson) > 0 ? geojson : null;
+}
+
+function addBoundaryLayers(map, boundaryGeoJson) {
+    if (!boundaryGeoJson || map.getSource(BOUNDARY_SOURCE_ID)) {
+        return;
+    }
+
+    map.addSource(BOUNDARY_SOURCE_ID, {
+        type: 'geojson',
+        data: boundaryGeoJson,
+    });
+
+    if (!map.getLayer(BOUNDARY_FILL_LAYER_ID)) {
+        map.addLayer({
+            id: BOUNDARY_FILL_LAYER_ID,
+            type: 'fill',
+            source: BOUNDARY_SOURCE_ID,
+            paint: {
+                'fill-color': '#4fc3ff',
+                'fill-opacity': 0.08,
+            },
+        });
+    }
+
+    if (!map.getLayer(BOUNDARY_LINE_LAYER_ID)) {
+        map.addLayer({
+            id: BOUNDARY_LINE_LAYER_ID,
+            type: 'line',
+            source: BOUNDARY_SOURCE_ID,
+            paint: {
+                'line-color': '#8fe6ff',
+                'line-opacity': 0.92,
+                'line-width': ['interpolate', ['linear'], ['zoom'], 8, 1.2, 14, 2.8],
+            },
+        });
+    }
+}
+
 function setLayerVisibility(map, layerIds, visible) {
     (Array.isArray(layerIds) ? layerIds : []).forEach((layerId) => {
         if (map?.getLayer?.(layerId)) {
@@ -419,6 +487,7 @@ export function createDashboardMap(options = {}) {
     let pendingItems = [];
     let selectedIncidentId = null;
     let terrainSpec = null;
+    let boundaryGeoJson = null;
     let workbenchPulseFrame = null;
 
     function stopWorkbenchPulse() {
@@ -505,7 +574,12 @@ export function createDashboardMap(options = {}) {
             return;
         }
 
-        const style = applyTileConfig(await fetchMapJson(config.styleUrl), config);
+        const [stylePayload, nextBoundaryGeoJson] = await Promise.all([
+            fetchMapJson(config.styleUrl),
+            loadBoundaryGeoJson(config).catch(() => null),
+        ]);
+        const style = applyTileConfig(stylePayload, config);
+        boundaryGeoJson = nextBoundaryGeoJson;
         terrainSpec = style?.terrain ?? null;
         container.innerHTML = '';
         map = new maplibregl.Map({
@@ -520,6 +594,7 @@ export function createDashboardMap(options = {}) {
 
         map.on('load', () => {
             loaded = true;
+            addBoundaryLayers(map, boundaryGeoJson);
             addIncidentLayers(map);
             addPoiLayers(map, config);
             startWorkbenchPulse();
@@ -578,6 +653,8 @@ export function createDashboardMap(options = {}) {
         setLayerGroupVisibility(groupId, visible) {
             if (groupId === 'incidents') {
                 setLayerVisibility(map, [WORKBENCH_PULSE_LAYER_ID, CIRCLE_LAYER_ID, LABEL_LAYER_ID], visible);
+            } else if (groupId === 'boundary') {
+                setLayerVisibility(map, [BOUNDARY_FILL_LAYER_ID, BOUNDARY_LINE_LAYER_ID], visible);
             } else if (groupId === 'terrain') {
                 if (map?.setTerrain && terrainSpec) {
                     map.setTerrain(visible ? terrainSpec : null);
@@ -589,6 +666,9 @@ export function createDashboardMap(options = {}) {
         },
         hasTerrainLayer() {
             return Boolean(terrainSpec || map?.getLayer?.('terrain-hillshade'));
+        },
+        hasBoundaryLayer() {
+            return boundaryFeatureCount(boundaryGeoJson) > 0 || Boolean(map?.getSource?.(BOUNDARY_SOURCE_ID));
         },
         destroy() {
             stopWorkbenchPulse();

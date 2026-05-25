@@ -7685,6 +7685,7 @@ function mountOperatorDashboardMapControls(root, dashboardMap) {
         compact: true,
         ariaLabel: 'Dashboard map controls',
         layers: [
+            ...(dashboardMap.hasBoundaryLayer?.() ? [{ id: 'boundary', label: 'Boundary', checked: true }] : []),
             { id: 'incidents', label: 'Incidents', checked: true },
             ...(dashboardMap.hasTerrainLayer?.() ? [{ id: 'terrain', label: 'Terrain', checked: true }] : []),
             { id: 'poi', label: 'POI', checked: true },
