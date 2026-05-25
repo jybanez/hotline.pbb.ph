@@ -31,6 +31,7 @@ $app->make(Kernel::class)->bootstrap();
 /** @var SettingsService $settings */
 $settings = $app->make(SettingsService::class);
 $hotline = is_array($config['hotline'] ?? null) ? $config['hotline'] : [];
+$hotline = normalizeHotlineSettings($hotline);
 
 foreach (hotlineSettingKeys() as $configKey => $settingKey) {
     if (array_key_exists($configKey, $hotline)) {
@@ -103,6 +104,33 @@ function hotlineSettingKeys(): array
         'relay_token' => 'relay_token',
         'map_server_url' => 'map_server_url',
     ];
+}
+
+/**
+ * @param array<string, mixed> $hotline
+ * @return array<string, mixed>
+ */
+function normalizeHotlineSettings(array $hotline): array
+{
+    foreach ([
+        'relay_url' => 'https://relay.pbb.ph',
+        'map_server_url' => 'https://mapserver.pbb.ph',
+    ] as $key => $fallback) {
+        $value = trim((string) ($hotline[$key] ?? ''));
+
+        if ($value === '' || isLocalhostUrl($value)) {
+            $hotline[$key] = $fallback;
+        }
+    }
+
+    return $hotline;
+}
+
+function isLocalhostUrl(string $value): bool
+{
+    $host = parse_url($value, PHP_URL_HOST);
+
+    return is_string($host) && in_array(strtolower($host), ['localhost', '127.0.0.1', '::1'], true);
 }
 
 function optionValue(array $argv, string $name): ?string
