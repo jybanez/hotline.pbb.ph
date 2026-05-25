@@ -312,6 +312,23 @@ function boundaryFeatureCount(boundary) {
     return Array.isArray(boundary?.features) ? boundary.features.length : 0;
 }
 
+function extendBoundsWithCoordinates(bounds, coordinates) {
+    if (!Array.isArray(coordinates)) {
+        return false;
+    }
+
+    if (
+        coordinates.length >= 2
+        && Number.isFinite(Number(coordinates[0]))
+        && Number.isFinite(Number(coordinates[1]))
+    ) {
+        bounds.extend([Number(coordinates[0]), Number(coordinates[1])]);
+        return true;
+    }
+
+    return coordinates.reduce((extended, child) => extendBoundsWithCoordinates(bounds, child) || extended, false);
+}
+
 async function loadBoundaryGeoJson(config) {
     if (config?.boundary?.enabled === false) {
         return null;
@@ -488,6 +505,7 @@ export function createDashboardMap(options = {}) {
     let selectedIncidentId = null;
     let terrainSpec = null;
     let boundaryGeoJson = null;
+    let initialBoundaryFitDone = false;
     let workbenchPulseFrame = null;
 
     function stopWorkbenchPulse() {
@@ -548,6 +566,47 @@ export function createDashboardMap(options = {}) {
         return hasBounds ? bounds : null;
     }
 
+    function boundaryBounds() {
+        if (!maplibregl?.LngLatBounds || !Array.isArray(boundaryGeoJson?.features)) {
+            return null;
+        }
+
+        const bounds = new maplibregl.LngLatBounds();
+        let hasBounds = false;
+
+        boundaryGeoJson.features.forEach((feature) => {
+            hasBounds = extendBoundsWithCoordinates(bounds, feature?.geometry?.coordinates) || hasBounds;
+        });
+
+        return hasBounds ? bounds : null;
+    }
+
+    function fitBoundary(options = {}) {
+        const bounds = boundaryBounds();
+        if (!map || !bounds) {
+            return false;
+        }
+
+        const width = Number(container?.clientWidth ?? 0);
+        const height = Number(container?.clientHeight ?? 0);
+        const sidePadding = Math.max(72, Math.round(width * 0.14));
+        const bottomPadding = Math.max(132, Math.round(height * 0.18));
+
+        map.fitBounds(bounds, {
+            padding: {
+                top: 88,
+                bottom: bottomPadding,
+                left: sidePadding,
+                right: sidePadding,
+            },
+            maxZoom: Number(options.maxZoom ?? 15),
+            duration: Number(options.duration ?? 850),
+            essential: true,
+        });
+
+        return true;
+    }
+
     async function init() {
         if (initialized || unsupported || !container) {
             return;
@@ -595,6 +654,9 @@ export function createDashboardMap(options = {}) {
         map.on('load', () => {
             loaded = true;
             addBoundaryLayers(map, boundaryGeoJson);
+            if (!initialBoundaryFitDone && fitBoundary()) {
+                initialBoundaryFitDone = true;
+            }
             addIncidentLayers(map);
             addPoiLayers(map, config);
             startWorkbenchPulse();
