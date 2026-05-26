@@ -405,14 +405,6 @@ body.sitrep-pdf-body {
     page-break-inside: avoid;
 }
 
-.sitrep-page.is-pdf .sitrep-header {
-    grid-template-columns: minmax(18rem, 0.78fr) minmax(31rem, 1fr);
-}
-
-.sitrep-page.is-pdf .sitrep-meta {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
 .sitrep-page.is-pdf .sitrep-picture-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -457,7 +449,7 @@ body.sitrep-pdf-body {
     border-bottom: 1px solid rgba(96, 153, 202, 0.32);
     display: grid;
     gap: 1rem;
-    grid-template-columns: minmax(18rem, 0.78fr) minmax(31rem, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, max-content);
     align-items: start;
 }
 
@@ -509,14 +501,17 @@ body.sitrep-pdf-body {
     max-width: 62ch;
 }
 
-.sitrep-meta {
-    display: grid;
-    gap: 0.5rem;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+.sitrep-metaline {
+    color: #8eb8dc;
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    line-height: 1.35;
     margin: 0;
+    max-width: 42rem;
+    text-align: right;
 }
 
-.sitrep-meta div,
 .sitrep-picture-grid article,
 .sitrep-metric,
 .sitrep-table-card,
@@ -528,28 +523,15 @@ body.sitrep-pdf-body {
     border-radius: 0.9rem;
 }
 
-.sitrep-meta div {
-    border-radius: 0.7rem;
-    min-height: 3.55rem;
-    padding: 0.55rem 0.65rem;
-}
-
-.sitrep-meta dt,
 .sitrep-picture-grid span,
 .sitrep-metric span,
+.sitrep-gap span,
 .sitrep-fact span {
     color: #8eb8dc;
     font-size: 0.64rem;
     font-weight: 800;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-}
-
-.sitrep-meta dd {
-    font-size: 0.88rem;
-    font-weight: 800;
-    line-height: 1.2;
-    margin: 0.18rem 0 0;
 }
 
 .sitrep-section {
@@ -622,6 +604,10 @@ body.sitrep-pdf-body {
     color: #c0d6e8;
 }
 
+.sitrep-source-lines span {
+    display: block;
+}
+
 .sitrep-metric-groups {
     display: grid;
     gap: 0.75rem;
@@ -683,10 +669,37 @@ body.sitrep-pdf-body {
     background: rgba(8, 27, 40, 0.72);
 }
 
+.sitrep-card-row {
+    margin-top: 0.9rem;
+}
+
+.sitrep-card-row h3 {
+    color: #f3fbff;
+    font-size: 0.92rem;
+    letter-spacing: 0.03em;
+    margin: 0 0 0.55rem;
+}
+
+.sitrep-card-row.is-positive .sitrep-picture-grid article {
+    background:
+        linear-gradient(145deg, rgba(18, 58, 48, 0.82), rgba(9, 30, 34, 0.9));
+    border-color: rgba(116, 201, 153, 0.35);
+}
+
+.sitrep-card-row.is-positive .sitrep-picture-grid span {
+    color: #a8eac3;
+}
+
 .sitrep-watch {
     background:
         linear-gradient(145deg, rgba(12, 35, 51, 0.86), rgba(8, 24, 36, 0.9));
     margin-top: 0.75rem;
+}
+
+.sitrep-watch.is-positive {
+    background:
+        linear-gradient(145deg, rgba(18, 58, 48, 0.82), rgba(9, 30, 34, 0.9));
+    border-color: rgba(116, 201, 153, 0.35);
 }
 
 .sitrep-watch h3 {
@@ -699,6 +712,23 @@ body.sitrep-pdf-body {
     line-height: 1.45;
     margin: 0.65rem 0 0;
     padding-left: 0.7rem;
+}
+
+.sitrep-watch.is-positive p {
+    border-left-color: rgba(116, 201, 153, 0.58);
+}
+
+.sitrep-source-counts {
+    border-top: 1px solid rgba(114, 164, 207, 0.18);
+    color: #a8c4dc;
+    font-size: 0.86rem;
+    line-height: 1.45;
+    margin: 0.9rem 0 0;
+    padding-top: 0.75rem;
+}
+
+.sitrep-source-counts strong {
+    color: #e7f6ff;
 }
 
 .sitrep-two-column {
@@ -728,6 +758,132 @@ body.sitrep-pdf-body {
     text-transform: uppercase;
 }
 
+.sitrep-table.is-concern-groups th:nth-child(2),
+.sitrep-table.is-concern-groups td:nth-child(2),
+.sitrep-table.is-concern-groups th:nth-child(5),
+.sitrep-table.is-concern-groups td:nth-child(5),
+.sitrep-table.is-concern-groups th:nth-child(6),
+.sitrep-table.is-concern-groups td:nth-child(6) {
+    text-align: center;
+}
+
+.sitrep-table.is-concern-groups th,
+.sitrep-table.is-concern-groups td {
+    padding-left: 0.45rem;
+    padding-right: 0.45rem;
+}
+
+.sitrep-table.is-concern-groups th:nth-child(1),
+.sitrep-table.is-concern-groups td:nth-child(1) {
+    width: 18%;
+}
+
+.sitrep-table.is-concern-groups th:nth-child(2),
+.sitrep-table.is-concern-groups td:nth-child(2) {
+    width: 7%;
+}
+
+.sitrep-table.is-concern-groups th:nth-child(3),
+.sitrep-table.is-concern-groups td:nth-child(3) {
+    width: 11%;
+}
+
+.sitrep-table.is-concern-groups th:nth-child(5),
+.sitrep-table.is-concern-groups td:nth-child(5),
+.sitrep-table.is-concern-groups th:nth-child(6),
+.sitrep-table.is-concern-groups td:nth-child(6) {
+    min-width: 4.75rem;
+    width: 8%;
+}
+
+.sitrep-table.is-team-deployment th,
+.sitrep-table.is-team-deployment td {
+    padding-left: 0.45rem;
+    padding-right: 0.45rem;
+}
+
+.sitrep-table.is-team-deployment th:nth-child(3),
+.sitrep-table.is-team-deployment td:nth-child(3),
+.sitrep-table.is-team-deployment th:nth-child(4),
+.sitrep-table.is-team-deployment td:nth-child(4),
+.sitrep-table.is-team-deployment th:nth-child(5),
+.sitrep-table.is-team-deployment td:nth-child(5),
+.sitrep-table.is-team-deployment th:nth-child(6),
+.sitrep-table.is-team-deployment td:nth-child(6),
+.sitrep-table.is-team-deployment th:nth-child(7),
+.sitrep-table.is-team-deployment td:nth-child(7),
+.sitrep-table.is-team-deployment th:nth-child(8),
+.sitrep-table.is-team-deployment td:nth-child(8),
+.sitrep-table.is-team-deployment th:nth-child(9),
+.sitrep-table.is-team-deployment td:nth-child(9) {
+    text-align: center;
+}
+
+.sitrep-table.is-team-deployment th:nth-child(1),
+.sitrep-table.is-team-deployment td:nth-child(1) {
+    width: 14%;
+}
+
+.sitrep-table.is-team-deployment th:nth-child(2),
+.sitrep-table.is-team-deployment td:nth-child(2) {
+    width: 22%;
+}
+
+.sitrep-table.is-team-deployment th:nth-child(3),
+.sitrep-table.is-team-deployment td:nth-child(3),
+.sitrep-table.is-team-deployment th:nth-child(4),
+.sitrep-table.is-team-deployment td:nth-child(4),
+.sitrep-table.is-team-deployment th:nth-child(5),
+.sitrep-table.is-team-deployment td:nth-child(5),
+.sitrep-table.is-team-deployment th:nth-child(6),
+.sitrep-table.is-team-deployment td:nth-child(6),
+.sitrep-table.is-team-deployment th:nth-child(7),
+.sitrep-table.is-team-deployment td:nth-child(7),
+.sitrep-table.is-team-deployment th:nth-child(8),
+.sitrep-table.is-team-deployment td:nth-child(8),
+.sitrep-table.is-team-deployment th:nth-child(9),
+.sitrep-table.is-team-deployment td:nth-child(9) {
+    min-width: 4rem;
+    width: 7%;
+}
+
+.sitrep-table.is-assignment-timing th,
+.sitrep-table.is-assignment-timing td {
+    padding-left: 0.4rem;
+    padding-right: 0.4rem;
+}
+
+.sitrep-table.is-assignment-timing th:nth-child(1),
+.sitrep-table.is-assignment-timing td:nth-child(1),
+.sitrep-table.is-assignment-timing th:nth-child(3),
+.sitrep-table.is-assignment-timing td:nth-child(3),
+.sitrep-table.is-assignment-timing th:nth-child(4),
+.sitrep-table.is-assignment-timing td:nth-child(4),
+.sitrep-table.is-assignment-timing th:nth-child(n+5),
+.sitrep-table.is-assignment-timing td:nth-child(n+5) {
+    text-align: center;
+}
+
+.sitrep-table.is-assignment-timing th:nth-child(1),
+.sitrep-table.is-assignment-timing td:nth-child(1) {
+    width: 8%;
+}
+
+.sitrep-table.is-assignment-timing th:nth-child(2),
+.sitrep-table.is-assignment-timing td:nth-child(2) {
+    width: 22%;
+}
+
+.sitrep-table.is-assignment-timing th:nth-child(3),
+.sitrep-table.is-assignment-timing td:nth-child(3) {
+    width: 10%;
+}
+
+.sitrep-table.is-assignment-timing th:nth-child(n+5),
+.sitrep-table.is-assignment-timing td:nth-child(n+5) {
+    min-width: 4.5rem;
+}
+
 .sitrep-fact-list {
     display: grid;
     gap: 0.8rem;
@@ -743,10 +899,71 @@ body.sitrep-pdf-body {
     margin-top: 0.8rem;
 }
 
+.sitrep-gap strong {
+    display: block;
+    margin-top: 0.28rem;
+}
+
+.sitrep-gap-details {
+    border-top: 1px solid rgba(114, 164, 207, 0.16);
+    display: grid;
+    gap: 0.65rem;
+    margin: 0.85rem 0 0;
+    padding-top: 0.75rem;
+}
+
+.sitrep-gap-details div {
+    display: grid;
+    gap: 0.22rem;
+}
+
+.sitrep-gap-details dt {
+    color: #8eb8dc;
+    font-size: 0.64rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.sitrep-gap-details dd {
+    color: #d7e8f5;
+    line-height: 1.45;
+    margin: 0;
+}
+
+.sitrep-gap-evidence {
+    border-top: 1px solid rgba(114, 164, 207, 0.16);
+    color: #c0d6e8;
+    display: grid;
+    gap: 0.45rem;
+    list-style: none;
+    margin: 0.85rem 0 0;
+    padding: 0.75rem 0 0;
+}
+
+.sitrep-gap-evidence li {
+    line-height: 1.4;
+}
+
+.sitrep-gap-evidence strong {
+    color: #f3fbff;
+    display: inline;
+    margin: 0;
+}
+
+.sitrep-gap-evidence span {
+    color: #9fc7e8;
+    display: block;
+    font-size: 0.78rem;
+    letter-spacing: 0;
+    margin-top: 0.16rem;
+    text-transform: none;
+}
+
 .sitrep-footer {
     display: grid;
     gap: 1rem;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 @media (max-width: 820px) {
@@ -767,8 +984,8 @@ body.sitrep-pdf-body {
         font-size: 1.1rem;
     }
 
-    .sitrep-meta {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+    .sitrep-metaline {
+        text-align: left;
     }
 }
 
@@ -799,7 +1016,6 @@ body.sitrep-pdf-body {
     }
 
     .sitrep-document,
-    .sitrep-meta div,
     .sitrep-picture-grid article,
     .sitrep-metric-group,
     .sitrep-metric,
@@ -839,7 +1055,6 @@ body.sitrep-pdf-body {
     .sitrep-table-card h3,
     .sitrep-watch h3,
     .sitrep-periodline,
-    .sitrep-meta dd,
     .sitrep-picture-grid strong,
     .sitrep-summary .sitrep-picture-grid strong,
     .sitrep-metric strong,
@@ -861,7 +1076,6 @@ body.sitrep-pdf-body {
     }
 
     .sitrep-eyebrow,
-    .sitrep-meta dt,
     .sitrep-picture-grid span,
     .sitrep-metric span,
     .sitrep-fact span,

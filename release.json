@@ -20,8 +20,8 @@
     "immutable_release": false,
     "from_versions": ["5.6.1"],
     "compatibility": "same-version-rebuild",
-    "requires_database_migration": false,
-    "requires_data_prep_rerun": false,
+    "requires_database_migration": true,
+    "requires_data_prep_rerun": true,
     "requires_service_restart": true,
     "rollback_supported": true
   },

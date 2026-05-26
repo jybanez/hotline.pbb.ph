@@ -47,4 +47,9 @@ return [
         'ca_bundle' => env('HOTLINE_REALTIME_CA_BUNDLE'),
     ],
 
+    'relay' => [
+        'hub_json_url' => env('RELAY_HUB_JSON_URL', 'https://relay.pbb.ph/hub.json'),
+        'hub_json_timeout' => (int) env('RELAY_HUB_JSON_TIMEOUT', 5),
+    ],
+
 ];
