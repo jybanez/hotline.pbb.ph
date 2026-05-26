@@ -9,6 +9,7 @@ The goal is to create a stable, readable reporting product that can later become
 - public/status sharing
 - Relay payload generation
 - downstream reporting summaries
+- upstream summary rollups and lazy drill-down access
 
 This proposal intentionally focuses on page structure and data shape. It does not require Relay integration yet.
 
@@ -24,6 +25,69 @@ Design principles:
 - resources needed are explicit quantified needs
 - team assignments are operational response records
 - public output must be snapshot-based, privacy-aware, and stable after publication
+- upstream reporting should push compact summaries first and fetch deeper detail only when needed
+
+## Upstream Rollup Architecture
+
+SITREP exchange between hubs should use progressive rollups instead of sending the entire barangay-to-national detail tree in one transaction.
+
+Recommended hierarchy:
+
+```text
+Barangay Hotline -> City/Municipality Hub -> Province Hub -> Region Hub -> National Hub
+```
+
+Each level should publish a compact rollup for the next level while preserving enough provenance to support authorized drill-down.
+
+Recommended payload tiers:
+
+| Tier | Contents | Movement |
+| --- | --- | --- |
+| Operational summary | Totals, alert posture, affected areas, priority needs, critical gaps, freshness, data-quality notes | Always pushed upward through Relay |
+| Breakdown index | Source hub IDs, area codes, reporting window, section hashes, source counts, drill-down API references | Pushed upward with the summary |
+| Full detail | Source SITREP snapshots, incident references, attachments/media references, audit trail | Fetched directly or through Relay-assisted APIs on demand |
+
+This keeps national and regional views fast during large incidents while still allowing deeper investigation when connectivity and authorization allow it.
+
+Important rules:
+- a higher-level hub should be able to make command decisions from the summary without waiting for full lower-level detail
+- drill-down should degrade gracefully when a lower hub is offline or the link is unstable
+- full detail and media should not be embedded in routine upstream rollups
+- every aggregate number should preserve provenance back to the contributing hub and reporting period
+- summaries should include stale, missing, or partial-report indicators so users can tell the difference between "zero reported" and "not yet received"
+
+Example flow:
+
+```text
+Barangay sends local SITREP summary + source snapshot reference.
+City consolidates barangay summaries and sends city rollup + barangay breakdown index.
+Province consolidates city/municipality rollups and sends province rollup + city breakdown index.
+Region consolidates province rollups and sends regional rollup + province breakdown index.
+National consumes regional rollups and pulls deeper detail only when needed.
+```
+
+## Aggregation SDK Boundary
+
+The future SITREP aggregation SDK should consume SITREP summaries and breakdown indexes from any reporting level, not only barangays.
+
+The SDK should own:
+- schema validation and version compatibility
+- source trust metadata checks
+- normalization across reporting levels
+- deterministic aggregation of totals, needs, gaps, actions, and data-quality indicators
+- provenance trees for drill-down
+- deduplication by source hub, reporting period, sequence, and content hash
+- stale/missing-report detection
+- rollup generation for the next level
+
+The SDK should not own:
+- local Hotline incident editing
+- Relay transport guarantees
+- lower-hub data ownership
+- media attachment transfer
+- human approval or publication policy
+
+Hotline should remain responsible for generating the local SITREP snapshot. Relay should remain responsible for delivery, retry, trust envelope, and transport. The aggregation SDK should sit between those concerns and the city/province/region/national presentation layers.
 
 ## Reporting Unit
 
@@ -600,6 +664,8 @@ The report should store enough source context to explain how it was generated wi
 Recommended `source_snapshot_json` content:
 - report generation filters
 - reporting period
+- source hub identity and reporting level when known
+- parent hub identity when known
 - incident IDs included
 - call session IDs included
 - team assignment IDs included
@@ -608,8 +674,26 @@ Recommended `source_snapshot_json` content:
 - previous SITREP ID used for comparison, if any
 - adapter version
 - counting rule version
+- source snapshot hash for Relay/drill-down comparison
+- public/internal drill-down reference when available
 
 This makes historical report output reproducible even after incident records change.
+
+Recommended upstream metadata:
+- `source_hub_id`
+- `source_hub_name`
+- `source_level`: `barangay`, `city`, `municipality`, `province`, `region`, or `national`
+- `parent_hub_id`
+- `coverage_area_code`
+- `coverage_area_label`
+- `reporting_period`
+- `sitrep_schema_version`
+- `summary_hash`
+- `breakdown_index_hash`
+- `drill_down_url`
+- `drill_down_auth_scope`
+- `last_successful_sync_at`
+- `data_freshness_status`
 
 ## Adapter Boundary
 
@@ -626,6 +710,8 @@ Suggested app-owned adapters:
 - `sitrepCountingRulesAdapter()`
 - `sitrepPublicPageAdapter()`
 - `sitrepRelayEnvelopeAdapter()`
+- `sitrepRollupSummaryAdapter()`
+- `sitrepBreakdownIndexAdapter()`
 - `sitrepPrivacyRedactionAdapter()`
 - `sitrepDataQualityAdapter()`
 
@@ -705,7 +791,29 @@ Proposed first-pass flow:
 7. Server builds section snapshots through app-owned adapters.
 8. Server stores one `sitrep_reports` row.
 9. Public page renders from the stored snapshot.
-10. Later phase builds Relay envelope from the same stored snapshot.
+10. Later phase builds a Relay-ready summary rollup and breakdown index from the same stored snapshot.
+11. Deeper drill-down remains API-backed and fetched on demand instead of embedded into every upstream message.
+
+## Future Relay And Drill-Down Flow
+
+The Relay phase should not be designed as "send the whole SITREP tree upward."
+
+Recommended future flow:
+
+1. Local hub generates and approves a SITREP snapshot.
+2. Hotline creates a compact rollup summary and breakdown index.
+3. Relay sends the summary/index to the parent hub.
+4. Parent hub aggregation SDK validates, deduplicates, and stores the rollup.
+5. Parent hub shows the rollup immediately in dashboards and consolidated reports.
+6. If a user drills down, the parent hub calls the source hub API for detail when connectivity is available.
+7. If the source hub is unavailable, the parent hub shows the latest rollup with a stale/offline indicator.
+
+Future drill-down API should support:
+- fetch SITREP by ID, sequence, period, or summary hash
+- fetch section-level detail without downloading the whole report
+- fetch provenance behind an aggregate number
+- fetch source incident references only for authorized users
+- return freshness and redaction metadata with every response
 
 ## Open Questions
 
@@ -713,6 +821,10 @@ Proposed first-pass flow:
 - What is the initial reporting cadence by alert level?
 - Who can publish a SITREP?
 - Which fields are safe for public release?
+- What is the minimum summary payload required for higher hubs to make decisions without live drill-down?
+- Which drill-down fields are available to city, province, region, and national users by default?
+- Should drill-down calls go directly to the source hub, through Relay, or support both modes?
+- What should be the stale threshold per reporting level when a lower hub is offline?
 - Should the first version include a map snapshot or only location tables?
 - Do damage/population fields need new incident-type fields before SITREP can be useful?
 - Should SITREP include only incidents created during the period, or all incidents active during the period?
@@ -724,8 +836,8 @@ Proposed first-pass flow:
 
 ## Recommendation
 
-Start with a stored snapshot-based public SITREP page.
+Start with a stored snapshot-based public SITREP page and keep the local report model compatible with upstream rollups.
 
 Implement the sections as app-owned adapters with explicit empty states. Avoid Relay integration until the snapshot content and public privacy rules are stable.
 
-This keeps the first SITREP useful as a local reporting product while preserving a clean path to Relay handoff later.
+This keeps the first SITREP useful as a local reporting product while preserving a clean path to Relay handoff, multi-level aggregation, and API-backed drill-down later.

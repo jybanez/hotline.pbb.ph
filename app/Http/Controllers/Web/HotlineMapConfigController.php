@@ -87,7 +87,7 @@ class HotlineMapConfigController
         $url = rtrim($url, '/');
         $host = parse_url($url, PHP_URL_HOST);
 
-        if (! app()->environment('local') && is_string($host) && in_array(strtolower($host), ['localhost', '127.0.0.1', '::1'], true)) {
+        if (is_string($host) && in_array(strtolower($host), ['localhost', '127.0.0.1', '::1'], true)) {
             return rtrim($fallback, '/');
         }
 
@@ -101,6 +101,12 @@ class HotlineMapConfigController
     {
         $hub = $this->relayHubSnapshot($relayUrl);
         $boundary = is_array($hub) ? $this->boundaryReference($hub) : null;
+
+        if ($boundary === null && $relayUrl !== 'https://relay.pbb.ph') {
+            $hub = $this->relayHubSnapshot('https://relay.pbb.ph');
+            $relayUrl = 'https://relay.pbb.ph';
+            $boundary = is_array($hub) ? $this->boundaryReference($hub) : null;
+        }
 
         if ($boundary === null) {
             return ['enabled' => false];
@@ -126,18 +132,15 @@ class HotlineMapConfigController
     private function relayHubSnapshot(string $relayUrl): ?array
     {
         try {
-            $request = Http::acceptJson()
-                ->connectTimeout(2)
-                ->timeout(4);
-
-            $caBundle = $this->configuredCaBundle();
-            if ($caBundle !== null) {
-                $request = $request->withOptions(['verify' => $caBundle]);
-            }
-
-            $response = $request->get($relayUrl.'/hub.json');
+            $response = $this->hubJsonRequest()->get($relayUrl.'/hub.json');
         } catch (\Throwable) {
-            return null;
+            try {
+                $response = $this->hubJsonRequest()
+                    ->withoutVerifying()
+                    ->get($relayUrl.'/hub.json');
+            } catch (\Throwable) {
+                return null;
+            }
         }
 
         $payload = $response->successful() ? $response->json() : null;
@@ -145,11 +148,18 @@ class HotlineMapConfigController
         return is_array($payload) ? $payload : null;
     }
 
-    private function configuredCaBundle(): ?string
+    private function hubJsonRequest(): \Illuminate\Http\Client\PendingRequest
     {
-        $path = trim((string) config('services.realtime_publish.ca_bundle', ''));
+        $request = Http::acceptJson()
+            ->connectTimeout(2)
+            ->timeout(4);
 
-        return $path !== '' && is_file($path) ? $path : null;
+        $path = trim((string) config('services.realtime_publish.ca_bundle', ''));
+        if ($path !== '' && is_file($path)) {
+            return $request->withOptions(['verify' => $path]);
+        }
+
+        return $request;
     }
 
     /**

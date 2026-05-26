@@ -226,7 +226,9 @@ Use for:
 ### Phase 3: SITREP And Relay Handoff
 - SITREP generation
 - SITREP cadence by alert level
-- Relay handoff for SITREP summary
+- Relay handoff for compact SITREP summary rollups and breakdown indexes
+- API-backed drill-down for full detail when source-hub connectivity is available
+- future aggregation SDK support for barangay -> city/municipality -> province -> region -> national rollups
 
 ### Phase 4: Post-SITREP Collaboration Expansion
 - invite function for additional call participants

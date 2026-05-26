@@ -1620,7 +1620,7 @@ function buildCommandIncidentRows(items) {
             type_label: typeLabel,
             incident_summary: [
                 `#${displayId}`,
-                callerLabel,
+                citizenLabel,
                 locationLabel,
                 typeLabel,
                 statusLabel,

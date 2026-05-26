@@ -2,6 +2,11 @@
 
 Hotline Beta is the PBB emergency-call and operator-dispatch surface. The current implementation is centered on realtime citizen/operator discovery, operator incident handling, media capture/finalization, live citizen location, a MapLibre dashboard map, and helper-library UI components.
 
+## Repository
+
+Official GitHub repository:
+- `https://github.com/jybanez/hotline.pbb.ph.git`
+
 ## Local Setup
 
 ### Media Binaries

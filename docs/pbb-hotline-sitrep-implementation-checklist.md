@@ -14,9 +14,12 @@ Initial implementation goals:
 - [x] Build explicit section adapters.
 - [x] Apply privacy-aware public rendering.
 - [x] Keep Relay upload out of the first pass.
+- [x] Keep local snapshots compatible with future upstream summary rollups.
 
 Out of initial implementation:
 - [x] Defer Relay handoff.
+- [x] Defer multi-level aggregation SDK.
+- [x] Defer direct drill-down API federation.
 - [x] Defer PDF/export.
 - [x] Defer full approval workflow beyond basic status/visibility.
 - [x] Defer multi-author editing.
@@ -58,6 +61,8 @@ Implementation tasks:
 - [x] Make public page read snapshots, not live incident records.
 - [x] Support at least `draft` and `published` report statuses.
 - [x] Support at least `private` and `public` visibility states.
+- [ ] Add explicit source hub/reporting-level metadata when Relay/topology contracts are finalized.
+- [ ] Add report hash fields for rollup deduplication and drill-down validation.
 - [x] Defer `sitrep_report_items` unless section rows need filtering, manual review, or item-level edits.
 
 ## 3. Period Scope
@@ -158,6 +163,8 @@ Create app-owned adapters:
 - [x] `sitrepDataQualityAdapter()`
 - [x] `sitrepPublicPageAdapter()`
 - [x] Defer `sitrepRelayEnvelopeAdapter()` until Relay phase.
+- [ ] `sitrepRollupSummaryAdapter()`
+- [ ] `sitrepBreakdownIndexAdapter()`
 
 Adapter output:
 - [x] Return plain arrays/objects that are safe to serialize into `sitrep_reports`.
@@ -420,22 +427,65 @@ Fixture scenarios:
 
 ## 21. Future Relay Boundary
 
-Do not implement Relay upload in first pass.
+Do not implement Relay upload in first pass. Future Relay integration should push compact SITREP summaries and breakdown indexes upward, not the whole barangay-to-national detail tree.
 
 Keep Relay-ready by:
 - [x] Store stable snapshots.
 - [x] Store source IDs.
 - [x] Track adapter/counting-rule version.
 - [x] Keep `sitrepRelayEnvelopeAdapter()` as a later adapter over the stored snapshot.
+- [ ] Define minimum upstream summary fields for city/province/region/national aggregation.
+- [ ] Define breakdown index fields for source hub, reporting period, counts, hashes, and drill-down references.
+- [ ] Define stale/missing-report indicators so higher hubs can distinguish zero reports from unavailable reports.
 
 Future Relay tasks:
-- [ ] Define Relay envelope.
+- [ ] Define Relay envelope for summary rollup and breakdown index.
 - [ ] Add delivery status.
 - [ ] Add retry behavior.
 - [ ] Add acknowledgement tracking.
 - [ ] Add signed/approved release workflow if required.
+- [ ] Keep full source SITREP and media outside routine upstream rollup payloads.
+- [ ] Support background/on-demand detail synchronization for audit and drill-down.
 
-## 22. Suggested Implementation Order
+## 22. Future Multi-Level Aggregation SDK
+
+The aggregation SDK should consume SITREP rollups from any reporting level:
+- [ ] Barangay to city/municipality.
+- [ ] City/municipality to province.
+- [ ] Province to region.
+- [ ] Region to national.
+
+SDK responsibilities:
+- [ ] Validate SITREP schema version.
+- [ ] Validate source hub and trust metadata.
+- [ ] Normalize reporting levels and coverage areas.
+- [ ] Deduplicate by source hub, reporting period, sequence, and content hash.
+- [ ] Aggregate totals, needs, gaps, actions, alert posture, and data-quality indicators.
+- [ ] Preserve provenance behind every aggregate value.
+- [ ] Produce rollup summary for the next reporting level.
+- [ ] Track missing, stale, partial, and superseded reports.
+
+SDK non-goals:
+- [ ] Do not own local Hotline incident editing.
+- [ ] Do not own Relay transport retries.
+- [ ] Do not embed raw media or full detail in routine rollups.
+- [ ] Do not replace human approval/publication policy.
+
+## 23. Future Drill-Down Access
+
+Drill-down should be API-backed and lazy. Higher hubs should receive enough summary data to act even when live drill-down is unavailable.
+
+Future drill-down tasks:
+- [ ] Define authenticated SITREP detail endpoint.
+- [ ] Define section-level detail endpoint.
+- [ ] Define provenance endpoint for aggregate values.
+- [ ] Define authorization scopes by reporting level.
+- [ ] Define redaction behavior for upstream users.
+- [ ] Return freshness/offline status with drill-down responses.
+- [ ] Support direct source-hub API access when stable.
+- [ ] Support Relay-assisted or cached fallback when direct access is unavailable.
+
+## 24. Suggested Implementation Order
 
 - [x] Add migrations/model for `sitrep_reports`.
 - [x] Implement period scope service.
@@ -449,4 +499,4 @@ Future Relay tasks:
 - [x] Add tests and fixture scenarios.
 - [ ] Review output with real incident data.
 - [x] Design Relay envelope only after local SITREP output is stable.
-
+- [ ] Design summary rollup and breakdown index before implementing upstream transport.
