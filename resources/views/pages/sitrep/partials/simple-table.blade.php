@@ -1,7 +1,7 @@
 <div class="sitrep-table-card">
     <h3>{{ $title }}</h3>
     @if (count($rows) > 0)
-        <table class="sitrep-table">
+        <table class="sitrep-table {{ $tableClass ?? '' }}">
             <thead>
                 <tr>
                     @foreach ($headers as $header)

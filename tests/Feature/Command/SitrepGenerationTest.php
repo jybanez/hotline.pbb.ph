@@ -10,6 +10,7 @@ use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class SitrepGenerationTest extends TestCase
@@ -22,6 +23,46 @@ class SitrepGenerationTest extends TestCase
 
         $this->withoutMiddleware(VerifyCsrfToken::class);
         Carbon::setTestNow(Carbon::parse('2026-04-29 10:00:00'));
+        $hubJsonResponse = Http::response([
+                'base_url' => 'https://hub.pbb.ph',
+                'hub_id' => 12,
+                'relay_hub_id' => '072217029',
+                'name' => 'Guadalupe, CEBU CITY, CEBU',
+                'deployment' => 'barangay',
+                'domain' => 'guadalupe-cebu-cebu.pbb.ph',
+                'status' => 'active',
+                'country_code' => 'PH',
+                'reg_code' => '07',
+                'prov_code' => '0722',
+                'citymun_code' => '072217',
+                'brgy_code' => '072217029',
+                'uplinks' => [[
+                    'id' => 29,
+                    'uplink_hub_id' => 11,
+                    'uplink_type' => 'hierarchy',
+                    'uplink_domain' => 'cebu-cebu.pbb.ph',
+                    'priority' => 1,
+                    'is_primary' => true,
+                    'hub' => [
+                        'id' => 11,
+                        'name' => 'CEBU CITY, CEBU',
+                        'code' => 'cebu-cebu',
+                        'deployment' => 'city',
+                        'domain' => 'cebu-cebu.pbb.ph',
+                        'status' => 'active',
+                    ],
+                ]],
+                'sources' => [],
+                'hydrated_at' => '2026-05-26T09:28:40+00:00',
+                'hydrated_from' => 'hq_heartbeat',
+                'snapshot_version' => 'hub-12:test',
+                'snapshot_hash' => 'test-hash',
+        ]);
+
+        Http::fake([
+            'https://relay.pbb.ph/hub.json' => $hubJsonResponse,
+            'relay.pbb.ph/hub.json' => $hubJsonResponse,
+        ]);
     }
 
     protected function tearDown(): void
@@ -51,12 +92,30 @@ class SitrepGenerationTest extends TestCase
             ->assertJsonPath('sitrep.summary.supporting_metrics.total_call_sessions', 2)
             ->assertJsonPath('sitrep.summary.supporting_metrics.incident_type_mentions', 2)
             ->assertJsonPath('sitrep.summary.supporting_metrics.resource_need_units', 3)
+            ->assertJsonPath('sitrep.summary.gap_cards.0.label', 'People at Risk')
+            ->assertJsonPath('sitrep.summary.gap_cards.1.label', 'Access to Help')
+            ->assertJsonPath('sitrep.summary.gap_cards.2.label', 'Response Progress')
+            ->assertJsonPath('sitrep.summary.accomplishment_cards.0.label', 'People Helped')
+            ->assertJsonPath('sitrep.summary.accomplishment_cards.1.label', 'Handled Incidents')
+            ->assertJsonPath('sitrep.summary.accomplishment_cards.2.label', 'Teams / Resources Deployed')
+            ->assertJsonPath('sitrep.situation.decision_points.0.title', 'Life safety')
             ->assertJsonPath('sitrep.situation.multi_type_incident_count', 1)
+            ->assertJsonPath('sitrep.situation.concern_groups.0.concern', 'Flood, Rescue, and Displacement')
+            ->assertJsonPath('sitrep.situation.concern_groups.0.open_reports', 1)
+            ->assertJsonPath('sitrep.situation.concern_groups.0.current_assignments', 1)
+            ->assertJsonPath('sitrep.situation.concern_groups.0.resource_units', 3)
             ->assertJsonPath('sitrep.needs.total_quantity_requested', 3)
             ->assertJsonPath('sitrep.needs.items.0.resource', 'Rescue Boat')
+            ->assertJsonPath('sitrep.needs.items.0.category', 'Transport')
+            ->assertJsonPath('sitrep.needs.category_groups.0.category', 'Transport')
             ->assertJsonPath('sitrep.population.citizens_assisted', 1)
             ->assertJsonPath('sitrep.population.numeric_total', 5)
             ->assertJsonPath('sitrep.data_quality.missing_citizen_location_count', 0)
+            ->assertJsonPath('sitrep.source_snapshot.hotline.app', 'pbb-hotline')
+            ->assertJsonPath('sitrep.source_snapshot.hotline.display_version', 'v1-5.6.1')
+            ->assertJsonPath('sitrep.source_snapshot.hub_node.available', true)
+            ->assertJsonPath('sitrep.source_snapshot.hub_node.snapshot.deployment', 'barangay')
+            ->assertJsonPath('sitrep.source_snapshot.hub_node.snapshot.relay_hub_id', '072217029')
             ->assertJsonPath('sitrep.privacy_redactions.citizen_phone_numbers', 'redacted')
             ->assertJsonMissingPath('sitrep.population.callers_assisted')
             ->assertJsonMissingPath('sitrep.data_quality.missing_caller_location_count')
@@ -73,6 +132,9 @@ class SitrepGenerationTest extends TestCase
         $sourceSnapshot = json_decode($report->source_snapshot_json, true);
 
         $this->assertSame([$incidentId], $sourceSnapshot['incident_ids']);
+        $this->assertSame('pbb-hotline', $sourceSnapshot['hotline']['app']);
+        $this->assertSame('v1-5.6.1', $sourceSnapshot['hotline']['display_version']);
+        $this->assertSame('Guadalupe, CEBU CITY, CEBU', $sourceSnapshot['hub_node']['snapshot']['name']);
         $this->assertSame(1, $sourceSnapshot['adapter_version']);
         $this->assertDatabaseHas('incident_resources_needed', [
             'incident_id' => $incidentId,
@@ -108,7 +170,10 @@ class SitrepGenerationTest extends TestCase
         $this->get("/sitrep/{$publicReportId}")
             ->assertOk()
             ->assertSee('Public SITREP')
-            ->assertSee('Current Situation Picture')
+            ->assertSee('Executive Situation Assessment')
+            ->assertSee('Source Snapshot')
+            ->assertSee('Hotline: v1-5.6.1')
+            ->assertSee('Hub Node: Guadalupe, Cebu City, Cebu')
             ->assertSee('Citizens assisted')
             ->assertDontSee('Callers assisted')
             ->assertDontSee('09170000003');
@@ -328,6 +393,310 @@ class SitrepGenerationTest extends TestCase
             ->assertOk()
             ->assertJsonPath('sitrep.status', 'published')
             ->assertJsonPath('sitrep.visibility', 'private');
+    }
+
+    public function test_sitrep_current_picture_excludes_resolved_and_discarded_demand(): void
+    {
+        [$command, $activeIncidentId, $resourceTypeId, $incidentTypeId] = $this->seedSitrepScenario();
+        $operatorId = DB::table('users')->where('role', UserRole::Operator->value)->value('id');
+
+        $resolvedIncidentId = DB::table('incidents')->insertGetId([
+            'operator_id' => $operatorId,
+            'status' => IncidentStatus::Resolved->value,
+            'alert_level' => 'Critical',
+            'latitude' => 10.31,
+            'longitude' => 123.89,
+            'location_barangay' => 'Labangon',
+            'location_citymunicipality' => 'Cebu City',
+            'called_at' => now()->subHours(3),
+            'resolved_at' => now()->subHour(),
+            'created_at' => now()->subHours(3),
+            'updated_at' => now()->subHour(),
+        ]);
+
+        $discardedIncidentId = DB::table('incidents')->insertGetId([
+            'operator_id' => $operatorId,
+            'status' => IncidentStatus::Discarded->value,
+            'alert_level' => 'Normal',
+            'latitude' => 10.32,
+            'longitude' => 123.90,
+            'location_barangay' => 'Capitol Site',
+            'location_citymunicipality' => 'Cebu City',
+            'called_at' => now()->subHours(2),
+            'resolved_at' => now()->subMinutes(30),
+            'created_at' => now()->subHours(2),
+            'updated_at' => now()->subMinutes(30),
+        ]);
+
+        $resolvedFamilyFieldId = DB::table('incident_type_fields')->insertGetId([
+            'incident_type_id' => $incidentTypeId,
+            'field_key' => 'affected_families',
+            'field_label' => 'Affected families',
+            'input_type' => 'family',
+            'unit' => null,
+            'is_required' => false,
+            'sort_order' => 10,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('incident_type_details')->insert([
+            'incident_id' => $resolvedIncidentId,
+            'incident_type_id' => $incidentTypeId,
+            'field_id' => $resolvedFamilyFieldId,
+            'field_key' => 'affected_families',
+            'field_label' => 'Affected families',
+            'field_value' => json_encode([[
+                'families' => 2,
+                'individuals' => 6,
+                'children' => 3,
+                'senior_citizens' => 1,
+                'pregnant' => 1,
+                'persons_with_disability' => 1,
+                'returned_home' => true,
+            ]]),
+            'input_type' => 'family',
+            'unit' => null,
+            'is_required' => false,
+            'sort_order' => 10,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('incident_resources_needed')->insert([
+            [
+                'incident_id' => $resolvedIncidentId,
+                'incident_type_id' => $incidentTypeId,
+                'resource_type_id' => $resourceTypeId,
+                'quantity_required' => 40,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'incident_id' => $discardedIncidentId,
+                'incident_type_id' => $incidentTypeId,
+                'resource_type_id' => $resourceTypeId,
+                'quantity_required' => 50,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        DB::table('team_assignments')->insert([
+            [
+                'incident_id' => $resolvedIncidentId,
+                'team_id' => DB::table('teams')->value('id'),
+                'assigned_by_operator_id' => $operatorId,
+                'status' => 'accepted',
+                'assigned_at' => now()->subHours(2),
+                'created_at' => now()->subHours(2),
+                'updated_at' => now()->subHours(2),
+            ],
+            [
+                'incident_id' => $discardedIncidentId,
+                'team_id' => DB::table('teams')->value('id'),
+                'assigned_by_operator_id' => $operatorId,
+                'status' => 'accepted',
+                'assigned_at' => now()->subHours(2),
+                'created_at' => now()->subHours(2),
+                'updated_at' => now()->subHours(2),
+            ],
+        ]);
+
+        $response = $this->actingAs($command)->postJson('/api/command/sitreps', [
+            'title' => 'Current Picture SITREP',
+            'coverage_area' => 'Cebu City',
+            'period_started_at' => now()->subHours(6)->toIso8601String(),
+            'period_ended_at' => now()->toIso8601String(),
+        ]);
+
+        $response
+            ->assertCreated()
+            ->assertJsonPath('sitrep.summary.supporting_metrics.resource_need_units', 3)
+            ->assertJsonPath('sitrep.summary.supporting_metrics.team_assignments', 1)
+            ->assertJsonPath('sitrep.summary.supporting_metrics.active_at_close', 1)
+            ->assertJsonPath('sitrep.summary.supporting_metrics.closed_this_period', 1)
+            ->assertJsonPath('sitrep.summary.supporting_metrics.discarded_excluded', 1)
+            ->assertJsonPath('sitrep.summary.resolved_progress.visible', true)
+            ->assertJsonPath('sitrep.summary.resolved_progress.title', 'People Helped and Accomplishments')
+            ->assertJsonPath('sitrep.summary.resolved_progress.value', '1 resolved report')
+            ->assertJsonPath('sitrep.summary.resolved_progress.highlight_value', '6 people helped')
+            ->assertJsonPath('sitrep.summary.accomplishment_cards.0.value', '6 people helped')
+            ->assertJsonPath('sitrep.needs.total_quantity_requested', 3)
+            ->assertJsonPath('sitrep.actions.deployment_groups.0.category', 'Rescue Teams')
+            ->assertJsonPath('sitrep.actions.deployment_groups.0.team', 'Team Alpha')
+            ->assertJsonPath('sitrep.actions.deployment_groups.0.status_counts.assigned', 1)
+            ->assertJsonPath('sitrep.actions.deployment_groups.0.status_counts.completed', 0)
+            ->assertJsonPath('sitrep.actions.deployment_groups.0.status_counts.cancelled', 0)
+            ->assertJsonPath('sitrep.actions.deployment_groups.0.total_assignments', 1)
+            ->assertJsonPath('sitrep.actions.deployment_groups.0.reports_covered', 1)
+            ->assertJsonPath('sitrep.actions.timing_rows.0.current_status', 'Assigned')
+            ->assertJsonPath('sitrep.actions.timing_rows.0.assigned_to_accepted', '')
+            ->assertJsonPath('sitrep.situation.current_operating_picture.current_resource_units', 3)
+            ->assertJsonPath('sitrep.situation.current_operating_picture.current_assignments', 1)
+            ->assertJsonPath('sitrep.situation.period_activity.resolved_during_period', 1)
+            ->assertJsonPath('sitrep.situation.period_activity.discarded_excluded', 1);
+
+        $this->assertStringContainsString('2 families / 6 people addressed', $response->json('sitrep.summary.resolved_progress.note'));
+        $this->assertStringContainsString('3 children, 1 senior, 1 pregnant, 1 PWD declared in resolved family records', $response->json('sitrep.summary.resolved_progress.note'));
+        $this->assertNotSame('', $response->json('sitrep.actions.timing_rows.0.elapsed_time'));
+        $this->assertSame($activeIncidentId, $response->json('sitrep.source_snapshot.incident_ids.0'));
+    }
+
+    public function test_sitrep_formats_structured_detail_rows_for_executive_review(): void
+    {
+        [$command, $activeIncidentId, , $incidentTypeId] = $this->seedSitrepScenario();
+
+        $shelterFieldId = DB::table('incident_type_fields')->insertGetId([
+            'incident_type_id' => $incidentTypeId,
+            'field_key' => 'shelter_damage_details',
+            'field_label' => 'Shelter damage details',
+            'input_type' => 'repeater',
+            'unit' => null,
+            'is_required' => false,
+            'sort_order' => 10,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $familyFieldId = DB::table('incident_type_fields')->insertGetId([
+            'incident_type_id' => $incidentTypeId,
+            'field_key' => 'affected_families',
+            'field_label' => 'Affected families',
+            'input_type' => 'repeater',
+            'unit' => null,
+            'is_required' => false,
+            'sort_order' => 11,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $roadFieldId = DB::table('incident_type_fields')->insertGetId([
+            'incident_type_id' => $incidentTypeId,
+            'field_key' => 'road_access_status',
+            'field_label' => 'Road access status',
+            'input_type' => 'repeater',
+            'unit' => null,
+            'is_required' => false,
+            'sort_order' => 12,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('incident_type_details')->insert([
+            [
+                'incident_id' => $activeIncidentId,
+                'incident_type_id' => $incidentTypeId,
+                'field_id' => $shelterFieldId,
+                'field_key' => 'shelter_damage_details',
+                'field_label' => 'Shelter damage details',
+                'field_value' => json_encode([[
+                    'damage_level' => 'Major',
+                    'structure_type' => 'House',
+                    'families_affected' => 2,
+                    'persons_affected' => 10,
+                    'habitable' => false,
+                ]]),
+                'input_type' => 'repeater',
+                'unit' => null,
+                'is_required' => false,
+                'sort_order' => 10,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'incident_id' => $activeIncidentId,
+                'incident_type_id' => $incidentTypeId,
+                'field_id' => $familyFieldId,
+                'field_key' => 'affected_families',
+                'field_label' => 'Affected families',
+                'field_value' => json_encode([[
+                    'member_count' => 6,
+                    'children_count' => 3,
+                    'senior_count' => 1,
+                    'pwd_count' => 1,
+                    'displaced' => true,
+                ]]),
+                'input_type' => 'repeater',
+                'unit' => null,
+                'is_required' => false,
+                'sort_order' => 11,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'incident_id' => $activeIncidentId,
+                'incident_type_id' => $incidentTypeId,
+                'field_id' => $roadFieldId,
+                'field_key' => 'road_access_status',
+                'field_label' => 'Road access status',
+                'field_value' => json_encode([[
+                    'route_location' => 'Riverside bridge approach',
+                    'status' => 'Blocked',
+                    'obstruction_type' => 'Floodwater',
+                    'cleared' => false,
+                ]]),
+                'input_type' => 'repeater',
+                'unit' => null,
+                'is_required' => false,
+                'sort_order' => 12,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        $response = $this->actingAs($command)->postJson('/api/command/sitreps', [
+            'title' => 'Readable Detail SITREP',
+            'coverage_area' => 'Cebu City',
+            'period_started_at' => now()->subHours(6)->toIso8601String(),
+            'period_ended_at' => now()->toIso8601String(),
+        ]);
+
+        $response
+            ->assertCreated()
+            ->assertJsonPath('sitrep.damage.items.1.label', 'Shelter damage')
+            ->assertJsonPath('sitrep.population.record_count', 2)
+            ->assertJsonPath('sitrep.population.items.1.label', 'Affected family')
+            ->assertJsonPath('sitrep.gaps.title', 'Response Constraints and Confidence Gaps');
+
+        $affectedFamilyGroup = collect($response->json('sitrep.population.population_groups'))
+            ->firstWhere('population_signal', 'Affected family');
+
+        $this->assertSame('1 displacement signal', $affectedFamilyGroup['notes']);
+        $this->assertSame([
+            ['breakdown' => 'Children', 'count' => 3],
+            ['breakdown' => 'Senior citizens', 'count' => 1],
+            ['breakdown' => 'PWD', 'count' => 1],
+        ], $affectedFamilyGroup['breakdowns']);
+        $this->assertStringContainsString('Major damage', $response->json('sitrep.damage.items.1.value'));
+        $this->assertStringContainsString('10 persons affected', $response->json('sitrep.damage.items.1.value'));
+        $this->assertStringContainsString('6 persons', $response->json('sitrep.population.items.1.value'));
+        $this->assertStringContainsString('2 vulnerable', $response->json('sitrep.population.items.1.value'));
+
+        $roadGap = collect($response->json('sitrep.gaps.items'))
+            ->firstWhere('type', 'road_access');
+
+        $this->assertNotNull($roadGap);
+        $this->assertSame('Operational constraint', $roadGap['category']);
+        $this->assertStringContainsString('Route constraints can affect response timing', $roadGap['decision_relevance']);
+        $this->assertStringContainsString('Riverside bridge approach', $roadGap['items'][0]['route_location']);
+        $this->assertStringNotContainsString('[', $response->json('sitrep.damage.items.1.value'));
+        $this->assertStringNotContainsString('[', $response->json('sitrep.population.items.1.value'));
+
+        $populationGap = collect($response->json('sitrep.gaps.items'))
+            ->firstWhere('type', 'population_verification');
+
+        $this->assertNotNull($populationGap);
+        $this->assertStringContainsString('Population fields should guide life-safety awareness', $populationGap['decision_relevance']);
+
+        $resourceGap = collect($response->json('sitrep.gaps.items'))
+            ->firstWhere('type', 'open_needs');
+
+        $this->assertNotNull($resourceGap);
+        $this->assertStringContainsString('Category detail is shown in Current Resource Posture', $resourceGap['evidence']);
+        $this->assertStringNotContainsString('Transport: 3', $resourceGap['evidence']);
+        $this->assertSame('Transport', $resourceGap['resource_categories'][0]['category']);
+        $this->assertSame(3, $resourceGap['resource_categories'][0]['quantity_requested']);
     }
 
     public function test_sitrep_snapshot_does_not_change_when_source_incident_changes(): void
@@ -621,6 +990,13 @@ class SitrepGenerationTest extends TestCase
             'visibility' => 'public',
             'alert_level' => 'Normal',
             'summary_json' => ['headline' => 'Situation report generated from Hotline incident records.'],
+            'source_snapshot_json' => [
+                'hotline' => [
+                    'display_version' => 'v1-5.6.1',
+                    'version' => '1-5.6.1',
+                    'build' => ['id' => 'source-template'],
+                ],
+            ],
         ], $attributes));
     }
 }
