@@ -57,12 +57,12 @@ This checklist tracks the work to revise Hotline SITREP into a decision-maker-fi
 | 5 | Demote current operating picture | Done | Current Operating Picture no longer renders as a framed dashboard block; it appears as a compact Current totals line after Decision Points for traceability. |
 | 5 | Tune wording with Jojo | Done | Final review settled on separated Gaps and Accomplishments rows, compact Current totals, and leadership/media-friendly people-helped language. |
 | 5 | Lock content rules | Done | Content rules are locked as of the reviewed SITREP #0053 / report 57 baseline. Future changes should be treated as new scope or refinements. |
-| 6 | Commit SITREP work on isolated branch | Pending | Branch: `codex/sitrep-manual-generation`. |
-| 6 | Push branch and open PR | Pending | Only after Jojo confirms revised SITREP direction. |
+| 6 | Commit SITREP work on isolated branch | Done | Branch: `codex/sitrep-manual-generation`; implementation commit `44d1b39`. |
+| 6 | Push branch and open PR | Done | Jojo requested direct merge to `main`; PR step is superseded by direct merge. |
 
 ## Current Position
 
-Phase 5 content review is complete and content rules are locked. A revised SITREP snapshot has been generated and browser-checked as report 24 / SITREP #0020. A Guadalupe sample data run has also been generated as report 57 / SITREP #0053 with simplified Hub-aware Barangay SITREP identity, shortened top-right header metadata, separated Gaps and Accomplishments summary rows, compact Current totals traceability, grouped current concerns, damage, population summaries, a separate declared member breakdown table, grouped team deployment columns for every official assignment status, merged scenario-specific response timing, simplified Resource Needs without the redundant posture column, and a clearer Source Snapshot footer without a repeated label line. Next phase is branch cleanup, commit, push, and PR preparation.
+Phase 5 content review is complete and content rules are locked. A revised SITREP snapshot has been generated and browser-checked as report 24 / SITREP #0020. A Guadalupe sample data run has also been generated as report 57 / SITREP #0053 with simplified Hub-aware Barangay SITREP identity, shortened top-right header metadata, separated Gaps and Accomplishments summary rows, compact Current totals traceability, grouped current concerns, damage, population summaries, a separate declared member breakdown table, grouped team deployment columns for every official assignment status, merged scenario-specific response timing, simplified Resource Needs without the redundant posture column, and a clearer Source Snapshot footer without a repeated label line. Jojo approved direct merge to `main`.
 
 Preview URL: `https://hotline-sitrep.pbb.ph/command/sitreps/24/preview`
 
