@@ -37,6 +37,30 @@ class IncidentTypeFieldController extends Controller
             'label' => 'Evacuee',
             'repeatable' => true,
         ],
+        'family' => [
+            'label' => 'Family',
+            'repeatable' => true,
+        ],
+        'casualtyPatient' => [
+            'label' => 'Casualty / Patient',
+            'repeatable' => true,
+        ],
+        'infrastructureDamage' => [
+            'label' => 'Infrastructure Damage',
+            'repeatable' => true,
+        ],
+        'shelterDamage' => [
+            'label' => 'Shelter Damage',
+            'repeatable' => true,
+        ],
+        'roadAccessStatus' => [
+            'label' => 'Road / Access Status',
+            'repeatable' => true,
+        ],
+        'vehicleInvolved' => [
+            'label' => 'Vehicle Involved',
+            'repeatable' => true,
+        ],
     ];
 
     public function index(Request $request): JsonResponse

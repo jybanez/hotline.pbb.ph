@@ -592,7 +592,10 @@ function importReferenceData(array $config, string $rootPath, array $data, bool 
                 'field_label' => (string) $record['field_label'],
                 'input_type' => (string) $record['input_type'],
                 'options_json' => jsonOrNull($record['options'] ?? $record['options_json'] ?? null),
-                'config_json' => jsonOrNull($record['config'] ?? $record['config_json'] ?? null),
+                'config_json' => jsonOrNull(normalizeIncidentTypeFieldConfig(
+                    (string) $record['input_type'],
+                    $record['config'] ?? $record['config_json'] ?? null,
+                )),
                 'default_value' => nullableString($record['default_value'] ?? null),
                 'placeholder' => nullableString($record['placeholder'] ?? null),
                 'unit' => nullableString($record['unit'] ?? null),
@@ -832,6 +835,46 @@ function jsonOrNull(mixed $value): ?string
     }
 
     return json_encode($value, JSON_UNESCAPED_SLASHES);
+}
+
+function normalizeIncidentTypeFieldConfig(string $inputType, mixed $config): ?array
+{
+    if ($inputType !== 'group') {
+        return null;
+    }
+
+    $config = is_array($config) ? $config : [];
+    $preset = trim((string) ($config['preset'] ?? ''));
+
+    if ($preset === '') {
+        return $config === [] ? null : $config;
+    }
+
+    $presets = [
+        'person' => ['label' => 'Person', 'repeatable' => false],
+        'address' => ['label' => 'Address', 'repeatable' => false],
+        'missingPerson' => ['label' => 'Missing Person', 'repeatable' => true],
+        'evacuee' => ['label' => 'Evacuee', 'repeatable' => true],
+        'family' => ['label' => 'Family', 'repeatable' => true],
+        'casualtyPatient' => ['label' => 'Casualty / Patient', 'repeatable' => true],
+        'infrastructureDamage' => ['label' => 'Infrastructure Damage', 'repeatable' => true],
+        'shelterDamage' => ['label' => 'Shelter Damage', 'repeatable' => true],
+        'roadAccessStatus' => ['label' => 'Road / Access Status', 'repeatable' => true],
+        'vehicleInvolved' => ['label' => 'Vehicle Involved', 'repeatable' => true],
+    ];
+
+    $meta = $presets[$preset] ?? null;
+
+    if ($meta === null) {
+        return $config;
+    }
+
+    return [
+        ...$config,
+        'preset' => $preset,
+        'preset_label' => $config['preset_label'] ?? $meta['label'],
+        'repeatable' => array_key_exists('repeatable', $config) ? boolValue($config['repeatable']) : $meta['repeatable'],
+    ];
 }
 
 function boolValue(mixed $value): bool
