@@ -29,24 +29,12 @@ ensureDirectory(dirname($outputPath));
 removePath($stagePath);
 ensureDirectory($stagePath);
 
-if (! isset($options['skip-composer'])) {
-    runCommand([
-        ...composerCommand($options),
-        'install',
-        '--no-dev',
-        '--prefer-dist',
-        '--optimize-autoloader',
-        '--no-interaction',
-    ], $root);
-}
-
 if (! isset($options['skip-npm'])) {
     runCommand(['npm', 'ci'], $root);
     runCommand(['npm', 'run', 'build'], $root);
 }
 
 $requiredPaths = [
-    'vendor/autoload.php',
     'public/build/manifest.json',
     'public/vendor/helpers.pbb.ph/dist/helpers.ui.bundle.min.js',
     'public/vendor/helpers.pbb.ph/dist/helpers.ui.bundle.min.css',
@@ -77,6 +65,10 @@ foreach ($includes as $include) {
         continue;
     }
 
+    if ($include === 'vendor/' && ! isset($options['skip-composer'])) {
+        continue;
+    }
+
     $source = $root.DIRECTORY_SEPARATOR.pathToNative($include);
     if (! file_exists($source)) {
         continue;
@@ -84,6 +76,31 @@ foreach ($includes as $include) {
 
     copyIntoStage($root, $stagePath, normalizePath($include), $excludes);
 }
+
+if (! isset($options['skip-composer'])) {
+    $lockPath = $root.DIRECTORY_SEPARATOR.'composer.lock';
+    if (! is_file($lockPath)) {
+        fail('composer.lock is required for production bundle builds.');
+    }
+
+    copy($lockPath, $stagePath.DIRECTORY_SEPARATOR.'composer.lock');
+
+    runCommand([
+        ...composerCommand($options),
+        'install',
+        '--no-dev',
+        '--prefer-dist',
+        '--optimize-autoloader',
+        '--no-interaction',
+    ], $stagePath);
+
+    removePath($stagePath.DIRECTORY_SEPARATOR.'composer.lock');
+}
+
+assertRequiredPaths($stagePath, [
+    'vendor/autoload.php',
+    ...$requiredPaths,
+]);
 
 $stagedRelease = $release;
 $stagedRelease['build'] = [
@@ -228,6 +245,15 @@ function isExcluded(string $relativePath, array $excludes): bool
     }
 
     return false;
+}
+
+function assertRequiredPaths(string $root, array $requiredPaths): void
+{
+    foreach ($requiredPaths as $requiredPath) {
+        if (! is_file($root.DIRECTORY_SEPARATOR.pathToNative((string) $requiredPath))) {
+            fail("Required build output is missing: {$requiredPath}");
+        }
+    }
 }
 
 function writeChecksums(string $stagePath): void
