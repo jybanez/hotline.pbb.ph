@@ -7,7 +7,7 @@ Hotline release bundles are ready-to-run. They must include `vendor/`, `public/b
 ## Entrypoints
 
 - `release.json`: release metadata and Kit Setup-facing installer/tool declarations.
-- `installer/install-run.php`: unattended installer runner. `preflight` mode performs host/config validation and repairs app-owned writable runtime folders before checking permissions. `fresh` mode currently implements the first runnable install slice. Other mutating modes still return a structured `not_implemented` report.
+- `installer/install-run.php`: unattended installer runner. `preflight` mode performs host/config validation and repairs app-owned writable runtime folders before checking permissions. `fresh` mode implements first install. `upgrade` and `repair` preserve `.env` and runtime data, run bounded Laravel maintenance actions, regenerate caches, emit reports, and leave service restart orchestration to Kit.
 - `installer/status.php`: install status command. The current first slice reports whether installer artifacts exist.
 - `installer/schema/install.schema.json`: unattended config schema.
 - `installer/docs/hotline-install.sample.json`: sample config.
@@ -67,6 +67,26 @@ Running without `--config` is allowed for bundle/host validation and returns war
 - returns planned actions and a manifest preview when `--dry-run` is used
 
 Direct service registration is intentionally not performed by default. The installer writes service artifacts for Kit Setup or an operator to register. If config requests direct registration without `--no-service-register`, the current slice fails with a structured message instead of pretending registration happened.
+
+## Upgrade And Repair Modes
+
+`installer/install-run.php --mode upgrade --config <file>` and `--mode repair --config <file>` are intended for already installed app roots after Kit has deployed or restored app files.
+
+Both modes:
+
+- run full preflight first and require a config file
+- require an existing `.env`
+- preserve the existing `.env`; they do not rewrite, delete, or back it up
+- preserve `storage/` runtime data and recreate only missing app-owned writable directories
+- run `php artisan migrate --force` when `options.run_migrations` is enabled
+- re-apply runtime settings and the create-if-missing admin bootstrap through `installer/bootstrap-runtime.php`; existing admin passwords remain unchanged unless `admin.overwrite_existing=true`
+- run `php artisan storage:link --force`
+- regenerate config, route, and view caches when `options.cache_config` is enabled
+- regenerate queue/scheduler service artifact files under `storage/app/installer/services`
+- run the same post-install health checks when `options.validate_after_install` is enabled
+- write `storage/app/installer/install-manifest.json` and `storage/app/installer/install-report.json`
+
+Rollback support is file-level: Kit can restore the previous app files while Hotline preserves existing `.env`, `storage/`, and database state. Hotline's runner does not attempt database rollback.
 
 ## First Admin Contract
 

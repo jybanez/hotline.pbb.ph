@@ -31,6 +31,12 @@ if ($mode === 'preflight') {
     $status = $result['status'];
     $summary = $result['summary'];
     $extra = $result['extra'];
+} elseif ($mode === 'upgrade' || $mode === 'repair') {
+    $result = runMaintenanceInstallSlice($root, $config, $mode, $dryRun, $noServiceRegister);
+    $checks = array_merge($checks, $result['checks']);
+    $status = $result['status'];
+    $summary = $result['summary'];
+    $extra = $result['extra'];
 } else {
     $status = 'not_implemented';
     $summary = 'Hotline mutating installer modes are not implemented yet.';
@@ -51,7 +57,7 @@ $report = [
     'checks' => $checks,
 ] + $extra;
 
-if ($mode === 'fresh' && ! $dryRun) {
+if (in_array($mode, ['fresh', 'upgrade', 'repair'], true) && ! $dryRun) {
     writeCanonicalInstallReport($root, $report);
 }
 
@@ -325,6 +331,186 @@ function runFreshInstallSlice(string $root, array $config, bool $dryRun, bool $n
             'actions' => $actions,
             'manifest' => $dryRun ? $manifest : null,
             'database_setup' => $databaseSetup,
+        ],
+    ];
+}
+
+/**
+ * @return array{status: string, summary: string, checks: array<int, array<string, mixed>>, extra: array<string, mixed>}
+ */
+function runMaintenanceInstallSlice(string $root, array $config, string $mode, bool $dryRun, bool $noServiceRegister): array
+{
+    $checks = runPreflight($root, $config);
+
+    if ($config === []) {
+        $checks[] = [
+            'id' => $mode.'_config_required',
+            'status' => 'fail',
+            'message' => ucfirst($mode).' mode requires --config so filesystem boundaries, URLs, and app secrets can be validated without rewriting .env.',
+        ];
+    }
+
+    $envPath = $root.DIRECTORY_SEPARATOR.'.env';
+    $checks[] = [
+        'id' => 'env_preservation_policy',
+        'status' => file_exists($envPath) ? 'pass' : 'fail',
+        'path' => $envPath,
+        'message' => file_exists($envPath)
+            ? ucfirst($mode).' mode preserves the existing .env and does not rewrite it.'
+            : ucfirst($mode).' mode requires an existing .env from a prior install.',
+    ];
+
+    if (hasFailedChecks($checks)) {
+        return [
+            'status' => 'failed',
+            'summary' => 'Hotline '.$mode.' preflight failed; no files were written.',
+            'checks' => $checks,
+            'extra' => [
+                'actions' => [],
+            ],
+        ];
+    }
+
+    $runtimeDirs = runtimeDirectoryPaths($root);
+    $installerDir = $root.DIRECTORY_SEPARATOR.'storage'.DIRECTORY_SEPARATOR.'app'.DIRECTORY_SEPARATOR.'installer';
+    $servicesDir = $installerDir.DIRECTORY_SEPARATOR.'services';
+    $databaseSetup = plannedMaintenanceDatabaseSetup($config, $mode);
+    $actions = [
+        [
+            'id' => 'preserve_env',
+            'status' => $dryRun ? 'planned' : 'pending',
+            'path' => $envPath,
+            'message' => '.env will not be rewritten.',
+        ],
+        [
+            'id' => 'prepare_runtime_directories',
+            'status' => $dryRun ? 'planned' : 'pending',
+            'paths' => array_values(array_unique(array_merge($runtimeDirs, [$installerDir, $servicesDir]))),
+        ],
+    ];
+
+    foreach (maintenanceInstallCommands($config, $mode) as $command) {
+        $actions[] = [
+            'id' => $command['id'],
+            'status' => $dryRun ? 'planned' : 'pending',
+        ] + actionPlanMetadata($command);
+    }
+
+    $serviceArtifacts = serviceArtifacts($root, $config);
+    $actions[] = [
+        'id' => 'write_service_artifacts',
+        'status' => $dryRun ? 'planned' : 'pending',
+        'paths' => array_map(static fn (array $artifact): string => $artifact['path'], $serviceArtifacts),
+    ];
+
+    if (shouldRegisterServices($config) && ! $noServiceRegister) {
+        $actions[] = [
+            'id' => 'register_services',
+            'status' => $dryRun ? 'planned' : 'pending',
+            'message' => 'Direct service registration is not implemented in this slice; generated artifacts are provided for Kit/manual registration.',
+        ];
+    }
+
+    if ((bool) dataGet($config, ['options', 'validate_after_install'], true)) {
+        $actions[] = [
+            'id' => 'post_install_health_checks',
+            'status' => $dryRun ? 'planned' : 'pending',
+            'checks' => postInstallHealthCheckIds(),
+        ];
+    }
+
+    $actions[] = [
+        'id' => 'write_manifest',
+        'status' => $dryRun ? 'planned' : 'pending',
+        'path' => $installerDir.DIRECTORY_SEPARATOR.'install-manifest.json',
+    ];
+
+    $manifest = buildInstallManifest($root, $config, $envPath, null, $databaseSetup, $mode);
+
+    if (! $dryRun) {
+        foreach ($runtimeDirs as $runtimeDir) {
+            ensureDirectory($runtimeDir);
+        }
+        ensureDirectory($installerDir);
+        ensureDirectory($servicesDir);
+        $actions = markAction($actions, 'prepare_runtime_directories', 'success');
+        $actions = markAction($actions, 'preserve_env', 'success');
+
+        foreach (maintenanceInstallCommands($config, $mode) as $command) {
+            $commandResult = runInstallCommand($root, $config, $command);
+            $actions = markAction($actions, $command['id'], $commandResult['status'], $commandResult);
+
+            if ($commandResult['status'] !== 'success') {
+                return [
+                    'status' => 'failed',
+                    'summary' => 'Hotline '.$mode.' command failed: '.$command['id'],
+                    'checks' => $checks,
+                    'extra' => [
+                        'actions' => $actions,
+                    ],
+                ];
+            }
+        }
+
+        writeServiceArtifacts($serviceArtifacts);
+        $actions = markAction($actions, 'write_service_artifacts', 'success');
+
+        if (shouldRegisterServices($config) && ! $noServiceRegister) {
+            $actions = markAction($actions, 'register_services', 'failed', [
+                'message' => 'Direct service registration is not implemented. Use generated service artifacts or pass --no-service-register.',
+            ]);
+
+            return [
+                'status' => 'failed',
+                'summary' => 'Hotline service artifact generation completed, but direct service registration is not implemented.',
+                'checks' => $checks,
+                'extra' => [
+                    'actions' => $actions,
+                ],
+            ];
+        }
+
+        if ((bool) dataGet($config, ['options', 'validate_after_install'], true)) {
+            $healthChecks = runPostInstallHealthChecks($root, $config);
+            $actions = markAction($actions, 'post_install_health_checks', hasFailedChecks($healthChecks) ? 'failed' : 'success', [
+                'checks' => $healthChecks,
+            ]);
+
+            if (hasFailedChecks($healthChecks)) {
+                return [
+                    'status' => 'failed',
+                    'summary' => 'Hotline '.$mode.' post-install health checks failed.',
+                    'checks' => array_merge($checks, $healthChecks),
+                    'extra' => [
+                        'actions' => $actions,
+                    ],
+                ];
+            }
+
+            $checks = array_merge($checks, $healthChecks);
+        }
+
+        file_put_contents(
+            $installerDir.DIRECTORY_SEPARATOR.'install-manifest.json',
+            json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL,
+        );
+        $actions = markAction($actions, 'write_manifest', 'success');
+    }
+
+    return [
+        'status' => 'success',
+        'summary' => $dryRun
+            ? 'Hotline '.$mode.' dry run passed; no files were written.'
+            : 'Hotline '.$mode.' completed.',
+        'checks' => $checks,
+        'extra' => [
+            'actions' => $actions,
+            'manifest' => $dryRun ? $manifest : null,
+            'database_setup' => $databaseSetup,
+            'rollback' => [
+                'supported' => true,
+                'strategy' => 'restore previous app files and preserve existing .env/storage/database; database rollback is not attempted by this runner.',
+            ],
         ],
     ];
 }
@@ -870,7 +1056,7 @@ function buildEnvFile(array $config): string
     return implode(PHP_EOL, $lines).PHP_EOL;
 }
 
-function buildInstallManifest(string $root, array $config, string $envPath, ?string $backupPath, array $databaseSetup): array
+function buildInstallManifest(string $root, array $config, string $envPath, ?string $backupPath, array $databaseSetup, string $installMode = 'fresh'): array
 {
     $servicesDir = $root.DIRECTORY_SEPARATOR.'storage'.DIRECTORY_SEPARATOR.'app'.DIRECTORY_SEPARATOR.'installer'.DIRECTORY_SEPARATOR.'services';
     $createdPaths = appOwnedCreatedPaths($root);
@@ -881,6 +1067,7 @@ function buildInstallManifest(string $root, array $config, string $envPath, ?str
         'app' => 'pbb-hotline',
         'version' => '5.6.1',
         'display_version' => 'v1-5.6.1',
+        'install_mode' => $installMode,
         'installed_at' => gmdate('c'),
         'install_path' => $root,
         'app_url' => (string) dataGet($config, ['app', 'app_url'], ''),
@@ -1171,6 +1358,32 @@ function plannedDatabaseSetup(string $root, array $config): array
     ];
 }
 
+/**
+ * @return array<string, mixed>
+ */
+function plannedMaintenanceDatabaseSetup(array $config, string $mode): array
+{
+    if (! (bool) dataGet($config, ['options', 'run_migrations'], true)) {
+        return [
+            'strategy' => 'skipped',
+            'baseline_schema' => baselineSchemaRelativePath(),
+            'baseline_schema_used' => false,
+            'migration_rows' => 0,
+            'upgrade_strategy' => 'laravel_migrations',
+            'mode' => $mode,
+        ];
+    }
+
+    return [
+        'strategy' => 'laravel_migrations',
+        'baseline_schema' => baselineSchemaRelativePath(),
+        'baseline_schema_used' => false,
+        'migration_rows' => 0,
+        'upgrade_strategy' => 'laravel_migrations',
+        'mode' => $mode,
+    ];
+}
+
 function shouldUseBaselineSchema(string $root, array $config): bool
 {
     $requestedSetup = (string) dataGet($config, ['options', 'database_setup'], '');
@@ -1278,6 +1491,51 @@ function freshInstallCommands(string $root, array $config): array
         $commands[] = [
             'id' => 'bootstrap_runtime',
             'argv' => [PHP_BINARY, 'installer/bootstrap-runtime.php', '--config', (string) dataGet($config, ['_config_path'], '')],
+        ];
+    }
+
+    $commands[] = [
+        'id' => 'artisan_storage_link',
+        'argv' => [PHP_BINARY, 'artisan', 'storage:link', '--force'],
+    ];
+
+    if ((bool) dataGet($config, ['options', 'cache_config'], true)) {
+        $commands[] = [
+            'id' => 'artisan_config_cache',
+            'argv' => [PHP_BINARY, 'artisan', 'config:cache'],
+        ];
+        $commands[] = [
+            'id' => 'artisan_route_cache',
+            'argv' => [PHP_BINARY, 'artisan', 'route:cache'],
+        ];
+        $commands[] = [
+            'id' => 'artisan_view_cache',
+            'argv' => [PHP_BINARY, 'artisan', 'view:cache'],
+        ];
+    }
+
+    return $commands;
+}
+
+/**
+ * @return array<int, array<string, mixed>>
+ */
+function maintenanceInstallCommands(array $config, string $mode): array
+{
+    $commands = [];
+
+    if ((bool) dataGet($config, ['options', 'run_migrations'], true)) {
+        $commands[] = [
+            'id' => 'artisan_migrate',
+            'argv' => [PHP_BINARY, 'artisan', 'migrate', '--force'],
+        ];
+    }
+
+    $configPath = (string) dataGet($config, ['_config_path'], '');
+    if ($configPath !== '') {
+        $commands[] = [
+            'id' => $mode === 'repair' ? 'repair_runtime_settings' : 'upgrade_runtime_settings',
+            'argv' => [PHP_BINARY, 'installer/bootstrap-runtime.php', '--config', $configPath],
         ];
     }
 
