@@ -76,6 +76,8 @@ foreach ($includes as $include) {
     copyIntoStage($root, $stagePath, normalizePath($include), $excludes);
 }
 
+prepareHelperRuntime($root, $stagePath);
+
 if (! isset($options['skip-composer'])) {
     $lockPath = $root.DIRECTORY_SEPARATOR.'composer.lock';
     if (! is_file($lockPath)) {
@@ -215,6 +217,47 @@ function copyIntoStage(string $root, string $stagePath, string $relativePath, ar
         ensureDirectory(dirname($target));
         copy($itemPath, $target);
     }
+}
+
+function prepareHelperRuntime(string $root, string $stagePath): void
+{
+    $sourceBase = $root.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR.'helpers.pbb.ph';
+    $targetBase = $stagePath.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR.'helpers.pbb.ph';
+
+    if (! is_dir($sourceBase)) {
+        fail('Helper runtime source is missing: public/vendor/helpers.pbb.ph');
+    }
+
+    removePath($targetBase);
+
+    $requiredFiles = [
+        'js/ui/ui.loader.js',
+        'dist/helpers.ui.bundle.min.js',
+        'dist/helpers.ui.bundle.min.css',
+        'package.json',
+    ];
+
+    foreach ($requiredFiles as $file) {
+        copyRequiredRuntimeFile($sourceBase, $targetBase, $file);
+    }
+
+    foreach (glob($sourceBase.DIRECTORY_SEPARATOR.'boot.*.json') ?: [] as $bootFile) {
+        if (is_file($bootFile)) {
+            copyRequiredRuntimeFile($sourceBase, $targetBase, basename($bootFile));
+        }
+    }
+}
+
+function copyRequiredRuntimeFile(string $sourceBase, string $targetBase, string $relativeFile): void
+{
+    $source = $sourceBase.DIRECTORY_SEPARATOR.pathToNative($relativeFile);
+    if (! is_file($source)) {
+        fail("Required Helper runtime file is missing: public/vendor/helpers.pbb.ph/{$relativeFile}");
+    }
+
+    $target = $targetBase.DIRECTORY_SEPARATOR.pathToNative($relativeFile);
+    ensureDirectory(dirname($target));
+    copy($source, $target);
 }
 
 function isExcluded(string $relativePath, array $excludes): bool
