@@ -38,7 +38,7 @@
     "normal_session_lifetime": 15,
     "media_assembly_token": "replace-with-kit-generated-token",
     "ffmpeg_binary": "bin\\ffmpeg\\ffmpeg.exe",
-    "ffprobe_binary": "bin\\ffmpeg\\ffprobe.exe",
+    "ffprobe_binary": "",
     "sitrep_enabled": true,
     "sitrep_node_binary": "node",
     "playwright_browsers_path": "C:\\wamp64\\www\\pbb\\hotline\\storage\\app\\playwright-browsers",

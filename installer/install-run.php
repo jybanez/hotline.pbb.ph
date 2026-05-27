@@ -92,7 +92,7 @@ function runPreflight(string $root, array $config): array
         $checks = array_merge($checks, checkFilesystemBoundaries($root, $config));
         $checks[] = checkDatabase($config['database'] ?? []);
         $checks[] = checkMediaBinary($root, 'ffmpeg', (string) dataGet($config, ['hotline', 'ffmpeg_binary'], ''));
-        $checks[] = checkMediaBinary($root, 'ffprobe', (string) dataGet($config, ['hotline', 'ffprobe_binary'], ''));
+        $checks[] = checkMediaBinary($root, 'ffprobe', (string) dataGet($config, ['hotline', 'ffprobe_binary'], ''), false);
         $checks[] = checkNodeBinary((string) dataGet($config, ['hotline', 'sitrep_node_binary'], 'node'));
         $checks[] = checkRealtimeCaBundle($config);
         $checks = array_merge($checks, checkSecrets($config));
@@ -106,7 +106,7 @@ function runPreflight(string $root, array $config): array
         $checks[] = [
             'id' => 'media_binaries',
             'status' => 'warn',
-            'message' => 'Skipped configured ffmpeg/ffprobe checks because no --config file was provided.',
+            'message' => 'Skipped configured media binary checks because no --config file was provided.',
         ];
     }
 
@@ -601,7 +601,7 @@ function checkDatabase(array $database): array
     }
 }
 
-function checkMediaBinary(string $root, string $id, string $configured): array
+function checkMediaBinary(string $root, string $id, string $configured, bool $required = true): array
 {
     $candidates = mediaBinaryCandidates($root, $id, $configured);
 
@@ -615,12 +615,12 @@ function checkMediaBinary(string $root, string $id, string $configured): array
 
     return [
         'id' => 'media_binary_'.$id,
-        'status' => $resolved !== null ? 'pass' : 'fail',
+        'status' => $resolved !== null ? 'pass' : ($required ? 'fail' : 'warn'),
         'binary' => $resolved ?? $candidates[0],
         'candidates' => $candidates,
         'message' => $resolved !== null && trim($configured) !== '' && $resolved !== trim($configured)
             ? 'Using bundled app-owned '.$id.' binary instead of configured external path.'
-            : null,
+            : ($required ? null : 'Optional; not required by the current Hotline runtime.'),
     ];
 }
 
@@ -649,6 +649,10 @@ function resolveMediaBinaryForEnv(string $root, string $id, string $configured):
         if (is_file($candidate) || commandExists($candidate)) {
             return $candidate;
         }
+    }
+
+    if ($id === 'ffprobe') {
+        return trim($configured);
     }
 
     return $root.DIRECTORY_SEPARATOR.'bin'.DIRECTORY_SEPARATOR.'ffmpeg'.DIRECTORY_SEPARATOR.$id.'.exe';
@@ -1493,7 +1497,7 @@ function runPostInstallHealthChecks(string $root, array $config): array
     $checks[] = commandHealthCheck($root, 'health_queue_failed_command', [PHP_BINARY, 'artisan', 'queue:failed']);
     $checks[] = commandHealthCheck($root, 'health_schedule_list_command', [PHP_BINARY, 'artisan', 'schedule:list']);
     $checks[] = normalizeHealthId(checkMediaBinary($root, 'ffmpeg', (string) dataGet($config, ['hotline', 'ffmpeg_binary'], '')), 'health_media_ffmpeg');
-    $checks[] = normalizeHealthId(checkMediaBinary($root, 'ffprobe', (string) dataGet($config, ['hotline', 'ffprobe_binary'], '')), 'health_media_ffprobe');
+    $checks[] = normalizeHealthId(checkMediaBinary($root, 'ffprobe', (string) dataGet($config, ['hotline', 'ffprobe_binary'], ''), false), 'health_media_ffprobe');
 
     $appUrl = rtrim((string) dataGet($config, ['app', 'app_url'], ''), '/');
     if ($appUrl === '') {

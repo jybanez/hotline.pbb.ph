@@ -2,7 +2,7 @@
 
 This document describes the first Kit Setup-facing installer contract for PBB Hotline.
 
-Hotline release bundles are ready-to-run. They must include `vendor/`, `public/build/`, a lean production Helper runtime at `public/vendor/helpers.pbb.ph`, the vendored Realtime SDK under `app/Support/Realtime/Sdk`, and app-owned media binaries under `bin/ffmpeg/`. Target installs should not run Composer or Vite builds and should not depend on third-party application paths for FFmpeg.
+Hotline release bundles are ready-to-run. They must include `vendor/`, `public/build/`, a lean production Helper runtime at `public/vendor/helpers.pbb.ph`, the vendored Realtime SDK under `app/Support/Realtime/Sdk`, and the app-owned `ffmpeg` binary under `bin/ffmpeg/`. Target installs should not run Composer or Vite builds and should not depend on third-party application paths for FFmpeg.
 
 ## Entrypoints
 
@@ -22,12 +22,12 @@ Hotline release bundles are ready-to-run. They must include `vendor/`, `public/b
 
 - PHP version is at least 8.2.
 - required PHP extensions are loaded.
-- ready-to-run bundle files exist: `vendor/autoload.php`, `public/build/manifest.json`, Helper UI bundle, vendored Realtime SDK, and bundled `bin/ffmpeg/ffmpeg(.exe)` plus `bin/ffmpeg/ffprobe(.exe)`.
+- ready-to-run bundle files exist: `vendor/autoload.php`, `public/build/manifest.json`, Helper UI bundle, vendored Realtime SDK, and bundled `bin/ffmpeg/ffmpeg(.exe)`.
 - `storage/`, `storage/app`, `storage/framework/cache`, `storage/framework/cache/data`, `storage/framework/sessions`, `storage/framework/views`, `storage/logs`, and `bootstrap/cache` exist and are writable. Missing writable directories are created by the app installer from the deployed app root before writability is checked.
 - `app.install_path` must match the extracted app root selected by Kit, `app.public_path` must resolve to `public/` under that root, and app-owned runtime/cache/generated paths such as `hotline.playwright_browsers_path` must remain under `app.install_path` unless Kit explicitly provides a named external path contract.
 - config shape includes required app, database, admin, and Hotline keys when `--config` is provided.
 - MySQL connection succeeds when database config is provided.
-- bundled app-owned `bin/ffmpeg/ffmpeg(.exe)` and `bin/ffmpeg/ffprobe(.exe)` paths are preferred; configured external `ffmpeg` and `ffprobe` paths are fallback only.
+- bundled app-owned `bin/ffmpeg/ffmpeg(.exe)` paths are preferred; configured external `ffmpeg` paths are fallback only. `ffprobe` is optional and external-only because current Hotline runtime media assembly does not call it.
 - Realtime HTTPS publish CA bundle is available through `hotline.realtime_ca_bundle` or PHP `curl.cainfo` / `openssl.cafile`.
 - SITREP Node binary is available when configured.
 - required secrets are present and not placeholder values.
@@ -54,7 +54,7 @@ Running without `--config` is allowed for bundle/host validation and returns war
 - reserves `php artisan migrate --force` as the fallback path when baseline schema use is explicitly disabled or the artifact is absent
 - runs `php artisan db:seed --class=SettingsSeeder --force` when `options.seed_settings` is enabled
 - applies Realtime, Relay, and MapServer runtime settings
-- writes `HOTLINE_FFMPEG_BINARY` and `HOTLINE_FFPROBE_BINARY` to the resolved app-owned bundled binaries under `bin/ffmpeg` when those files exist, even if Kit supplied an external FFmpeg path. External paths remain fallback only.
+- writes `HOTLINE_FFMPEG_BINARY` to the resolved app-owned bundled binary under `bin/ffmpeg` when it exists, even if Kit supplied an external FFmpeg path. External paths remain fallback only. `HOTLINE_FFPROBE_BINARY` is written only when an external/configured or PATH-resolvable `ffprobe` exists.
 - writes `HOTLINE_REALTIME_CA_BUNDLE` to `hotline.realtime_ca_bundle` when provided, otherwise to the PHP runtime CA bundle detected from `curl.cainfo` or `openssl.cafile`.
 - creates the first admin account when missing, using the Kit Setup first-admin contract, when `options.create_admin` is enabled
 - creates `public/storage` with `php artisan storage:link --force`
@@ -87,7 +87,7 @@ Post-install health checks cover:
 - `php artisan about --only=environment`
 - `php artisan queue:failed`
 - `php artisan schedule:list`
-- bundled app-owned `ffmpeg` and `ffprobe`; external configured paths are fallback only and should not be written when bundled binaries exist
+- bundled app-owned `ffmpeg`, plus optional external `ffprobe` if configured or available on PATH
 - `APP_URL/up`
 - `APP_URL/api/bootstrap?surface=public`
 

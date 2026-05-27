@@ -34,7 +34,7 @@
     "node": "not-required-assets-built",
     "composer": "not-required-vendor-bundled",
     "ffmpeg": "required",
-    "ffprobe": "required",
+    "ffprobe": "optional-external-only",
     "apps": {
       "pbb-realtime": "required",
       "pbb-mapserver": "required-for-map-tiles",
@@ -252,6 +252,8 @@
       "database/seeders/DevUsersSeeder.php",
       "database/factories/",
       "database/seeders/",
+      "bin/ffmpeg/ffprobe.exe",
+      "bin/ffmpeg/ffprobe",
       ".codex_tmp_*",
       ".editorconfig",
       ".gitattributes",

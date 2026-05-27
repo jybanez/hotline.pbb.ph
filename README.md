@@ -16,13 +16,13 @@ Hotline resolves media tools in this order:
 - `HOTLINE_FFMPEG_BINARY` / `HOTLINE_FFPROBE_BINARY`
 - system `ffmpeg` / `ffprobe` on `PATH`
 
-Release bundles must include Hotline-owned Windows binaries:
+Release bundles must include the Hotline-owned Windows FFmpeg binary:
 - `C:\wamp64\www\pbb\hotline\bin\ffmpeg\ffmpeg.exe`
-- `C:\wamp64\www\pbb\hotline\bin\ffmpeg\ffprobe.exe`
 
-Linux repo-local paths:
+Linux repo-local FFmpeg path:
 - `bin/ffmpeg/ffmpeg`
-- `bin/ffmpeg/ffprobe`
+
+`ffprobe` is optional and external-only. The current Hotline runtime does not call it for media assembly, but `HOTLINE_FFPROBE_BINARY` remains available for future media validation.
 
 Recommended Linux install:
 ```bash
