@@ -699,6 +699,110 @@ class SitrepGenerationTest extends TestCase
         $this->assertSame(3, $resourceGap['resource_categories'][0]['quantity_requested']);
     }
 
+    public function test_sitrep_consumes_group_field_presets_and_tolerates_legacy_values(): void
+    {
+        [$command, $activeIncidentId, , $incidentTypeId] = $this->seedSitrepScenario();
+
+        $addGroupDetail = function (string $fieldKey, string $fieldLabel, string $preset, mixed $value, int $sortOrder) use ($activeIncidentId, $incidentTypeId): void {
+            $fieldId = DB::table('incident_type_fields')->insertGetId([
+                'incident_type_id' => $incidentTypeId,
+                'field_key' => $fieldKey,
+                'field_label' => $fieldLabel,
+                'input_type' => 'group',
+                'config_json' => json_encode(['preset' => $preset]),
+                'unit' => null,
+                'is_required' => false,
+                'sort_order' => $sortOrder,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            DB::table('incident_type_details')->insert([
+                'incident_id' => $activeIncidentId,
+                'incident_type_id' => $incidentTypeId,
+                'field_id' => $fieldId,
+                'field_key' => $fieldKey,
+                'field_label' => $fieldLabel,
+                'field_value' => is_string($value) ? $value : json_encode($value),
+                'input_type' => 'group',
+                'config_json' => json_encode(['preset' => $preset]),
+                'unit' => null,
+                'is_required' => false,
+                'sort_order' => $sortOrder,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        };
+
+        $addGroupDetail('patient_details', 'Patient Details', 'casualtyPatient', [[
+            'name' => 'Unknown rider',
+            'age' => '34',
+            'condition' => 'Conscious and stable',
+            'triage' => 'minor',
+        ]], 20);
+        $addGroupDetail('affected_families', 'Affected Families', 'family', [
+            'families' => 2,
+            'individuals' => 7,
+            'children' => 3,
+            'senior_citizens' => 1,
+            'pregnant' => 1,
+            'persons_with_disability' => 1,
+            'temporary_shelter_needed' => true,
+        ], 21);
+        $addGroupDetail('missing_person', 'Missing Person Details', 'person', [
+            'name' => 'Unknown senior resident',
+            'age' => '70',
+            'last_seen_location' => 'Guadalupe chapel',
+            'condition' => 'Missing after evacuation',
+        ], 22);
+        $addGroupDetail('vehicles_involved', 'Vehicles Involved', 'vehicleInvolved', [[
+            'vehicle_type' => 'Motorcycle',
+            'plate_number' => 'Unknown',
+            'damage' => 'Broken side mirror',
+        ]], 23);
+        $addGroupDetail('road_access', 'Road / Access Status', 'roadAccessStatus', [
+            'status' => 'partially_blocked',
+            'description' => 'Interior path narrowed by mud',
+        ], 24);
+        $addGroupDetail('infrastructure_damage_details', 'Infrastructure Damage Details', 'infrastructureDamage', [
+            'asset_type' => 'Drainage cover',
+            'damage' => 'Broken concrete cover with exposed opening',
+            'severity' => 'moderate',
+            'public_safety_risk' => 'high for pedestrians',
+        ], 25);
+        $addGroupDetail('shelter_damage', 'Shelter Damage Details', 'shelterDamage', [
+            'damaged_structures' => 2,
+            'damage_severity' => 'minor_to_moderate',
+            'habitable' => 'needs_assessment',
+        ], 26);
+        $addGroupDetail('legacy_road_access', 'Road / Access Status', 'roadAccessStatus', 'Road passable with caution', 27);
+        $addGroupDetail('blank_family', 'Affected Families', 'family', '', 28);
+
+        $response = $this->actingAs($command)->postJson('/api/command/sitreps', [
+            'title' => 'Group Preset SITREP',
+            'coverage_area' => 'Cebu City',
+            'period_started_at' => now()->subHours(6)->toIso8601String(),
+            'period_ended_at' => now()->toIso8601String(),
+        ]);
+
+        $response->assertCreated();
+
+        $populationItems = collect($response->json('sitrep.population.items'));
+        $damageItems = collect($response->json('sitrep.damage.items'));
+        $roadGap = collect($response->json('sitrep.gaps.items'))->firstWhere('type', 'road_access');
+
+        $this->assertTrue($populationItems->contains(fn (array $item): bool => $item['label'] === 'Patient or injured person' && str_contains($item['value'], 'Conscious and stable')));
+        $this->assertTrue($populationItems->contains(fn (array $item): bool => $item['label'] === 'Affected family' && str_contains($item['value'], '7 persons')));
+        $this->assertTrue($populationItems->contains(fn (array $item): bool => $item['label'] === 'Missing person' && str_contains($item['value'], 'Guadalupe chapel')));
+        $this->assertTrue($damageItems->contains(fn (array $item): bool => $item['label'] === 'Vehicle involved' && str_contains($item['value'], 'Motorcycle')));
+        $this->assertTrue($damageItems->contains(fn (array $item): bool => $item['label'] === 'Infrastructure damage' && str_contains($item['value'], 'Drainage cover')));
+        $this->assertTrue($damageItems->contains(fn (array $item): bool => $item['label'] === 'Shelter damage' && str_contains($item['value'], '2 damaged structures')));
+        $this->assertNotNull($roadGap);
+        $this->assertStringContainsString('Interior path narrowed by mud', $roadGap['items'][0]['route_location']);
+        $this->assertStringNotContainsString('{', $populationItems->pluck('value')->implode(' '));
+        $this->assertStringNotContainsString('[{', $damageItems->pluck('value')->implode(' '));
+    }
+
     public function test_sitrep_snapshot_does_not_change_when_source_incident_changes(): void
     {
         [$command, $incidentId] = $this->seedSitrepScenario();

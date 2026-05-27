@@ -991,13 +991,18 @@ class SitrepGenerationService
     private function detailRows(IncidentTypeDetail $detail, string $section): array
     {
         $decoded = json_decode((string) $detail->field_value, true);
+        $decodedArray = json_last_error() === JSON_ERROR_NONE && is_array($decoded);
+        $rows = $this->decodedDetailRows($detail);
 
-        if (! is_array($decoded) || ! array_is_list($decoded)) {
+        if ($rows === []) {
+            if ($decodedArray) {
+                return [];
+            }
+
             return [$this->detailRow($detail, $detail->field_label, $this->scalarDetailValue($detail))];
         }
 
-        return collect($decoded)
-            ->filter(fn ($row) => is_array($row))
+        return collect($rows)
             ->map(fn (array $row) => $this->detailRow(
                 $detail,
                 $this->detailRowLabel($detail, $row, $section),
@@ -1051,37 +1056,38 @@ class SitrepGenerationService
 
     private function detailRowLabel(IncidentTypeDetail $detail, array $row, string $section): string
     {
-        $label = strtolower($detail->field_label.' '.$detail->field_key);
+        $label = $this->detailSearchText($detail);
+        $preset = $this->detailPreset($detail);
 
         if ($section === 'damage') {
-            if (str_contains($label, 'shelter')) {
+            if ($preset === 'shelterDamage' || str_contains($label, 'shelter')) {
                 return 'Shelter damage';
             }
 
-            if (str_contains($label, 'vehicle')) {
-                return 'Vehicle damage';
+            if ($preset === 'vehicleInvolved' || str_contains($label, 'vehicle')) {
+                return 'Vehicle involved';
             }
 
-            if (str_contains($label, 'infrastructure')) {
+            if ($preset === 'infrastructureDamage' || str_contains($label, 'infrastructure')) {
                 return 'Infrastructure damage';
             }
         }
 
         if ($section === 'population') {
-            if (str_contains($label, 'missing')) {
+            if ($preset === 'person' || str_contains($label, 'missing')) {
                 return 'Missing person';
             }
 
-            if (str_contains($label, 'patient') || str_contains($label, 'injur')) {
+            if ($preset === 'casualtyPatient' || str_contains($label, 'patient') || str_contains($label, 'injur')) {
                 return 'Patient or injured person';
             }
 
-            if (str_contains($label, 'famil')) {
+            if ($preset === 'family' || str_contains($label, 'famil')) {
                 return 'Affected family';
             }
         }
 
-        if ($section === 'gaps' && (str_contains($label, 'road') || str_contains($label, 'access'))) {
+        if ($section === 'gaps' && ($preset === 'roadAccessStatus' || str_contains($label, 'road') || str_contains($label, 'access'))) {
             return 'Road or access status';
         }
 
@@ -1090,66 +1096,83 @@ class SitrepGenerationService
 
     private function detailRowValue(IncidentTypeDetail $detail, array $row, string $section): string
     {
-        $label = strtolower($detail->field_label.' '.$detail->field_key);
+        $label = $this->detailSearchText($detail);
+        $preset = $this->detailPreset($detail);
 
         if ($section === 'damage') {
-            if (str_contains($label, 'shelter')) {
+            if ($preset === 'shelterDamage' || str_contains($label, 'shelter')) {
                 return $this->joinParts([
-                    $this->severityPhrase($row, 'damage_level', 'damage'),
+                    $this->severityPhrase($row, ['damage_level', 'damage_severity', 'severity'], 'damage'),
                     $row['structure_type'] ?? null,
+                    $this->countPhrase($row, ['damaged_structures'], 'damaged structure', 'damaged structures'),
+                    $this->countPhrase($row, ['destroyed_structures'], 'destroyed structure', 'destroyed structures'),
                     $this->countPhrase($row, ['affected_families', 'families_affected'], 'family affected', 'families affected'),
                     $this->countPhrase($row, ['affected_persons', 'persons_affected'], 'persons affected'),
                     array_key_exists('habitable', $row) ? 'habitable: '.$this->yesNo($row['habitable']) : null,
+                    $row['notes'] ?? null,
                 ]);
             }
 
-            if (str_contains($label, 'vehicle')) {
+            if ($preset === 'vehicleInvolved' || str_contains($label, 'vehicle')) {
                 return $this->joinParts([
-                    $this->severityPhrase($row, 'damage_level', 'damage'),
                     $row['vehicle_type'] ?? null,
+                    isset($row['plate_number']) ? 'plate: '.$row['plate_number'] : null,
+                    $this->severityPhrase($row, ['damage_level', 'damage'], 'damage'),
+                    $row['description'] ?? null,
                     array_key_exists('drivable', $row) ? 'drivable: '.$this->yesNo($row['drivable']) : null,
                 ]);
             }
 
-            if (str_contains($label, 'infrastructure')) {
+            if ($preset === 'infrastructureDamage' || str_contains($label, 'infrastructure')) {
                 return $this->joinParts([
-                    $this->severityPhrase($row, 'damage_level', 'damage'),
+                    $this->severityPhrase($row, ['damage_level', 'severity'], 'damage'),
                     $row['asset_type'] ?? null,
+                    $row['damage'] ?? null,
                     isset($row['operational_status']) ? 'operational status: '.$row['operational_status'] : null,
                     isset($row['estimated_affected_users']) ? sprintf('%s estimated affected users', $row['estimated_affected_users']) : null,
+                    isset($row['public_safety_risk']) ? 'public safety risk: '.$row['public_safety_risk'] : null,
+                    $row['notes'] ?? null,
                 ]);
             }
         }
 
         if ($section === 'population') {
-            if (str_contains($label, 'missing')) {
+            if ($preset === 'person' || str_contains($label, 'missing')) {
                 return $this->joinParts([
                     $this->personPhrase($row),
+                    $row['name'] ?? null,
+                    $row['condition'] ?? null,
                     isset($row['last_seen_location']) ? 'last seen at '.$row['last_seen_location'] : null,
+                    $row['description'] ?? null,
                 ]);
             }
 
-            if (str_contains($label, 'patient') || str_contains($label, 'injur')) {
+            if ($preset === 'casualtyPatient' || str_contains($label, 'patient') || str_contains($label, 'injur')) {
                 return $this->joinParts([
+                    $row['name'] ?? null,
+                    isset($row['age']) ? 'age '.$row['age'] : null,
                     isset($row['condition']) ? $row['condition'].' condition' : null,
-                    isset($row['triage_category']) ? 'triage: '.$row['triage_category'] : null,
+                    isset($row['triage_category']) || isset($row['triage']) ? 'triage: '.($row['triage_category'] ?? $row['triage']) : null,
                     array_key_exists('transported', $row) ? 'transported: '.$this->yesNo($row['transported']) : null,
                 ]);
             }
 
-            if (str_contains($label, 'famil')) {
+            if ($preset === 'family' || str_contains($label, 'famil')) {
                 return $this->joinParts([
-                    isset($row['member_count']) ? sprintf('%s persons', $row['member_count']) : null,
-                    isset($row['children_count']) ? sprintf('%s children', $row['children_count']) : null,
+                    $this->countPhrase($row, ['families'], 'family', 'families'),
+                    $this->countPhrase($row, ['individuals', 'people', 'persons', 'member_count'], 'person', 'persons'),
+                    $this->countPhrase($row, ['children', 'children_count'], 'child', 'children'),
                     $this->vulnerableCount($row) > 0 ? sprintf('%s vulnerable', $this->vulnerableCount($row)) : null,
-                    array_key_exists('displaced', $row) ? 'displaced: '.$this->yesNo($row['displaced']) : null,
+                    array_key_exists('displaced', $row) || array_key_exists('temporary_shelter_needed', $row) ? 'displaced: '.$this->yesNo($row['displaced'] ?? $row['temporary_shelter_needed']) : null,
+                    array_key_exists('returned_home', $row) ? 'returned home: '.$this->yesNo($row['returned_home']) : null,
+                    $row['notes'] ?? null,
                 ]);
             }
         }
 
-        if ($section === 'gaps' && (str_contains($label, 'road') || str_contains($label, 'access'))) {
+        if ($section === 'gaps' && ($preset === 'roadAccessStatus' || str_contains($label, 'road') || str_contains($label, 'access'))) {
             return $this->joinParts([
-                $row['route_location'] ?? null,
+                $row['route_location'] ?? $row['location'] ?? $row['description'] ?? null,
                 isset($row['status']) ? 'status: '.$row['status'] : null,
                 isset($row['obstruction_type']) ? 'obstruction: '.$row['obstruction_type'] : null,
                 array_key_exists('cleared', $row) ? 'cleared: '.$this->yesNo($row['cleared']) : null,
@@ -1163,13 +1186,17 @@ class SitrepGenerationService
             ->all());
     }
 
-    private function severityPhrase(array $row, string $key, string $suffix): ?string
+    private function severityPhrase(array $row, string|array $keys, string $suffix): ?string
     {
-        if (! isset($row[$key]) || trim((string) $row[$key]) === '') {
-            return null;
+        foreach ((array) $keys as $key) {
+            if (! isset($row[$key]) || trim((string) $row[$key]) === '') {
+                continue;
+            }
+
+            return trim((string) $row[$key]).' '.$suffix;
         }
 
-        return trim((string) $row[$key]).' '.$suffix;
+        return null;
     }
 
     private function personPhrase(array $row): ?string
@@ -1198,6 +1225,7 @@ class SitrepGenerationService
             'persons_with_disability',
             'persons_with_disabilities',
             'pregnant_count',
+            'pregnant',
             'pregnant_women',
             'adult_senior_count',
             'adult_pwd_count',
@@ -1256,10 +1284,62 @@ class SitrepGenerationService
         return trim((string) $value);
     }
 
+    private function detailPreset(IncidentTypeDetail $detail): ?string
+    {
+        $config = $detail->config_json ?? [];
+
+        if (is_string($config)) {
+            $decoded = json_decode($config, true);
+            $config = is_array($decoded) ? $decoded : [];
+        }
+
+        $preset = trim((string) data_get($config, 'preset', ''));
+
+        if ($preset !== '') {
+            return $preset;
+        }
+
+        $inputType = trim((string) $detail->input_type);
+        $legacyPresets = [
+            'casualtyPatient',
+            'family',
+            'person',
+            'vehicleInvolved',
+            'roadAccessStatus',
+            'infrastructureDamage',
+            'shelterDamage',
+        ];
+
+        return in_array($inputType, $legacyPresets, true) ? $inputType : null;
+    }
+
+    private function detailSearchText(IncidentTypeDetail $detail): string
+    {
+        return strtolower($detail->field_label.' '.$detail->field_key.' '.$detail->unit.' '.($this->detailPreset($detail) ?? ''));
+    }
+
+    private function detailHasPreset(IncidentTypeDetail $detail, array $presets): bool
+    {
+        return in_array($this->detailPreset($detail), $presets, true);
+    }
+
     private function classifyDetail(IncidentTypeDetail $detail): string
     {
-        $label = strtolower($detail->field_label.' '.$detail->field_key.' '.$detail->unit);
+        $label = $this->detailSearchText($detail);
         $inputType = strtolower((string) $detail->input_type);
+        $preset = $this->detailPreset($detail);
+
+        if ($preset === 'roadAccessStatus') {
+            return 'gaps';
+        }
+
+        if (in_array($preset, ['infrastructureDamage', 'shelterDamage', 'vehicleInvolved'], true)) {
+            return 'damage';
+        }
+
+        if (in_array($preset, ['casualtyPatient', 'family', 'person'], true)) {
+            return 'population';
+        }
 
         if (str_contains($label, 'road') || str_contains($label, 'access')) {
             return 'gaps';
@@ -1524,13 +1604,13 @@ class SitrepGenerationService
                     return;
                 }
 
-                if ($detail->input_type === 'casualtyPatient') {
+                if ($this->detailHasPreset($detail, ['casualtyPatient'])) {
                     $totals['patients'] += count($rows);
 
                     return;
                 }
 
-                if ($detail->input_type !== 'family') {
+                if (! $this->detailHasPreset($detail, ['family'])) {
                     return;
                 }
 
@@ -1904,16 +1984,15 @@ class SitrepGenerationService
     private function roadAccessRows(Collection $details): Collection
     {
         return $details
-            ->filter(fn (IncidentTypeDetail $detail) => str_contains(strtolower($detail->field_label.' '.$detail->field_key), 'road') || str_contains(strtolower($detail->field_label.' '.$detail->field_key), 'access'))
+            ->filter(fn (IncidentTypeDetail $detail) => $this->detailPreset($detail) === 'roadAccessStatus'
+                || str_contains(strtolower($detail->field_label.' '.$detail->field_key), 'road')
+                || str_contains(strtolower($detail->field_label.' '.$detail->field_key), 'access'))
             ->flatMap(function (IncidentTypeDetail $detail): array {
-                $decoded = json_decode((string) $detail->field_value, true);
-                $rows = is_array($decoded) && array_is_list($decoded) ? $decoded : [];
-
-                return collect($rows)
+                return collect($this->decodedDetailRows($detail))
                     ->map(fn (array $row): array => [
                         'incident_id' => $detail->incident_id,
                         'status' => (string) ($row['status'] ?? ''),
-                        'route_location' => (string) ($row['route_location'] ?? ''),
+                        'route_location' => (string) ($row['route_location'] ?? $row['location'] ?? $row['description'] ?? ''),
                         'obstruction_type' => (string) ($row['obstruction_type'] ?? ''),
                         'cleared' => array_key_exists('cleared', $row) ? $this->yesNo($row['cleared']) : '',
                     ])
