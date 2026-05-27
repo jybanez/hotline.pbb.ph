@@ -33,7 +33,7 @@ const SESSION_KEEPALIVE_MIN_INTERVAL_MS = 15 * 1000;
 const SESSION_WATCH_INTERVAL_MS = 5 * 1000;
 const CALL_SESSION_HEARTBEAT_MS = 2000;
 const CALL_SESSION_KEEPALIVE_MS = 60 * 1000;
-const HELPER_VENDOR_REV = '5af197a';
+const HELPER_VENDOR_REV = 'b5df488';
 const realtimeCallSessionRegistry = new Map();
 
 function isDebugFlagEnabled(storageKey, globalKey) {
