@@ -52,7 +52,7 @@ Running without `--config` is allowed for bundle/host validation and returns war
 - applies `database/schema/hotline-schema-mysql.sql` for fresh installs when `options.database_setup=baseline_schema` is set, with `options.use_baseline_schema=true` retained as a backward-compatible fallback
 - reports `database_setup.strategy`, `database_setup.baseline_schema`, `database_setup.baseline_schema_used`, `database_setup.migration_rows`, and `database_setup.upgrade_strategy` in fresh install output and manifests
 - reserves `php artisan migrate --force` as the fallback path when baseline schema use is explicitly disabled or the artifact is absent
-- runs `php artisan db:seed --class=SettingsSeeder --force` when `options.seed_settings` is enabled
+- skips `SettingsSeeder` for fresh baseline-schema installs because production initial settings are already in the baseline schema; if baseline schema is disabled and `database/seeders/SettingsSeeder.php` is packaged, runs `php artisan db:seed --class=SettingsSeeder --force` when `options.seed_settings` is enabled
 - applies Realtime, Relay, and MapServer runtime settings
 - writes `HOTLINE_FFMPEG_BINARY` to the resolved app-owned bundled binary under `bin/ffmpeg` when it exists, even if Kit supplied an external FFmpeg path. External paths remain fallback only. `HOTLINE_FFPROBE_BINARY` is written only when an external/configured or PATH-resolvable `ffprobe` exists.
 - writes `HOTLINE_REALTIME_CA_BUNDLE` to `hotline.realtime_ca_bundle` when provided, otherwise to the PHP runtime CA bundle detected from `curl.cainfo` or `openssl.cafile`.
@@ -99,7 +99,7 @@ The core installer should only make Hotline runnable:
 - generate `APP_KEY`
 - validate bundled `vendor/`, `public/build`, Helper UI assets, and Realtime SDK
 - run migrations
-- seed settings
+- seed settings only when the baseline schema is not used and a production settings seeder is packaged
 - create the first admin account
 - apply Realtime, Relay, MapServer, media, and session settings
 - create storage links and writable directories

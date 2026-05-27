@@ -1215,6 +1215,12 @@ function actionPlanMetadata(array $command): array
         ];
     }
 
+    if (($command['type'] ?? '') === 'skip') {
+        return [
+            'message' => $command['message'] ?? 'Command will be skipped.',
+        ];
+    }
+
     return [
         'command' => displayCommand($command['argv']),
     ];
@@ -1245,10 +1251,27 @@ function freshInstallCommands(string $root, array $config): array
     }
 
     if ((bool) dataGet($config, ['options', 'seed_settings'], true)) {
-        $commands[] = [
-            'id' => 'artisan_seed_settings',
-            'argv' => [PHP_BINARY, 'artisan', 'db:seed', '--class=SettingsSeeder', '--force'],
-        ];
+        $settingsSeeder = $root.DIRECTORY_SEPARATOR.'database'.DIRECTORY_SEPARATOR.'seeders'.DIRECTORY_SEPARATOR.'SettingsSeeder.php';
+        if (shouldUseBaselineSchema($root, $config)) {
+            $commands[] = [
+                'id' => 'artisan_seed_settings',
+                'type' => 'skip',
+                'reason' => 'baseline_schema',
+                'message' => 'Skipped SettingsSeeder because fresh baseline schema installs already include production initial settings.',
+            ];
+        } elseif (! is_file($settingsSeeder)) {
+            $commands[] = [
+                'id' => 'artisan_seed_settings',
+                'type' => 'skip',
+                'reason' => 'seeder_not_packaged',
+                'message' => 'Skipped SettingsSeeder because database/seeders/SettingsSeeder.php is not packaged in production bundles.',
+            ];
+        } else {
+            $commands[] = [
+                'id' => 'artisan_seed_settings',
+                'argv' => [PHP_BINARY, 'artisan', 'db:seed', '--class=SettingsSeeder', '--force'],
+            ];
+        }
     }
 
     if ((bool) dataGet($config, ['options', 'create_admin'], true)) {
@@ -1304,6 +1327,15 @@ function runInstallCommand(string $root, array $config, array $command): array
 {
     if (($command['type'] ?? '') === 'baseline_schema') {
         return applyBaselineSchema($config, (string) $command['path'], (string) $command['artifact']);
+    }
+
+    if (($command['type'] ?? '') === 'skip') {
+        return [
+            'status' => 'success',
+            'skipped' => true,
+            'reason' => $command['reason'] ?? 'not_required',
+            'message' => $command['message'] ?? 'Command skipped.',
+        ];
     }
 
     return runCommand($root, $command['argv']);
