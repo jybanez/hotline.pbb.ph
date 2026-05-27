@@ -250,6 +250,8 @@
       "app/Console/Commands/ClearTestIncidents.php",
       "app/Console/Commands/SeedSampleSitrepIncidents.php",
       "database/seeders/DevUsersSeeder.php",
+      "database/factories/",
+      "database/seeders/",
       ".codex_tmp_*",
       ".editorconfig",
       ".gitattributes",
