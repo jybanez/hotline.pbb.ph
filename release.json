@@ -14,6 +14,12 @@
     "git_commit": null,
     "builder": "tools/build-hotline-bundle.php"
   },
+  "repository": {
+    "type": "github",
+    "owner": "jybanez",
+    "repo": "hotline.pbb.ph",
+    "url": "https://github.com/jybanez/hotline.pbb.ph"
+  },
   "update": {
     "contract_version": 1,
     "channel": "testing",
@@ -24,6 +30,10 @@
     "requires_data_prep_rerun": false,
     "requires_service_restart": true,
     "rollback_supported": true
+  },
+  "updates": {
+    "source": "github-releases",
+    "channel": "testing"
   },
   "type": "laravel",
   "requires": {
