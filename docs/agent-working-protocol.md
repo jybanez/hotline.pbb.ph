@@ -20,7 +20,7 @@ Do not start new work from an old feature branch unless the task is explicitly t
 Use meaningful branch names with this shape:
 
 ```text
-codex/<category>/<task-name>
+<category>/<task-name>
 ```
 
 The category should describe the work group. The task name should describe the specific change.
@@ -28,21 +28,21 @@ The category should describe the work group. The task name should describe the s
 Good examples:
 
 ```text
-codex/sitrep/manual-generation
-codex/maps/boundary-fit
-codex/installer/maintenance-upgrade
-codex/media/finalize-ffmpeg
-codex/realtime/admission-token-alignment
-codex/docs/agent-working-protocol
+sitrep/manual-generation
+maps/boundary-fit
+installer/maintenance-upgrade
+media/finalize-ffmpeg
+realtime/admission-token-alignment
+docs/agent-working-protocol
 ```
 
 Avoid vague names:
 
 ```text
-codex/fixes
-codex/update
-codex/new-work
-codex/test
+fixes
+update
+new-work
+test
 ```
 
 ## Worktree Folder Naming
