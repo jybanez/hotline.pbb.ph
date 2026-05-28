@@ -47,32 +47,32 @@ codex/test
 
 ## Worktree Folder Naming
 
-When a separate checkout is needed, make the folder name match the branch category and task.
+When a separate checkout is needed, make the folder path match the branch category and task. The category is the first folder under `C:\wamp64\www\pbb`.
 
 Preferred structure:
 
 ```text
-C:\wamp64\www\pbb\hotline-worktrees\<category>\<task-name>
+C:\wamp64\www\pbb\<category>\<task-name>
 ```
 
 Examples:
 
 ```text
-C:\wamp64\www\pbb\hotline-worktrees\sitrep\manual-generation
-C:\wamp64\www\pbb\hotline-worktrees\maps\boundary-fit
-C:\wamp64\www\pbb\hotline-worktrees\installer\maintenance-upgrade
+C:\wamp64\www\pbb\sitrep\manual-generation
+C:\wamp64\www\pbb\maps\boundary-fit
+C:\wamp64\www\pbb\installer\maintenance-upgrade
 ```
 
 If the worktree must be served through a local domain, use a DNS-friendly folder name:
 
 ```text
-C:\wamp64\www\pbb\hotline-<category>-<task-name>
+C:\wamp64\www\pbb\<category>-<task-name>
 ```
 
 Example:
 
 ```text
-C:\wamp64\www\pbb\hotline-sitrep-manual-generation
+C:\wamp64\www\pbb\sitrep-manual-generation
 ```
 
 The matching test domain should be explicit and not replace the main RC domain unless intended:
@@ -185,4 +185,3 @@ Kit informed: yes/no
 Cross-team messages: yes/no
 Known risks:
 ```
-
