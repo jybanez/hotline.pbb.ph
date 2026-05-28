@@ -47,32 +47,32 @@ test
 
 ## Worktree Folder Naming
 
-When a separate checkout is needed, make the folder path match the branch category and task. The category is the first folder under `C:\wamp64\www\pbb`.
+When a separate checkout is needed, keep it under Hotline's branch workspace so it does not get mixed with other PBB apps. Inside that folder, make the path match the branch category and task.
 
 Preferred structure:
 
 ```text
-C:\wamp64\www\pbb\<category>\<task-name>
+C:\wamp64\www\pbb\hotline-branches\<category>\<task-name>
 ```
 
 Examples:
 
 ```text
-C:\wamp64\www\pbb\sitrep\manual-generation
-C:\wamp64\www\pbb\maps\boundary-fit
-C:\wamp64\www\pbb\installer\maintenance-upgrade
+C:\wamp64\www\pbb\hotline-branches\sitrep\manual-generation
+C:\wamp64\www\pbb\hotline-branches\maps\boundary-fit
+C:\wamp64\www\pbb\hotline-branches\installer\maintenance-upgrade
 ```
 
 If the worktree must be served through a local domain, use a DNS-friendly folder name:
 
 ```text
-C:\wamp64\www\pbb\<category>-<task-name>
+C:\wamp64\www\pbb\hotline-branches\<category>-<task-name>
 ```
 
 Example:
 
 ```text
-C:\wamp64\www\pbb\sitrep-manual-generation
+C:\wamp64\www\pbb\hotline-branches\sitrep-manual-generation
 ```
 
 The matching test domain should be explicit and not replace the main RC domain unless intended:
