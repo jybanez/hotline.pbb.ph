@@ -7,6 +7,9 @@ Hotline Beta is the PBB emergency-call and operator-dispatch surface. The curren
 Official GitHub repository:
 - `https://github.com/jybanez/hotline.pbb.ph.git`
 
+Contributor and agent workflow:
+- [Agent Working Protocol](./docs/agent-working-protocol.md)
+
 ## Local Setup
 
 ### Media Binaries
