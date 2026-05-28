@@ -93,12 +93,15 @@ Database names should follow the branch category and task:
 pbb_hotline_<category>_<task_name>
 ```
 
+MySQL database names are limited to 64 characters. If the full branch task name would make the database name too long, shorten the task segment while keeping it meaningful.
+
 Examples:
 
 ```text
 pbb_hotline_sitrep_manual_generation
 pbb_hotline_maps_boundary_fit
 pbb_hotline_installer_maintenance_upgrade
+pbb_hotline_realtime_token_secret
 ```
 
 Create branch databases by cloning the current main RC Hotline database, then point the branch `.env` to the copied database.
