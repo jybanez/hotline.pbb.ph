@@ -83,6 +83,36 @@ hotline-maps.pbb.ph
 hotline-installer.pbb.ph
 ```
 
+## Branch Databases
+
+Each served branch worktree should use its own database unless explicitly approved to share the main RC database.
+
+Database names should follow the branch category and task:
+
+```text
+pbb_hotline_<category>_<task_name>
+```
+
+Examples:
+
+```text
+pbb_hotline_sitrep_manual_generation
+pbb_hotline_maps_boundary_fit
+pbb_hotline_installer_maintenance_upgrade
+```
+
+Create branch databases by cloning the current main RC Hotline database, then point the branch `.env` to the copied database.
+
+Do not rerun the full migration and seeder pipeline for a normal branch worktree. The copied database keeps realistic RC data and avoids accidental drift from main.
+
+If the branch adds new migrations, run only the required migrations against the copied branch database:
+
+```powershell
+php artisan migrate
+```
+
+Only use the main RC database directly for explicitly approved read-only verification or when the task specifically requires testing against the live RC dataset.
+
 ## Task Isolation
 
 One branch should solve one task.
