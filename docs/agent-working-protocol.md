@@ -157,7 +157,11 @@ Fresh bundles may update build id, checksum, release metadata, ZIP hash, and rel
 
 ## Bundle Handoff
 
-Create a fresh Hotline bundle when a change affects:
+Hotline bundle creation is owned by `main`.
+
+Feature branches and branch worktrees should not hand bundles to Kit directly. They should finish, be reviewed, and merge into `main` first. After `main` contains the approved change, create the bundle from the clean `main` checkout and hand that main-built bundle to Kit.
+
+Create a fresh Hotline bundle from `main` when a merged change affects:
 
 - installer output
 - runtime files
@@ -167,14 +171,14 @@ Create a fresh Hotline bundle when a change affects:
 - release metadata
 - update/install behavior
 
-After creating a bundle, inform Kit with:
+After creating a main-built bundle, inform Kit with:
 
 ```text
 Bundle path:
 Version:
 Build id:
 SHA256:
-Git commit:
+Main commit:
 Release URL:
 Tests run:
 Notes for installer:
