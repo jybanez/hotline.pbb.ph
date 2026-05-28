@@ -196,6 +196,8 @@ If Realtime, Relay, Mapserver, or Kit needs a change, post a clear request in th
 - trace id or log excerpt, if available
 - what Hotline needs from that team
 
+Keep chat log messages brief. If the message is long, such as a proposal, design note, investigation report, or multi-step integration request, create a document in the appropriate repo and post a short chat message that links to the document path.
+
 ## Stale PRs
 
 Do not merge old PRs directly when they are far behind `main`.
