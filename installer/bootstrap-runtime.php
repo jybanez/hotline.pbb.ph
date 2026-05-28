@@ -10,6 +10,7 @@ use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\Hash;
 
 $configPath = optionValue($argv, '--config');
+$skipAdmin = in_array('--skip-admin', $argv, true);
 
 if ($configPath === null || ! is_file($configPath)) {
     fwrite(STDERR, "Missing --config file.\n");
@@ -44,35 +45,38 @@ $strategy = trim((string) ($admin['strategy'] ?? 'create_if_missing')) ?: 'creat
 $overwriteExisting = (bool) ($admin['overwrite_existing'] ?? false);
 $email = trim((string) ($admin['email'] ?? 'admin@pbb.local'));
 $password = (string) ($admin['password'] ?? '');
+$adminAction = 'skipped';
 
-if ($strategy !== 'create_if_missing') {
-    fwrite(STDERR, "Unsupported admin strategy.\n");
-    exit(2);
-}
+if (! $skipAdmin) {
+    if ($strategy !== 'create_if_missing') {
+        fwrite(STDERR, "Unsupported admin strategy.\n");
+        exit(2);
+    }
 
-if ($email === '' || $password === '') {
-    fwrite(STDERR, "Admin email and password are required.\n");
-    exit(2);
-}
+    if ($email === '' || $password === '') {
+        fwrite(STDERR, "Admin email and password are required.\n");
+        exit(2);
+    }
 
-$existingAdmin = User::query()->where('email', $email)->first();
-$adminAction = 'created';
+    $existingAdmin = User::query()->where('email', $email)->first();
+    $adminAction = 'created';
 
-if ($existingAdmin && ! $overwriteExisting) {
-    $adminAction = 'existing_unchanged';
-} else {
-    User::query()->updateOrCreate(
-        ['email' => $email],
-        [
-            'name' => trim((string) ($admin['name'] ?? 'PBB Administrator')) ?: 'PBB Administrator',
-            'mobile' => trim((string) ($admin['mobile'] ?? '')),
-            'role' => UserRole::Admin,
-            'status' => UserStatus::Active,
-            'password' => Hash::make($password),
-        ],
-    );
+    if ($existingAdmin && ! $overwriteExisting) {
+        $adminAction = 'existing_unchanged';
+    } else {
+        User::query()->updateOrCreate(
+            ['email' => $email],
+            [
+                'name' => trim((string) ($admin['name'] ?? 'PBB Administrator')) ?: 'PBB Administrator',
+                'mobile' => trim((string) ($admin['mobile'] ?? '')),
+                'role' => UserRole::Admin,
+                'status' => UserStatus::Active,
+                'password' => Hash::make($password),
+            ],
+        );
 
-    $adminAction = $existingAdmin ? 'updated' : 'created';
+        $adminAction = $existingAdmin ? 'updated' : 'created';
+    }
 }
 
 echo json_encode([
@@ -80,6 +84,7 @@ echo json_encode([
     'admin_email' => $email,
     'admin_strategy' => $strategy,
     'admin_action' => $adminAction,
+    'admin_skipped' => $skipAdmin,
     'admin_overwrite_existing' => $overwriteExisting,
     'settings_applied' => array_values(hotlineSettingKeys()),
 ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL;

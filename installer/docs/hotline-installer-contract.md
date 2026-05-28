@@ -79,7 +79,8 @@ Both modes:
 - preserve the existing `.env`; they do not rewrite, delete, or back it up
 - preserve `storage/` runtime data and recreate only missing app-owned writable directories
 - run `php artisan migrate --force` when `options.run_migrations` is enabled
-- re-apply runtime settings and the create-if-missing admin bootstrap through `installer/bootstrap-runtime.php`; existing admin passwords remain unchanged unless `admin.overwrite_existing=true`
+- re-apply runtime settings through `installer/bootstrap-runtime.php --skip-admin`; existing admin accounts and passwords are not created or reset during normal upgrade/repair
+- skip `admin.password` and `admin_password_strength` preflight checks during normal upgrade/repair because no admin password write is planned
 - run `php artisan storage:link --force`
 - regenerate config, route, and view caches when `options.cache_config` is enabled
 - regenerate queue/scheduler service artifact files under `storage/app/installer/services`
@@ -87,6 +88,8 @@ Both modes:
 - write `storage/app/installer/install-manifest.json` and `storage/app/installer/install-report.json`
 
 Rollback support is file-level: Kit can restore the previous app files while Hotline preserves existing `.env`, `storage/`, and database state. Hotline's runner does not attempt database rollback.
+
+If an operator intentionally needs an admin password repair during maintenance, Kit must request it explicitly with `options.maintenance_admin_bootstrap=true` or `admin.overwrite_existing=true`; only then does Hotline require and validate `admin.password`.
 
 ## First Admin Contract
 

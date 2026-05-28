@@ -19,7 +19,7 @@ if ($configResult['check'] !== null) {
 }
 
 if ($mode === 'preflight') {
-    $checks = array_merge($checks, runPreflight($root, $config));
+    $checks = array_merge($checks, runPreflight($root, $config, $mode));
     $status = hasFailedChecks($checks) ? 'failed' : 'success';
     $summary = $status === 'success'
         ? 'Hotline preflight passed.'
@@ -68,7 +68,7 @@ exit($status === 'success' ? 0 : 2);
 /**
  * @return array<int, array<string, mixed>>
  */
-function runPreflight(string $root, array $config): array
+function runPreflight(string $root, array $config, string $mode = 'preflight'): array
 {
     $checks = [];
 
@@ -101,7 +101,7 @@ function runPreflight(string $root, array $config): array
         $checks[] = checkMediaBinary($root, 'ffprobe', (string) dataGet($config, ['hotline', 'ffprobe_binary'], ''), false);
         $checks[] = checkNodeBinary((string) dataGet($config, ['hotline', 'sitrep_node_binary'], 'node'));
         $checks[] = checkRealtimeCaBundle($config);
-        $checks = array_merge($checks, checkSecrets($config));
+        $checks = array_merge($checks, checkSecrets($config, $mode));
         $checks = array_merge($checks, checkUrls($config));
     } else {
         $checks[] = [
@@ -124,7 +124,7 @@ function runPreflight(string $root, array $config): array
  */
 function runFreshInstallSlice(string $root, array $config, bool $dryRun, bool $noServiceRegister): array
 {
-    $checks = runPreflight($root, $config);
+    $checks = runPreflight($root, $config, 'fresh');
 
     if ($config === []) {
         $checks[] = [
@@ -340,7 +340,7 @@ function runFreshInstallSlice(string $root, array $config, bool $dryRun, bool $n
  */
 function runMaintenanceInstallSlice(string $root, array $config, string $mode, bool $dryRun, bool $noServiceRegister): array
 {
-    $checks = runPreflight($root, $config);
+    $checks = runPreflight($root, $config, $mode);
 
     if ($config === []) {
         $checks[] = [
@@ -910,17 +910,22 @@ function resolveRealtimeCaBundleForEnv(array $hotline): string
 /**
  * @return array<int, array<string, mixed>>
  */
-function checkSecrets(array $config): array
+function checkSecrets(array $config, string $mode = 'preflight'): array
 {
     $checks = [];
-    foreach ([
+    $secretPaths = [
         ['hotline', 'media_assembly_token'],
         ['hotline', 'realtime_backend_ingress_secret'],
         ['hotline', 'realtime_media_ingest_secret'],
         ['hotline', 'realtime_token_signing_secret'],
         ['hotline', 'relay_token'],
-        ['admin', 'password'],
-    ] as $path) {
+    ];
+
+    if (requiresAdminPasswordForMode($config, $mode)) {
+        $secretPaths[] = ['admin', 'password'];
+    }
+
+    foreach ($secretPaths as $path) {
         $value = (string) dataGet($config, $path, '');
         $checks[] = [
             'id' => 'secret_'.implode('_', $path),
@@ -930,17 +935,42 @@ function checkSecrets(array $config): array
         ];
     }
 
-    $adminPassword = (string) dataGet($config, ['admin', 'password'], '');
-    $checks[] = [
-        'id' => 'admin_password_strength',
-        'status' => isStrongAdminPassword($adminPassword) ? 'pass' : 'fail',
-        'path' => 'admin.password',
-        'message' => isStrongAdminPassword($adminPassword)
-            ? 'Admin password satisfies the installer strength policy.'
-            : 'Admin password must be at least 12 characters and include uppercase, lowercase, and numeric characters.',
-    ];
+    if (requiresAdminPasswordForMode($config, $mode)) {
+        $adminPassword = (string) dataGet($config, ['admin', 'password'], '');
+        $checks[] = [
+            'id' => 'admin_password_strength',
+            'status' => isStrongAdminPassword($adminPassword) ? 'pass' : 'fail',
+            'path' => 'admin.password',
+            'message' => isStrongAdminPassword($adminPassword)
+                ? 'Admin password satisfies the installer strength policy.'
+                : 'Admin password must be at least 12 characters and include uppercase, lowercase, and numeric characters.',
+        ];
+    } else {
+        $checks[] = [
+            'id' => 'secret_admin_password',
+            'status' => 'skip',
+            'path' => 'admin.password',
+            'message' => ucfirst($mode).' mode preserves the installed admin state and does not create or reset the first admin.',
+        ];
+        $checks[] = [
+            'id' => 'admin_password_strength',
+            'status' => 'skip',
+            'path' => 'admin.password',
+            'message' => ucfirst($mode).' mode does not require admin.password because no admin password write is planned.',
+        ];
+    }
 
     return $checks;
+}
+
+function requiresAdminPasswordForMode(array $config, string $mode): bool
+{
+    if (! in_array($mode, ['upgrade', 'repair'], true)) {
+        return true;
+    }
+
+    return (bool) dataGet($config, ['options', 'maintenance_admin_bootstrap'], false)
+        || (bool) dataGet($config, ['admin', 'overwrite_existing'], false);
 }
 
 /**
@@ -1535,7 +1565,7 @@ function maintenanceInstallCommands(array $config, string $mode): array
     if ($configPath !== '') {
         $commands[] = [
             'id' => $mode === 'repair' ? 'repair_runtime_settings' : 'upgrade_runtime_settings',
-            'argv' => [PHP_BINARY, 'installer/bootstrap-runtime.php', '--config', $configPath],
+            'argv' => maintenanceRuntimeSettingsCommand($config, $configPath, $mode),
         ];
     }
 
@@ -1560,6 +1590,20 @@ function maintenanceInstallCommands(array $config, string $mode): array
     }
 
     return $commands;
+}
+
+/**
+ * @return array<int, string>
+ */
+function maintenanceRuntimeSettingsCommand(array $config, string $configPath, string $mode): array
+{
+    $command = [PHP_BINARY, 'installer/bootstrap-runtime.php', '--config', $configPath, '--skip-admin'];
+
+    if (requiresAdminPasswordForMode($config, $mode)) {
+        array_pop($command);
+    }
+
+    return $command;
 }
 
 /**
