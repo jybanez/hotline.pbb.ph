@@ -197,12 +197,12 @@
       "healthcheck": "php artisan queue:failed"
     },
     {
-      "id": "pbb-hotline-scheduler",
-      "name": "PBB Hotline Scheduler",
+      "id": "pbb-hotline-periodic-sitrep",
+      "name": "PBB Hotline Periodic SITREP",
       "kind": "scheduler",
-      "command": "php artisan schedule:run",
+      "command": "php artisan app:generate-periodic-sitrep",
       "required": true,
-      "healthcheck": "php artisan schedule:list"
+      "healthcheck": "php artisan app:generate-periodic-sitrep --dry-run"
     }
   ],
   "runtime_services": [
@@ -229,26 +229,26 @@
       "notes": "Kit starts this after Hotline install so queued background jobs can run."
     },
     {
-      "id": "pbb-hotline-scheduler",
-      "name": "PBB Hotline Scheduler",
+      "id": "pbb-hotline-periodic-sitrep",
+      "name": "PBB Hotline Periodic SITREP",
       "type": "scheduled_process",
       "required": true,
       "required_for_smoke": true,
       "manager": "kit",
       "working_directory": "{app.install_path}",
       "command": "{runtime.php_binary}",
-      "args": ["artisan", "schedule:run"],
+      "args": ["artisan", "app:generate-periodic-sitrep"],
       "health_check": {
         "type": "command",
         "command": "{runtime.php_binary}",
-        "args": ["artisan", "schedule:list"],
+        "args": ["artisan", "app:generate-periodic-sitrep", "--dry-run"],
         "timeout_seconds": 10
       },
       "logs": {
-        "stdout": "storage/logs/pbb-hotline-scheduler.out.log",
-        "stderr": "storage/logs/pbb-hotline-scheduler.err.log"
+        "stdout": "storage/logs/pbb-hotline-periodic-sitrep.out.log",
+        "stderr": "storage/logs/pbb-hotline-periodic-sitrep.err.log"
       },
-      "notes": "Kit runs this on a one-minute schedule. Periodic SITREP generation is registered through Laravel's scheduler and runs from this service."
+      "notes": "Kit runs this command on a one-minute schedule. It invokes only the periodic SITREP generator and does not run Laravel's global scheduler."
     }
   ],
   "artifacts": {

@@ -22,8 +22,3 @@ Schedule::command('app:finalize-stale-call-media --grace-seconds=30')
     ->everyMinute()
     ->withoutOverlapping()
     ->runInBackground();
-
-Schedule::command('app:generate-periodic-sitrep')
-    ->everyMinute()
-    ->withoutOverlapping()
-    ->runInBackground();
