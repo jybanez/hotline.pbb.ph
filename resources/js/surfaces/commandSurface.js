@@ -20,7 +20,7 @@ import {
     parseRealtimeEnvelope,
     reducePresenceRosterEvent,
     RealtimeSocketClient,
-} from '../../../../realtime/resources/js/sdk/index.js';
+} from '../vendor/pbb-realtime-sdk/index.js';
 
 const SITREP_INDEX_URL = '/api/command/sitreps';
 const COMMAND_INCIDENTS_URL = '/api/command/incidents';

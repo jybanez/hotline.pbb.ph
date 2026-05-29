@@ -7,7 +7,7 @@ import { createOperatorMediaBatchChunkTransport } from '../media/transports/batc
 import { createRealtimeOperatorMediaChunkTransport } from '../media/transports/realtimeChunkTransport.js';
 import { createDashboardMap } from '../maps/dashboardMap.js';
 import { createWorkbenchLocationMap } from '../maps/workbenchLocationMap.js';
-import { buildAppEventPublishPayload, buildPresencePublishPayload, buildPresenceSubscribePayload, buildRoomJoinPayload, listPresenceRosterItems, parseRealtimeEnvelope, reducePresenceRosterEvent, RealtimeSocketClient } from '../../../../realtime/resources/js/sdk/index.js';
+import { buildAppEventPublishPayload, buildPresencePublishPayload, buildPresenceSubscribePayload, buildRoomJoinPayload, listPresenceRosterItems, parseRealtimeEnvelope, reducePresenceRosterEvent, RealtimeSocketClient } from '../vendor/pbb-realtime-sdk/index.js';
 import { citizenEventType, withCitizenRealtimePayloadAliases } from '../realtime/citizenEvents.js';
 
 const CALL_DISCOVERY_ROOM = 'presence.global.hotline';

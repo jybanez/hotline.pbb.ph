@@ -21,7 +21,7 @@ import {
     shouldPreviewAttachmentFile,
     transferAttachmentInChunks,
     validateDraftAttachments,
-} from '../../../../realtime/resources/js/sdk/index.js';
+} from '../vendor/pbb-realtime-sdk/index.js';
 
 const OPERATOR_WORKBENCH_KEY = 'hotline.operator.active_incident_id';
 const OPERATOR_WORKBENCH_CALL_SESSION_KEY = 'hotline.operator.active_call_session_id';

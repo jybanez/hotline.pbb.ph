@@ -2,7 +2,7 @@
 
 This document describes the first Kit Setup-facing installer contract for PBB Hotline.
 
-Hotline release bundles are ready-to-run. They must include `vendor/`, `public/build/`, a lean production Helper runtime at `public/vendor/helpers.pbb.ph`, the vendored Realtime SDK under `app/Support/Realtime/Sdk`, and the app-owned `ffmpeg` binary under `bin/ffmpeg/`. Target installs should not run Composer or Vite builds and should not depend on third-party application paths for FFmpeg.
+Hotline release bundles are ready-to-run. They must include `vendor/`, `public/build/`, a lean production Helper runtime at `public/vendor/helpers.pbb.ph`, the vendored Realtime backend SDK under `app/Support/Realtime/Sdk`, the vendored Realtime browser SDK under `resources/js/vendor/pbb-realtime-sdk`, and the app-owned `ffmpeg` binary under `bin/ffmpeg/`. Target installs should not run Composer or Vite builds and should not depend on third-party application paths for FFmpeg.
 
 ## Entrypoints
 
