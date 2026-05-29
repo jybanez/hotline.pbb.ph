@@ -199,8 +199,8 @@
     {
       "id": "pbb-hotline-periodic-sitrep",
       "name": "PBB Hotline Periodic SITREP",
-      "kind": "scheduler",
-      "command": "php artisan app:generate-periodic-sitrep",
+      "kind": "worker",
+      "command": "php artisan app:work-periodic-sitrep --sleep=60",
       "required": true,
       "healthcheck": "php artisan app:generate-periodic-sitrep --dry-run"
     }
@@ -231,13 +231,13 @@
     {
       "id": "pbb-hotline-periodic-sitrep",
       "name": "PBB Hotline Periodic SITREP",
-      "type": "scheduled_process",
+      "type": "background_process",
       "required": true,
       "required_for_smoke": true,
       "manager": "kit",
       "working_directory": "{app.install_path}",
       "command": "{runtime.php_binary}",
-      "args": ["artisan", "app:generate-periodic-sitrep"],
+      "args": ["artisan", "app:work-periodic-sitrep", "--sleep=60"],
       "health_check": {
         "type": "command",
         "command": "{runtime.php_binary}",
@@ -248,7 +248,7 @@
         "stdout": "storage/logs/pbb-hotline-periodic-sitrep.out.log",
         "stderr": "storage/logs/pbb-hotline-periodic-sitrep.err.log"
       },
-      "notes": "Kit runs this command on a one-minute schedule. It invokes only the periodic SITREP generator and does not run Laravel's global scheduler."
+      "notes": "Kit starts this isolated worker as a long-running service on Windows or Linux. It invokes only the periodic SITREP generator and does not run Laravel's global scheduler."
     }
   ],
   "artifacts": {

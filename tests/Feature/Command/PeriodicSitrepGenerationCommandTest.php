@@ -139,4 +139,18 @@ class PeriodicSitrepGenerationCommandTest extends TestCase
         $this->artisan('app:generate-periodic-sitrep --coverage-area=Cebu City')
             ->run();
     }
+
+    public function test_periodic_worker_runs_generator_once_when_max_runs_is_set(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-05-29 10:17:00', 'Asia/Manila'));
+        app(SettingsService::class)->set('sitrep_periodic_generation_enabled', false);
+
+        $this->artisan('app:work-periodic-sitrep --sleep=1 --max-runs=1')
+            ->expectsOutput('Periodic SITREP worker started. Checking every 1 seconds.')
+            ->expectsOutput('Periodic SITREP generation is disabled.')
+            ->expectsOutput('Periodic SITREP worker stopped.')
+            ->assertSuccessful();
+
+        $this->assertDatabaseCount('sitrep_reports', 0);
+    }
 }
