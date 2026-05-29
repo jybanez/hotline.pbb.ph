@@ -57,22 +57,22 @@ final class SitrepDocumentRenderer
     {
         $generation = is_array($sourceSnapshot['generation'] ?? null) ? $sourceSnapshot['generation'] : [];
         $preparedBy = trim((string) ($generation['prepared_by_label'] ?? '')) ?: 'System Generated';
-        $meta = [
+        $meta = $this->inlineParts([
             '#'.str_pad((string) ($sitrep->get('sequence_number') ?? ''), 4, '0', STR_PAD_LEFT),
             ucfirst((string) $sitrep->get('status')).' / '.ucfirst((string) $sitrep->get('visibility')),
             $sitrep->get('alert_level', 'Normal'),
             $preparedBy,
             $this->formatDate($sitrep->get('generated_at')),
-        ];
+        ]);
 
         return '<header class="sitrep-header">'
             .'<div>'
             .'<p class="sitrep-eyebrow">PBB Hotline Periodic SITREP</p>'
             .'<h1>'.Html::text($identity['title'] ?? $sitrep->get('title')).'</h1>'
             .'<p class="sitrep-periodline">'.Html::joined([$identity['hub'] ?? null, $identity['period'] ?? null]).'</p>'
-            .'<p class="sitrep-headline">'.Html::text($summary['headline'] ?? 'Situation report generated from PBB incident records.').'</p>'
+            .'<p class="sitrep-headline">'.Html::text($summary['headline'] ?? 'Situation report generated from Hotline incident records.').'</p>'
             .'</div>'
-            .'<p class="sitrep-metaline">'.Html::joined($meta).'</p>'
+            .'<p class="sitrep-metaline">'.$meta.'</p>'
             .'</header>';
     }
 
@@ -109,7 +109,7 @@ final class SitrepDocumentRenderer
                 [
                     'label' => 'Current Areas',
                     'value' => $summary['hotspot_area'] ?? 'No hotspot identified',
-                    'note' => 'Dominant type: '.(string) ($summary['dominant_incident_type'] ?? 'Unclassified'),
+                    'note' => $summary['hotspot_note'] ?? 'Dominant type: '.(string) ($summary['dominant_incident_type'] ?? 'Unclassified'),
                 ],
             ]);
         }
@@ -128,11 +128,13 @@ final class SitrepDocumentRenderer
         if (! empty($situation['current_operating_picture']) && is_array($situation['current_operating_picture'])) {
             $picture = $situation['current_operating_picture'];
             $html .= '<p class="sitrep-source-counts"><strong>Current totals:</strong> '
-                .Html::number($picture['open_reports'] ?? 0).' open reports'
-                .' · '.Html::number($picture['active_reports'] ?? 0).' active'
-                .' · '.Html::number($picture['deferred_reports'] ?? 0).' deferred'
-                .' · '.Html::number($picture['current_assignments'] ?? 0).' assignments'
-                .' · '.Html::number($picture['current_resource_units'] ?? 0).' requested resource units'
+                .$this->inlineParts([
+                    Html::number($picture['open_reports'] ?? 0).' open reports',
+                    Html::number($picture['active_reports'] ?? 0).' active',
+                    Html::number($picture['deferred_reports'] ?? 0).' deferred',
+                    Html::number($picture['current_assignments'] ?? 0).' assignments',
+                    Html::number($picture['current_resource_units'] ?? 0).' requested resource units',
+                ])
                 .'</p>';
         }
 
@@ -287,7 +289,7 @@ final class SitrepDocumentRenderer
             .$this->sectionHead('Actions', 'Response Posture')
             .$this->table('Team Deployment', ['Category', 'Team', 'Requested', 'Assigned', 'Accepted', 'En Route', 'On Scene', 'Completed', 'Cancelled'], $deploymentRows, 'No team assignments recorded.', 'is-team-deployment')
             .$this->table('Assignment Timing', ['Incident', 'Team', 'Status', 'Accepted', 'En Route', 'On Scene', 'Completed', 'Cancelled', 'Time in Status'], $timingRows, 'No assignment timing milestones recorded.', 'is-assignment-timing')
-            .'<p class="sitrep-note">Timing rows are scenario-specific and derived from team assignment milestone timestamps.</p>'
+            .'<p class="sitrep-note">Timing rows are scenario-specific and derived from team assignment milestone timestamps. Time in Status shows how long an open assignment has been in its current status, falling back to assignment time when older records do not have the milestone timestamp.</p>'
             .'</section>';
     }
 
@@ -344,15 +346,29 @@ final class SitrepDocumentRenderer
             if ($body !== '') {
                 $html .= '<p>'.Html::text($body).'</p>';
             }
-            if (! empty($gap['evidence']) || ! empty($gap['confidence_note'])) {
+            if (! empty($gap['evidence'])) {
                 $html .= '<dl class="sitrep-gap-details">';
-                if (! empty($gap['evidence'])) {
-                    $html .= '<div><dt>Evidence</dt><dd>'.Html::text($gap['evidence']).'</dd></div>';
-                }
+                $html .= '<div><dt>Evidence</dt><dd>'.Html::text($gap['evidence']).'</dd></div>';
                 if (! empty($gap['confidence_note'])) {
                     $html .= '<div><dt>Confidence</dt><dd>'.Html::text($gap['confidence_note']).'</dd></div>';
                 }
                 $html .= '</dl>';
+            }
+            $details = array_filter($gap['items'] ?? [], 'is_array');
+            if ($details !== []) {
+                $html .= '<ul class="sitrep-gap-evidence">';
+                foreach ($details as $detail) {
+                    $html .= '<li><strong>'.Html::text($detail['status'] ?? 'Reported').'</strong> '
+                        .'<span class="sitrep-gap-route">'.Html::text($detail['route_location'] ?? 'Location not specified').'</span>';
+                    if (! empty($detail['obstruction_type'])) {
+                        $html .= ' <span class="sitrep-gap-obstruction">&mdash; '.Html::text($detail['obstruction_type']).'</span>';
+                    }
+                    if (! empty($detail['cleared'])) {
+                        $html .= ' <span class="sitrep-gap-cleared">Cleared: '.Html::text($detail['cleared']).'</span>';
+                    }
+                    $html .= '</li>';
+                }
+                $html .= '</ul>';
             }
             $html .= '</article>';
         }
@@ -420,23 +436,28 @@ final class SitrepDocumentRenderer
         $sourceLines = [];
         $hotlineVersion = $hotline['display_version'] ?? $hotline['version'] ?? null;
         if ($hotlineVersion !== null) {
-            $sourceLines[] = 'Hotline: '.$hotlineVersion.(! empty($build['id']) ? ' · Build '.$build['id'] : '');
+            $sourceLines[] = $this->inlineParts([
+                'Hotline: '.$hotlineVersion,
+                ! empty($build['id']) ? 'Build '.$build['id'] : null,
+            ]);
         }
         if (! empty($hub['name'])) {
-            $sourceLines[] = 'Hub Node: '.$this->formatHubLabel($hub['name'])
-                .(! empty($hub['deployment']) ? ' · '.ucfirst((string) $hub['deployment']) : '')
-                .(! empty($hub['relay_hub_id']) ? ' · '.$hub['relay_hub_id'] : '');
+            $sourceLines[] = $this->inlineParts([
+                'Hub Node: '.$this->formatHubLabel($hub['name']),
+                ! empty($hub['deployment']) ? $this->formatDeploymentLabel($hub['deployment']) : null,
+                ! empty($hub['relay_hub_id']) ? $hub['relay_hub_id'] : null,
+            ]);
         }
         if ($primaryUplink !== null) {
             $uplinkName = $primaryUplink['hub']['name'] ?? $primaryUplink['uplink_domain'] ?? null;
             if ($uplinkName) {
-                $sourceLines[] = 'Uplink: '.$this->formatHubLabel($uplinkName);
+                $sourceLines[] = Html::text('Uplink: '.$this->formatHubLabel($uplinkName));
             }
         }
 
         $sourceHtml = '';
         foreach ($sourceLines as $line) {
-            $sourceHtml .= '<span>'.Html::text($line).'</span>';
+            $sourceHtml .= '<span>'.$line.'</span>'."\n";
         }
 
         return '<footer class="sitrep-footer">'
@@ -587,6 +608,34 @@ final class SitrepDocumentRenderer
         $parts = array_filter(array_map('trim', explode(',', (string) $value)), fn (string $part): bool => $part !== '');
 
         return implode(', ', array_map(fn (string $part): string => ucwords(strtolower($part)), $parts));
+    }
+
+    private function formatDeploymentLabel(mixed $value): string
+    {
+        $text = str_replace(['_', '-'], ' ', trim((string) $value));
+
+        return $text !== '' ? ucwords(strtolower($text)) : '';
+    }
+
+    /**
+     * @param array<int, mixed> $parts
+     */
+    private function inlineParts(array $parts): string
+    {
+        $filtered = array_values(array_filter(array_map(
+            fn (mixed $part): string => trim((string) $part),
+            $parts,
+        ), fn (string $part): bool => $part !== ''));
+
+        $html = '';
+        foreach ($filtered as $index => $part) {
+            if ($index > 0) {
+                $html .= ' <span class="sitrep-separator">&middot;</span> ';
+            }
+            $html .= '<span>'.Html::text($part).'</span>';
+        }
+
+        return $html;
     }
 
     /**

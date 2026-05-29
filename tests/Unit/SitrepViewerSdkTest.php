@@ -42,6 +42,95 @@ class SitrepViewerSdkTest extends TestCase
         $this->assertStringNotContainsString('<script>alert(1)</script>', $html);
     }
 
+    public function test_renders_gap_evidence_details_like_hotline_preview(): void
+    {
+        $viewer = new SitrepViewer();
+        $payload = $this->sitrep();
+        $payload['gaps']['items'] = [[
+            'category' => 'Access',
+            'title' => 'Blocked route',
+            'decision_relevance' => 'Response routing may need adjustment.',
+            'evidence' => 'Access reports include blocked routes.',
+            'confidence_note' => 'Field verification is still required.',
+            'items' => [[
+                'status' => 'Blocked',
+                'route_location' => 'M. Velez Street',
+                'obstruction_type' => 'Flooding',
+                'cleared' => 'No',
+            ]],
+        ]];
+
+        $html = $viewer->render($payload);
+
+        $this->assertStringContainsString('sitrep-gap-evidence', $html);
+        $this->assertStringContainsString('M. Velez Street', $html);
+        $this->assertStringContainsString('Flooding', $html);
+        $this->assertStringContainsString('Cleared: No', $html);
+        $this->assertStringContainsString('Field verification is still required.', $html);
+    }
+
+    public function test_uses_hotline_preview_fallback_copy(): void
+    {
+        $viewer = new SitrepViewer();
+        $payload = $this->sitrep();
+        unset($payload['summary']['headline'], $payload['summary']['gap_cards']);
+        $payload['summary']['hotspot_area'] = 'Guadalupe';
+        $payload['summary']['hotspot_note'] = 'Most current reports remain in Guadalupe.';
+
+        $html = $viewer->render($payload);
+
+        $this->assertStringContainsString('Situation report generated from Hotline incident records.', $html);
+        $this->assertStringContainsString('Most current reports remain in Guadalupe.', $html);
+        $this->assertStringContainsString('Time in Status shows how long an open assignment has been in its current status', $html);
+        $this->assertStringNotContainsString('Situation report generated from PBB incident records.', $html);
+    }
+
+    public function test_chunks_preview_metadata_totals_gap_evidence_and_source_snapshot(): void
+    {
+        $viewer = new SitrepViewer();
+        $payload = $this->sitrep();
+        $payload['sequence_number'] = 54;
+        $payload['status'] = 'draft';
+        $payload['visibility'] = 'private';
+        $payload['generated_at'] = '2026-05-27T09:39:00+08:00';
+        $payload['source_snapshot']['hotline']['build']['id'] = 'source-template';
+        $payload['source_snapshot']['generation']['prepared_by_label'] = 'System Generated';
+        $payload['situation']['current_operating_picture'] = [
+            'open_reports' => 23,
+            'active_reports' => 19,
+            'deferred_reports' => 4,
+            'current_assignments' => 27,
+            'current_resource_units' => 183,
+        ];
+        $payload['gaps']['items'] = [[
+            'category' => 'Access',
+            'title' => 'Blocked routes',
+            'decision_relevance' => 'Access remains constrained.',
+            'items' => [[
+                'status' => 'Blocked',
+                'route_location' => 'Riverside bridge approach',
+                'obstruction_type' => 'Floodwater',
+                'cleared' => 'No',
+            ]],
+        ]];
+
+        $html = $viewer->render($payload);
+        $text = $this->visibleText($html);
+
+        $this->assertStringContainsString('<p class="sitrep-metaline"><span>#0054</span> <span class="sitrep-separator">&middot;</span> <span>Draft / Private</span>', $html);
+        $this->assertStringContainsString('<span>System Generated</span>', $html);
+        $this->assertStringContainsString('<strong>Current totals:</strong> <span>23 open reports</span> <span class="sitrep-separator">&middot;</span> <span>19 active</span>', $html);
+        $this->assertStringContainsString('<span class="sitrep-gap-route">Riverside bridge approach</span>', $html);
+        $this->assertStringContainsString('<span class="sitrep-gap-obstruction">&mdash; Floodwater</span>', $html);
+        $this->assertStringContainsString('<span class="sitrep-gap-cleared">Cleared: No</span>', $html);
+        $this->assertStringContainsString('<span>Hotline: v1-5.6.1</span> <span class="sitrep-separator">&middot;</span> <span>Build source-template</span>', $html);
+        $this->assertStringContainsString('<span>Hub Node: Guadalupe, Cebu City, Cebu</span> <span class="sitrep-separator">&middot;</span> <span>Barangay</span> <span class="sitrep-separator">&middot;</span> <span>072217029</span>', $html);
+
+        $this->assertStringNotContainsString('FloodwaterCleared', $text);
+        $this->assertStringNotContainsString('source-templateHub Node', $text);
+        $this->assertStringNotContainsString('PrivateElevatedSystem', $text);
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -111,5 +200,12 @@ class SitrepViewerSdkTest extends TestCase
                 'global_note' => 'Generated from current Hotline data.',
             ],
         ];
+    }
+
+    private function visibleText(string $html): string
+    {
+        $text = html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+
+        return preg_replace('/\s+/u', ' ', $text) ?? $text;
     }
 }
