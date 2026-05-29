@@ -32,6 +32,12 @@ class SettingsService
             'relay_url' => 'https://relay.pbb.ph',
             'relay_token' => '',
             'map_server_url' => 'https://mapserver.pbb.ph',
+            'sitrep_periodic_generation_enabled' => true,
+            'sitrep_periodic_normal_interval_minutes' => 1440,
+            'sitrep_periodic_elevated_interval_minutes' => 360,
+            'sitrep_periodic_critical_interval_minutes' => 60,
+            'sitrep_periodic_coverage_area' => '',
+            'sitrep_periodic_prepared_by_user_id' => null,
         ];
     }
 
