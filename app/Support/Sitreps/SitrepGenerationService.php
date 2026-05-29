@@ -18,6 +18,11 @@ class SitrepGenerationService
 {
     private const HUB_NODE_CACHE_KEY = 'pbb_hotline.relay_hub_json.last_successful_snapshot';
 
+    public function __construct(
+        private readonly SitrepRelayOutboxService $relayOutbox,
+    ) {
+    }
+
     public function generate(?User $preparedBy, array $input): SitrepReport
     {
         $periodStart = Carbon::parse($input['period_started_at'])->startOfSecond();
@@ -50,7 +55,7 @@ class SitrepGenerationService
         $sequence = (int) SitrepReport::query()->max('sequence_number') + 1;
         $generatedAt = now();
 
-        return SitrepReport::query()->create([
+        $report = SitrepReport::query()->create([
             'sequence_number' => $sequence,
             'title' => $input['title'] ?? sprintf('PBB Hotline SITREP #%04d', $sequence),
             'coverage_area' => $coverageArea,
@@ -74,6 +79,10 @@ class SitrepGenerationService
             'privacy_redactions_json' => $this->buildPrivacyRedactions(),
             'data_quality_json' => $dataQuality,
         ]);
+
+        $this->relayOutbox->queue($report);
+
+        return $report;
     }
 
     private function scopedIncidents(?User $preparedBy, Carbon $periodStart, Carbon $periodEnd): Collection

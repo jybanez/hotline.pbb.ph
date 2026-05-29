@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Admin\IncidentTypeController;
 use App\Http\Controllers\Api\Admin\ResourceTypeController;
 use App\Http\Controllers\Api\Admin\ResourceTypeCategoryController;
 use App\Http\Controllers\Api\Admin\SettingsController;
+use App\Http\Controllers\Api\Admin\SitrepRelayDeliveryController;
 use App\Http\Controllers\Api\Admin\SummaryController;
 use App\Http\Controllers\Api\Admin\TeamCategoryController;
 use App\Http\Controllers\Api\Admin\TeamController;
@@ -59,4 +60,6 @@ Route::middleware(['auth', 'role:admin'])->prefix('/admin')->group(function (): 
     Route::delete('/teams/{team}/inventories/{inventory}', [TeamInventoryController::class, 'destroy']);
     Route::get('/settings', [SettingsController::class, 'show']);
     Route::post('/settings', [SettingsController::class, 'update']);
+    Route::get('/sitrep-relay-deliveries', [SitrepRelayDeliveryController::class, 'index']);
+    Route::post('/sitrep-relay-deliveries/{delivery}/retry', [SitrepRelayDeliveryController::class, 'retry']);
 });

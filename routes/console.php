@@ -22,3 +22,8 @@ Schedule::command('app:finalize-stale-call-media --grace-seconds=30')
     ->everyMinute()
     ->withoutOverlapping()
     ->runInBackground();
+
+Schedule::command('app:submit-latest-sitrep-to-relay')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->runInBackground();

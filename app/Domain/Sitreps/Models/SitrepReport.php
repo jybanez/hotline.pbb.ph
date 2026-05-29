@@ -6,6 +6,7 @@ use App\Domain\Users\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class SitrepReport extends Model
 {
@@ -64,6 +65,11 @@ class SitrepReport extends Model
     public function reviewedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by_user_id');
+    }
+
+    public function relayDelivery(): HasOne
+    {
+        return $this->hasOne(SitrepRelayDelivery::class, 'sitrep_report_id');
     }
 
     public function isPubliclyVisible(): bool

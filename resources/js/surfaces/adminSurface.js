@@ -7,6 +7,7 @@ const MODULES = [
     { id: 'incidents', label: 'Incidents', description: 'Incident categories, incident types, and related incident taxonomy controls.', implemented: true },
     { id: 'teams', label: 'Teams', description: 'Team directory, memberships, and operational grouping controls.', implemented: true },
     { id: 'resources', label: 'Resources', description: 'Resource types and future resource catalog controls.', implemented: true },
+    { id: 'sitrep-relay', label: 'SITREP Relay', description: 'Track latest-only SITREP handoff to the local Relay service.', implemented: true },
 ];
 
 const SETTINGS_ACTION_ID = 'admin-settings';
@@ -425,6 +426,7 @@ function renderOverviewModule(state) {
         incidents: `${counts.incident_types ?? 0} incident types`,
         teams: `${counts.teams ?? 0} teams`,
         resources: `${counts.resource_types ?? 0} resource types`,
+        'sitrep-relay': `${counts.sitrep_relay_pending ?? 0} pending`,
     };
 
     return `
@@ -509,6 +511,14 @@ function adminModuleCountMeta(state, moduleId) {
             return 'Loading...';
         }
         return `${state.resources.items.length ?? 0} resource types`;
+    }
+
+    if (moduleId === 'sitrep-relay') {
+        if (!state.sitrepRelay.loaded) {
+            return 'Loading...';
+        }
+        const current = state.sitrepRelay.items.find((item) => item.is_current);
+        return current ? formatStatusLabel(current.display_status) : 'No delivery rows';
     }
 
     return '';
@@ -622,6 +632,18 @@ function renderTeamsModule(state) {
     }, renderAdminModuleShell);
 }
 
+function renderSitrepRelayModule(state) {
+    return renderAdminModuleShell(state, {
+        moduleId: 'sitrep-relay',
+        title: 'SITREP Relay',
+        description: 'Monitor latest-only Relay handoff. Older unsent SITREPs are intentionally superseded once a newer report exists.',
+        pageClass: 'is-sitrep-relay',
+        bodyContent: state.sitrepRelay.loaded
+            ? '<div class="admin-grid-host is-standalone" data-admin-sitrep-relay-grid></div>'
+            : '<div class="admin-grid-host is-standalone admin-loading-host" data-admin-sitrep-relay-skeleton></div>',
+    });
+}
+
 function renderModuleContent(state) {
     if (state.module === 'overview') {
         return renderOverviewModule(state);
@@ -641,6 +663,10 @@ function renderModuleContent(state) {
 
     if (state.module === 'teams') {
         return renderTeamsModule(state);
+    }
+
+    if (state.module === 'sitrep-relay') {
+        return renderSitrepRelayModule(state);
     }
 
     return renderPendingModule(state, state.module);
@@ -3737,6 +3763,116 @@ function mountTeamsGrid(root, state) {
     rememberAdminInstance(grid);
 }
 
+function mountSitrepRelayGrid(root, state) {
+    const host = root.querySelector('[data-admin-sitrep-relay-grid]');
+
+    if (!host || !appState.helper.createGrid) {
+        return;
+    }
+
+    const rows = state.sitrepRelay.items.map((item) => {
+        const sitrep = item.sitrep ?? {};
+        const number = sitrep.sequence_number ? `#${String(sitrep.sequence_number).padStart(4, '0')}` : `Record ${item.sitrep_report_id}`;
+
+        return {
+            ...item,
+            sitrep_number: number,
+            sitrep_title: sitrep.title ?? 'SITREP',
+            generated_label: formatDateTime(sitrep.generated_at),
+            alert_level_label: sitrep.alert_level ?? 'Normal',
+            status_label: item.display_status === 'superseded' ? 'Superseded' : formatStatusLabel(item.status),
+            submitted_label: item.submitted_at ? formatDateTime(item.submitted_at) : 'Not accepted',
+            attempted_label: item.last_attempted_at ? formatDateTime(item.last_attempted_at) : 'Not attempted',
+            relay_label: item.relay_id || 'None',
+            error_label: item.last_error || '',
+        };
+    });
+
+    const grid = appState.helper.createGrid(host, rows, {
+        chrome: true,
+        className: 'admin-sitrep-relay-grid',
+        rowKey: 'id',
+        selectable: 'none',
+        enableSearch: true,
+        enableSort: true,
+        enablePagination: false,
+        enableColumnResize: true,
+        searchPlaceholder: 'Search SITREP, status, relay id, or error',
+        minColumnWidth: 96,
+        columnWidths: {
+            sitrep_number: 96,
+            sitrep_title: 300,
+            status_label: 118,
+            alert_level_label: 110,
+            attempt_count: 96,
+            generated_label: 168,
+            submitted_label: 168,
+            relay_label: 220,
+            actions: 112,
+        },
+        columns: [
+            { key: 'sitrep_number', label: 'SITREP', width: 96, sortable: true, wrap: false },
+            {
+                key: 'sitrep_title',
+                label: 'Title',
+                width: 300,
+                sortable: true,
+                wrap: false,
+                renderCell: ({ row }) => createStackedGridCell(
+                    row.sitrep_title,
+                    row.error_label || `Generated ${row.generated_label}`,
+                ),
+            },
+            { key: 'status_label', label: 'Status', width: 118, sortable: true, wrap: false },
+            { key: 'alert_level_label', label: 'Alert', width: 110, sortable: true, wrap: false },
+            { key: 'attempt_count', label: 'Attempts', width: 96, sortable: true, wrap: false, align: 'center' },
+            { key: 'submitted_label', label: 'Accepted', width: 168, sortable: true, wrap: false },
+            { key: 'relay_label', label: 'Relay ID', width: 220, sortable: true, wrap: false },
+            {
+                key: 'actions',
+                label: 'Actions',
+                width: 112,
+                sortable: false,
+                resizable: false,
+                align: 'center',
+                renderCell: ({ row }) => {
+                    const wrap = document.createElement('div');
+                    wrap.className = 'ui-cell-actions';
+
+                    if (row.is_retryable) {
+                        const retryButton = document.createElement('button');
+                        retryButton.type = 'button';
+                        retryButton.className = 'ui-button ui-button-small';
+                        retryButton.textContent = 'Retry';
+                        retryButton.addEventListener('click', async (event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            await retrySitrepRelayDelivery(row.id);
+                        });
+                        wrap.appendChild(retryButton);
+                    } else {
+                        const label = document.createElement('span');
+                        label.className = 'admin-grid-stacked-subtitle';
+                        label.textContent = row.display_status === 'superseded' ? 'Superseded' : 'Done';
+                        label.title = row.status_note || label.textContent;
+                        wrap.appendChild(label);
+                    }
+
+                    return wrap;
+                },
+            },
+        ],
+        toolbarEnd: ({ totalRows, createElement }) => [
+            createElement('span', {
+                className: 'pill blue admin-grid-count',
+                text: `${totalRows} deliveries`,
+            }),
+        ],
+    });
+
+    rememberAdminInstance(grid);
+}
+
 function mountSettingsEditor(root, state) {
     const host = root.querySelector('[data-admin-settings-editor]');
 
@@ -3766,6 +3902,21 @@ async function ensureSettingsLoaded() {
     }
 
     await hydrateAdminState(state, { forceSettings: true });
+}
+
+async function retrySitrepRelayDelivery(deliveryId) {
+    try {
+        await fetchJson(`/api/admin/sitrep-relay-deliveries/${encodeURIComponent(deliveryId)}/retry`, {
+            method: 'post',
+        });
+        showToast('Latest SITREP Relay handoff queued.', 'success');
+        await hydrateAdminStateAndRefresh(adminRuntime.state, {
+            refreshSitrepRelay: true,
+            refreshSummary: true,
+        });
+    } catch (error) {
+        showToast(error.response?.data?.message ?? 'Unable to retry SITREP Relay handoff.');
+    }
 }
 
 async function saveSettings() {
@@ -4015,6 +4166,14 @@ async function hydrateAdminState(state, options = {}) {
         }));
     }
 
+    if ((state.module === 'sitrep-relay' || options.forceSitrepRelay) && (!state.sitrepRelay.loaded || options.refreshSitrepRelay)) {
+        tasks.push(fetchJson('/api/admin/sitrep-relay-deliveries').then((payload) => {
+            state.sitrepRelay.items = Array.isArray(payload?.items) ? payload.items : [];
+            state.sitrepRelay.latestSitrepId = payload?.latest_sitrep_id ?? null;
+            state.sitrepRelay.loaded = true;
+        }));
+    }
+
     if (options.forceSettings || options.refreshSettings) {
         tasks.push(fetchJson('/api/admin/settings').then((payload) => {
             state.settings.items = Array.isArray(payload?.items) ? payload.items : [];
@@ -4057,6 +4216,7 @@ async function switchModule(moduleId) {
         forceIncidents: state.module === 'incidents',
         forceTeams: state.module === 'teams',
         forceResources: state.module === 'resources',
+        forceSitrepRelay: state.module === 'sitrep-relay',
     });
 }
 
@@ -4214,6 +4374,19 @@ function wireAdmin(root, bootstrap, state) {
         });
     }
 
+    if (state.module === 'sitrep-relay') {
+        if (!state.sitrepRelay.loaded) {
+            mountAdminSkeleton(root.querySelector('[data-admin-sitrep-relay-skeleton]'), { rows: 6 }, {
+                variant: 'grid',
+                columns: 1,
+                className: 'admin-grid-skeleton',
+            });
+            return;
+        }
+
+        mountSitrepRelayGrid(root, state);
+    }
+
 }
 
 export async function renderAdminSurface(root, bootstrap, options = {}) {
@@ -4266,6 +4439,11 @@ export async function renderAdminSurface(root, bootstrap, options = {}) {
             draft: {},
             sitrepPeriodic: null,
         },
+        sitrepRelay: {
+            loaded: false,
+            items: [],
+            latestSitrepId: null,
+        },
     };
 
     adminRuntime.state = state;
@@ -4279,5 +4457,6 @@ export async function renderAdminSurface(root, bootstrap, options = {}) {
         forceIncidents: state.module === 'incidents',
         forceTeams: state.module === 'teams',
         forceResources: state.module === 'resources',
+        forceSitrepRelay: state.module === 'sitrep-relay',
     });
 }
