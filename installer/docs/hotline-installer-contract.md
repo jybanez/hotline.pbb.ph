@@ -161,7 +161,7 @@ Release packaging must not copy the Hotline working tree wholesale. The installa
 - local environment and secrets: `.env`, `*.key`, `*.pem`, `*.crt`, and certificate/key backups
 - repository/editor metadata: `.git`, `.gitignore`, `.gitattributes`, `.gitmodules`, `.editorconfig`, `.vscode`, `.codex`
 - temporary/generated work folders: `.scaffold_tmp`, `.tmp*`, `.codex_tmp_*`, `outputs`, `tmp`, `storage`
-- test/build inputs: `tests`, `node_modules`, `phpunit.xml`, `.phpunit.result.cache`, `package.json`, `package-lock.json`, `vite.config.js`, `composer.lock`
+- test/build inputs: `tests`, `packages`, `node_modules`, `phpunit.xml`, `.phpunit.result.cache`, `package.json`, `package-lock.json`, `vite.config.js`, `composer.lock`
 - source-only docs and packaging helpers: top-level `docs` and `tools/prepare-helper-runtime.php`
 - demo/test database mutators: `app/Console/Commands/ClearTestIncidents.php`, `app/Console/Commands/SeedSampleSitrepIncidents.php`, and `database/seeders/DevUsersSeeder.php`
 

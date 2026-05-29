@@ -1,0 +1,61 @@
+{
+  "id": 63,
+  "sequence_number": 59,
+  "title": "Barangay Guadalupe SITREP",
+  "coverage_area": "Guadalupe, Cebu City, Cebu",
+  "period_started_at": "2026-05-29T17:00:00+08:00",
+  "period_ended_at": "2026-05-29T17:15:00+08:00",
+  "generated_at": "2026-05-29T17:15:47+08:00",
+  "alert_level": "Elevated",
+  "summary": {
+    "supporting_metrics": {
+      "total_incidents": 24,
+      "active_at_close": 24,
+      "team_assignments": 30,
+      "resource_need_units": 322
+    },
+    "status_counts": {
+      "Active": 20,
+      "Deferred": 4
+    }
+  },
+  "situation": {},
+  "damage": {
+    "items": []
+  },
+  "population": {
+    "numeric_total": 100,
+    "record_count": 22
+  },
+  "actions": {
+    "deployment_groups": [
+      {
+        "total_assignments": 30
+      }
+    ]
+  },
+  "needs": {
+    "items": [
+      {
+        "resource": "Rescue Boat",
+        "category": "Transport",
+        "quantity_requested": 3
+      }
+    ]
+  },
+  "gaps": {
+    "items": []
+  },
+  "source_snapshot": {
+    "hub_node": {
+      "snapshot": {
+        "hub_id": 12,
+        "relay_hub_id": "072217029",
+        "name": "Guadalupe, CEBU CITY, CEBU",
+        "deployment": "barangay"
+      }
+    }
+  },
+  "privacy_redactions": {},
+  "data_quality": {}
+}

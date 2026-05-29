@@ -1,0 +1,15 @@
+{
+    "name": "pbb/sitrep-consolidator",
+    "description": "Transport-agnostic PHP SDK for consolidating generated PBB SITREP payloads.",
+    "type": "library",
+    "license": "proprietary",
+    "require": {
+        "php": "^8.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "Pbb\\Sitreps\\Consolidation\\": "src/"
+        }
+    },
+    "minimum-stability": "stable"
+}

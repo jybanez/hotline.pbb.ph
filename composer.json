@@ -28,6 +28,7 @@
     },
     "autoload-dev": {
         "psr-4": {
+            "Pbb\\Sitreps\\Consolidation\\": "packages/pbb-sitrep-consolidator/src/",
             "Tests\\": "tests/"
         }
     },
