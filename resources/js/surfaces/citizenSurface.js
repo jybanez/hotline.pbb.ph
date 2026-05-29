@@ -1,6 +1,6 @@
 import { appState, availabilityPillClass, clearCallerPendingState, createIconMarkup, ensureHelperUi, escapeHtml, evaluateDevicePrimer, fetchJson, formatDateTime, formatIncidentStatusHeading, formatStatusLabel, getCallerPendingState, handleCommandBroadcastEnvelope, latestCallSession, logCallFlow, mergeIncidentMediaItems, mountChatComposer, mountChatThread, mountRealtimeCallSession, mountRealtimeIncidentChat, mountSurfaceChrome, primerStatusButton, setCallerPendingState, sharedShell, showToast, trackSurfaceInstance, wirePrimer } from './surfaceShared.js';
 import { renderSurface } from './renderSurface.js';
-import { buildAppEventPublishPayload, buildPresenceSubscribePayload, buildRoomJoinPayload, listPresenceRosterItems, parseRealtimeEnvelope, reducePresenceRosterEvent, RealtimeSocketClient } from '../../../../realtime/resources/js/sdk/index.js';
+import { buildAppEventPublishPayload, buildPresenceSubscribePayload, buildRoomJoinPayload, listPresenceRosterItems, parseRealtimeEnvelope, reducePresenceRosterEvent, RealtimeSocketClient } from '../vendor/pbb-realtime-sdk/index.js';
 import { mountRealtimeSignalStrength } from '../features/realtimeSignalStrength.js';
 import { citizenEventType, withCitizenRealtimePayloadAliases } from '../realtime/citizenEvents.js';
 

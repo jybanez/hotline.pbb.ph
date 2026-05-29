@@ -1,5 +1,5 @@
 import { fetchJson } from '../../surfaces/surfaceShared.js';
-import { buildBinaryMediaChunkFrame, buildMediaChunkPreparePayload, buildMediaChunkPublishPayload, buildRoomJoinPayload, parseRealtimeEnvelope, RealtimeSocketClient } from '../../../../../realtime/resources/js/sdk/index.js';
+import { buildBinaryMediaChunkFrame, buildMediaChunkPreparePayload, buildMediaChunkPublishPayload, buildRoomJoinPayload, parseRealtimeEnvelope, RealtimeSocketClient } from '../../vendor/pbb-realtime-sdk/index.js';
 
 function createTransferId(payload = {}) {
     const existing = String(payload?.transfer_id ?? payload?.correlation_id ?? '').trim();
