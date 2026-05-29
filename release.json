@@ -329,6 +329,7 @@
       "docs/",
       "node_modules/",
       "outputs/",
+      "packages/",
       "storage/",
       "tests/",
       "tmp/",

@@ -22,13 +22,13 @@
     "autoload": {
         "psr-4": {
             "App\\": "app/",
-            "Pbb\\Sitreps\\Consolidation\\": "packages/pbb-sitrep-consolidator/src/",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
         }
     },
     "autoload-dev": {
         "psr-4": {
+            "Pbb\\Sitreps\\Consolidation\\": "packages/pbb-sitrep-consolidator/src/",
             "Tests\\": "tests/"
         }
     },
