@@ -42,23 +42,23 @@ class AdminSettingsTest extends TestCase
             ->assertOk()
             ->assertJsonFragment([
                 'key' => 'realtime_client_code',
-                'value' => 'clt_01KMXFPRXCTHJAG10DMACJFMYB',
+                'value' => 'clt_PBB_HOTLINE',
             ])
             ->assertJsonFragment([
                 'key' => 'realtime_project_code_server',
-                'value' => 'prj_01KNGH5A0VAVWDT5Y8B35F2CV6',
+                'value' => 'prj_HOTLINE_SERVER',
             ])
             ->assertJsonFragment([
                 'key' => 'realtime_project_code_caller',
-                'value' => 'prj_01KMXG0AXB2S9CXS0YK4AFT2C9',
+                'value' => 'prj_HOTLINE_CITIZEN',
             ])
             ->assertJsonFragment([
                 'key' => 'realtime_project_code_operator',
-                'value' => 'prj_01KMXG0AXH58JZ2NQSGE5AYMH6',
+                'value' => 'prj_HOTLINE_OPERATOR',
             ])
             ->assertJsonFragment([
                 'key' => 'realtime_project_code_media_ingest',
-                'value' => 'prj_01KMXG0AXVRCG0WGZMMYKTVPZV',
+                'value' => 'prj_HOTLINE_OPERATOR',
             ])
             ->assertJsonFragment([
                 'key' => 'realtime_url',
@@ -83,17 +83,27 @@ class AdminSettingsTest extends TestCase
             ->assertJsonFragment([
                 'key' => 'map_server_url',
                 'value' => 'https://mapserver.pbb.ph',
+            ])
+            ->assertJsonFragment([
+                'key' => 'sitrep_periodic_generation_enabled',
+                'value' => true,
+            ])
+            ->assertJsonPath('meta.sitrep_periodic.prepared_by_label', 'System Generated')
+            ->assertJsonPath('meta.sitrep_periodic.coverage_source', 'relay_hub_json')
+            ->assertJsonFragment([
+                'key' => 'sitrep_periodic_normal_interval_minutes',
+                'value' => 240,
             ]);
 
         $this->actingAs($admin)
             ->postJson('/api/admin/settings', [
                 'items' => [
                     ['key' => 'alert_level', 'value' => 'Elevated'],
-                    ['key' => 'realtime_client_code', 'value' => 'clt_01KMXFPRXCTHJAG10DMACJFMYB'],
-                    ['key' => 'realtime_project_code_server', 'value' => 'prj_01KNGH5A0VAVWDT5Y8B35F2CV6'],
-                    ['key' => 'realtime_project_code_caller', 'value' => 'prj_01KMXG0AXB2S9CXS0YK4AFT2C9'],
-                    ['key' => 'realtime_project_code_operator', 'value' => 'prj_01KMXG0AXH58JZ2NQSGE5AYMH6'],
-                    ['key' => 'realtime_project_code_media_ingest', 'value' => 'prj_01KMXG0AXVRCG0WGZMMYKTVPZV'],
+                    ['key' => 'realtime_client_code', 'value' => 'clt_PBB_HOTLINE'],
+                    ['key' => 'realtime_project_code_server', 'value' => 'prj_HOTLINE_SERVER'],
+                    ['key' => 'realtime_project_code_caller', 'value' => 'prj_HOTLINE_CITIZEN'],
+                    ['key' => 'realtime_project_code_operator', 'value' => 'prj_HOTLINE_OPERATOR'],
+                    ['key' => 'realtime_project_code_media_ingest', 'value' => 'prj_HOTLINE_OPERATOR'],
                     ['key' => 'realtime_url', 'value' => 'https://realtime-beta.pbb.ph'],
                     ['key' => 'realtime_backend_ingress_secret', 'value' => 'backend-secret-001'],
                     ['key' => 'realtime_token_signing_secret', 'value' => 'beta-secret-001'],
@@ -109,23 +119,23 @@ class AdminSettingsTest extends TestCase
             ])
             ->assertJsonFragment([
                 'key' => 'realtime_client_code',
-                'value' => 'clt_01KMXFPRXCTHJAG10DMACJFMYB',
+                'value' => 'clt_PBB_HOTLINE',
             ])
             ->assertJsonFragment([
                 'key' => 'realtime_project_code_server',
-                'value' => 'prj_01KNGH5A0VAVWDT5Y8B35F2CV6',
+                'value' => 'prj_HOTLINE_SERVER',
             ])
             ->assertJsonFragment([
                 'key' => 'realtime_project_code_caller',
-                'value' => 'prj_01KMXG0AXB2S9CXS0YK4AFT2C9',
+                'value' => 'prj_HOTLINE_CITIZEN',
             ])
             ->assertJsonFragment([
                 'key' => 'realtime_project_code_operator',
-                'value' => 'prj_01KMXG0AXH58JZ2NQSGE5AYMH6',
+                'value' => 'prj_HOTLINE_OPERATOR',
             ])
             ->assertJsonFragment([
                 'key' => 'realtime_project_code_media_ingest',
-                'value' => 'prj_01KMXG0AXVRCG0WGZMMYKTVPZV',
+                'value' => 'prj_HOTLINE_OPERATOR',
             ])
             ->assertJsonFragment([
                 'key' => 'realtime_url',
@@ -183,8 +193,8 @@ class AdminSettingsTest extends TestCase
         Http::assertSent(function ($request) {
             return $request->url() === 'https://realtime.pbb.ph/api/v1/events/publish'
                 && $request->hasHeader('X-Realtime-Backend-Secret', 'backend-secret-001')
-                && $request['client_code'] === 'clt_01KMXFPRXCTHJAG10DMACJFMYB'
-                && $request['project_code'] === 'prj_01KNGH5A0VAVWDT5Y8B35F2CV6'
+                && $request['client_code'] === 'clt_PBB_HOTLINE'
+                && $request['project_code'] === 'prj_HOTLINE_SERVER'
                 && $request['room'] === 'hotline.settings.global'
                 && $request['event_type'] === 'hotline.alert_level.changed'
                 && $request['payload']['alert_level'] === 'Critical';

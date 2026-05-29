@@ -1,4 +1,4 @@
-import { appState, confirmDeleteAction, ensureHelperUi, escapeHtml, fetchJson, formatBlockedDeleteMessage, formatStatusLabel, mountSurfaceChrome, sharedShell, showToast, trackSurfaceInstance } from './surfaceShared.js';
+import { appState, confirmDeleteAction, ensureHelperUi, escapeHtml, fetchJson, formatBlockedDeleteMessage, formatDateTime, formatStatusLabel, mountSurfaceChrome, sharedShell, showToast, trackSurfaceInstance } from './surfaceShared.js';
 import { mountCategoryList, renderGroupedModule } from './adminSurfaceGrouped.js';
 
 const MODULES = [
@@ -356,6 +356,41 @@ function describeAlertLevel(alertLevel) {
         default:
             return 'Standard barangay operations are in effect.';
     }
+}
+
+function isTruthySetting(value) {
+    if (typeof value === 'boolean') {
+        return value;
+    }
+
+    return ['1', 'true', 'yes', 'on'].includes(String(value ?? '').trim().toLowerCase());
+}
+
+function formatSitrepCoverageSource(value) {
+    if (value === 'relay_hub_json') {
+        return 'Relay hub.json';
+    }
+
+    return value ? formatStatusLabel(value) : 'Relay hub.json';
+}
+
+function formatSitrepWindow(startedAt, endedAt) {
+    if (!startedAt || !endedAt) {
+        return 'Pending';
+    }
+
+    return `${formatDateTime(startedAt)} to ${formatDateTime(endedAt)}`;
+}
+
+function formatLatestAutoSitrep(report) {
+    if (!report) {
+        return 'None generated yet';
+    }
+
+    const number = report.sequence_number ? `#${String(report.sequence_number).padStart(4, '0')}` : `Record ${report.id}`;
+    const generatedAt = report.generated_at ? ` - ${formatDateTime(report.generated_at)}` : '';
+
+    return `${number} ${report.title ?? 'Periodic SITREP'}${generatedAt}`;
 }
 
 function renderOverviewModule(state) {
@@ -925,6 +960,9 @@ async function refreshSummaryAndTeams({ keepSelection = true } = {}) {
 
 function settingsEditorData(state) {
     const values = state.settings.draft;
+    const sitrepPeriodic = state.settings.sitrepPeriodic ?? {};
+    const latestAutoSitrep = sitrepPeriodic.latest_auto_sitrep ?? null;
+    const periodicEnabled = isTruthySetting(values.sitrep_periodic_generation_enabled ?? sitrepPeriodic.enabled ?? true);
 
     return {
         selectionLabel: 'Hotline Runtime Settings',
@@ -1009,6 +1047,17 @@ function settingsEditorData(state) {
                 description: 'Periodic draft generation intervals by active alert level.',
                 properties: [
                     {
+                        id: 'sitrep_periodic_generation_enabled',
+                        kind: 'select',
+                        label: 'Periodic Generation',
+                        value: periodicEnabled ? 'true' : 'false',
+                        options: [
+                            { value: 'true', label: 'Enabled' },
+                            { value: 'false', label: 'Disabled' },
+                        ],
+                        help: 'Controls whether the scheduler may auto-generate private draft SITREPs.',
+                    },
+                    {
                         id: 'sitrep_periodic_normal_interval_minutes',
                         kind: 'number',
                         label: 'Normal Interval Minutes',
@@ -1028,6 +1077,55 @@ function settingsEditorData(state) {
                         label: 'Critical Interval Minutes',
                         value: values.sitrep_periodic_critical_interval_minutes ?? 15,
                         help: 'Default reporting cadence while alert level is Critical.',
+                    },
+                    {
+                        id: 'sitrep_periodic_status_prepared_by',
+                        kind: 'text',
+                        label: 'Prepared By',
+                        value: sitrepPeriodic.prepared_by_label ?? 'System Generated',
+                        readOnly: true,
+                    },
+                    {
+                        id: 'sitrep_periodic_status_coverage',
+                        kind: 'text',
+                        label: 'Coverage Source',
+                        value: formatSitrepCoverageSource(sitrepPeriodic.coverage_source),
+                        readOnly: true,
+                    },
+                    {
+                        id: 'sitrep_periodic_status_alert_level',
+                        kind: 'text',
+                        label: 'Active Alert Level',
+                        value: sitrepPeriodic.alert_level ?? values.alert_level ?? 'Normal',
+                        readOnly: true,
+                    },
+                    {
+                        id: 'sitrep_periodic_status_active_interval',
+                        kind: 'text',
+                        label: 'Active Interval',
+                        value: sitrepPeriodic.interval_minutes ? `${sitrepPeriodic.interval_minutes} minutes` : 'Pending',
+                        readOnly: true,
+                    },
+                    {
+                        id: 'sitrep_periodic_status_window',
+                        kind: 'text',
+                        label: 'Last Completed Window',
+                        value: formatSitrepWindow(sitrepPeriodic.period_started_at, sitrepPeriodic.period_ended_at),
+                        readOnly: true,
+                    },
+                    {
+                        id: 'sitrep_periodic_status_next_due',
+                        kind: 'text',
+                        label: 'Next Due Window',
+                        value: formatDateTime(sitrepPeriodic.next_due_at),
+                        readOnly: true,
+                    },
+                    {
+                        id: 'sitrep_periodic_status_latest',
+                        kind: 'text',
+                        label: 'Latest Auto SITREP',
+                        value: formatLatestAutoSitrep(latestAutoSitrep),
+                        readOnly: true,
                     },
                 ],
             },
@@ -3682,6 +3780,7 @@ async function saveSettings() {
         const publishMeta = payload?.meta?.realtime_publish ?? null;
 
         state.settings.items = Array.isArray(payload?.items) ? payload.items : [];
+        state.settings.sitrepPeriodic = payload?.meta?.sitrep_periodic ?? null;
         state.settings.draft = Object.fromEntries(state.settings.items.map((item) => [item.key, item.value]));
         const nextSettings = { ...(adminRuntime.bootstrap?.settings ?? appState.bootstrap?.settings ?? {}) };
         const nextAlertLevel = String(state.settings.draft.alert_level ?? adminRuntime.bootstrap?.alert_level ?? appState.bootstrap?.alert_level ?? 'Normal');
@@ -3920,6 +4019,7 @@ async function hydrateAdminState(state, options = {}) {
         tasks.push(fetchJson('/api/admin/settings').then((payload) => {
             state.settings.items = Array.isArray(payload?.items) ? payload.items : [];
             state.settings.loaded = true;
+            state.settings.sitrepPeriodic = payload?.meta?.sitrep_periodic ?? null;
             state.settings.draft = Object.fromEntries(state.settings.items.map((item) => [item.key, item.value]));
         }));
     }
@@ -4164,6 +4264,7 @@ export async function renderAdminSurface(root, bootstrap, options = {}) {
             loaded: false,
             items: [],
             draft: {},
+            sitrepPeriodic: null,
         },
     };
 

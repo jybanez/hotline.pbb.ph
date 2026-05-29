@@ -2,9 +2,9 @@
 
 namespace App\Console\Commands;
 
-use App\Domain\Shared\Enums\AlertLevel;
 use App\Domain\Sitreps\Models\SitrepReport;
 use App\Support\Settings\SettingsService;
+use App\Support\Sitreps\PeriodicSitrepSchedule;
 use App\Support\Sitreps\SitrepGenerationService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
@@ -18,20 +18,21 @@ class GeneratePeriodicSitrep extends Command
 
     protected $description = 'Generate a private draft SITREP for the last completed alert-level reporting window.';
 
-    public function handle(SettingsService $settings, SitrepGenerationService $sitreps): int
+    public function handle(SettingsService $settings, SitrepGenerationService $sitreps, PeriodicSitrepSchedule $schedule): int
     {
         $forced = (bool) $this->option('force');
 
-        if (! $forced && ! $this->booleanSetting($settings->get('sitrep_periodic_generation_enabled', true))) {
+        if (! $forced && ! $schedule->isEnabled($settings)) {
             $this->info('Periodic SITREP generation is disabled.');
 
             return self::SUCCESS;
         }
 
-        $alertLevel = $settings->currentAlertLevel();
-        $intervalMinutes = $this->intervalMinutes($settings, $alertLevel);
-        $periodEnd = $this->lastCompletedWindowEnd(Carbon::now(), $intervalMinutes);
-        $periodStart = $periodEnd->copy()->subMinutes($intervalMinutes);
+        $window = $schedule->window($settings);
+        $alertLevel = $window['alert_level'];
+        $intervalMinutes = $window['interval_minutes'];
+        $periodStart = $window['period_started_at'];
+        $periodEnd = $window['period_ended_at'];
 
         if (! $forced && $this->reportExistsForWindow($periodStart, $periodEnd)) {
             $this->info(sprintf(
@@ -91,47 +92,11 @@ class GeneratePeriodicSitrep extends Command
         return self::SUCCESS;
     }
 
-    private function intervalMinutes(SettingsService $settings, AlertLevel $alertLevel): int
-    {
-        $key = match ($alertLevel) {
-            AlertLevel::Critical => 'sitrep_periodic_critical_interval_minutes',
-            AlertLevel::Elevated => 'sitrep_periodic_elevated_interval_minutes',
-            AlertLevel::Normal => 'sitrep_periodic_normal_interval_minutes',
-        };
-
-        return max(1, (int) $settings->get($key));
-    }
-
-    private function lastCompletedWindowEnd(Carbon $now, int $intervalMinutes): Carbon
-    {
-        $timezone = (string) config('app.timezone', 'UTC');
-        $localized = $now->copy()->setTimezone($timezone)->startOfMinute();
-        $dayStart = $localized->copy()->startOfDay();
-        $minutesSinceDayStart = $dayStart->diffInMinutes($localized);
-        $completedIntervals = intdiv($minutesSinceDayStart, $intervalMinutes);
-        $windowEnd = $dayStart->copy()->addMinutes($completedIntervals * $intervalMinutes);
-
-        if ($windowEnd->equalTo($localized)) {
-            return $windowEnd;
-        }
-
-        return $windowEnd;
-    }
-
     private function reportExistsForWindow(Carbon $periodStart, Carbon $periodEnd): bool
     {
         return SitrepReport::query()
             ->where('period_started_at', $periodStart->toDateTimeString())
             ->where('period_ended_at', $periodEnd->toDateTimeString())
             ->exists();
-    }
-
-    private function booleanSetting(mixed $value): bool
-    {
-        if (is_bool($value)) {
-            return $value;
-        }
-
-        return in_array(strtolower(trim((string) $value)), ['1', 'true', 'yes', 'on'], true);
     }
 }
