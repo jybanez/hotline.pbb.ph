@@ -1,0 +1,61 @@
+{
+  "id": 44,
+  "sequence_number": 40,
+  "title": "Barangay Capitol Site SITREP",
+  "coverage_area": "Capitol Site, Cebu City, Cebu",
+  "period_started_at": "2026-05-29T17:00:00+08:00",
+  "period_ended_at": "2026-05-29T17:15:00+08:00",
+  "generated_at": "2026-05-29T17:16:15+08:00",
+  "alert_level": "Normal",
+  "summary": {
+    "supporting_metrics": {
+      "total_incidents": 4,
+      "active_at_close": 3,
+      "team_assignments": 5,
+      "resource_need_units": 12
+    },
+    "status_counts": {
+      "Active": 3,
+      "Deferred": 1
+    }
+  },
+  "situation": {},
+  "damage": {
+    "items": []
+  },
+  "population": {
+    "numeric_total": 12,
+    "record_count": 3
+  },
+  "actions": {
+    "deployment_groups": [
+      {
+        "total_assignments": 5
+      }
+    ]
+  },
+  "needs": {
+    "items": [
+      {
+        "resource": "Rescue Boat",
+        "category": "Transport",
+        "quantity_requested": 1
+      }
+    ]
+  },
+  "gaps": {
+    "items": []
+  },
+  "source_snapshot": {
+    "hub_node": {
+      "snapshot": {
+        "hub_id": 14,
+        "relay_hub_id": "072217027",
+        "name": "Capitol Site, CEBU CITY, CEBU",
+        "deployment": "barangay"
+      }
+    }
+  },
+  "privacy_redactions": {},
+  "data_quality": {}
+}

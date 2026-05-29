@@ -1,0 +1,4 @@
+/output/*
+/staging/*
+!/output/.gitkeep
+!/staging/.gitkeep

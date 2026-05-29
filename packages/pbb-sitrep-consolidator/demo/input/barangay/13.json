@@ -1,0 +1,61 @@
+{
+  "id": 41,
+  "sequence_number": 38,
+  "title": "Barangay Lahug SITREP",
+  "coverage_area": "Lahug, Cebu City, Cebu",
+  "period_started_at": "2026-05-29T17:00:00+08:00",
+  "period_ended_at": "2026-05-29T17:15:00+08:00",
+  "generated_at": "2026-05-29T17:16:02+08:00",
+  "alert_level": "Critical",
+  "summary": {
+    "supporting_metrics": {
+      "total_incidents": 8,
+      "active_at_close": 7,
+      "team_assignments": 11,
+      "resource_need_units": 42
+    },
+    "status_counts": {
+      "Active": 7,
+      "Deferred": 1
+    }
+  },
+  "situation": {},
+  "damage": {
+    "items": []
+  },
+  "population": {
+    "numeric_total": 31,
+    "record_count": 6
+  },
+  "actions": {
+    "deployment_groups": [
+      {
+        "total_assignments": 11
+      }
+    ]
+  },
+  "needs": {
+    "items": [
+      {
+        "resource": "Ambulance",
+        "category": "Medical",
+        "quantity_requested": 2
+      }
+    ]
+  },
+  "gaps": {
+    "items": []
+  },
+  "source_snapshot": {
+    "hub_node": {
+      "snapshot": {
+        "hub_id": 13,
+        "relay_hub_id": "072217028",
+        "name": "Lahug, CEBU CITY, CEBU",
+        "deployment": "barangay"
+      }
+    }
+  },
+  "privacy_redactions": {},
+  "data_quality": {}
+}
