@@ -108,6 +108,10 @@ $staging->stage($normalized);
 
 If another SITREP arrives from the same deployment and `hub_id`, staging overwrites the previous file.
 
+Filesystem staging validates deployment and hub ID as safe path segments before writing files. Values containing path separators or traversal segments are rejected.
+
+Both SDK staging stores return normalized SITREP records from `list($deployment)`. Pass those records directly to `consolidate()`.
+
 Staging is not history. Historical drill-down should go to the source hub's Hotline instance or to the host app's own archive.
 
 ## Consolidate One Deployment Group
@@ -131,6 +135,8 @@ $citySitrep = $result->sitrep;
 
 `consolidate()` rejects mixed deployment batches. Use `groupByDeployment()` first when the intake set may contain barangay and city SITREPs together.
 
+Direct consolidation also rejects duplicate `hub_id` values. Stage incoming SITREPs first when a host app wants latest-by-hub overwrite behavior.
+
 ## Validation Issues
 
 Each issue includes:
@@ -147,6 +153,7 @@ Common errors:
 - `missing_source_deployment`
 - `missing_source_hub_id`
 - `mixed_source_deployment`
+- `duplicate_source_hub`
 - `empty_source_batch`
 
 ## Demo

@@ -58,8 +58,10 @@ The SDK must be vendorable by non-Hotline PBB PHP apps, including city and provi
 - [x] Implement in-memory staging store for tests/demo.
 - [x] Stage by deployment and PBB HUB HQ `hub_id`.
 - [x] Use filename/key shape `<hub_id>.json`.
+- [x] Reject unsafe filesystem path segments before staging.
 - [x] Overwrite the latest staged SITREP for the same source hub.
 - [x] List latest staged SITREPs for one deployment.
+- [x] Return normalized records consistently from staging stores.
 - [x] Remove staged SITREP by deployment and hub ID.
 - [x] Do not store history in SDK staging.
 
@@ -67,6 +69,7 @@ The SDK must be vendorable by non-Hotline PBB PHP apps, including city and provi
 
 - [x] Implement `SitrepConsolidator::consolidate(array $sitreps, array $context): SitrepConsolidationResult`.
 - [x] Reject mixed deployment batches.
+- [x] Reject duplicate source hub IDs in direct consolidation batches.
 - [x] Choose highest alert level using `Critical > Elevated > Normal`.
 - [x] Sum additive `summary.supporting_metrics`.
 - [x] Merge `summary.status_counts`.
@@ -100,8 +103,11 @@ The SDK must be vendorable by non-Hotline PBB PHP apps, including city and provi
 - [x] Test staging overwrite by hub ID.
 - [x] Test staging list by deployment.
 - [x] Test filesystem staging uses `<hub_id>.json`.
+- [x] Test filesystem staging rejects unsafe path segments.
+- [x] Test filesystem staging returns normalized records.
 - [x] Test successful consolidation of three barangay SITREPs.
 - [x] Test mixed deployment consolidation rejection.
+- [x] Test duplicate source hub consolidation rejection.
 - [x] Test missing deployment rejection.
 - [x] Test missing hub ID rejection.
 - [x] Test highest alert level selection.

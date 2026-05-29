@@ -2,17 +2,20 @@
 
 namespace Pbb\Sitreps\Consolidation\Staging;
 
+use Pbb\Sitreps\Consolidation\SitrepNormalizer;
+
 final class FilesystemSitrepStagingStore implements SitrepStagingStore
 {
     public function __construct(
         private readonly string $rootPath,
+        private readonly SitrepNormalizer $normalizer = new SitrepNormalizer(),
     ) {
     }
 
     public function stage(array $normalizedSitrep): array
     {
-        $deployment = (string) $normalizedSitrep['source_deployment'];
-        $sourceHubId = (string) $normalizedSitrep['source_hub_id'];
+        $deployment = $this->safePathSegment((string) $normalizedSitrep['source_deployment'], 'source_deployment');
+        $sourceHubId = $this->safePathSegment((string) $normalizedSitrep['source_hub_id'], 'source_hub_id');
         $directory = $this->rootPath.DIRECTORY_SEPARATOR.$deployment;
         $path = $directory.DIRECTORY_SEPARATOR.$sourceHubId.'.json';
 
@@ -33,7 +36,8 @@ final class FilesystemSitrepStagingStore implements SitrepStagingStore
 
     public function list(string $deployment): array
     {
-        $directory = $this->rootPath.DIRECTORY_SEPARATOR.$deployment;
+        $safeDeployment = $this->safePathSegment($deployment, 'deployment');
+        $directory = $this->rootPath.DIRECTORY_SEPARATOR.$safeDeployment;
 
         if (! is_dir($directory)) {
             return [];
@@ -45,7 +49,11 @@ final class FilesystemSitrepStagingStore implements SitrepStagingStore
             $payload = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
 
             if (is_array($payload)) {
-                $items[] = $payload;
+                $normalized = $this->normalizer->normalize($payload);
+
+                if ($normalized['normalized'] !== null) {
+                    $items[] = $normalized['normalized'];
+                }
             }
         }
 
@@ -54,10 +62,27 @@ final class FilesystemSitrepStagingStore implements SitrepStagingStore
 
     public function forget(string $deployment, string $sourceHubId): void
     {
-        $path = $this->rootPath.DIRECTORY_SEPARATOR.$deployment.DIRECTORY_SEPARATOR.$sourceHubId.'.json';
+        $path = $this->rootPath
+            .DIRECTORY_SEPARATOR.$this->safePathSegment($deployment, 'deployment')
+            .DIRECTORY_SEPARATOR.$this->safePathSegment($sourceHubId, 'source_hub_id').'.json';
 
         if (is_file($path)) {
             unlink($path);
         }
+    }
+
+    private function safePathSegment(string $value, string $field): string
+    {
+        $value = trim($value);
+
+        if ($value === '' || ! preg_match('/\A[A-Za-z0-9._-]+\z/', $value)) {
+            throw new \InvalidArgumentException(sprintf('Unsafe %s path segment.', $field));
+        }
+
+        if ($value === '.' || $value === '..') {
+            throw new \InvalidArgumentException(sprintf('Unsafe %s path segment.', $field));
+        }
+
+        return $value;
     }
 }

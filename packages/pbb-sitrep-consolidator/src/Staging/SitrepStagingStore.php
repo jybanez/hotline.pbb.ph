@@ -11,6 +11,8 @@ interface SitrepStagingStore
     public function stage(array $normalizedSitrep): array;
 
     /**
+     * Returns normalized SITREP records, not raw source payloads.
+     *
      * @return array<int, array<string, mixed>>
      */
     public function list(string $deployment): array;

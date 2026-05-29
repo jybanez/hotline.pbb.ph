@@ -86,6 +86,19 @@ final class SitrepConsolidator
             ], $this->sourceIndex($normalized));
         }
 
+        $duplicateHubIds = $this->duplicateSourceHubIds($normalized);
+        if ($duplicateHubIds !== []) {
+            return new SitrepConsolidationResult(false, null, [
+                new SitrepValidationIssue(
+                    'error',
+                    'duplicate_source_hub',
+                    'Source SITREP batches must contain at most one report per source hub. Stage latest-by-hub before consolidation.',
+                    'source_snapshot.hub_node.snapshot.hub_id',
+                    $duplicateHubIds,
+                ),
+            ], $this->sourceIndex($normalized));
+        }
+
         $sourceIndex = $this->sourceIndex($normalized);
         $sitrep = [
             'title' => $this->title($context, $deployments[0]),
@@ -132,6 +145,25 @@ final class SitrepConsolidator
         ];
 
         return new SitrepConsolidationResult(true, $sitrep, $issues, $sourceIndex);
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $normalized
+     * @return array<int, string>
+     */
+    private function duplicateSourceHubIds(array $normalized): array
+    {
+        $counts = [];
+
+        foreach ($normalized as $source) {
+            $hubId = (string) $source['source_hub_id'];
+            $counts[$hubId] = ($counts[$hubId] ?? 0) + 1;
+        }
+
+        return array_map(
+            static fn (int|string $hubId): string => (string) $hubId,
+            array_values(array_keys(array_filter($counts, static fn (int $count): bool => $count > 1))),
+        );
     }
 
     /**

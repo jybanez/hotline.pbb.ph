@@ -55,11 +55,31 @@ class SitrepConsolidatorSdkTest extends TestCase
 
             $this->assertSame('barangay/72217029.json', $receipt['key']);
             $this->assertFileExists($root.DIRECTORY_SEPARATOR.'barangay'.DIRECTORY_SEPARATOR.'72217029.json');
-            $this->assertCount(1, $staging->list('barangay'));
+            $listed = $staging->list('barangay');
+
+            $this->assertCount(1, $listed);
+            $this->assertSame('72217029', $listed[0]['source_hub_id']);
+            $this->assertArrayHasKey('payload', $listed[0]);
 
             $staging->forget('barangay', '72217029');
 
             $this->assertSame([], $staging->list('barangay'));
+        } finally {
+            $this->removeDirectory($root);
+        }
+    }
+
+    public function test_filesystem_staging_rejects_unsafe_path_segments(): void
+    {
+        $normalizer = new SitrepNormalizer();
+        $root = sys_get_temp_dir().DIRECTORY_SEPARATOR.'pbb-sitrep-consolidator-test-'.bin2hex(random_bytes(6));
+        $staging = new FilesystemSitrepStagingStore($root);
+        $normalized = $normalizer->normalize($this->sitrep(12, 'barangay'))['normalized'];
+        $normalized['source_hub_id'] = '../outside';
+
+        try {
+            $this->expectException(\InvalidArgumentException::class);
+            $staging->stage($normalized);
         } finally {
             $this->removeDirectory($root);
         }
@@ -102,6 +122,40 @@ class SitrepConsolidatorSdkTest extends TestCase
 
         $this->assertFalse($result->ok);
         $this->assertSame('mixed_source_deployment', $result->errors()[0]->code);
+    }
+
+    public function test_rejects_duplicate_source_hub_reports(): void
+    {
+        $consolidator = new SitrepConsolidator();
+
+        $result = $consolidator->consolidate([
+            $this->sitrep(12, 'barangay', sequence: 1, totalIncidents: 4),
+            $this->sitrep(12, 'barangay', sequence: 2, totalIncidents: 7),
+        ], []);
+
+        $this->assertFalse($result->ok);
+        $this->assertSame('duplicate_source_hub', $result->errors()[0]->code);
+        $this->assertSame(['12'], $result->errors()[0]->value);
+    }
+
+    public function test_consolidates_normalized_records_from_filesystem_staging(): void
+    {
+        $normalizer = new SitrepNormalizer();
+        $root = sys_get_temp_dir().DIRECTORY_SEPARATOR.'pbb-sitrep-consolidator-test-'.bin2hex(random_bytes(6));
+        $staging = new FilesystemSitrepStagingStore($root);
+        $consolidator = new SitrepConsolidator();
+
+        try {
+            $staging->stage($normalizer->normalize($this->sitrep(12, 'barangay', totalIncidents: 4))['normalized']);
+            $staging->stage($normalizer->normalize($this->sitrep(13, 'barangay', totalIncidents: 7))['normalized']);
+
+            $result = $consolidator->consolidate($staging->list('barangay'), []);
+
+            $this->assertTrue($result->ok);
+            $this->assertSame(11, $result->sitrep['summary']['supporting_metrics']['total_incidents']);
+        } finally {
+            $this->removeDirectory($root);
+        }
     }
 
     public function test_rejects_missing_deployment_and_hub_id(): void
