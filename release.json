@@ -27,6 +27,15 @@
     "from_versions": ["5.6.1"],
     "compatibility": "same-version-rebuild",
     "requires_database_migration": true,
+    "database_migration": {
+      "policy": "additive",
+      "summary": "Adds the sitrep_relay_deliveries outbox table for latest-only SITREP Relay handoff.",
+      "rollback": "app-owned; forward repair reruns Laravel migrations",
+      "destructive": false,
+      "drops_tables": false,
+      "drops_columns": false,
+      "overwrites_existing_data": false
+    },
     "requires_data_prep_rerun": false,
     "requires_service_restart": true,
     "rollback_supported": true
