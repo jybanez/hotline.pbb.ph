@@ -624,6 +624,30 @@ CREATE TABLE `sitrep_reports` (
   CONSTRAINT `sitrep_reports_reviewed_by_user_id_foreign` FOREIGN KEY (`reviewed_by_user_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `sitrep_relay_deliveries`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `sitrep_relay_deliveries` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `sitrep_report_id` bigint(20) unsigned NOT NULL,
+  `status` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `attempt_count` int(10) unsigned NOT NULL DEFAULT '0',
+  `relay_id` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `relay_message_id` bigint(20) unsigned DEFAULT NULL,
+  `deliveries_count` int(10) unsigned DEFAULT NULL,
+  `last_error` text COLLATE utf8mb4_unicode_ci,
+  `last_attempted_at` timestamp NULL DEFAULT NULL,
+  `submitted_at` timestamp NULL DEFAULT NULL,
+  `response_json` json DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `sitrep_relay_deliveries_sitrep_report_id_unique` (`sitrep_report_id`),
+  KEY `sitrep_relay_deliveries_status_index` (`status`),
+  KEY `sitrep_relay_deliveries_relay_id_index` (`relay_id`),
+  CONSTRAINT `sitrep_relay_deliveries_sitrep_report_id_foreign` FOREIGN KEY (`sitrep_report_id`) REFERENCES `sitrep_reports` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `team_assignment_allocated_resources`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -819,4 +843,5 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES
   ('2026_05_11_000003_migrate_caller_protocol_values_to_citizen', 1),
   ('2026_05_11_000004_drop_caller_storage_columns', 1),
   ('2026_05_13_000001_refactor_incident_types_for_group_presets', 1),
-  ('2026_05_13_000002_refactor_resource_defaults_for_incident_types', 1);
+  ('2026_05_13_000002_refactor_resource_defaults_for_incident_types', 1),
+  ('2026_05_30_000001_create_sitrep_relay_deliveries_table', 1);

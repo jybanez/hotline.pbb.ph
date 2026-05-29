@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Domain\Sitreps\Models\SitrepReport;
 use App\Http\Controllers\Controller;
+use App\Support\Sitreps\SitrepExportPayloadBuilder;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -14,6 +15,11 @@ use ZipArchive;
 
 class SitrepPageController extends Controller
 {
+    public function __construct(
+        private readonly SitrepExportPayloadBuilder $exportPayloads,
+    ) {
+    }
+
     public function public(SitrepReport $sitrep): View
     {
         abort_unless($sitrep->isPubliclyVisible(), 404);
@@ -132,34 +138,7 @@ class SitrepPageController extends Controller
 
     private function exportJson(SitrepReport $sitrep): string
     {
-        return json_encode($this->exportPayload($sitrep), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE).PHP_EOL;
-    }
-
-    private function exportPayload(SitrepReport $sitrep): array
-    {
-        return [
-            'id' => $sitrep->id,
-            'sequence_number' => $sitrep->sequence_number,
-            'title' => $sitrep->title,
-            'coverage_area' => $sitrep->coverage_area,
-            'period_started_at' => $sitrep->period_started_at?->toIso8601String(),
-            'period_ended_at' => $sitrep->period_ended_at?->toIso8601String(),
-            'generated_at' => $sitrep->generated_at?->toIso8601String(),
-            'published_at' => $sitrep->published_at?->toIso8601String(),
-            'status' => $sitrep->status,
-            'visibility' => $sitrep->visibility,
-            'alert_level' => $sitrep->alert_level,
-            'summary' => $sitrep->summary_json ?? [],
-            'situation' => $sitrep->situation_json ?? [],
-            'damage' => $sitrep->damage_json ?? [],
-            'population' => $sitrep->population_json ?? [],
-            'actions' => $sitrep->actions_json ?? [],
-            'needs' => $sitrep->needs_json ?? [],
-            'gaps' => $sitrep->gaps_json ?? [],
-            'source_snapshot' => $sitrep->source_snapshot_json ?? [],
-            'privacy_redactions' => $sitrep->privacy_redactions_json ?? [],
-            'data_quality' => $sitrep->data_quality_json ?? [],
-        ];
+        return $this->exportPayloads->toJson($sitrep);
     }
 
     private function exportBaseName(SitrepReport $sitrep): string
