@@ -1,0 +1,134 @@
+# PBB SITREP Viewer SDK Developer Manual
+
+## Purpose
+
+`pbb/sitrep-viewer` is a framework-agnostic PHP SDK for rendering generated PBB SITREP JSON payloads.
+
+The SDK is meant for any PHP app that receives or stores a SITREP and needs to show the same readable report shape without depending on Hotline, Laravel Blade, Eloquent, Relay, or a database connection.
+
+## Boundaries
+
+The SDK owns:
+
+- Accepting a generated SITREP array or JSON string.
+- Normalizing missing optional sections to empty arrays.
+- Rendering a complete HTML document or an embeddable HTML fragment.
+- Providing default CSS for screen and PDF-style rendering.
+- Escaping all rendered text by default.
+
+The host app owns:
+
+- SITREP generation.
+- SITREP storage and retrieval.
+- Approval, publication, visibility, and access control.
+- Transport through Relay, upload, API, or filesystem.
+- PDF generation engine choice.
+- Public/private redaction policy before rendering.
+
+## Install During Local Development
+
+When the package lives inside a consuming app as a path repository:
+
+```json
+{
+  "repositories": [
+    {
+      "type": "path",
+      "url": "packages/pbb-sitrep-viewer",
+      "options": { "symlink": false }
+    }
+  ],
+  "require": {
+    "pbb/sitrep-viewer": "*"
+  }
+}
+```
+
+Then run:
+
+```bash
+composer update pbb/sitrep-viewer
+```
+
+## Basic Usage
+
+```php
+use Pbb\Sitreps\Viewer\SitrepViewer;
+
+$payload = json_decode(file_get_contents('sitrep.json'), true);
+
+$viewer = new SitrepViewer();
+$html = $viewer->render($payload);
+```
+
+## Render An Embeddable Fragment
+
+```php
+$fragment = $viewer->render($payload, [
+    'full_document' => false,
+]);
+
+$css = $viewer->css();
+```
+
+Use this when the host app already owns the page shell and wants to mount the SITREP report into an existing route.
+
+## Render For PDF
+
+```php
+$html = $viewer->render($payload, [
+    'pdf' => true,
+]);
+```
+
+The SDK only produces HTML and CSS. The host app chooses the PDF engine, for example Playwright/Chromium, wkhtmltopdf, or a service-side renderer.
+
+## Accepted Payload Shape
+
+The SDK accepts the current exported Hotline SITREP shape:
+
+```text
+id
+sequence_number
+title
+coverage_area
+period_started_at
+period_ended_at
+generated_at
+published_at
+status
+visibility
+alert_level
+summary
+situation
+damage
+population
+actions
+needs
+gaps
+source_snapshot
+privacy_redactions
+data_quality
+```
+
+Unknown keys are ignored. Missing optional section keys render as empty states.
+
+## Recommended Producer Contract
+
+Apps that generate SITREPs should export a stable snapshot before passing data to the viewer.
+
+Do not pass live database models directly across app boundaries. The viewer expects a report snapshot, not operational state.
+
+## Demo
+
+Run the demo from the package directory:
+
+```bash
+php demo/render.php
+```
+
+The demo reads `demo/input/sitrep.json` and writes:
+
+```text
+demo/output/sitrep.html
+```

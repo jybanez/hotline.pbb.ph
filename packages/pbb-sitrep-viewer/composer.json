@@ -1,0 +1,15 @@
+{
+    "name": "pbb/sitrep-viewer",
+    "description": "Framework-agnostic PHP SDK for rendering generated PBB SITREP payloads.",
+    "type": "library",
+    "license": "proprietary",
+    "require": {
+        "php": "^8.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "Pbb\\Sitreps\\Viewer\\": "src/"
+        }
+    },
+    "minimum-stability": "stable"
+}

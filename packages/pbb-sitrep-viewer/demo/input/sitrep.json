@@ -1,0 +1,240 @@
+{
+  "id": 57,
+  "sequence_number": 53,
+  "title": "PBB Hotline Guadalupe SITREP - 2026-05-30",
+  "period_started_at": "2026-05-30T00:00:00+08:00",
+  "period_ended_at": "2026-05-30T23:59:59+08:00",
+  "generated_at": "2026-05-30T09:15:00+08:00",
+  "status": "published",
+  "visibility": "public",
+  "alert_level": "Elevated",
+  "summary": {
+    "headline": "Rescue and assistance reports remain concentrated in Guadalupe.",
+    "gap_cards": [
+      {
+        "label": "People at Risk",
+        "value": "18 open reports",
+        "note": "Active and deferred reports remain in the current picture."
+      },
+      {
+        "label": "Access to Help",
+        "value": "23 assignments",
+        "note": "Field teams are assigned across current reports."
+      },
+      {
+        "label": "Response Progress",
+        "value": "183 resource units",
+        "note": "Current requested resource demand only."
+      }
+    ],
+    "accomplishment_cards": [
+      {
+        "label": "People Helped",
+        "value": "62 people",
+        "note": "Resolved reports from the period."
+      },
+      {
+        "label": "Handled Incidents",
+        "value": "9 resolved",
+        "note": "Resolved reports are treated as addressed history."
+      },
+      {
+        "label": "Teams / Resources Deployed",
+        "value": "13 completed",
+        "note": "Completed team assignments from the period."
+      }
+    ]
+  },
+  "situation": {
+    "executive_assessment": "Current reports indicate continued life-safety and resource support needs in Guadalupe, with several reports still awaiting full closure.",
+    "narrative": "The current picture is based on active and deferred incident reports only.",
+    "decision_points": [
+      {
+        "title": "Life safety",
+        "body": "Open rescue and medical reports may require continued command attention."
+      },
+      {
+        "title": "Resource posture",
+        "body": "Current requested resource units remain high enough to monitor supply availability."
+      }
+    ],
+    "current_operating_picture": {
+      "open_reports": 18,
+      "active_reports": 17,
+      "deferred_reports": 1,
+      "current_assignments": 23,
+      "current_resource_units": 183
+    },
+    "concern_groups": [
+      {
+        "concern": "Flood, Rescue, and Displacement",
+        "open_reports": 12,
+        "areas": ["Guadalupe"],
+        "main_signals": "Rescue, food, and evacuation support",
+        "current_assignments": 18,
+        "resource_units": 144
+      }
+    ],
+    "locations": [
+      {
+        "area": "Guadalupe",
+        "count": 18
+      }
+    ],
+    "incident_types": [
+      {
+        "type": "Rescue",
+        "count": 8
+      },
+      {
+        "type": "Food Assistance",
+        "count": 6
+      }
+    ],
+    "period_activity": {
+      "total_reports": 28,
+      "open_at_close": 18,
+      "resolved_during_period": 9,
+      "discarded_excluded": 1,
+      "note": "Discarded reports are excluded from operational posture."
+    },
+    "verification_notes": [
+      "Population figures may overlap across reports and should be treated as declared signals."
+    ]
+  },
+  "damage": {
+    "damage_groups": [
+      {
+        "damage_type": "Residential / access impact",
+        "reports": 4,
+        "severity_signal": "Reported",
+        "affected_assets": "Homes and access roads"
+      }
+    ],
+    "confidence_note": "Damage entries are reported and may require field verification."
+  },
+  "population": {
+    "citizens_assisted": 62,
+    "record_count": 13,
+    "population_groups": [
+      {
+        "population_signal": "Families assisted",
+        "reports": 9,
+        "people_families": "13 families / 62 people",
+        "notes": "Resolved reports from this period.",
+        "breakdowns": [
+          {
+            "breakdown": "Children",
+            "count": 24
+          },
+          {
+            "breakdown": "Senior citizens",
+            "count": 3
+          }
+        ]
+      }
+    ],
+    "confidence_note": "Population numbers are declared by reports and not deduplicated across households."
+  },
+  "actions": {
+    "deployment_groups": [
+      {
+        "category": "Rescue",
+        "team": "Barangay Rescue Team",
+        "status_counts": {
+          "requested": 2,
+          "assigned": 3,
+          "accepted": 2,
+          "en_route": 2,
+          "on_scene": 1,
+          "completed": 9,
+          "cancelled": 0
+        }
+      }
+    ],
+    "timing_rows": [
+      {
+        "incident_id": 234,
+        "team": "Barangay Rescue Team",
+        "current_status": "on_scene",
+        "assigned_to_accepted": "5m",
+        "accepted_to_en_route": "8m",
+        "en_route_to_on_scene": "12m",
+        "on_scene_to_completed": "",
+        "assigned_to_cancelled": "",
+        "elapsed_time": "25m"
+      }
+    ]
+  },
+  "needs": {
+    "category_groups": [
+      {
+        "category": "Food and Relief",
+        "quantity_requested": 80,
+        "resources": ["Food packs", "Water"]
+      }
+    ],
+    "items": [
+      {
+        "resource": "Food packs",
+        "category": "Food and Relief",
+        "quantity_requested": 50,
+        "incident_count": 5
+      },
+      {
+        "resource": "Water",
+        "category": "Food and Relief",
+        "quantity_requested": 30,
+        "incident_count": 4
+      }
+    ],
+    "confidence_note": "Current resource posture counts active and deferred reports only."
+  },
+  "gaps": {
+    "title": "Response Constraints and Confidence Gaps",
+    "items": [
+      {
+        "category": "Information",
+        "title": "Population overlap risk",
+        "decision_relevance": "Declared people and family counts may overlap when multiple reports describe the same household.",
+        "evidence": "Population fields are report-level declarations.",
+        "confidence_note": "Treat as planning signal, not census count."
+      }
+    ]
+  },
+  "source_snapshot": {
+    "hotline": {
+      "display_version": "v1-5.6.1",
+      "build": {
+        "id": "source-template"
+      }
+    },
+    "hub_node": {
+      "available": true,
+      "snapshot": {
+        "hub_id": 12,
+        "relay_hub_id": "072217029",
+        "deployment": "barangay",
+        "name": "Guadalupe, CEBU CITY, CEBU",
+        "uplinks": [
+          {
+            "is_primary": true,
+            "hub": {
+              "name": "CEBU CITY, CEBU"
+            }
+          }
+        ]
+      }
+    },
+    "generation": {
+      "prepared_by_label": "System Generated"
+    }
+  },
+  "privacy_redactions": {
+    "citizen_phone_numbers": "redacted",
+    "exact_coordinates": "redacted"
+  },
+  "data_quality": {
+    "global_note": "Generated from current Hotline data."
+  }
+}
