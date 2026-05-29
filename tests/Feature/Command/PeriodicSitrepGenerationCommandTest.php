@@ -6,8 +6,10 @@ use App\Domain\Shared\Enums\UserRole;
 use App\Domain\Sitreps\Models\SitrepReport;
 use App\Models\User;
 use App\Support\Settings\SettingsService;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -18,6 +20,8 @@ class PeriodicSitrepGenerationCommandTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        Cache::flush();
 
         Http::fake([
             'https://relay.pbb.ph/hub.json' => Http::response([
@@ -38,6 +42,7 @@ class PeriodicSitrepGenerationCommandTest extends TestCase
     protected function tearDown(): void
     {
         Carbon::setTestNow();
+        Cache::flush();
 
         parent::tearDown();
     }
@@ -152,5 +157,33 @@ class PeriodicSitrepGenerationCommandTest extends TestCase
             ->assertSuccessful();
 
         $this->assertDatabaseCount('sitrep_reports', 0);
+    }
+
+    public function test_periodic_generation_uses_cached_relay_hub_snapshot_when_live_request_times_out(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-05-29 10:17:00', 'Asia/Manila'));
+        app(SettingsService::class)->set('alert_level', 'Critical');
+
+        $this->artisan('app:generate-periodic-sitrep')
+            ->assertSuccessful();
+
+        SitrepReport::query()->delete();
+        Carbon::setTestNow(Carbon::parse('2026-05-29 10:32:00', 'Asia/Manila'));
+
+        Http::fake([
+            'https://relay.pbb.ph/hub.json' => fn () => throw new ConnectionException('Connection timed out.'),
+        ]);
+
+        $this->artisan('app:generate-periodic-sitrep')
+            ->assertSuccessful();
+
+        $report = SitrepReport::query()->firstOrFail();
+        $hubNode = $report->source_snapshot_json['hub_node'];
+
+        $this->assertSame('Guadalupe, CEBU CITY, CEBU', $report->coverage_area);
+        $this->assertTrue($hubNode['available']);
+        $this->assertTrue($hubNode['stale']);
+        $this->assertSame('Guadalupe, CEBU CITY, CEBU', $hubNode['snapshot']['name']);
+        $this->assertSame('Connection timed out.', $hubNode['last_error']);
     }
 }

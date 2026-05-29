@@ -10,11 +10,14 @@ use App\Domain\Sitreps\Models\SitrepReport;
 use App\Domain\Users\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
 class SitrepGenerationService
 {
+    private const HUB_NODE_CACHE_KEY = 'pbb_hotline.relay_hub_json.last_successful_snapshot';
+
     public function generate(?User $preparedBy, array $input): SitrepReport
     {
         $periodStart = Carbon::parse($input['period_started_at'])->startOfSecond();
@@ -914,25 +917,19 @@ class SitrepGenerationService
                 ->get($url);
 
             if (! $response->successful()) {
-                return [
-                    'available' => false,
-                    'source' => 'relay_hub_json',
-                    'url' => $url,
-                    'http_status' => $response->status(),
-                    'error' => 'Relay hub JSON request was not successful.',
-                ];
+                return $this->fallbackHubNodeSnapshot(
+                    $url,
+                    sprintf('Relay hub JSON request was not successful. HTTP status: %d.', $response->status()),
+                );
             }
 
             $payload = $response->json();
 
             if (! is_array($payload)) {
-                return [
-                    'available' => false,
-                    'source' => 'relay_hub_json',
-                    'url' => $url,
-                    'error' => 'Relay hub JSON response was not an object.',
-                ];
+                return $this->fallbackHubNodeSnapshot($url, 'Relay hub JSON response was not an object.');
             }
+
+            Cache::put(self::HUB_NODE_CACHE_KEY, $payload, now()->addDays(7));
 
             return [
                 'available' => true,
@@ -941,13 +938,31 @@ class SitrepGenerationService
                 'snapshot' => $payload,
             ];
         } catch (\Throwable $exception) {
+            return $this->fallbackHubNodeSnapshot($url, $exception->getMessage());
+        }
+    }
+
+    private function fallbackHubNodeSnapshot(string $url, string $error): array
+    {
+        $cached = Cache::get(self::HUB_NODE_CACHE_KEY);
+
+        if (is_array($cached)) {
             return [
-                'available' => false,
+                'available' => true,
                 'source' => 'relay_hub_json',
                 'url' => $url,
-                'error' => $exception->getMessage(),
+                'snapshot' => $cached,
+                'stale' => true,
+                'last_error' => $error,
             ];
         }
+
+        return [
+            'available' => false,
+            'source' => 'relay_hub_json',
+            'url' => $url,
+            'error' => $error,
+        ];
     }
 
     private function buildHotlineSnapshot(): array
