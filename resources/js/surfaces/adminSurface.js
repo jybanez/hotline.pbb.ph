@@ -1004,6 +1004,34 @@ function settingsEditorData(state) {
                 ],
             },
             {
+                id: 'sitrep-cadence',
+                title: 'SITREP Cadence',
+                description: 'Periodic draft generation intervals by active alert level.',
+                properties: [
+                    {
+                        id: 'sitrep_periodic_normal_interval_minutes',
+                        kind: 'number',
+                        label: 'Normal Interval Minutes',
+                        value: values.sitrep_periodic_normal_interval_minutes ?? 240,
+                        help: 'Default reporting cadence while alert level is Normal.',
+                    },
+                    {
+                        id: 'sitrep_periodic_elevated_interval_minutes',
+                        kind: 'number',
+                        label: 'Elevated Interval Minutes',
+                        value: values.sitrep_periodic_elevated_interval_minutes ?? 60,
+                        help: 'Default reporting cadence while alert level is Elevated.',
+                    },
+                    {
+                        id: 'sitrep_periodic_critical_interval_minutes',
+                        kind: 'number',
+                        label: 'Critical Interval Minutes',
+                        value: values.sitrep_periodic_critical_interval_minutes ?? 15,
+                        help: 'Default reporting cadence while alert level is Critical.',
+                    },
+                ],
+            },
+            {
                 id: 'integration-realtime',
                 title: 'Realtime',
                 description: 'Live transport, signaling, and trusted admission settings.',

@@ -42,7 +42,7 @@ class PeriodicSitrepGenerationCommandTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_critical_alert_generates_last_completed_hourly_private_draft_once(): void
+    public function test_critical_alert_generates_last_completed_fifteen_minute_private_draft_once(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-05-29 10:17:00', 'Asia/Manila'));
         $command = User::factory()->create([
@@ -56,12 +56,12 @@ class PeriodicSitrepGenerationCommandTest extends TestCase
         $this->assertDatabaseCount('sitrep_reports', 1);
         $report = SitrepReport::query()->firstOrFail();
 
-        $this->assertSame('PBB Hotline Critical SITREP - 2026-05-29 10:00', $report->title);
+        $this->assertSame('PBB Hotline Critical SITREP - 2026-05-29 10:15', $report->title);
         $this->assertSame('draft', $report->status);
         $this->assertSame('private', $report->visibility);
         $this->assertSame($command->id, $report->prepared_by_user_id);
-        $this->assertSame('2026-05-29 09:00:00', $report->period_started_at?->format('Y-m-d H:i:s'));
-        $this->assertSame('2026-05-29 10:00:00', $report->period_ended_at?->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-05-29 10:00:00', $report->period_started_at?->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-05-29 10:15:00', $report->period_ended_at?->format('Y-m-d H:i:s'));
 
         $this->artisan('app:generate-periodic-sitrep')
             ->assertSuccessful();
@@ -69,7 +69,7 @@ class PeriodicSitrepGenerationCommandTest extends TestCase
         $this->assertDatabaseCount('sitrep_reports', 1);
     }
 
-    public function test_elevated_alert_uses_six_hour_window_and_configured_coverage_area(): void
+    public function test_elevated_alert_uses_hourly_window_and_configured_coverage_area(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-05-29 13:05:00', 'Asia/Manila'));
         User::factory()->create([
@@ -85,7 +85,24 @@ class PeriodicSitrepGenerationCommandTest extends TestCase
         $report = SitrepReport::query()->firstOrFail();
 
         $this->assertSame('Cebu City', $report->coverage_area);
-        $this->assertSame('2026-05-29 06:00:00', $report->period_started_at?->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-05-29 12:00:00', $report->period_started_at?->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-05-29 13:00:00', $report->period_ended_at?->format('Y-m-d H:i:s'));
+    }
+
+    public function test_normal_alert_uses_four_hour_default_window(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-05-29 13:05:00', 'Asia/Manila'));
+        User::factory()->create([
+            'role' => UserRole::Command,
+        ]);
+        app(SettingsService::class)->set('alert_level', 'Normal');
+
+        $this->artisan('app:generate-periodic-sitrep')
+            ->assertSuccessful();
+
+        $report = SitrepReport::query()->firstOrFail();
+
+        $this->assertSame('2026-05-29 08:00:00', $report->period_started_at?->format('Y-m-d H:i:s'));
         $this->assertSame('2026-05-29 12:00:00', $report->period_ended_at?->format('Y-m-d H:i:s'));
     }
 
