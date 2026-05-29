@@ -205,6 +205,52 @@
       "healthcheck": "php artisan schedule:list"
     }
   ],
+  "runtime_services": [
+    {
+      "id": "pbb-hotline-queue",
+      "name": "PBB Hotline Queue Worker",
+      "type": "background_process",
+      "required": true,
+      "required_for_smoke": false,
+      "manager": "kit",
+      "working_directory": "{app.install_path}",
+      "command": "{runtime.php_binary}",
+      "args": ["artisan", "queue:work", "--queue=default", "--sleep=1", "--tries=3", "--timeout=90"],
+      "health_check": {
+        "type": "command",
+        "command": "{runtime.php_binary}",
+        "args": ["artisan", "queue:failed"],
+        "timeout_seconds": 10
+      },
+      "logs": {
+        "stdout": "storage/logs/pbb-hotline-queue.out.log",
+        "stderr": "storage/logs/pbb-hotline-queue.err.log"
+      },
+      "notes": "Kit starts this after Hotline install so queued background jobs can run."
+    },
+    {
+      "id": "pbb-hotline-scheduler",
+      "name": "PBB Hotline Scheduler",
+      "type": "scheduled_process",
+      "required": true,
+      "required_for_smoke": true,
+      "manager": "kit",
+      "working_directory": "{app.install_path}",
+      "command": "{runtime.php_binary}",
+      "args": ["artisan", "schedule:run"],
+      "health_check": {
+        "type": "command",
+        "command": "{runtime.php_binary}",
+        "args": ["artisan", "schedule:list"],
+        "timeout_seconds": 10
+      },
+      "logs": {
+        "stdout": "storage/logs/pbb-hotline-scheduler.out.log",
+        "stderr": "storage/logs/pbb-hotline-scheduler.err.log"
+      },
+      "notes": "Kit runs this on a one-minute schedule. Periodic SITREP generation is registered through Laravel's scheduler and runs from this service."
+    }
+  ],
   "artifacts": {
     "install_manifest": "storage/app/installer/install-manifest.json",
     "install_report": "storage/app/installer/install-report.json",

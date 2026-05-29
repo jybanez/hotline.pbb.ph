@@ -3,10 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Domain\Shared\Enums\AlertLevel;
-use App\Domain\Shared\Enums\UserRole;
-use App\Domain\Shared\Enums\UserStatus;
 use App\Domain\Sitreps\Models\SitrepReport;
-use App\Domain\Users\Models\User;
 use App\Support\Settings\SettingsService;
 use App\Support\Sitreps\SitrepGenerationService;
 use Illuminate\Console\Command;
@@ -17,9 +14,7 @@ class GeneratePeriodicSitrep extends Command
 {
     protected $signature = 'app:generate-periodic-sitrep
         {--force : Generate even when disabled or when the window already has a report}
-        {--dry-run : Show the computed reporting window without creating a report}
-        {--prepared-by-user-id= : Command user id to attribute as prepared by}
-        {--coverage-area= : Coverage area override for the generated SITREP}';
+        {--dry-run : Show the computed reporting window without creating a report}';
 
     protected $description = 'Generate a private draft SITREP for the last completed alert-level reporting window.';
 
@@ -48,15 +43,6 @@ class GeneratePeriodicSitrep extends Command
             return self::SUCCESS;
         }
 
-        $preparedBy = $this->preparedByUser($settings);
-
-        if (! $preparedBy) {
-            $this->error('No active command user is available to prepare the periodic SITREP.');
-
-            return self::FAILURE;
-        }
-
-        $coverageArea = $this->coverageArea($settings);
         $title = sprintf(
             'PBB Hotline %s SITREP - %s',
             $alertLevel->value,
@@ -69,24 +55,21 @@ class GeneratePeriodicSitrep extends Command
             'period_ended_at' => $periodEnd->toIso8601String(),
             'status' => 'draft',
             'visibility' => 'private',
+            'system_generated' => true,
         ];
-
-        if ($coverageArea !== '') {
-            $payload['coverage_area'] = $coverageArea;
-        }
 
         if ((bool) $this->option('dry-run')) {
             $this->line(sprintf('Alert level: %s', $alertLevel->value));
             $this->line(sprintf('Interval minutes: %d', $intervalMinutes));
             $this->line(sprintf('Period start: %s', $periodStart->toIso8601String()));
             $this->line(sprintf('Period end: %s', $periodEnd->toIso8601String()));
-            $this->line(sprintf('Prepared by: %s <%s>', $preparedBy->name, $preparedBy->email));
-            $this->line(sprintf('Coverage area: %s', $coverageArea !== '' ? $coverageArea : 'PBB Hotline Coverage Area'));
+            $this->line('Prepared by: System Generated');
+            $this->line('Coverage area: Relay hub identity');
 
             return self::SUCCESS;
         }
 
-        $report = $sitreps->generate($preparedBy, $payload);
+        $report = $sitreps->generate(null, $payload);
 
         Log::info('Periodic SITREP generated.', [
             'sitrep_id' => $report->id,
@@ -95,7 +78,7 @@ class GeneratePeriodicSitrep extends Command
             'interval_minutes' => $intervalMinutes,
             'period_started_at' => $periodStart->toIso8601String(),
             'period_ended_at' => $periodEnd->toIso8601String(),
-            'prepared_by_user_id' => $preparedBy->id,
+            'prepared_by_user_id' => null,
         ]);
 
         $this->info(sprintf(
@@ -141,36 +124,6 @@ class GeneratePeriodicSitrep extends Command
             ->where('period_started_at', $periodStart->toDateTimeString())
             ->where('period_ended_at', $periodEnd->toDateTimeString())
             ->exists();
-    }
-
-    private function preparedByUser(SettingsService $settings): ?User
-    {
-        $optionUserId = $this->option('prepared-by-user-id');
-        $settingUserId = $settings->get('sitrep_periodic_prepared_by_user_id');
-        $userId = $optionUserId !== null && $optionUserId !== ''
-            ? (int) $optionUserId
-            : (int) ($settingUserId ?: 0);
-
-        $query = User::query()
-            ->where('role', UserRole::Command)
-            ->where('status', UserStatus::Active);
-
-        if ($userId > 0) {
-            return (clone $query)->whereKey($userId)->first();
-        }
-
-        return $query->orderBy('id')->first();
-    }
-
-    private function coverageArea(SettingsService $settings): string
-    {
-        $optionCoverageArea = $this->option('coverage-area');
-
-        if (is_string($optionCoverageArea) && trim($optionCoverageArea) !== '') {
-            return trim($optionCoverageArea);
-        }
-
-        return trim((string) $settings->get('sitrep_periodic_coverage_area', ''));
     }
 
     private function booleanSetting(mixed $value): bool

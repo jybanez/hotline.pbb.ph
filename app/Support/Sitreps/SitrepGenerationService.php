@@ -15,11 +15,15 @@ use Illuminate\Support\Facades\Http;
 
 class SitrepGenerationService
 {
-    public function generate(User $preparedBy, array $input): SitrepReport
+    public function generate(?User $preparedBy, array $input): SitrepReport
     {
         $periodStart = Carbon::parse($input['period_started_at'])->startOfSecond();
         $periodEnd = Carbon::parse($input['period_ended_at'])->startOfSecond();
-        $coverageArea = trim((string) ($input['coverage_area'] ?? 'PBB Hotline Coverage Area'));
+        $systemGenerated = (bool) ($input['system_generated'] ?? false);
+        $hubNodeSnapshot = $this->buildHubNodeSnapshot();
+        $coverageArea = $systemGenerated
+            ? $this->coverageAreaFromHubNode($hubNodeSnapshot)
+            : trim((string) ($input['coverage_area'] ?? 'PBB Hotline Coverage Area'));
         $visibility = (string) ($input['visibility'] ?? 'private');
         $status = (string) ($input['status'] ?? 'draft');
         $publishNow = (bool) ($input['publish'] ?? false);
@@ -54,7 +58,7 @@ class SitrepGenerationService
             'status' => $status,
             'visibility' => $visibility,
             'alert_level' => $summary['posture'] === 'critical' ? 'Critical' : ($summary['posture'] === 'strained' ? 'Elevated' : 'Normal'),
-            'prepared_by_user_id' => $preparedBy->id,
+            'prepared_by_user_id' => $preparedBy?->id,
             'reviewed_by_user_id' => null,
             'summary_json' => $summary,
             'situation_json' => $situation,
@@ -63,13 +67,13 @@ class SitrepGenerationService
             'actions_json' => $actions,
             'needs_json' => $needs,
             'gaps_json' => $gaps,
-            'source_snapshot_json' => $this->buildSourceSnapshot($context, $periodStart, $periodEnd),
+            'source_snapshot_json' => $this->buildSourceSnapshot($context, $periodStart, $periodEnd, $hubNodeSnapshot, $systemGenerated),
             'privacy_redactions_json' => $this->buildPrivacyRedactions(),
             'data_quality_json' => $dataQuality,
         ]);
     }
 
-    private function scopedIncidents(User $preparedBy, Carbon $periodStart, Carbon $periodEnd): Collection
+    private function scopedIncidents(?User $preparedBy, Carbon $periodStart, Carbon $periodEnd): Collection
     {
         $query = Incident::query()
             ->with([
@@ -82,7 +86,7 @@ class SitrepGenerationService
                 'citizenLocations',
             ]);
 
-        if ($preparedBy->role === UserRole::Operator) {
+        if ($preparedBy?->role === UserRole::Operator) {
             $query->where('operator_id', $preparedBy->id);
         }
 
@@ -863,21 +867,33 @@ class SitrepGenerationService
         ];
     }
 
-    private function buildSourceSnapshot(array $context, Carbon $periodStart, Carbon $periodEnd): array
+    private function buildSourceSnapshot(array $context, Carbon $periodStart, Carbon $periodEnd, array $hubNodeSnapshot, bool $systemGenerated): array
     {
         return [
             'period_started_at' => $periodStart->toIso8601String(),
             'period_ended_at' => $periodEnd->toIso8601String(),
+            'generation' => [
+                'type' => $systemGenerated ? 'system' : 'manual',
+                'prepared_by_label' => $systemGenerated ? 'System Generated' : 'Command User',
+            ],
             'incident_ids' => $context['incidents']->pluck('id')->values()->all(),
             'call_session_ids' => $context['call_sessions']->pluck('id')->values()->all(),
             'team_assignment_ids' => $context['team_assignments']->pluck('id')->values()->all(),
             'resource_need_ids' => $context['incidents']->flatMap(fn (Incident $incident) => $incident->incidentResourcesNeeded)->pluck('id')->values()->all(),
             'incident_type_detail_ids' => $context['field_details']->pluck('id')->values()->all(),
             'hotline' => $this->buildHotlineSnapshot(),
-            'hub_node' => $this->buildHubNodeSnapshot(),
+            'hub_node' => $hubNodeSnapshot,
             'adapter_version' => 1,
             'counting_rule_version' => 2,
         ];
+    }
+
+    private function coverageAreaFromHubNode(array $hubNodeSnapshot): string
+    {
+        $snapshot = ($hubNodeSnapshot['available'] ?? false) ? ($hubNodeSnapshot['snapshot'] ?? []) : [];
+        $name = trim((string) ($snapshot['name'] ?? ''));
+
+        return $name !== '' ? $name : 'PBB Hotline Coverage Area';
     }
 
     private function buildHubNodeSnapshot(): array

@@ -10,6 +10,8 @@
     $dataQuality = $sitrep->data_quality_json ?? [];
     $redactions = $sitrep->privacy_redactions_json ?? [];
     $sourceSnapshot = $sitrep->source_snapshot_json ?? [];
+    $generation = $sourceSnapshot['generation'] ?? [];
+    $preparedByLabel = $generation['prepared_by_label'] ?? ($sitrep->prepared_by_user_id === null ? 'System Generated' : 'Command User');
     $hotlineSnapshot = $sourceSnapshot['hotline'] ?? [];
     $hotlineBuild = $hotlineSnapshot['build'] ?? [];
     $hotlineVersionLabel = $hotlineSnapshot['display_version'] ?? $hotlineSnapshot['version'] ?? config('app.version');
@@ -92,6 +94,7 @@
             #{{ str_pad((string) $sitrep->sequence_number, 4, '0', STR_PAD_LEFT) }}
             · {{ ucfirst($sitrep->status) }} / {{ ucfirst($sitrep->visibility) }}
             · {{ $sitrep->alert_level ?? 'Normal' }}
+            · {{ $preparedByLabel }}
             · {{ $sitrep->generated_at?->format('M d, Y g:i A') }}
         </p>
     </header>
