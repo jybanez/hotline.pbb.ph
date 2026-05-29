@@ -197,6 +197,14 @@
       "healthcheck": "php artisan queue:failed"
     },
     {
+      "id": "pbb-hotline-scheduler",
+      "name": "PBB Hotline Scheduler",
+      "kind": "scheduler",
+      "command": "php artisan schedule:run",
+      "required": true,
+      "healthcheck": "php artisan schedule:list"
+    },
+    {
       "id": "pbb-hotline-periodic-sitrep",
       "name": "PBB Hotline Periodic SITREP",
       "kind": "worker",
@@ -227,6 +235,28 @@
         "stderr": "storage/logs/pbb-hotline-queue.err.log"
       },
       "notes": "Kit starts this after Hotline install so queued background jobs can run."
+    },
+    {
+      "id": "pbb-hotline-scheduler",
+      "name": "PBB Hotline Scheduler",
+      "type": "scheduled_process",
+      "required": true,
+      "required_for_smoke": true,
+      "manager": "kit",
+      "working_directory": "{app.install_path}",
+      "command": "{runtime.php_binary}",
+      "args": ["artisan", "schedule:run"],
+      "health_check": {
+        "type": "command",
+        "command": "{runtime.php_binary}",
+        "args": ["artisan", "schedule:list"],
+        "timeout_seconds": 10
+      },
+      "logs": {
+        "stdout": "storage/logs/pbb-hotline-scheduler.out.log",
+        "stderr": "storage/logs/pbb-hotline-scheduler.err.log"
+      },
+      "notes": "Kit runs this on a one-minute schedule for Hotline's Laravel scheduled maintenance commands. Periodic SITREP generation uses its own isolated worker service."
     },
     {
       "id": "pbb-hotline-periodic-sitrep",
