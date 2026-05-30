@@ -633,7 +633,7 @@ CREATE TABLE `sitrep_relay_deliveries` (
   `status` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
   `attempt_count` int(10) unsigned NOT NULL DEFAULT '0',
   `relay_id` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `relay_message_id` bigint(20) unsigned DEFAULT NULL,
+  `relay_message_id` varchar(64) DEFAULT NULL,
   `deliveries_count` int(10) unsigned DEFAULT NULL,
   `last_error` text COLLATE utf8mb4_unicode_ci,
   `last_attempted_at` timestamp NULL DEFAULT NULL,
@@ -844,4 +844,5 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES
   ('2026_05_11_000004_drop_caller_storage_columns', 1),
   ('2026_05_13_000001_refactor_incident_types_for_group_presets', 1),
   ('2026_05_13_000002_refactor_resource_defaults_for_incident_types', 1),
-  ('2026_05_30_000001_create_sitrep_relay_deliveries_table', 1);
+  ('2026_05_30_000001_create_sitrep_relay_deliveries_table', 1),
+  ('2026_05_31_034100_change_sitrep_relay_message_id_to_string', 1);

@@ -58,7 +58,7 @@ class SitrepRelaySubmissionTest extends TestCase
             'https://relay.pbb.ph/api/v1/messages' => Http::response([
                 'success' => true,
                 'relay_id' => '01HZTESTSITREP000000000001',
-                'message_id' => 345,
+                'message_id' => '01KSX6D7SXE73HTFVWW6WGXN9X',
                 'status' => 'queued',
                 'deliveries_count' => 1,
                 'deliveries' => [],
@@ -87,13 +87,13 @@ class SitrepRelaySubmissionTest extends TestCase
             'sitrep_report_id' => $report->id,
             'status' => SitrepRelayDelivery::STATUS_SENT,
             'relay_id' => '01HZTESTSITREP000000000001',
-            'relay_message_id' => 345,
+            'relay_message_id' => '01KSX6D7SXE73HTFVWW6WGXN9X',
         ]);
         Log::shouldHaveReceived('info')
             ->with('SITREP Relay submission accepted.', \Mockery::on(
                 fn (array $context): bool => $context['sitrep_report_id'] === $report->id
                     && $context['relay_id'] === '01HZTESTSITREP000000000001'
-                    && $context['relay_message_id'] === 345
+                    && $context['relay_message_id'] === '01KSX6D7SXE73HTFVWW6WGXN9X'
                     && $context['source_system'] === 'pbb.hotline'
                     && $context['target_systems'] === ['sitrep.ingestor', 'support.dispatch']
             ))

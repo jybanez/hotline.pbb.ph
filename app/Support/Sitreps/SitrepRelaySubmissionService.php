@@ -56,7 +56,8 @@ class SitrepRelaySubmissionService
                     'Connection' => 'close',
                     'X-Relay-Key' => $relayToken,
                 ])
-                ->timeout(10)
+                ->connectTimeout(5)
+                ->timeout(30)
                 ->post($relayUrl.'/api/v1/messages', $this->envelope($sitrep));
 
             if (! $response->successful()) {
@@ -83,7 +84,7 @@ class SitrepRelaySubmissionService
             $delivery->forceFill([
                 'status' => SitrepRelayDelivery::STATUS_SENT,
                 'relay_id' => is_string($payload['relay_id'] ?? null) ? $payload['relay_id'] : null,
-                'relay_message_id' => is_numeric($payload['message_id'] ?? null) ? (int) $payload['message_id'] : null,
+                'relay_message_id' => is_scalar($payload['message_id'] ?? null) ? (string) $payload['message_id'] : null,
                 'deliveries_count' => is_numeric($payload['deliveries_count'] ?? null) ? (int) $payload['deliveries_count'] : null,
                 'last_error' => null,
                 'submitted_at' => now(),
