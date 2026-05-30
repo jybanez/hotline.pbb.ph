@@ -81,6 +81,14 @@ class AdminSettingsTest extends TestCase
                 'value' => '',
             ])
             ->assertJsonFragment([
+                'key' => 'relay_source_system',
+                'value' => 'sitrep.app',
+            ])
+            ->assertJsonFragment([
+                'key' => 'relay_target_systems',
+                'value' => 'sitrep.ingestor',
+            ])
+            ->assertJsonFragment([
                 'key' => 'map_server_url',
                 'value' => 'https://mapserver.pbb.ph',
             ])
@@ -109,6 +117,8 @@ class AdminSettingsTest extends TestCase
                     ['key' => 'realtime_token_signing_secret', 'value' => 'beta-secret-001'],
                     ['key' => 'relay_url', 'value' => 'https://relay-beta.pbb.ph'],
                     ['key' => 'relay_token', 'value' => 'relay-token-001'],
+                    ['key' => 'relay_source_system', 'value' => 'pbb.hotline'],
+                    ['key' => 'relay_target_systems', 'value' => 'sitrep.ingestor,support.dispatch'],
                     ['key' => 'map_server_url', 'value' => 'https://mapserver-beta.pbb.ph'],
                 ],
             ])
@@ -156,6 +166,14 @@ class AdminSettingsTest extends TestCase
             ->assertJsonFragment([
                 'key' => 'relay_token',
                 'value' => 'relay-token-001',
+            ])
+            ->assertJsonFragment([
+                'key' => 'relay_source_system',
+                'value' => 'pbb.hotline',
+            ])
+            ->assertJsonFragment([
+                'key' => 'relay_target_systems',
+                'value' => 'sitrep.ingestor,support.dispatch',
             ])
             ->assertJsonFragment([
                 'key' => 'map_server_url',

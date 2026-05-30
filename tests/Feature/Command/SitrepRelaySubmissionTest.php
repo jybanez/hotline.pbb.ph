@@ -44,6 +44,8 @@ class SitrepRelaySubmissionTest extends TestCase
     {
         app(SettingsService::class)->set('relay_url', 'https://relay.pbb.ph');
         app(SettingsService::class)->set('relay_token', 'test-relay-key');
+        app(SettingsService::class)->set('relay_source_system', 'pbb.hotline');
+        app(SettingsService::class)->set('relay_target_systems', "sitrep.ingestor\nsupport.dispatch");
 
         $report = $this->createSitrep(sequence: 63, generatedAt: '2026-05-30 09:00:00');
         SitrepRelayDelivery::query()->create([
@@ -68,8 +70,8 @@ class SitrepRelaySubmissionTest extends TestCase
         Http::assertSent(function ($request) use ($report): bool {
             return $request->url() === 'https://relay.pbb.ph/api/v1/messages'
                 && $request->hasHeader('X-Relay-Key', 'test-relay-key')
-                && $request['source_system'] === 'sitrep.app'
-                && $request['target_systems'] === ['sitrep.ingestor']
+                && $request['source_system'] === 'pbb.hotline'
+                && $request['target_systems'] === ['sitrep.ingestor', 'support.dispatch']
                 && $request['message_type'] === 'sitrep.record'
                 && $request['payload_format'] === 'json'
                 && $request['reference_id'] === (string) $report->id

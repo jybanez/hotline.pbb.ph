@@ -101,8 +101,8 @@ class SitrepRelaySubmissionService
     private function envelope(SitrepReport $sitrep): array
     {
         return [
-            'source_system' => 'sitrep.app',
-            'target_systems' => ['sitrep.ingestor'],
+            'source_system' => $this->sourceSystem(),
+            'target_systems' => $this->targetSystems(),
             'message_type' => 'sitrep.record',
             'payload_format' => 'json',
             'payload_version' => '1.0',
@@ -114,6 +114,28 @@ class SitrepRelaySubmissionService
             'occurred_at' => $sitrep->generated_at?->toIso8601String(),
             'payload' => $this->payloadBuilder->build($sitrep),
         ];
+    }
+
+    private function sourceSystem(): string
+    {
+        $sourceSystem = trim((string) $this->settings->get('relay_source_system', 'sitrep.app'));
+
+        return $sourceSystem !== '' ? $sourceSystem : 'sitrep.app';
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function targetSystems(): array
+    {
+        $configured = (string) $this->settings->get('relay_target_systems', 'sitrep.ingestor');
+        $targets = preg_split('/[\s,]+/', $configured) ?: [];
+        $targets = array_values(array_unique(array_filter(array_map(
+            fn (string $target): string => trim($target),
+            $targets,
+        ), fn (string $target): bool => $target !== '')));
+
+        return $targets !== [] ? $targets : ['sitrep.ingestor'];
     }
 
     private function priority(SitrepReport $sitrep): string

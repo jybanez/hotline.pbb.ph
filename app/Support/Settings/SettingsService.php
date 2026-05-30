@@ -31,6 +31,8 @@ class SettingsService
             'realtime_token_signing_secret' => '',
             'relay_url' => 'https://relay.pbb.ph',
             'relay_token' => '',
+            'relay_source_system' => 'sitrep.app',
+            'relay_target_systems' => 'sitrep.ingestor',
             'map_server_url' => 'https://mapserver.pbb.ph',
             'sitrep_periodic_generation_enabled' => true,
             'sitrep_periodic_normal_interval_minutes' => 240,
