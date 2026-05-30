@@ -72,6 +72,7 @@ class SitrepRelaySubmissionTest extends TestCase
         Http::assertSent(function ($request) use ($report): bool {
             return $request->url() === 'https://relay.pbb.ph/api/v1/messages'
                 && $request->hasHeader('X-Relay-Key', 'test-relay-key')
+                && $request->hasHeader('Connection', 'close')
                 && $request['source_system'] === 'pbb.hotline'
                 && $request['target_systems'] === ['sitrep.ingestor', 'support.dispatch']
                 && $request['message_type'] === 'sitrep.record'

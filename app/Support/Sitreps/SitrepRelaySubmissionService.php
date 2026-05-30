@@ -52,7 +52,10 @@ class SitrepRelaySubmissionService
         try {
             $response = Http::acceptJson()
                 ->asJson()
-                ->withHeaders(['X-Relay-Key' => $relayToken])
+                ->withHeaders([
+                    'Connection' => 'close',
+                    'X-Relay-Key' => $relayToken,
+                ])
                 ->timeout(10)
                 ->post($relayUrl.'/api/v1/messages', $this->envelope($sitrep));
 
