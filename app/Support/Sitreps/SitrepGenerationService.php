@@ -889,6 +889,7 @@ class SitrepGenerationService
                 'prepared_by_label' => $this->preparedByLabel($systemGenerated, $preparedBy),
             ],
             'incident_ids' => $context['incidents']->pluck('id')->values()->all(),
+            'incident_coordinates' => $this->incidentCoordinates($context['incidents']),
             'call_session_ids' => $context['call_sessions']->pluck('id')->values()->all(),
             'team_assignment_ids' => $context['team_assignments']->pluck('id')->values()->all(),
             'resource_need_ids' => $context['incidents']->flatMap(fn (Incident $incident) => $incident->incidentResourcesNeeded)->pluck('id')->values()->all(),
@@ -898,6 +899,19 @@ class SitrepGenerationService
             'adapter_version' => 1,
             'counting_rule_version' => 2,
         ];
+    }
+
+    private function incidentCoordinates(Collection $incidents): array
+    {
+        return $incidents
+            ->filter(fn (Incident $incident): bool => $incident->latitude !== null && $incident->longitude !== null)
+            ->map(fn (Incident $incident): array => [
+                'id' => $incident->id,
+                'lat' => round((float) $incident->latitude, 5),
+                'lng' => round((float) $incident->longitude, 5),
+            ])
+            ->values()
+            ->all();
     }
 
     private function preparedByLabel(bool $systemGenerated, ?User $preparedBy): string
