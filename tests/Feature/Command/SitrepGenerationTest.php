@@ -116,6 +116,9 @@ class SitrepGenerationTest extends TestCase
             ->assertJsonPath('sitrep.source_snapshot.hub_node.available', true)
             ->assertJsonPath('sitrep.source_snapshot.hub_node.snapshot.deployment', 'barangay')
             ->assertJsonPath('sitrep.source_snapshot.hub_node.snapshot.relay_hub_id', '072217029')
+            ->assertJsonPath('sitrep.source_snapshot.incident_coordinates.0.id', $incidentId)
+            ->assertJsonPath('sitrep.source_snapshot.incident_coordinates.0.lat', 10.33049)
+            ->assertJsonPath('sitrep.source_snapshot.incident_coordinates.0.lng', 123.88257)
             ->assertJsonPath('sitrep.privacy_redactions.citizen_phone_numbers', 'redacted')
             ->assertJsonMissingPath('sitrep.population.callers_assisted')
             ->assertJsonMissingPath('sitrep.data_quality.missing_caller_location_count')
@@ -132,6 +135,11 @@ class SitrepGenerationTest extends TestCase
         $sourceSnapshot = json_decode($report->source_snapshot_json, true);
 
         $this->assertSame([$incidentId], $sourceSnapshot['incident_ids']);
+        $this->assertSame([[
+            'id' => $incidentId,
+            'lat' => 10.33049,
+            'lng' => 123.88257,
+        ]], $sourceSnapshot['incident_coordinates']);
         $this->assertSame('pbb-hotline', $sourceSnapshot['hotline']['app']);
         $this->assertSame('v1-5.6.1', $sourceSnapshot['hotline']['display_version']);
         $this->assertSame('Guadalupe, CEBU CITY, CEBU', $sourceSnapshot['hub_node']['snapshot']['name']);
