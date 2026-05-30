@@ -11,7 +11,8 @@
     $redactions = $sitrep->privacy_redactions_json ?? [];
     $sourceSnapshot = $sitrep->source_snapshot_json ?? [];
     $generation = $sourceSnapshot['generation'] ?? [];
-    $preparedByLabel = $generation['prepared_by_label'] ?? ($sitrep->prepared_by_user_id === null ? 'System Generated' : 'Command User');
+    $preparedByLabel = $generation['prepared_by_label'] ?? ($sitrep->prepared_by_user_id === null ? 'System Generated' : trim((string) ($sitrep->preparedBy?->name ?? '')));
+    $preparedByLabel = $preparedByLabel !== '' ? $preparedByLabel : 'System Generated';
     $hotlineSnapshot = $sourceSnapshot['hotline'] ?? [];
     $hotlineBuild = $hotlineSnapshot['build'] ?? [];
     $hotlineVersionLabel = $hotlineSnapshot['display_version'] ?? $hotlineSnapshot['version'] ?? config('app.version');
