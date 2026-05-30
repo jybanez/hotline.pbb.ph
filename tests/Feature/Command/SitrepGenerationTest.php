@@ -135,6 +135,7 @@ class SitrepGenerationTest extends TestCase
         $this->assertSame('pbb-hotline', $sourceSnapshot['hotline']['app']);
         $this->assertSame('v1-5.6.1', $sourceSnapshot['hotline']['display_version']);
         $this->assertSame('Guadalupe, CEBU CITY, CEBU', $sourceSnapshot['hub_node']['snapshot']['name']);
+        $this->assertSame($command->name, $sourceSnapshot['generation']['prepared_by_label']);
         $this->assertSame(1, $sourceSnapshot['adapter_version']);
         $this->assertDatabaseHas('incident_resources_needed', [
             'incident_id' => $incidentId,
@@ -869,7 +870,9 @@ class SitrepGenerationTest extends TestCase
         $this->actingAs($anotherCommand)
             ->get("/command/sitreps/{$reportId}/preview")
             ->assertOk()
-            ->assertSee('Command Shared SITREP');
+            ->assertSee('Command Shared SITREP')
+            ->assertSee($command->name)
+            ->assertDontSee('Command User');
 
         $this->actingAs($anotherCommand)
             ->get("/command/sitreps/{$reportId}/download/pdf")

@@ -75,7 +75,7 @@ class SitrepGenerationService
             'actions_json' => $actions,
             'needs_json' => $needs,
             'gaps_json' => $gaps,
-            'source_snapshot_json' => $this->buildSourceSnapshot($context, $periodStart, $periodEnd, $hubNodeSnapshot, $systemGenerated),
+            'source_snapshot_json' => $this->buildSourceSnapshot($context, $periodStart, $periodEnd, $hubNodeSnapshot, $systemGenerated, $preparedBy),
             'privacy_redactions_json' => $this->buildPrivacyRedactions(),
             'data_quality_json' => $dataQuality,
         ]);
@@ -879,14 +879,14 @@ class SitrepGenerationService
         ];
     }
 
-    private function buildSourceSnapshot(array $context, Carbon $periodStart, Carbon $periodEnd, array $hubNodeSnapshot, bool $systemGenerated): array
+    private function buildSourceSnapshot(array $context, Carbon $periodStart, Carbon $periodEnd, array $hubNodeSnapshot, bool $systemGenerated, ?User $preparedBy): array
     {
         return [
             'period_started_at' => $periodStart->toIso8601String(),
             'period_ended_at' => $periodEnd->toIso8601String(),
             'generation' => [
                 'type' => $systemGenerated ? 'system' : 'manual',
-                'prepared_by_label' => $systemGenerated ? 'System Generated' : 'Command User',
+                'prepared_by_label' => $this->preparedByLabel($systemGenerated, $preparedBy),
             ],
             'incident_ids' => $context['incidents']->pluck('id')->values()->all(),
             'call_session_ids' => $context['call_sessions']->pluck('id')->values()->all(),
@@ -898,6 +898,17 @@ class SitrepGenerationService
             'adapter_version' => 1,
             'counting_rule_version' => 2,
         ];
+    }
+
+    private function preparedByLabel(bool $systemGenerated, ?User $preparedBy): string
+    {
+        if ($systemGenerated || $preparedBy === null) {
+            return 'System Generated';
+        }
+
+        $name = trim((string) $preparedBy->name);
+
+        return $name !== '' ? $name : 'System Generated';
     }
 
     private function coverageAreaFromHubNode(array $hubNodeSnapshot): string
