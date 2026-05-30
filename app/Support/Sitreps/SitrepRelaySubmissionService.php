@@ -7,6 +7,7 @@ use App\Domain\Sitreps\Models\SitrepReport;
 use App\Support\Settings\SettingsService;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class SitrepRelaySubmissionService
@@ -27,6 +28,8 @@ class SitrepRelaySubmissionService
         }
 
         if (! $this->isCurrentSitrep($sitrep)) {
+            Log::info('SITREP Relay submission skipped because report is superseded.', $this->logContext($delivery, $sitrep));
+
             return $delivery;
         }
 
@@ -54,11 +57,22 @@ class SitrepRelaySubmissionService
                 ->post($relayUrl.'/api/v1/messages', $this->envelope($sitrep));
 
             if (! $response->successful()) {
-                return $this->markFailed($delivery, sprintf(
+                $message = sprintf(
                     'Relay rejected SITREP handoff with HTTP %d: %s',
                     $response->status(),
                     Str::limit($response->body(), 500),
+                );
+
+                Log::warning('SITREP Relay submission failed.', array_merge(
+                    $this->logContext($delivery, $sitrep),
+                    [
+                        'reason' => 'relay_rejected',
+                        'http_status' => $response->status(),
+                        'error' => $message,
+                    ],
                 ));
+
+                return $this->markFailed($delivery, $message);
             }
 
             $payload = $response->json();
@@ -73,11 +87,35 @@ class SitrepRelaySubmissionService
                 'response_json' => is_array($payload) ? $payload : null,
             ])->save();
 
+            Log::info('SITREP Relay submission accepted.', array_merge(
+                $this->logContext($delivery, $sitrep),
+                [
+                    'relay_id' => $delivery->relay_id,
+                    'relay_message_id' => $delivery->relay_message_id,
+                    'deliveries_count' => $delivery->deliveries_count,
+                ],
+            ));
+
             return $delivery;
         } catch (RequestException $exception) {
+            Log::warning('SITREP Relay submission failed.', array_merge(
+                $this->logContext($delivery, $sitrep),
+                [
+                    'reason' => 'request_exception',
+                    'error' => $exception->getMessage(),
+                ],
+            ));
+
             return $this->markFailed($delivery, $exception->getMessage());
         } catch (\Throwable $exception) {
             report($exception);
+            Log::error('SITREP Relay submission failed unexpectedly.', array_merge(
+                $this->logContext($delivery, $sitrep),
+                [
+                    'reason' => 'unexpected_exception',
+                    'error' => $exception->getMessage(),
+                ],
+            ));
 
             return $this->markFailed($delivery, $exception->getMessage());
         }
@@ -149,12 +187,37 @@ class SitrepRelaySubmissionService
 
     private function markFailed(SitrepRelayDelivery $delivery, string $message): SitrepRelayDelivery
     {
+        $delivery->loadMissing('sitrepReport');
+        $sitrep = $delivery->sitrepReport;
+
         $delivery->forceFill([
             'status' => SitrepRelayDelivery::STATUS_FAILED,
             'last_error' => Str::limit($message, 2000),
             'last_attempted_at' => now(),
         ])->save();
 
+        Log::warning('SITREP Relay delivery marked failed.', array_merge(
+            $this->logContext($delivery, $sitrep instanceof SitrepReport ? $sitrep : null),
+            ['error' => Str::limit($message, 2000)],
+        ));
+
         return $delivery;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function logContext(SitrepRelayDelivery $delivery, ?SitrepReport $sitrep): array
+    {
+        return [
+            'delivery_id' => $delivery->id,
+            'sitrep_report_id' => $delivery->sitrep_report_id,
+            'sitrep_sequence_number' => $sitrep?->sequence_number,
+            'sitrep_generated_at' => $sitrep?->generated_at?->toIso8601String(),
+            'attempt_count' => $delivery->attempt_count,
+            'status' => $delivery->status,
+            'source_system' => $this->sourceSystem(),
+            'target_systems' => $this->targetSystems(),
+        ];
     }
 }
