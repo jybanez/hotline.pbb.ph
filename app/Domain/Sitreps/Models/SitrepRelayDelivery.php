@@ -28,7 +28,7 @@ class SitrepRelayDelivery extends Model
     {
         return [
             'attempt_count' => 'integer',
-            'relay_message_id' => 'integer',
+            'relay_message_id' => 'string',
             'deliveries_count' => 'integer',
             'last_attempted_at' => 'datetime',
             'submitted_at' => 'datetime',

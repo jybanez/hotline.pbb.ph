@@ -14,7 +14,7 @@ return new class extends Migration
             $table->string('status', 32)->default('pending')->index();
             $table->unsignedInteger('attempt_count')->default(0);
             $table->string('relay_id')->nullable()->index();
-            $table->unsignedBigInteger('relay_message_id')->nullable();
+            $table->string('relay_message_id', 64)->nullable();
             $table->unsignedInteger('deliveries_count')->nullable();
             $table->text('last_error')->nullable();
             $table->timestamp('last_attempted_at')->nullable();

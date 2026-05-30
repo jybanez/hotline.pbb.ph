@@ -9,6 +9,7 @@ use App\Support\Settings\SettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
@@ -44,6 +45,8 @@ class SitrepRelaySubmissionTest extends TestCase
     {
         app(SettingsService::class)->set('relay_url', 'https://relay.pbb.ph');
         app(SettingsService::class)->set('relay_token', 'test-relay-key');
+        app(SettingsService::class)->set('relay_source_system', 'pbb.hotline');
+        app(SettingsService::class)->set('relay_target_systems', "sitrep.ingestor\nsupport.dispatch");
 
         $report = $this->createSitrep(sequence: 63, generatedAt: '2026-05-30 09:00:00');
         SitrepRelayDelivery::query()->create([
@@ -55,12 +58,13 @@ class SitrepRelaySubmissionTest extends TestCase
             'https://relay.pbb.ph/api/v1/messages' => Http::response([
                 'success' => true,
                 'relay_id' => '01HZTESTSITREP000000000001',
-                'message_id' => 345,
+                'message_id' => '01KSX6D7SXE73HTFVWW6WGXN9X',
                 'status' => 'queued',
                 'deliveries_count' => 1,
                 'deliveries' => [],
             ], 201),
         ]);
+        Log::spy();
 
         $this->artisan('app:submit-latest-sitrep-to-relay')
             ->assertSuccessful();
@@ -68,8 +72,9 @@ class SitrepRelaySubmissionTest extends TestCase
         Http::assertSent(function ($request) use ($report): bool {
             return $request->url() === 'https://relay.pbb.ph/api/v1/messages'
                 && $request->hasHeader('X-Relay-Key', 'test-relay-key')
-                && $request['source_system'] === 'sitrep.app'
-                && $request['target_systems'] === ['sitrep.ingestor']
+                && $request->hasHeader('Connection', 'close')
+                && $request['source_system'] === 'pbb.hotline'
+                && $request['target_systems'] === ['sitrep.ingestor', 'support.dispatch']
                 && $request['message_type'] === 'sitrep.record'
                 && $request['payload_format'] === 'json'
                 && $request['reference_id'] === (string) $report->id
@@ -82,8 +87,58 @@ class SitrepRelaySubmissionTest extends TestCase
             'sitrep_report_id' => $report->id,
             'status' => SitrepRelayDelivery::STATUS_SENT,
             'relay_id' => '01HZTESTSITREP000000000001',
-            'relay_message_id' => 345,
+            'relay_message_id' => '01KSX6D7SXE73HTFVWW6WGXN9X',
         ]);
+        Log::shouldHaveReceived('info')
+            ->with('SITREP Relay submission accepted.', \Mockery::on(
+                fn (array $context): bool => $context['sitrep_report_id'] === $report->id
+                    && $context['relay_id'] === '01HZTESTSITREP000000000001'
+                    && $context['relay_message_id'] === '01KSX6D7SXE73HTFVWW6WGXN9X'
+                    && $context['source_system'] === 'pbb.hotline'
+                    && $context['target_systems'] === ['sitrep.ingestor', 'support.dispatch']
+            ))
+            ->once();
+    }
+
+    public function test_failed_relay_submission_writes_laravel_log_entry(): void
+    {
+        app(SettingsService::class)->set('relay_url', 'https://relay.pbb.ph');
+        app(SettingsService::class)->set('relay_token', 'test-relay-key');
+
+        $report = $this->createSitrep(sequence: 64, generatedAt: '2026-05-30 10:00:00');
+        SitrepRelayDelivery::query()->create([
+            'sitrep_report_id' => $report->id,
+            'status' => SitrepRelayDelivery::STATUS_PENDING,
+        ]);
+
+        Http::fake([
+            'https://relay.pbb.ph/api/v1/messages' => Http::response([
+                'message' => 'No active handler matched target system.',
+            ], 422),
+        ]);
+        Log::spy();
+
+        $this->artisan('app:submit-latest-sitrep-to-relay')
+            ->assertSuccessful();
+
+        $this->assertDatabaseHas('sitrep_relay_deliveries', [
+            'sitrep_report_id' => $report->id,
+            'status' => SitrepRelayDelivery::STATUS_FAILED,
+        ]);
+        Log::shouldHaveReceived('warning')
+            ->with('SITREP Relay submission failed.', \Mockery::on(
+                fn (array $context): bool => $context['sitrep_report_id'] === $report->id
+                    && $context['reason'] === 'relay_rejected'
+                    && $context['http_status'] === 422
+                    && str_contains($context['error'], 'Relay rejected SITREP handoff with HTTP 422')
+            ))
+            ->once();
+        Log::shouldHaveReceived('warning')
+            ->with('SITREP Relay delivery marked failed.', \Mockery::on(
+                fn (array $context): bool => $context['sitrep_report_id'] === $report->id
+                    && str_contains($context['error'], 'Relay rejected SITREP handoff with HTTP 422')
+            ))
+            ->once();
     }
 
     public function test_retry_command_skips_intentionally_superseded_failed_deliveries(): void
