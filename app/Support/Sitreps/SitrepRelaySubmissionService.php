@@ -101,6 +101,16 @@ class SitrepRelaySubmissionService
             ));
 
             return $delivery;
+        } catch (\InvalidArgumentException $exception) {
+            Log::warning('SITREP Relay submission failed.', array_merge(
+                $this->logContext($delivery, $sitrep),
+                [
+                    'reason' => 'invalid_envelope',
+                    'error' => $exception->getMessage(),
+                ],
+            ));
+
+            return $this->markFailed($delivery, $exception->getMessage());
         } catch (RequestException $exception) {
             Log::warning('SITREP Relay submission failed.', array_merge(
                 $this->logContext($delivery, $sitrep),
@@ -144,7 +154,7 @@ class SitrepRelaySubmissionService
     {
         return [
             'source_system' => $this->sourceSystem(),
-            'target_systems' => $this->targetSystems(),
+            'targets' => $this->targets($sitrep),
             'message_type' => 'sitrep.record',
             'payload_format' => 'json',
             'payload_version' => '1.0',
@@ -178,6 +188,48 @@ class SitrepRelaySubmissionService
         ), fn (string $target): bool => $target !== '')));
 
         return $targets !== [] ? $targets : ['sitrep.ingestor'];
+    }
+
+    /**
+     * @return array<int, array{id: string, systems: array<int, string>}>
+     */
+    private function targets(SitrepReport $sitrep): array
+    {
+        $snapshot = $sitrep->source_snapshot_json['hub_node']['snapshot'] ?? [];
+        $uplinks = is_array($snapshot) && is_array($snapshot['uplinks'] ?? null)
+            ? $snapshot['uplinks']
+            : [];
+        $systems = $this->targetSystems();
+        $targets = [];
+
+        foreach ($uplinks as $uplink) {
+            if (! is_array($uplink) || ! is_array($uplink['hub'] ?? null)) {
+                continue;
+            }
+
+            $id = $uplink['hub']['id'] ?? null;
+
+            if (! is_scalar($id)) {
+                continue;
+            }
+
+            $id = trim((string) $id);
+
+            if ($id === '' || isset($targets[$id])) {
+                continue;
+            }
+
+            $targets[$id] = [
+                'id' => $id,
+                'systems' => $systems,
+            ];
+        }
+
+        if ($targets === []) {
+            throw new \InvalidArgumentException('Relay target hubs are not available from hub.json uplinks.');
+        }
+
+        return array_values($targets);
     }
 
     private function priority(SitrepReport $sitrep): string
@@ -221,7 +273,20 @@ class SitrepRelaySubmissionService
             'attempt_count' => $delivery->attempt_count,
             'status' => $delivery->status,
             'source_system' => $this->sourceSystem(),
-            'target_systems' => $this->targetSystems(),
+            'relay_target_systems_setting' => $this->targetSystems(),
+            'relay_target_ids' => $sitrep instanceof SitrepReport ? $this->targetHubIds($sitrep) : [],
         ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function targetHubIds(SitrepReport $sitrep): array
+    {
+        try {
+            return array_column($this->targets($sitrep), 'id');
+        } catch (\InvalidArgumentException) {
+            return [];
+        }
     }
 }
