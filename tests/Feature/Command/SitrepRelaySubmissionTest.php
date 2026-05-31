@@ -150,6 +150,59 @@ class SitrepRelaySubmissionTest extends TestCase
             ->once();
     }
 
+    public function test_relay_envelope_targets_every_saved_hub_uplink(): void
+    {
+        app(SettingsService::class)->set('relay_url', 'https://relay.pbb.ph');
+        app(SettingsService::class)->set('relay_token', 'test-relay-key');
+        app(SettingsService::class)->set('relay_target_systems', 'sitrep.ingestor,support.dispatch');
+
+        $report = $this->createSitrep(
+            sequence: 65,
+            generatedAt: '2026-05-30 11:00:00',
+            uplinks: [
+                $this->uplink(29, 11, 'CEBU CITY, CEBU', true),
+                $this->uplink(30, 22, 'CEBU PROVINCE', false),
+            ],
+        );
+        SitrepRelayDelivery::query()->create([
+            'sitrep_report_id' => $report->id,
+            'status' => SitrepRelayDelivery::STATUS_PENDING,
+        ]);
+
+        Http::fake([
+            'https://relay.pbb.ph/api/v1/messages' => Http::response([
+                'success' => true,
+                'relay_id' => '01HZMULTIUPLINK00000000001',
+                'message_id' => '01KSYMULTIUPLINK000000001',
+                'status' => 'queued',
+                'deliveries_count' => 2,
+                'deliveries' => [],
+            ], 201),
+        ]);
+
+        $this->artisan('app:submit-latest-sitrep-to-relay')
+            ->assertSuccessful();
+
+        Http::assertSent(function ($request): bool {
+            $data = $request->data();
+
+            return ! array_key_exists('target_hq_hub_id', $data)
+                && ! array_key_exists('target_hub_ids', $data)
+                && ! array_key_exists('target_system', $data)
+                && ! array_key_exists('target_systems', $data)
+                && $request['targets'] === [
+                    [
+                        'id' => '11',
+                        'systems' => ['sitrep.ingestor', 'support.dispatch'],
+                    ],
+                    [
+                        'id' => '22',
+                        'systems' => ['sitrep.ingestor', 'support.dispatch'],
+                    ],
+                ];
+        });
+    }
+
     public function test_retry_command_skips_intentionally_superseded_failed_deliveries(): void
     {
         app(SettingsService::class)->set('relay_url', 'https://relay.pbb.ph');
@@ -207,25 +260,17 @@ class SitrepRelaySubmissionTest extends TestCase
             'relay_hub_id' => '072217029',
             'hub_id' => '072217029',
             'snapshot_hash' => 'test-hash',
-            'uplinks' => [[
-                'id' => 29,
-                'uplink_hub_id' => 11,
-                'uplink_type' => 'hierarchy',
-                'priority' => 1,
-                'is_primary' => true,
-                'hub' => [
-                    'id' => 11,
-                    'name' => 'CEBU CITY, CEBU',
-                    'deployment' => 'city',
-                    'status' => 'active',
-                ],
-            ]],
+            'uplinks' => [$this->uplink(29, 11, 'CEBU CITY, CEBU', true)],
         ];
     }
 
-    private function createSitrep(int $sequence, string $generatedAt): SitrepReport
+    /**
+     * @param  array<int, array<string, mixed>>|null  $uplinks
+     */
+    private function createSitrep(int $sequence, string $generatedAt, ?array $uplinks = null): SitrepReport
     {
         $generated = Carbon::parse($generatedAt, 'Asia/Manila');
+        $uplinks ??= [$this->uplink(29, 11, 'CEBU CITY, CEBU', true)];
 
         return SitrepReport::query()->create([
             'sequence_number' => $sequence,
@@ -252,24 +297,32 @@ class SitrepRelaySubmissionTest extends TestCase
                     'snapshot' => [
                         'hub_id' => '072217029',
                         'deployment' => 'barangay',
-                        'uplinks' => [[
-                            'id' => 29,
-                            'uplink_hub_id' => 11,
-                            'uplink_type' => 'hierarchy',
-                            'priority' => 1,
-                            'is_primary' => true,
-                            'hub' => [
-                                'id' => 11,
-                                'name' => 'CEBU CITY, CEBU',
-                                'deployment' => 'city',
-                                'status' => 'active',
-                            ],
-                        ]],
+                        'uplinks' => $uplinks,
                     ],
                 ],
             ],
             'privacy_redactions_json' => [],
             'data_quality_json' => [],
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function uplink(int $id, int $hubId, string $hubName, bool $primary): array
+    {
+        return [
+            'id' => $id,
+            'uplink_hub_id' => $hubId,
+            'uplink_type' => 'hierarchy',
+            'priority' => $primary ? 1 : 2,
+            'is_primary' => $primary,
+            'hub' => [
+                'id' => $hubId,
+                'name' => $hubName,
+                'deployment' => $primary ? 'city' : 'province',
+                'status' => 'active',
+            ],
+        ];
     }
 }
