@@ -70,11 +70,19 @@ class SitrepRelaySubmissionTest extends TestCase
             ->assertSuccessful();
 
         Http::assertSent(function ($request) use ($report): bool {
+            $data = $request->data();
+
             return $request->url() === 'https://relay.pbb.ph/api/v1/messages'
                 && $request->hasHeader('X-Relay-Key', 'test-relay-key')
                 && $request->hasHeader('Connection', 'close')
                 && $request['source_system'] === 'pbb.hotline'
-                && $request['target_systems'] === ['sitrep.ingestor', 'support.dispatch']
+                && ! array_key_exists('target_hub_ids', $data)
+                && ! array_key_exists('target_system', $data)
+                && ! array_key_exists('target_systems', $data)
+                && $request['targets'] === [[
+                    'id' => '11',
+                    'systems' => ['sitrep.ingestor', 'support.dispatch'],
+                ]]
                 && $request['message_type'] === 'sitrep.record'
                 && $request['payload_format'] === 'json'
                 && $request['reference_id'] === (string) $report->id
@@ -95,7 +103,8 @@ class SitrepRelaySubmissionTest extends TestCase
                     && $context['relay_id'] === '01HZTESTSITREP000000000001'
                     && $context['relay_message_id'] === '01KSX6D7SXE73HTFVWW6WGXN9X'
                     && $context['source_system'] === 'pbb.hotline'
-                    && $context['target_systems'] === ['sitrep.ingestor', 'support.dispatch']
+                    && $context['relay_target_systems_setting'] === ['sitrep.ingestor', 'support.dispatch']
+                    && $context['relay_target_ids'] === ['11']
             ))
             ->once();
     }
@@ -198,6 +207,19 @@ class SitrepRelaySubmissionTest extends TestCase
             'relay_hub_id' => '072217029',
             'hub_id' => '072217029',
             'snapshot_hash' => 'test-hash',
+            'uplinks' => [[
+                'id' => 29,
+                'uplink_hub_id' => 11,
+                'uplink_type' => 'hierarchy',
+                'priority' => 1,
+                'is_primary' => true,
+                'hub' => [
+                    'id' => 11,
+                    'name' => 'CEBU CITY, CEBU',
+                    'deployment' => 'city',
+                    'status' => 'active',
+                ],
+            ]],
         ];
     }
 
@@ -230,6 +252,19 @@ class SitrepRelaySubmissionTest extends TestCase
                     'snapshot' => [
                         'hub_id' => '072217029',
                         'deployment' => 'barangay',
+                        'uplinks' => [[
+                            'id' => 29,
+                            'uplink_hub_id' => 11,
+                            'uplink_type' => 'hierarchy',
+                            'priority' => 1,
+                            'is_primary' => true,
+                            'hub' => [
+                                'id' => 11,
+                                'name' => 'CEBU CITY, CEBU',
+                                'deployment' => 'city',
+                                'status' => 'active',
+                            ],
+                        ]],
                     ],
                 ],
             ],
