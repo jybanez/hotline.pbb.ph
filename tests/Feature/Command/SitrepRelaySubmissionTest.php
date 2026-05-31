@@ -203,6 +203,85 @@ class SitrepRelaySubmissionTest extends TestCase
         });
     }
 
+    public function test_relay_submission_fails_before_post_when_no_valid_uplink_targets_exist(): void
+    {
+        app(SettingsService::class)->set('relay_url', 'https://relay.pbb.ph');
+        app(SettingsService::class)->set('relay_token', 'test-relay-key');
+
+        $report = $this->createSitrep(
+            sequence: 66,
+            generatedAt: '2026-05-30 12:00:00',
+            uplinks: [
+                ['id' => 31, 'hub' => ['id' => null]],
+                ['id' => 32, 'hub' => ['id' => '']],
+                ['id' => 33, 'hub' => []],
+                ['id' => 34],
+            ],
+        );
+        SitrepRelayDelivery::query()->create([
+            'sitrep_report_id' => $report->id,
+            'status' => SitrepRelayDelivery::STATUS_PENDING,
+        ]);
+
+        Http::fake();
+
+        $this->artisan('app:submit-latest-sitrep-to-relay')
+            ->assertSuccessful();
+
+        Http::assertNothingSent();
+        $this->assertDatabaseHas('sitrep_relay_deliveries', [
+            'sitrep_report_id' => $report->id,
+            'status' => SitrepRelayDelivery::STATUS_FAILED,
+            'last_error' => 'Relay target hubs are not available from hub.json uplinks.',
+        ]);
+    }
+
+    public function test_relay_envelope_skips_duplicate_uplink_targets_deterministically(): void
+    {
+        app(SettingsService::class)->set('relay_url', 'https://relay.pbb.ph');
+        app(SettingsService::class)->set('relay_token', 'test-relay-key');
+        app(SettingsService::class)->set('relay_target_systems', 'sitrep.ingestor');
+
+        $report = $this->createSitrep(
+            sequence: 67,
+            generatedAt: '2026-05-30 13:00:00',
+            uplinks: [
+                $this->uplink(29, 11, 'CEBU CITY FIRST', true),
+                $this->uplink(30, 22, 'CEBU PROVINCE', false),
+                $this->uplink(31, 11, 'CEBU CITY DUPLICATE', false),
+            ],
+        );
+        SitrepRelayDelivery::query()->create([
+            'sitrep_report_id' => $report->id,
+            'status' => SitrepRelayDelivery::STATUS_PENDING,
+        ]);
+
+        Http::fake([
+            'https://relay.pbb.ph/api/v1/messages' => Http::response([
+                'success' => true,
+                'relay_id' => '01HZDEDUPTARGET0000000001',
+                'message_id' => '01KSYDEDUPTARGET00000001',
+                'status' => 'queued',
+                'deliveries_count' => 2,
+                'deliveries' => [],
+            ], 201),
+        ]);
+
+        $this->artisan('app:submit-latest-sitrep-to-relay')
+            ->assertSuccessful();
+
+        Http::assertSent(fn ($request): bool => $request['targets'] === [
+            [
+                'id' => '11',
+                'systems' => ['sitrep.ingestor'],
+            ],
+            [
+                'id' => '22',
+                'systems' => ['sitrep.ingestor'],
+            ],
+        ]);
+    }
+
     public function test_retry_command_skips_intentionally_superseded_failed_deliveries(): void
     {
         app(SettingsService::class)->set('relay_url', 'https://relay.pbb.ph');
