@@ -22,7 +22,14 @@ class NormalizeSitrepPayloadSchema extends Command
             ->chunkById(100, function ($reports) use ($dryRun, &$changed): void {
                 foreach ($reports as $report) {
                     $sourceSnapshot = $report->source_snapshot_json ?? [];
-                    $location = SitrepPayloadSchema::locationFromSourceSnapshot(SitrepPayloadSchema::rollup($sourceSnapshot));
+                    $sourceSnapshotRollup = SitrepPayloadSchema::withHubNodes(SitrepPayloadSchema::rollup($sourceSnapshot));
+                    $location = SitrepPayloadSchema::locationFromSourceSnapshot($sourceSnapshotRollup);
+                    $sourceSnapshotSection = isset($sourceSnapshot['items']) && is_array($sourceSnapshot['items'])
+                        ? [
+                            'rollup' => $sourceSnapshotRollup,
+                            'items' => $sourceSnapshot['items'],
+                        ]
+                        : SitrepPayloadSchema::wrapSection($sourceSnapshotRollup, $location);
                     $updates = [
                         'summary_json' => SitrepPayloadSchema::wrapSection($report->summary_json ?? [], $location),
                         'situation_json' => SitrepPayloadSchema::wrapSection($report->situation_json ?? [], $location),
@@ -31,7 +38,7 @@ class NormalizeSitrepPayloadSchema extends Command
                         'actions_json' => SitrepPayloadSchema::wrapSection($report->actions_json ?? [], $location),
                         'needs_json' => SitrepPayloadSchema::wrapSection($report->needs_json ?? [], $location),
                         'gaps_json' => SitrepPayloadSchema::wrapSection($report->gaps_json ?? [], $location),
-                        'source_snapshot_json' => SitrepPayloadSchema::wrapSection($sourceSnapshot, $location),
+                        'source_snapshot_json' => $sourceSnapshotSection,
                         'data_quality_json' => SitrepPayloadSchema::wrapSection($report->data_quality_json ?? [], $location),
                     ];
 

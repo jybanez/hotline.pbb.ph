@@ -121,23 +121,7 @@ final class SitrepConsolidator
             'actions' => $this->sectionWithItems($normalized, 'actions', $this->mergeActions($normalized)),
             'needs' => $this->sectionWithItems($normalized, 'needs', $this->mergeNeeds($normalized)),
             'gaps' => $this->sectionWithItems($normalized, 'gaps', $this->mergeSectionItems($normalized, 'gaps')),
-            'source_snapshot' => [
-                'generation' => [
-                    'type' => 'consolidated',
-                    'sdk' => 'pbb-sitrep-consolidator',
-                    'sdk_version' => '0.1.0',
-                    'merge_rule_version' => 1,
-                    'prepared_by_label' => (string) ($context['prepared_by_label'] ?? 'System Generated'),
-                ],
-                'target' => [
-                    'hub_id' => $context['target_hub_id'] ?? null,
-                    'name' => $context['target_hub_name'] ?? null,
-                    'level' => $context['target_level'] ?? null,
-                ],
-                'source_deployment' => $deployments[0],
-                'source_sitreps' => $sourceIndex,
-                'incident_coordinates' => $this->mergeIncidentCoordinates($normalized),
-            ],
+            'source_snapshot' => $this->sourceSnapshotSection($normalized, $context, $deployments[0], $sourceIndex),
             'privacy_redactions' => [
                 'inherited' => true,
                 'note' => 'Consolidated from generated SITREP payloads; source redaction state is preserved by provenance.',
@@ -226,6 +210,46 @@ final class SitrepConsolidator
     }
 
     /**
+     * @param array<int, array<string, mixed>> $normalized
+     * @param array<string, mixed> $context
+     * @param array<int, array<string, mixed>> $sourceIndex
+     * @return array{rollup: array<string, mixed>, items: array<int, array<string, mixed>>}
+     */
+    private function sourceSnapshotSection(array $normalized, array $context, string $deployment, array $sourceIndex): array
+    {
+        $items = [];
+
+        foreach ($normalized as $source) {
+            $items[] = [
+                'location' => $this->sourceLocation($source),
+                'data' => $this->sourceSection($source, 'source_snapshot'),
+            ];
+        }
+
+        return [
+            'rollup' => [
+                'generation' => [
+                    'type' => 'consolidated',
+                    'sdk' => 'pbb-sitrep-consolidator',
+                    'sdk_version' => '0.1.0',
+                    'merge_rule_version' => 1,
+                    'prepared_by_label' => (string) ($context['prepared_by_label'] ?? 'System Generated'),
+                ],
+                'target' => [
+                    'hub_id' => $context['target_hub_id'] ?? null,
+                    'name' => $context['target_hub_name'] ?? null,
+                    'level' => $context['target_level'] ?? null,
+                ],
+                'source_deployment' => $deployment,
+                'hub_nodes' => $this->sourceHubNodes($normalized),
+                'source_sitreps' => $sourceIndex,
+                'incident_coordinates' => $this->mergeIncidentCoordinates($normalized),
+            ],
+            'items' => $items,
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function sourceLocation(array $source): array
@@ -252,6 +276,23 @@ final class SitrepConsolidator
         return isset($data['rollup']) && is_array($data['rollup'])
             ? $data['rollup']
             : $data;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $normalized
+     * @return array<int, array<string, mixed>>
+     */
+    private function sourceHubNodes(array $normalized): array
+    {
+        $hubNodes = [];
+
+        foreach ($normalized as $source) {
+            if (isset($source['source_hub_node']) && is_array($source['source_hub_node'])) {
+                $hubNodes[] = $source['source_hub_node'];
+            }
+        }
+
+        return $hubNodes;
     }
 
     /**

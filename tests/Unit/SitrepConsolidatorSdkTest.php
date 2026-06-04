@@ -110,8 +110,10 @@ class SitrepConsolidatorSdkTest extends TestCase
         $this->assertSame(30, $result->sitrep['summary']['rollup']['supporting_metrics']['resource_need_units']);
         $this->assertCount(3, $result->sitrep['summary']['items']);
         $this->assertSame(60, $result->sitrep['population']['rollup']['numeric_total']);
-        $this->assertSame('consolidated', $result->sitrep['source_snapshot']['generation']['type']);
-        $this->assertSame('System Generated', $result->sitrep['source_snapshot']['generation']['prepared_by_label']);
+        $this->assertSame('consolidated', $result->sitrep['source_snapshot']['rollup']['generation']['type']);
+        $this->assertSame('System Generated', $result->sitrep['source_snapshot']['rollup']['generation']['prepared_by_label']);
+        $this->assertCount(3, $result->sitrep['source_snapshot']['rollup']['hub_nodes']);
+        $this->assertSame(12, $result->sitrep['source_snapshot']['rollup']['hub_nodes'][0]['snapshot']['hub_id']);
         $this->assertSame('draft', $result->sitrep['status']);
         $this->assertSame('private', $result->sitrep['visibility']);
         $this->assertSame('2026-05-29T17:00:00+08:00', $result->sitrep['period_started_at']);
@@ -120,7 +122,8 @@ class SitrepConsolidatorSdkTest extends TestCase
         $this->assertSame('Source SITREPs', $result->sitrep['actions']['rollup']['deployment_groups'][0]['category']);
         $this->assertSame('Consolidated Sources', $result->sitrep['actions']['rollup']['deployment_groups'][0]['team']);
         $this->assertSame(3, $result->sitrep['actions']['rollup']['deployment_groups'][0]['status_counts']['assigned']);
-        $this->assertCount(3, $result->sitrep['source_snapshot']['source_sitreps']);
+        $this->assertCount(3, $result->sitrep['source_snapshot']['rollup']['source_sitreps']);
+        $this->assertCount(3, $result->sitrep['source_snapshot']['items']);
     }
 
     public function test_single_source_v2_consolidation_preserves_rich_source_sections(): void
@@ -206,7 +209,7 @@ class SitrepConsolidatorSdkTest extends TestCase
         $this->assertSame([
             ['id' => 101, 'lat' => 10.33049, 'lng' => 123.88257, 'source_hub_id' => '12'],
             ['id' => 101, 'lat' => 10.33111, 'lng' => 123.88333, 'source_hub_id' => '13'],
-        ], $result->sitrep['source_snapshot']['incident_coordinates']);
+        ], $result->sitrep['source_snapshot']['rollup']['incident_coordinates']);
     }
 
     public function test_consolidated_period_bounds_compare_instants_across_timezone_offsets(): void

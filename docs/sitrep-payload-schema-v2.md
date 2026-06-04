@@ -52,6 +52,28 @@ The framework-agnostic viewer SDK accepts both legacy flat sections and schema v
 
 SDK consumers should use the updated Viewer and Consolidator helpers. Consumers must not assume `source_snapshot.hub_node` or operational section fields are always top-level. For schema v2, those fields are under each section's `rollup`.
 
+## Hub Node Metadata
+
+`source_snapshot.rollup.hub_nodes[]` is the canonical array of hub-node snapshots associated with a SITREP.
+
+Direct Hotline-generated SITREPs include:
+
+```text
+source_snapshot.rollup.hub_node
+source_snapshot.rollup.hub_nodes[0]
+```
+
+Both entries refer to the same generating hub. `hub_node` is retained for backward compatibility and for direct Hotline Relay target derivation.
+
+Consolidated SITREPs include:
+
+```text
+source_snapshot.rollup.hub_nodes[]
+source_snapshot.items[].data.hub_node
+```
+
+Each accepted source hub contributes one `hub_nodes[]` entry. Consolidated rollups should not be interpreted as having a single `hub_node`; consumers should prefer `hub_nodes[]` when it is present.
+
 This document is the source of truth for Support and other PHP apps consuming SITREP JSON from Hotline or from the consolidator SDK.
 
 ## Installer And Update Metadata

@@ -30,6 +30,25 @@ final class SitrepPayloadSchema
     }
 
     /**
+     * @param array<string, mixed> $sourceSnapshot
+     * @return array<string, mixed>
+     */
+    public static function withHubNodes(array $sourceSnapshot): array
+    {
+        $hubNodes = isset($sourceSnapshot['hub_nodes']) && is_array($sourceSnapshot['hub_nodes'])
+            ? array_values(array_filter($sourceSnapshot['hub_nodes'], 'is_array'))
+            : [];
+
+        if ($hubNodes === [] && isset($sourceSnapshot['hub_node']) && is_array($sourceSnapshot['hub_node'])) {
+            $hubNodes[] = $sourceSnapshot['hub_node'];
+        }
+
+        $sourceSnapshot['hub_nodes'] = $hubNodes;
+
+        return $sourceSnapshot;
+    }
+
+    /**
      * @param array<string, mixed> $section
      * @return array<string, mixed>
      */
@@ -46,7 +65,7 @@ final class SitrepPayloadSchema
      */
     public static function locationFromSourceSnapshot(array $sourceSnapshot): array
     {
-        $snapshot = $sourceSnapshot['hub_node']['snapshot'] ?? [];
+        $snapshot = $sourceSnapshot['hub_node']['snapshot'] ?? $sourceSnapshot['hub_nodes'][0]['snapshot'] ?? [];
         $snapshot = is_array($snapshot) ? $snapshot : [];
 
         return [

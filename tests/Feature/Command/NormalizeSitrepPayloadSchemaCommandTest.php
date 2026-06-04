@@ -33,6 +33,7 @@ class NormalizeSitrepPayloadSchemaCommandTest extends TestCase
         $this->assertSame('Guadalupe, Cebu City, Cebu', $report->summary_json['items'][0]['location']['name']);
         $this->assertSame('barangay', $report->summary_json['items'][0]['location']['deployment']);
         $this->assertSame('System Generated', $report->source_snapshot_json['rollup']['generation']['prepared_by_label']);
+        $this->assertSame('072217029', $report->source_snapshot_json['rollup']['hub_nodes'][0]['snapshot']['hub_id']);
     }
 
     private function legacySitrepReport(): SitrepReport

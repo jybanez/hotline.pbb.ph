@@ -12,7 +12,8 @@ class SitrepExportPayloadBuilder
     public function build(SitrepReport $sitrep): array
     {
         $sourceSnapshot = $sitrep->source_snapshot_json ?? [];
-        $location = SitrepPayloadSchema::locationFromSourceSnapshot(SitrepPayloadSchema::rollup($sourceSnapshot));
+        $sourceSnapshotRollup = SitrepPayloadSchema::withHubNodes(SitrepPayloadSchema::rollup($sourceSnapshot));
+        $location = SitrepPayloadSchema::locationFromSourceSnapshot($sourceSnapshotRollup);
 
         return [
             'schema_version' => SitrepPayloadSchema::VERSION,
@@ -35,7 +36,7 @@ class SitrepExportPayloadBuilder
             'actions' => SitrepPayloadSchema::wrapSection($sitrep->actions_json ?? [], $location),
             'needs' => SitrepPayloadSchema::wrapSection($sitrep->needs_json ?? [], $location),
             'gaps' => SitrepPayloadSchema::wrapSection($sitrep->gaps_json ?? [], $location),
-            'source_snapshot' => SitrepPayloadSchema::wrapSection($sourceSnapshot, $location),
+            'source_snapshot' => SitrepPayloadSchema::wrapSection($sourceSnapshotRollup, $location),
             'privacy_redactions' => $sitrep->privacy_redactions_json ?? [],
             'data_quality' => SitrepPayloadSchema::wrapSection($sitrep->data_quality_json ?? [], $location),
         ];

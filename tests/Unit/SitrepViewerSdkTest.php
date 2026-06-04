@@ -199,6 +199,20 @@ class SitrepViewerSdkTest extends TestCase
         $this->assertStringNotContainsString('items', $html);
     }
 
+    public function test_renders_direct_source_identity_from_hub_nodes_array(): void
+    {
+        $viewer = new SitrepViewer();
+        $payload = $this->sitrep();
+        $payload['source_snapshot']['hub_nodes'] = [$payload['source_snapshot']['hub_node']];
+        unset($payload['source_snapshot']['hub_node']);
+
+        $html = $viewer->render($payload, ['full_document' => false]);
+
+        $this->assertStringContainsString('<h1>Barangay SITREP</h1>', $html);
+        $this->assertStringContainsString('Guadalupe, Cebu City, Cebu', $html);
+        $this->assertStringContainsString('Hub Node: Guadalupe, Cebu City, Cebu', $html);
+    }
+
     public function test_viewer_css_keeps_preview_header_from_squeezing_title(): void
     {
         $css = (new SitrepViewer())->css();

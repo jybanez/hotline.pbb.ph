@@ -68,7 +68,8 @@ source_snapshot.hub_node.snapshot.name
 ```
 
 For schema v2 payloads, the SDK also accepts the same metadata under
-`source_snapshot.rollup.hub_node.snapshot.*`.
+`source_snapshot.rollup.hub_node.snapshot.*` or the first valid entry in
+`source_snapshot.rollup.hub_nodes[].snapshot.*`.
 
 `hub_id` is the PBB HUB HQ system-generated unique ID. Use it for staging filenames:
 
@@ -192,12 +193,17 @@ When context does not provide `period_started_at` or `period_ended_at`, the SDK
 uses the earliest source start and latest source end. This prevents a
 consolidation batch from accidentally inheriting only the first source period.
 
-`source_snapshot.generation` identifies the consolidator SDK, version, merge
-rule, and prepared-by label. `source_snapshot.target` records the receiving hub
-or organization, while `source_snapshot.source_sitreps` records accepted source
-provenance. If sources contain `source_snapshot.incident_coordinates`, the SDK
-rolls them up into `source_snapshot.incident_coordinates` and adds
+`source_snapshot.rollup.generation` identifies the consolidator SDK, version,
+merge rule, and prepared-by label. `source_snapshot.rollup.target` records the
+receiving hub or organization, while
+`source_snapshot.rollup.source_sitreps` records accepted source provenance.
+`source_snapshot.rollup.hub_nodes[]` records one hub-node snapshot per accepted
+source hub. If sources contain `source_snapshot.incident_coordinates`, the SDK
+rolls them up into `source_snapshot.rollup.incident_coordinates` and adds
 `source_hub_id` to each coordinate entry.
+
+`source_snapshot.items[]` preserves each accepted source's original source
+snapshot for drill-down and audit use.
 
 Population and other numeric fields are summed only for planning awareness. The
 SDK emits `population.rollup.numeric_total_note`,
