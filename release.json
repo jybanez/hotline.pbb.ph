@@ -343,6 +343,7 @@
       "tests/",
       "tmp/",
       "tools/prepare-helper-runtime.php",
+      "app/Console/Commands/ClearSitreps.php",
       "app/Console/Commands/ClearTestIncidents.php",
       "app/Console/Commands/SeedSampleSitrepIncidents.php",
       "database/seeders/DevUsersSeeder.php",
