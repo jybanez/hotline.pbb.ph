@@ -166,6 +166,17 @@ class SitrepViewerSdkTest extends TestCase
         $this->assertStringContainsString('Sources: 2 accepted SITREPs', $html);
     }
 
+    public function test_viewer_css_keeps_preview_header_from_squeezing_title(): void
+    {
+        $css = (new SitrepViewer())->css();
+
+        $this->assertStringContainsString('grid-template-columns: minmax(18rem, 1fr) minmax(0, 34rem);', $css);
+        $this->assertStringContainsString('.sitrep-page.is-preview .sitrep-header h1', $css);
+        $this->assertStringContainsString('@media (max-width: 980px)', $css);
+        $this->assertStringContainsString('grid-template-columns: 1fr;', $css);
+        $this->assertStringContainsString('justify-content: flex-start;', $css);
+    }
+
     /**
      * @return array<string, mixed>
      */
