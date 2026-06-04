@@ -152,3 +152,19 @@ The demo reads `demo/input/sitrep.json` and writes:
 ```text
 demo/output/sitrep.html
 ```
+
+For an interactive upload demo, start PHP's built-in server from the package
+directory:
+
+```bash
+php -S 127.0.0.1:8096 -t demo
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8096/upload.php
+```
+
+The upload demo accepts a generated `.json` SITREP payload, renders it with the
+viewer SDK, and does not persist the uploaded file.
