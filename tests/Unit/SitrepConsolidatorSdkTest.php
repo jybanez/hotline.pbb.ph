@@ -153,6 +153,29 @@ class SitrepConsolidatorSdkTest extends TestCase
         ], $result->sitrep['source_snapshot']['incident_coordinates']);
     }
 
+    public function test_consolidated_period_bounds_compare_instants_across_timezone_offsets(): void
+    {
+        $consolidator = new SitrepConsolidator();
+
+        $earlierInstant = $this->sitrep(12, 'barangay', sequence: 1);
+        $earlierInstant['period_started_at'] = '2026-05-29T00:30:00+08:00';
+        $earlierInstant['period_ended_at'] = '2026-05-29T00:45:00+08:00';
+
+        $lexicallyEarlier = $this->sitrep(13, 'barangay', sequence: 2);
+        $lexicallyEarlier['period_started_at'] = '2026-05-28T23:00:00+00:00';
+        $lexicallyEarlier['period_ended_at'] = '2026-05-29T01:00:00+00:00';
+
+        $result = $consolidator->consolidate([$earlierInstant, $lexicallyEarlier], [
+            'target_level' => 'city',
+            'target_hub_id' => '21',
+            'target_hub_name' => 'Cebu City, Cebu',
+        ]);
+
+        $this->assertTrue($result->ok);
+        $this->assertSame('2026-05-29T00:30:00+08:00', $result->sitrep['period_started_at']);
+        $this->assertSame('2026-05-29T01:00:00+00:00', $result->sitrep['period_ended_at']);
+    }
+
     public function test_rejects_mixed_source_deployment_consolidation(): void
     {
         $consolidator = new SitrepConsolidator();

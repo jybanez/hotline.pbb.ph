@@ -161,22 +161,44 @@ final class SitrepConsolidator
      */
     private function period(array $normalized, array $context): array
     {
-        $starts = array_values(array_filter(array_map(
-            static fn (array $source): ?string => is_string($source['period_started_at'] ?? null) ? $source['period_started_at'] : null,
-            $normalized,
-        )));
-        $ends = array_values(array_filter(array_map(
-            static fn (array $source): ?string => is_string($source['period_ended_at'] ?? null) ? $source['period_ended_at'] : null,
-            $normalized,
-        )));
-
-        sort($starts);
-        rsort($ends);
-
         return [
-            'started_at' => (string) ($context['period_started_at'] ?? $starts[0] ?? $normalized[0]['period_started_at']),
-            'ended_at' => (string) ($context['period_ended_at'] ?? $ends[0] ?? $normalized[0]['period_ended_at']),
+            'started_at' => (string) ($context['period_started_at'] ?? $this->periodBound($normalized, 'period_started_at', 'earliest') ?? $normalized[0]['period_started_at']),
+            'ended_at' => (string) ($context['period_ended_at'] ?? $this->periodBound($normalized, 'period_ended_at', 'latest') ?? $normalized[0]['period_ended_at']),
         ];
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $normalized
+     */
+    private function periodBound(array $normalized, string $field, string $direction): ?string
+    {
+        $selectedText = null;
+        $selectedTimestamp = null;
+
+        foreach ($normalized as $source) {
+            if (! is_string($source[$field] ?? null) || trim($source[$field]) === '') {
+                continue;
+            }
+
+            $text = $source[$field];
+
+            try {
+                $timestamp = (new \DateTimeImmutable($text))->getTimestamp();
+            } catch (\Throwable) {
+                continue;
+            }
+
+            if (
+                $selectedTimestamp === null
+                || ($direction === 'earliest' && $timestamp < $selectedTimestamp)
+                || ($direction === 'latest' && $timestamp > $selectedTimestamp)
+            ) {
+                $selectedTimestamp = $timestamp;
+                $selectedText = $text;
+            }
+        }
+
+        return $selectedText;
     }
 
     /**
