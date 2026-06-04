@@ -174,7 +174,7 @@ final class SitrepDocumentRenderer
             $html .= '</div>';
         }
 
-        $locationRows = array_map(fn (array $row): array => [$row['area'] ?? 'Unknown', $row['count'] ?? 0], array_filter($situation['locations'] ?? [], 'is_array'));
+        $locationRows = array_map(fn (array $row): array => [$row['area'] ?? 'Unknown', $row['count'] ?? $row['report_count'] ?? 0], array_filter($situation['locations'] ?? [], 'is_array'));
         $typeRows = array_map(fn (array $row): array => [$row['type'] ?? 'Unclassified', $row['count'] ?? 0], array_filter($situation['incident_types'] ?? [], 'is_array'));
 
         return $html.'<div class="sitrep-two-column">'

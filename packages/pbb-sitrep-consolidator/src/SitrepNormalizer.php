@@ -11,7 +11,11 @@ final class SitrepNormalizer
     public function normalize(array $sitrep, int $sourceIndex = 0): array
     {
         $issues = [];
-        $hubSnapshot = $this->getArray($sitrep, 'source_snapshot.hub_node.snapshot');
+        $sourceSnapshot = $this->getArray($sitrep, 'source_snapshot');
+        if (isset($sourceSnapshot['rollup']) && is_array($sourceSnapshot['rollup'])) {
+            $sourceSnapshot = $sourceSnapshot['rollup'];
+        }
+        $hubSnapshot = $this->getArray($sourceSnapshot, 'hub_node.snapshot');
         $deployment = $this->stringValue($hubSnapshot['deployment'] ?? null);
         $hubId = $this->stringValue($hubSnapshot['hub_id'] ?? null);
 

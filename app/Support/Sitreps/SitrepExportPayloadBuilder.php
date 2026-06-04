@@ -11,11 +11,16 @@ class SitrepExportPayloadBuilder
      */
     public function build(SitrepReport $sitrep): array
     {
+        $sourceSnapshot = $sitrep->source_snapshot_json ?? [];
+        $location = SitrepPayloadSchema::locationFromSourceSnapshot(SitrepPayloadSchema::rollup($sourceSnapshot));
+
         return [
+            'schema_version' => SitrepPayloadSchema::VERSION,
             'id' => $sitrep->id,
             'sequence_number' => $sitrep->sequence_number,
             'title' => $sitrep->title,
             'coverage_area' => $sitrep->coverage_area,
+            'location_count' => 1,
             'period_started_at' => $sitrep->period_started_at?->toIso8601String(),
             'period_ended_at' => $sitrep->period_ended_at?->toIso8601String(),
             'generated_at' => $sitrep->generated_at?->toIso8601String(),
@@ -23,16 +28,16 @@ class SitrepExportPayloadBuilder
             'status' => $sitrep->status,
             'visibility' => $sitrep->visibility,
             'alert_level' => $sitrep->alert_level,
-            'summary' => $sitrep->summary_json ?? [],
-            'situation' => $sitrep->situation_json ?? [],
-            'damage' => $sitrep->damage_json ?? [],
-            'population' => $sitrep->population_json ?? [],
-            'actions' => $sitrep->actions_json ?? [],
-            'needs' => $sitrep->needs_json ?? [],
-            'gaps' => $sitrep->gaps_json ?? [],
-            'source_snapshot' => $sitrep->source_snapshot_json ?? [],
+            'summary' => SitrepPayloadSchema::wrapSection($sitrep->summary_json ?? [], $location),
+            'situation' => SitrepPayloadSchema::wrapSection($sitrep->situation_json ?? [], $location),
+            'damage' => SitrepPayloadSchema::wrapSection($sitrep->damage_json ?? [], $location),
+            'population' => SitrepPayloadSchema::wrapSection($sitrep->population_json ?? [], $location),
+            'actions' => SitrepPayloadSchema::wrapSection($sitrep->actions_json ?? [], $location),
+            'needs' => SitrepPayloadSchema::wrapSection($sitrep->needs_json ?? [], $location),
+            'gaps' => SitrepPayloadSchema::wrapSection($sitrep->gaps_json ?? [], $location),
+            'source_snapshot' => SitrepPayloadSchema::wrapSection($sourceSnapshot, $location),
             'privacy_redactions' => $sitrep->privacy_redactions_json ?? [],
-            'data_quality' => $sitrep->data_quality_json ?? [],
+            'data_quality' => SitrepPayloadSchema::wrapSection($sitrep->data_quality_json ?? [], $location),
         ];
     }
 

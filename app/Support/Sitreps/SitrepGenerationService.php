@@ -51,6 +51,8 @@ class SitrepGenerationService
         $needs = $this->buildNeeds($context);
         $gaps = $this->buildGaps($context);
         $dataQuality = $this->buildDataQuality($context);
+        $sourceSnapshot = $this->buildSourceSnapshot($context, $periodStart, $periodEnd, $hubNodeSnapshot, $systemGenerated, $preparedBy);
+        $location = SitrepPayloadSchema::locationFromSourceSnapshot($sourceSnapshot);
 
         $sequence = (int) SitrepReport::query()->max('sequence_number') + 1;
         $generatedAt = now();
@@ -68,16 +70,16 @@ class SitrepGenerationService
             'alert_level' => $summary['posture'] === 'critical' ? 'Critical' : ($summary['posture'] === 'strained' ? 'Elevated' : 'Normal'),
             'prepared_by_user_id' => $preparedBy?->id,
             'reviewed_by_user_id' => null,
-            'summary_json' => $summary,
-            'situation_json' => $situation,
-            'damage_json' => $damage,
-            'population_json' => $population,
-            'actions_json' => $actions,
-            'needs_json' => $needs,
-            'gaps_json' => $gaps,
-            'source_snapshot_json' => $this->buildSourceSnapshot($context, $periodStart, $periodEnd, $hubNodeSnapshot, $systemGenerated, $preparedBy),
+            'summary_json' => SitrepPayloadSchema::wrapSection($summary, $location),
+            'situation_json' => SitrepPayloadSchema::wrapSection($situation, $location),
+            'damage_json' => SitrepPayloadSchema::wrapSection($damage, $location),
+            'population_json' => SitrepPayloadSchema::wrapSection($population, $location),
+            'actions_json' => SitrepPayloadSchema::wrapSection($actions, $location),
+            'needs_json' => SitrepPayloadSchema::wrapSection($needs, $location),
+            'gaps_json' => SitrepPayloadSchema::wrapSection($gaps, $location),
+            'source_snapshot_json' => SitrepPayloadSchema::wrapSection($sourceSnapshot, $location),
             'privacy_redactions_json' => $this->buildPrivacyRedactions(),
-            'data_quality_json' => $dataQuality,
+            'data_quality_json' => SitrepPayloadSchema::wrapSection($dataQuality, $location),
         ]);
 
         $this->relayOutbox->queue($report);

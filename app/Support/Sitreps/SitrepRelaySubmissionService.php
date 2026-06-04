@@ -195,7 +195,8 @@ class SitrepRelaySubmissionService
      */
     private function targets(SitrepReport $sitrep): array
     {
-        $snapshot = $sitrep->source_snapshot_json['hub_node']['snapshot'] ?? [];
+        $sourceSnapshot = SitrepPayloadSchema::rollup($sitrep->source_snapshot_json ?? []);
+        $snapshot = $sourceSnapshot['hub_node']['snapshot'] ?? [];
         $uplinks = is_array($snapshot) && is_array($snapshot['uplinks'] ?? null)
             ? $snapshot['uplinks']
             : [];

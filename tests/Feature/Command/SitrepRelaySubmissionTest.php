@@ -88,7 +88,7 @@ class SitrepRelaySubmissionTest extends TestCase
                 && $request['reference_id'] === (string) $report->id
                 && $request['payload']['id'] === $report->id
                 && $request['payload']['sequence_number'] === 63
-                && $request['payload']['source_snapshot']['hub_node']['snapshot']['hub_id'] === '072217029';
+                && $request['payload']['source_snapshot']['rollup']['hub_node']['snapshot']['hub_id'] === '072217029';
         });
 
         $this->assertDatabaseHas('sitrep_relay_deliveries', [

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Command;
 use App\Domain\Sitreps\Models\SitrepReport;
 use App\Http\Controllers\Controller;
 use App\Support\Sitreps\SitrepGenerationService;
+use App\Support\Sitreps\SitrepPayloadSchema;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -107,8 +108,10 @@ class SitrepController extends Controller
             'status' => $report->status,
             'visibility' => $report->visibility,
             'alert_level' => $report->alert_level,
-            'summary' => $report->summary_json ?? [],
-            'source_snapshot' => $report->source_snapshot_json ?? [],
+            'schema_version' => SitrepPayloadSchema::VERSION,
+            'location_count' => count($report->summary_json['items'] ?? []) ?: 1,
+            'summary' => SitrepPayloadSchema::rollup($report->summary_json ?? []),
+            'source_snapshot' => SitrepPayloadSchema::rollup($report->source_snapshot_json ?? []),
             'public_url' => route('sitrep.public.show', ['sitrep' => $report]),
             'preview_url' => route('sitrep.command.preview', ['sitrep' => $report]),
             'download_urls' => $this->downloadUrls($report),
@@ -129,16 +132,18 @@ class SitrepController extends Controller
             'status' => $report->status,
             'visibility' => $report->visibility,
             'alert_level' => $report->alert_level,
-            'summary' => $report->summary_json ?? [],
-            'situation' => $report->situation_json ?? [],
-            'damage' => $report->damage_json ?? [],
-            'population' => $report->population_json ?? [],
-            'actions' => $report->actions_json ?? [],
-            'needs' => $report->needs_json ?? [],
-            'gaps' => $report->gaps_json ?? [],
-            'source_snapshot' => $report->source_snapshot_json ?? [],
+            'schema_version' => SitrepPayloadSchema::VERSION,
+            'location_count' => count($report->summary_json['items'] ?? []) ?: 1,
+            'summary' => SitrepPayloadSchema::rollup($report->summary_json ?? []),
+            'situation' => SitrepPayloadSchema::rollup($report->situation_json ?? []),
+            'damage' => SitrepPayloadSchema::rollup($report->damage_json ?? []),
+            'population' => SitrepPayloadSchema::rollup($report->population_json ?? []),
+            'actions' => SitrepPayloadSchema::rollup($report->actions_json ?? []),
+            'needs' => SitrepPayloadSchema::rollup($report->needs_json ?? []),
+            'gaps' => SitrepPayloadSchema::rollup($report->gaps_json ?? []),
+            'source_snapshot' => SitrepPayloadSchema::rollup($report->source_snapshot_json ?? []),
             'privacy_redactions' => $report->privacy_redactions_json ?? [],
-            'data_quality' => $report->data_quality_json ?? [],
+            'data_quality' => SitrepPayloadSchema::rollup($report->data_quality_json ?? []),
             'public_url' => route('sitrep.public.show', ['sitrep' => $report]),
             'preview_url' => route('sitrep.command.preview', ['sitrep' => $report]),
             'download_urls' => $this->downloadUrls($report),

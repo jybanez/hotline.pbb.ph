@@ -104,20 +104,76 @@ class SitrepConsolidatorSdkTest extends TestCase
 
         $this->assertTrue($result->ok);
         $this->assertSame('Critical', $result->sitrep['alert_level']);
-        $this->assertSame(14, $result->sitrep['summary']['supporting_metrics']['total_incidents']);
-        $this->assertSame(30, $result->sitrep['summary']['supporting_metrics']['resource_need_units']);
-        $this->assertSame(60, $result->sitrep['population']['numeric_total']);
+        $this->assertSame(2, $result->sitrep['schema_version']);
+        $this->assertSame(3, $result->sitrep['location_count']);
+        $this->assertSame(14, $result->sitrep['summary']['rollup']['supporting_metrics']['total_incidents']);
+        $this->assertSame(30, $result->sitrep['summary']['rollup']['supporting_metrics']['resource_need_units']);
+        $this->assertCount(3, $result->sitrep['summary']['items']);
+        $this->assertSame(60, $result->sitrep['population']['rollup']['numeric_total']);
         $this->assertSame('consolidated', $result->sitrep['source_snapshot']['generation']['type']);
         $this->assertSame('System Generated', $result->sitrep['source_snapshot']['generation']['prepared_by_label']);
         $this->assertSame('draft', $result->sitrep['status']);
         $this->assertSame('private', $result->sitrep['visibility']);
         $this->assertSame('2026-05-29T17:00:00+08:00', $result->sitrep['period_started_at']);
         $this->assertSame('2026-05-29T17:15:00+08:00', $result->sitrep['period_ended_at']);
-        $this->assertSame('Consolidator preserves source totals for planning awareness; validation remains app-owned.', $result->sitrep['population']['confidence_note']);
-        $this->assertSame('Source SITREPs', $result->sitrep['actions']['deployment_groups'][0]['category']);
-        $this->assertSame('Consolidated Sources', $result->sitrep['actions']['deployment_groups'][0]['team']);
-        $this->assertSame(3, $result->sitrep['actions']['deployment_groups'][0]['status_counts']['assigned']);
+        $this->assertSame('Consolidator preserves source totals for planning awareness; validation remains app-owned.', $result->sitrep['population']['rollup']['confidence_note']);
+        $this->assertSame('Source SITREPs', $result->sitrep['actions']['rollup']['deployment_groups'][0]['category']);
+        $this->assertSame('Consolidated Sources', $result->sitrep['actions']['rollup']['deployment_groups'][0]['team']);
+        $this->assertSame(3, $result->sitrep['actions']['rollup']['deployment_groups'][0]['status_counts']['assigned']);
         $this->assertCount(3, $result->sitrep['source_snapshot']['source_sitreps']);
+    }
+
+    public function test_single_source_v2_consolidation_preserves_rich_source_sections(): void
+    {
+        $consolidator = new SitrepConsolidator();
+        $source = $this->sitrep(12, 'barangay', 'Elevated', totalIncidents: 4, resourceUnits: 10, population: 20);
+        $source['schema_version'] = 2;
+        $source['location_count'] = 1;
+        $location = [
+            'id' => '12',
+            'name' => 'Hub 12',
+            'deployment' => 'barangay',
+            'relay_hub_id' => null,
+        ];
+        $source['summary']['headline'] = 'Rich source headline';
+        $source['summary']['gap_cards'] = [
+            ['label' => 'People at Risk', 'value' => '20 people', 'note' => 'Life-safety source signal.'],
+        ];
+        $source['summary']['accomplishment_cards'] = [
+            ['label' => 'People Helped', 'value' => '8 people helped', 'note' => 'Source accomplishment.'],
+        ];
+        $source['situation'] = [
+            'executive_assessment' => 'Source executive assessment retained.',
+            'locations' => [
+                ['area' => 'Guadalupe', 'count' => 4],
+            ],
+        ];
+        foreach (['summary', 'situation', 'damage', 'population', 'actions', 'needs', 'gaps', 'data_quality'] as $section) {
+            $source[$section] = [
+                'rollup' => $source[$section],
+                'items' => [[
+                    'location' => $location,
+                    'data' => $source[$section],
+                ]],
+            ];
+        }
+
+        $result = $consolidator->consolidate([$source], [
+            'target_level' => 'city',
+            'target_hub_id' => '21',
+            'target_hub_name' => 'Cebu City, Cebu',
+        ]);
+
+        $this->assertTrue($result->ok);
+        $this->assertSame(2, $result->sitrep['schema_version']);
+        $this->assertSame(1, $result->sitrep['location_count']);
+        $this->assertSame('Rich source headline', $result->sitrep['summary']['rollup']['headline']);
+        $this->assertSame('People at Risk', $result->sitrep['summary']['rollup']['gap_cards'][0]['label']);
+        $this->assertSame('People Helped', $result->sitrep['summary']['rollup']['accomplishment_cards'][0]['label']);
+        $this->assertSame('Source executive assessment retained.', $result->sitrep['situation']['rollup']['executive_assessment']);
+        $this->assertSame('Guadalupe', $result->sitrep['situation']['rollup']['locations'][0]['area']);
+        $this->assertSame(4, $result->sitrep['situation']['rollup']['locations'][0]['count']);
+        $this->assertSame('Hub 12', $result->sitrep['summary']['items'][0]['location']['name']);
     }
 
     public function test_consolidated_sitrep_uses_source_period_bounds_and_rolls_up_incident_coordinates(): void
@@ -217,7 +273,7 @@ class SitrepConsolidatorSdkTest extends TestCase
             $result = $consolidator->consolidate($staging->list('barangay'), []);
 
             $this->assertTrue($result->ok);
-            $this->assertSame(11, $result->sitrep['summary']['supporting_metrics']['total_incidents']);
+            $this->assertSame(11, $result->sitrep['summary']['rollup']['supporting_metrics']['total_incidents']);
         } finally {
             $this->removeDirectory($root);
         }

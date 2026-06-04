@@ -65,7 +65,7 @@ class PeriodicSitrepGenerationCommandTest extends TestCase
         $this->assertSame('draft', $report->status);
         $this->assertSame('private', $report->visibility);
         $this->assertNull($report->prepared_by_user_id);
-        $this->assertSame('System Generated', $report->source_snapshot_json['generation']['prepared_by_label']);
+        $this->assertSame('System Generated', $report->source_snapshot_json['rollup']['generation']['prepared_by_label']);
         $this->assertSame('Guadalupe, CEBU CITY, CEBU', $report->coverage_area);
         $this->assertSame('2026-05-29 10:00:00', $report->period_started_at?->format('Y-m-d H:i:s'));
         $this->assertSame('2026-05-29 10:15:00', $report->period_ended_at?->format('Y-m-d H:i:s'));
@@ -178,7 +178,7 @@ class PeriodicSitrepGenerationCommandTest extends TestCase
             ->assertSuccessful();
 
         $report = SitrepReport::query()->firstOrFail();
-        $hubNode = $report->source_snapshot_json['hub_node'];
+        $hubNode = $report->source_snapshot_json['rollup']['hub_node'];
 
         $this->assertSame('Guadalupe, CEBU CITY, CEBU', $report->coverage_area);
         $this->assertTrue($hubNode['available']);

@@ -166,6 +166,39 @@ class SitrepViewerSdkTest extends TestCase
         $this->assertStringContainsString('Sources: 2 accepted SITREPs', $html);
     }
 
+    public function test_renders_v2_rollup_sections_without_exposing_wrapper_labels(): void
+    {
+        $viewer = new SitrepViewer();
+        $payload = $this->sitrep();
+        $payload['schema_version'] = 2;
+        $payload['location_count'] = 1;
+        $location = [
+            'id' => '072217029',
+            'name' => 'Guadalupe, Cebu City, Cebu',
+            'deployment' => 'barangay',
+            'relay_hub_id' => '072217029',
+        ];
+
+        foreach (['summary', 'situation', 'damage', 'population', 'actions', 'needs', 'gaps', 'source_snapshot', 'data_quality'] as $section) {
+            $sectionData = $payload[$section] ?? [];
+            $payload[$section] = [
+                'rollup' => $sectionData,
+                'items' => [[
+                    'location' => $location,
+                    'data' => $sectionData,
+                ]],
+            ];
+        }
+
+        $html = $viewer->render($payload, ['full_document' => false]);
+
+        $this->assertStringContainsString('Rescue and assistance reports remain concentrated in Guadalupe.', $html);
+        $this->assertStringContainsString('Current reports indicate continued life-safety and resource support needs.', $html);
+        $this->assertStringContainsString('Source Snapshot', $html);
+        $this->assertStringNotContainsString('rollup', $html);
+        $this->assertStringNotContainsString('items', $html);
+    }
+
     public function test_viewer_css_keeps_preview_header_from_squeezing_title(): void
     {
         $css = (new SitrepViewer())->css();

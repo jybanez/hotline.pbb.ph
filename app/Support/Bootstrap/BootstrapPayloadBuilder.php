@@ -8,6 +8,7 @@ use App\Domain\Users\Models\User;
 use App\Support\Citizen\CitizenHomePayloadBuilder;
 use App\Support\Incidents\IncidentPayloadBuilder;
 use App\Support\Settings\SettingsService;
+use App\Support\Sitreps\SitrepPayloadSchema;
 use Illuminate\Support\Arr;
 
 class BootstrapPayloadBuilder
@@ -123,7 +124,7 @@ class BootstrapPayloadBuilder
      */
     private function serializePublicSitrep(SitrepReport $report): array
     {
-        $summary = $report->summary_json ?? [];
+        $summary = SitrepPayloadSchema::rollup($report->summary_json ?? []);
 
         return [
             'id' => $report->id,

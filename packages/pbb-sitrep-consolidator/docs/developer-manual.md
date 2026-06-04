@@ -67,6 +67,9 @@ source_snapshot.hub_node.snapshot.deployment
 source_snapshot.hub_node.snapshot.name
 ```
 
+For schema v2 payloads, the SDK also accepts the same metadata under
+`source_snapshot.rollup.hub_node.snapshot.*`.
+
 `hub_id` is the PBB HUB HQ system-generated unique ID. Use it for staging filenames:
 
 ```text
@@ -144,9 +147,11 @@ upstream as a consolidated SITREP. It includes the normal top-level SITREP
 fields:
 
 ```text
+schema_version
 title
 coverage_area
 coverage_level
+location_count
 period_started_at
 period_ended_at
 generated_at
@@ -165,6 +170,20 @@ privacy_redactions
 data_quality
 ```
 
+The operational sections use the schema v2 shape:
+
+```text
+section.rollup
+section.items[].location
+section.items[].data
+```
+
+`rollup` is the consolidated section rendered as the main report. `items`
+preserves each accepted source location's original section content. For a
+single-source consolidation, `rollup` is the source section so rich Hotline
+content such as `summary.gap_cards`, `summary.accomplishment_cards`, and
+`situation.executive_assessment` is retained.
+
 Default `status` is `draft` and default `visibility` is `private`. A host app
 may override those in the consolidation context when leadership approves a
 different publication workflow.
@@ -181,8 +200,9 @@ rolls them up into `source_snapshot.incident_coordinates` and adds
 `source_hub_id` to each coordinate entry.
 
 Population and other numeric fields are summed only for planning awareness. The
-SDK emits `population.numeric_total_note`, `population.confidence_note`, and
-`data_quality.global_note` to make clear that source values may overlap and
+SDK emits `population.rollup.numeric_total_note`,
+`population.rollup.confidence_note`, and `data_quality.rollup.global_note` to
+make clear that source values may overlap and
 should be validated by the host app before operational use.
 
 ## Validation Issues
