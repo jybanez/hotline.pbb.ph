@@ -240,6 +240,7 @@ final class SitrepConsolidator
                     'name' => $context['target_hub_name'] ?? null,
                     'level' => $context['target_level'] ?? null,
                 ],
+                'hub_node' => $this->targetHubNode($context),
                 'source_deployment' => $deployment,
                 'hub_nodes' => $this->sourceHubNodes($normalized),
                 'source_sitreps' => $sourceIndex,
@@ -293,6 +294,27 @@ final class SitrepConsolidator
         }
 
         return $hubNodes;
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     * @return array<string, mixed>
+     */
+    private function targetHubNode(array $context): array
+    {
+        if (isset($context['target_hub_node']) && is_array($context['target_hub_node'])) {
+            return $context['target_hub_node'];
+        }
+
+        return [
+            'available' => ($context['target_hub_id'] ?? null) !== null || ($context['target_hub_name'] ?? null) !== null || ($context['target_level'] ?? null) !== null,
+            'source' => 'consolidation_context',
+            'snapshot' => [
+                'hub_id' => $context['target_hub_id'] ?? null,
+                'name' => $context['target_hub_name'] ?? null,
+                'deployment' => $context['target_level'] ?? null,
+            ],
+        ];
     }
 
     /**

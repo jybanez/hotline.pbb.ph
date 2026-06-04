@@ -54,25 +54,30 @@ SDK consumers should use the updated Viewer and Consolidator helpers. Consumers 
 
 ## Hub Node Metadata
 
-`source_snapshot.rollup.hub_nodes[]` is the canonical array of hub-node snapshots associated with a SITREP.
+`source_snapshot.rollup.hub_node` and `source_snapshot.rollup.hub_nodes[]` are both canonical, but they mean different things.
+
+`hub_node` is the hub where the current SITREP was generated. For a direct Hotline SITREP, this is the local Hotline hub. For a consolidated SITREP, this is the consolidating city, province, region, NGO, or other receiving app hub.
+
+`hub_nodes[]` is the list of source hubs whose submitted SITREPs were used for consolidation.
 
 Direct Hotline-generated SITREPs include:
 
 ```text
 source_snapshot.rollup.hub_node
-source_snapshot.rollup.hub_nodes[0]
+source_snapshot.rollup.hub_nodes = []
 ```
 
-Both entries refer to the same generating hub. `hub_node` is retained for backward compatibility and for direct Hotline Relay target derivation.
+Direct SITREPs have no submitted source SITREPs, so `hub_nodes[]` is empty. Relay target derivation for direct Hotline SITREPs uses `hub_node.snapshot.uplinks`.
 
 Consolidated SITREPs include:
 
 ```text
+source_snapshot.rollup.hub_node
 source_snapshot.rollup.hub_nodes[]
 source_snapshot.items[].data.hub_node
 ```
 
-Each accepted source hub contributes one `hub_nodes[]` entry. Consolidated rollups should not be interpreted as having a single `hub_node`; consumers should prefer `hub_nodes[]` when it is present.
+Each accepted source hub contributes one `hub_nodes[]` entry. Consumers should use `hub_node` for the current generated SITREP location and `hub_nodes[]` for submitted source SITREP locations.
 
 This document is the source of truth for Support and other PHP apps consuming SITREP JSON from Hotline or from the consolidator SDK.
 

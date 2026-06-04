@@ -112,6 +112,9 @@ class SitrepConsolidatorSdkTest extends TestCase
         $this->assertSame(60, $result->sitrep['population']['rollup']['numeric_total']);
         $this->assertSame('consolidated', $result->sitrep['source_snapshot']['rollup']['generation']['type']);
         $this->assertSame('System Generated', $result->sitrep['source_snapshot']['rollup']['generation']['prepared_by_label']);
+        $this->assertSame('21', $result->sitrep['source_snapshot']['rollup']['hub_node']['snapshot']['hub_id']);
+        $this->assertSame('Cebu City, Cebu', $result->sitrep['source_snapshot']['rollup']['hub_node']['snapshot']['name']);
+        $this->assertSame('city', $result->sitrep['source_snapshot']['rollup']['hub_node']['snapshot']['deployment']);
         $this->assertCount(3, $result->sitrep['source_snapshot']['rollup']['hub_nodes']);
         $this->assertSame(12, $result->sitrep['source_snapshot']['rollup']['hub_nodes'][0]['snapshot']['hub_id']);
         $this->assertSame('draft', $result->sitrep['status']);

@@ -197,6 +197,10 @@ consolidation batch from accidentally inheriting only the first source period.
 merge rule, and prepared-by label. `source_snapshot.rollup.target` records the
 receiving hub or organization, while
 `source_snapshot.rollup.source_sitreps` records accepted source provenance.
+`source_snapshot.rollup.hub_node` records the target/current hub where the
+consolidated SITREP was generated. The host app may provide a full
+`target_hub_node` context value; otherwise the SDK derives a minimal hub node
+from `target_hub_id`, `target_hub_name`, and `target_level`.
 `source_snapshot.rollup.hub_nodes[]` records one hub-node snapshot per accepted
 source hub. If sources contain `source_snapshot.incident_coordinates`, the SDK
 rolls them up into `source_snapshot.rollup.incident_coordinates` and adds
