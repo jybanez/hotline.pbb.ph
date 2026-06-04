@@ -30,6 +30,21 @@ final class SitrepPayloadSchema
     }
 
     /**
+     * @param array<string, mixed> $sourceSnapshot
+     * @return array<string, mixed>
+     */
+    public static function withHubNodes(array $sourceSnapshot): array
+    {
+        $hubNodes = isset($sourceSnapshot['hub_nodes']) && is_array($sourceSnapshot['hub_nodes'])
+            ? array_values(array_filter($sourceSnapshot['hub_nodes'], 'is_array'))
+            : [];
+
+        $sourceSnapshot['hub_nodes'] = $hubNodes;
+
+        return $sourceSnapshot;
+    }
+
+    /**
      * @param array<string, mixed> $section
      * @return array<string, mixed>
      */

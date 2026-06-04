@@ -898,6 +898,7 @@ class SitrepGenerationService
             'incident_type_detail_ids' => $context['field_details']->pluck('id')->values()->all(),
             'hotline' => $this->buildHotlineSnapshot(),
             'hub_node' => $hubNodeSnapshot,
+            'hub_nodes' => [],
             'adapter_version' => 1,
             'counting_rule_version' => 2,
         ];

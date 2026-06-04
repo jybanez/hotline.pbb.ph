@@ -426,7 +426,7 @@ final class SitrepDocumentRenderer
         $generation = is_array($sourceSnapshot['generation'] ?? null) ? $sourceSnapshot['generation'] : [];
         $target = is_array($sourceSnapshot['target'] ?? null) ? $sourceSnapshot['target'] : [];
         $sourceSitreps = is_array($sourceSnapshot['source_sitreps'] ?? null) ? $sourceSnapshot['source_sitreps'] : [];
-        $hubSource = is_array($sourceSnapshot['hub_node'] ?? null) ? $sourceSnapshot['hub_node'] : [];
+        $hubSource = $this->hubNode($sourceSnapshot);
         $hub = ($hubSource['available'] ?? false) && is_array($hubSource['snapshot'] ?? null) ? $hubSource['snapshot'] : [];
         $uplinks = is_array($hub['uplinks'] ?? null) ? $hub['uplinks'] : [];
         $primaryUplink = $this->firstPrimary($uplinks);
@@ -576,7 +576,7 @@ final class SitrepDocumentRenderer
     private function identity(SitrepPayload $sitrep): array
     {
         $sourceSnapshot = $sitrep->section('source_snapshot');
-        $hubSource = is_array($sourceSnapshot['hub_node'] ?? null) ? $sourceSnapshot['hub_node'] : [];
+        $hubSource = $this->hubNode($sourceSnapshot);
         $hub = ($hubSource['available'] ?? false) && is_array($hubSource['snapshot'] ?? null) ? $hubSource['snapshot'] : [];
         $generation = is_array($sourceSnapshot['generation'] ?? null) ? $sourceSnapshot['generation'] : [];
         $target = is_array($sourceSnapshot['target'] ?? null) ? $sourceSnapshot['target'] : [];
@@ -608,6 +608,27 @@ final class SitrepDocumentRenderer
             'hub' => $hubName !== '' ? $this->formatHubLabel($hubName) : null,
             'period' => $period,
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $sourceSnapshot
+     * @return array<string, mixed>
+     */
+    private function hubNode(array $sourceSnapshot): array
+    {
+        if (isset($sourceSnapshot['hub_node']) && is_array($sourceSnapshot['hub_node'])) {
+            return $sourceSnapshot['hub_node'];
+        }
+
+        if (isset($sourceSnapshot['hub_nodes']) && is_array($sourceSnapshot['hub_nodes'])) {
+            foreach ($sourceSnapshot['hub_nodes'] as $hubNode) {
+                if (is_array($hubNode)) {
+                    return $hubNode;
+                }
+            }
+        }
+
+        return [];
     }
 
     private function periodLabel(mixed $start, mixed $end): string

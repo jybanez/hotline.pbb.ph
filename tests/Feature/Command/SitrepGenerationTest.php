@@ -116,6 +116,7 @@ class SitrepGenerationTest extends TestCase
             ->assertJsonPath('sitrep.source_snapshot.hub_node.available', true)
             ->assertJsonPath('sitrep.source_snapshot.hub_node.snapshot.deployment', 'barangay')
             ->assertJsonPath('sitrep.source_snapshot.hub_node.snapshot.relay_hub_id', '072217029')
+            ->assertJsonPath('sitrep.source_snapshot.hub_nodes', [])
             ->assertJsonPath('sitrep.source_snapshot.incident_coordinates.0.id', $incidentId)
             ->assertJsonPath('sitrep.source_snapshot.incident_coordinates.0.lat', 10.33049)
             ->assertJsonPath('sitrep.source_snapshot.incident_coordinates.0.lng', 123.88257)
@@ -144,6 +145,7 @@ class SitrepGenerationTest extends TestCase
         $this->assertSame('pbb-hotline', $sourceSnapshot['hotline']['app']);
         $this->assertSame('v1-5.6.1', $sourceSnapshot['hotline']['display_version']);
         $this->assertSame('Guadalupe, CEBU CITY, CEBU', $sourceSnapshot['hub_node']['snapshot']['name']);
+        $this->assertSame([], $sourceSnapshot['hub_nodes']);
         $this->assertSame($command->name, $sourceSnapshot['generation']['prepared_by_label']);
         $this->assertSame(1, $sourceSnapshot['adapter_version']);
         $this->assertDatabaseHas('incident_resources_needed', [

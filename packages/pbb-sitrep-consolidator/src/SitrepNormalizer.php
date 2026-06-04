@@ -15,7 +15,8 @@ final class SitrepNormalizer
         if (isset($sourceSnapshot['rollup']) && is_array($sourceSnapshot['rollup'])) {
             $sourceSnapshot = $sourceSnapshot['rollup'];
         }
-        $hubSnapshot = $this->getArray($sourceSnapshot, 'hub_node.snapshot');
+        $hubNode = $this->sourceHubNode($sourceSnapshot);
+        $hubSnapshot = $this->getArray($hubNode, 'snapshot');
         $deployment = $this->stringValue($hubSnapshot['deployment'] ?? null);
         $hubId = $this->stringValue($hubSnapshot['hub_id'] ?? null);
 
@@ -67,6 +68,7 @@ final class SitrepNormalizer
             'source_hub_name' => $this->stringValue($hubSnapshot['name'] ?? null) ?? $this->stringValue($sitrep['coverage_area'] ?? null) ?? $hubId,
             'source_deployment' => $deployment,
             'relay_hub_id' => $this->stringValue($hubSnapshot['relay_hub_id'] ?? null),
+            'source_hub_node' => $hubNode,
             'sequence_number' => $sitrep['sequence_number'] ?? null,
             'title' => $this->stringValue($sitrep['title'] ?? null),
             'coverage_area' => $this->stringValue($sitrep['coverage_area'] ?? null),
@@ -101,6 +103,27 @@ final class SitrepNormalizer
         }
 
         return is_array($value) ? $value : [];
+    }
+
+    /**
+     * @param array<string, mixed> $sourceSnapshot
+     * @return array<string, mixed>
+     */
+    private function sourceHubNode(array $sourceSnapshot): array
+    {
+        if (isset($sourceSnapshot['hub_node']) && is_array($sourceSnapshot['hub_node'])) {
+            return $sourceSnapshot['hub_node'];
+        }
+
+        if (isset($sourceSnapshot['hub_nodes']) && is_array($sourceSnapshot['hub_nodes'])) {
+            foreach ($sourceSnapshot['hub_nodes'] as $hubNode) {
+                if (is_array($hubNode)) {
+                    return $hubNode;
+                }
+            }
+        }
+
+        return [];
     }
 
     private function stringValue(mixed $value): ?string
