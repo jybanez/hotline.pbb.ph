@@ -423,6 +423,9 @@ final class SitrepDocumentRenderer
         $sourceSnapshot = $sitrep->section('source_snapshot');
         $hotline = is_array($sourceSnapshot['hotline'] ?? null) ? $sourceSnapshot['hotline'] : [];
         $build = is_array($hotline['build'] ?? null) ? $hotline['build'] : [];
+        $generation = is_array($sourceSnapshot['generation'] ?? null) ? $sourceSnapshot['generation'] : [];
+        $target = is_array($sourceSnapshot['target'] ?? null) ? $sourceSnapshot['target'] : [];
+        $sourceSitreps = is_array($sourceSnapshot['source_sitreps'] ?? null) ? $sourceSnapshot['source_sitreps'] : [];
         $hubSource = is_array($sourceSnapshot['hub_node'] ?? null) ? $sourceSnapshot['hub_node'] : [];
         $hub = ($hubSource['available'] ?? false) && is_array($hubSource['snapshot'] ?? null) ? $hubSource['snapshot'] : [];
         $uplinks = is_array($hub['uplinks'] ?? null) ? $hub['uplinks'] : [];
@@ -453,6 +456,23 @@ final class SitrepDocumentRenderer
             if ($uplinkName) {
                 $sourceLines[] = Html::text('Uplink: '.$this->formatHubLabel($uplinkName));
             }
+        }
+        if (($generation['type'] ?? null) === 'consolidated') {
+            $sourceLines[] = $this->inlineParts([
+                'Consolidated by '.$this->formatSdkLabel($generation['sdk'] ?? 'pbb-sitrep-consolidator'),
+                ! empty($generation['sdk_version']) ? 'SDK '.$generation['sdk_version'] : null,
+                ! empty($generation['merge_rule_version']) ? 'Merge rule '.$generation['merge_rule_version'] : null,
+            ]);
+        }
+        if ($target !== []) {
+            $sourceLines[] = $this->inlineParts([
+                'Target: '.($target['name'] ?? 'Consolidated coverage'),
+                ! empty($target['level']) ? $this->formatDeploymentLabel($target['level']) : null,
+                ! empty($target['hub_id']) ? $target['hub_id'] : null,
+            ]);
+        }
+        if ($sourceSitreps !== []) {
+            $sourceLines[] = Html::text(sprintf('Sources: %d accepted SITREP%s', count($sourceSitreps), count($sourceSitreps) === 1 ? '' : 's'));
         }
 
         $sourceHtml = '';
@@ -558,10 +578,26 @@ final class SitrepDocumentRenderer
         $sourceSnapshot = $sitrep->section('source_snapshot');
         $hubSource = is_array($sourceSnapshot['hub_node'] ?? null) ? $sourceSnapshot['hub_node'] : [];
         $hub = ($hubSource['available'] ?? false) && is_array($hubSource['snapshot'] ?? null) ? $hubSource['snapshot'] : [];
+        $generation = is_array($sourceSnapshot['generation'] ?? null) ? $sourceSnapshot['generation'] : [];
+        $target = is_array($sourceSnapshot['target'] ?? null) ? $sourceSnapshot['target'] : [];
         $deployment = trim((string) ($hub['deployment'] ?? ''));
         $hubName = trim((string) ($hub['name'] ?? ''));
         $period = $this->periodLabel($sitrep->get('period_started_at'), $sitrep->get('period_ended_at'));
         $title = trim((string) preg_replace('/\s+-\s+\d{4}-\d{2}-\d{2}\s*$/', '', (string) $sitrep->get('title')));
+
+        if (($generation['type'] ?? null) === 'consolidated' && $target !== []) {
+            $targetLevel = trim((string) ($target['level'] ?? ''));
+            $targetName = trim((string) ($target['name'] ?? ''));
+            if ($targetLevel !== '') {
+                $title = ucfirst(str_replace(['_', '-'], ' ', strtolower($targetLevel))).' SITREP';
+            }
+
+            return [
+                'title' => $title !== '' ? $title : 'Consolidated SITREP',
+                'hub' => $targetName !== '' ? $this->formatHubLabel($targetName) : null,
+                'period' => $period,
+            ];
+        }
 
         if ($deployment !== '' && $hubName !== '') {
             $title = ucfirst(str_replace(['_', '-'], ' ', strtolower($deployment))).' SITREP';
@@ -615,6 +651,13 @@ final class SitrepDocumentRenderer
         $text = str_replace(['_', '-'], ' ', trim((string) $value));
 
         return $text !== '' ? ucwords(strtolower($text)) : '';
+    }
+
+    private function formatSdkLabel(mixed $value): string
+    {
+        $text = str_replace(['_', '-'], ' ', trim((string) $value));
+
+        return $text !== '' ? $text : 'SITREP consolidator';
     }
 
     /**

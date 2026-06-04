@@ -131,6 +131,41 @@ class SitrepViewerSdkTest extends TestCase
         $this->assertStringNotContainsString('PrivateElevatedSystem', $text);
     }
 
+    public function test_renders_consolidated_sitrep_target_and_source_provenance(): void
+    {
+        $viewer = new SitrepViewer();
+        $payload = $this->sitrep();
+        $payload['title'] = 'City SITREP - Cebu City, Cebu';
+        $payload['source_snapshot'] = [
+            'generation' => [
+                'type' => 'consolidated',
+                'sdk' => 'pbb-sitrep-consolidator',
+                'sdk_version' => '0.1.0',
+                'merge_rule_version' => 1,
+                'prepared_by_label' => 'System Generated',
+            ],
+            'target' => [
+                'hub_id' => '21',
+                'name' => 'Cebu City, Cebu',
+                'level' => 'city',
+            ],
+            'source_sitreps' => [
+                ['source_hub_id' => '12', 'source_hub_name' => 'Guadalupe'],
+                ['source_hub_id' => '13', 'source_hub_name' => 'Lahug'],
+            ],
+        ];
+
+        $html = $viewer->render($payload, ['full_document' => false]);
+
+        $this->assertStringContainsString('<h1>City SITREP</h1>', $html);
+        $this->assertStringContainsString('Cebu City, Cebu', $html);
+        $this->assertStringContainsString('Consolidated by pbb sitrep consolidator', $html);
+        $this->assertStringContainsString('SDK 0.1.0', $html);
+        $this->assertStringContainsString('Merge rule 1', $html);
+        $this->assertStringContainsString('Target: Cebu City, Cebu', $html);
+        $this->assertStringContainsString('Sources: 2 accepted SITREPs', $html);
+    }
+
     /**
      * @return array<string, mixed>
      */

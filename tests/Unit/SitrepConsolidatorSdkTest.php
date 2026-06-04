@@ -108,7 +108,49 @@ class SitrepConsolidatorSdkTest extends TestCase
         $this->assertSame(30, $result->sitrep['summary']['supporting_metrics']['resource_need_units']);
         $this->assertSame(60, $result->sitrep['population']['numeric_total']);
         $this->assertSame('consolidated', $result->sitrep['source_snapshot']['generation']['type']);
+        $this->assertSame('System Generated', $result->sitrep['source_snapshot']['generation']['prepared_by_label']);
+        $this->assertSame('draft', $result->sitrep['status']);
+        $this->assertSame('private', $result->sitrep['visibility']);
+        $this->assertSame('2026-05-29T17:00:00+08:00', $result->sitrep['period_started_at']);
+        $this->assertSame('2026-05-29T17:15:00+08:00', $result->sitrep['period_ended_at']);
+        $this->assertSame('Consolidator preserves source totals for planning awareness; validation remains app-owned.', $result->sitrep['population']['confidence_note']);
+        $this->assertSame('Source SITREPs', $result->sitrep['actions']['deployment_groups'][0]['category']);
+        $this->assertSame('Consolidated Sources', $result->sitrep['actions']['deployment_groups'][0]['team']);
+        $this->assertSame(3, $result->sitrep['actions']['deployment_groups'][0]['status_counts']['assigned']);
         $this->assertCount(3, $result->sitrep['source_snapshot']['source_sitreps']);
+    }
+
+    public function test_consolidated_sitrep_uses_source_period_bounds_and_rolls_up_incident_coordinates(): void
+    {
+        $consolidator = new SitrepConsolidator();
+
+        $first = $this->sitrep(12, 'barangay', sequence: 1);
+        $first['period_started_at'] = '2026-05-29T16:45:00+08:00';
+        $first['period_ended_at'] = '2026-05-29T17:00:00+08:00';
+        $first['source_snapshot']['incident_coordinates'] = [
+            ['id' => 101, 'lat' => 10.33049, 'lng' => 123.88257],
+        ];
+
+        $second = $this->sitrep(13, 'barangay', sequence: 2);
+        $second['period_started_at'] = '2026-05-29T17:00:00+08:00';
+        $second['period_ended_at'] = '2026-05-29T17:30:00+08:00';
+        $second['source_snapshot']['incident_coordinates'] = [
+            ['id' => 101, 'lat' => 10.33111, 'lng' => 123.88333],
+        ];
+
+        $result = $consolidator->consolidate([$first, $second], [
+            'target_level' => 'city',
+            'target_hub_id' => '21',
+            'target_hub_name' => 'Cebu City, Cebu',
+        ]);
+
+        $this->assertTrue($result->ok);
+        $this->assertSame('2026-05-29T16:45:00+08:00', $result->sitrep['period_started_at']);
+        $this->assertSame('2026-05-29T17:30:00+08:00', $result->sitrep['period_ended_at']);
+        $this->assertSame([
+            ['id' => 101, 'lat' => 10.33049, 'lng' => 123.88257, 'source_hub_id' => '12'],
+            ['id' => 101, 'lat' => 10.33111, 'lng' => 123.88333, 'source_hub_id' => '13'],
+        ], $result->sitrep['source_snapshot']['incident_coordinates']);
     }
 
     public function test_rejects_mixed_source_deployment_consolidation(): void
