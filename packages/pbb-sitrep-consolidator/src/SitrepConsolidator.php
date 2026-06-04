@@ -100,27 +100,34 @@ final class SitrepConsolidator
         }
 
         $sourceIndex = $this->sourceIndex($normalized);
+        $period = $this->period($normalized, $context);
+        $alertLevel = $this->highestAlertLevel($normalized);
         $sitrep = [
+            'schema_version' => 2,
             'title' => $this->title($context, $deployments[0]),
             'coverage_area' => (string) ($context['coverage_area'] ?? $context['target_hub_name'] ?? 'Consolidated Coverage Area'),
             'coverage_level' => (string) ($context['target_level'] ?? 'consolidated'),
-            'period_started_at' => (string) ($context['period_started_at'] ?? $normalized[0]['period_started_at']),
-            'period_ended_at' => (string) ($context['period_ended_at'] ?? $normalized[0]['period_ended_at']),
+            'location_count' => count($normalized),
+            'period_started_at' => $period['started_at'],
+            'period_ended_at' => $period['ended_at'],
             'generated_at' => (new \DateTimeImmutable())->format(DATE_ATOM),
-            'alert_level' => $this->highestAlertLevel($normalized),
-            'summary' => $this->mergeSummary($normalized, $context),
-            'situation' => $this->mergeSituation($normalized),
-            'damage' => $this->mergeSectionItems($normalized, 'damage'),
-            'population' => $this->mergePopulation($normalized),
-            'actions' => $this->mergeActions($normalized),
-            'needs' => $this->mergeNeeds($normalized),
-            'gaps' => $this->mergeSectionItems($normalized, 'gaps'),
+            'status' => (string) ($context['status'] ?? 'draft'),
+            'visibility' => (string) ($context['visibility'] ?? 'private'),
+            'alert_level' => $alertLevel,
+            'summary' => $this->sectionWithItems($normalized, 'summary', $this->mergeSummary($normalized, $context)),
+            'situation' => $this->sectionWithItems($normalized, 'situation', $this->mergeSituation($normalized)),
+            'damage' => $this->sectionWithItems($normalized, 'damage', $this->mergeSectionItems($normalized, 'damage')),
+            'population' => $this->sectionWithItems($normalized, 'population', $this->mergePopulation($normalized)),
+            'actions' => $this->sectionWithItems($normalized, 'actions', $this->mergeActions($normalized)),
+            'needs' => $this->sectionWithItems($normalized, 'needs', $this->mergeNeeds($normalized)),
+            'gaps' => $this->sectionWithItems($normalized, 'gaps', $this->mergeSectionItems($normalized, 'gaps')),
             'source_snapshot' => [
                 'generation' => [
                     'type' => 'consolidated',
                     'sdk' => 'pbb-sitrep-consolidator',
                     'sdk_version' => '0.1.0',
                     'merge_rule_version' => 1,
+                    'prepared_by_label' => (string) ($context['prepared_by_label'] ?? 'System Generated'),
                 ],
                 'target' => [
                     'hub_id' => $context['target_hub_id'] ?? null,
@@ -129,22 +136,122 @@ final class SitrepConsolidator
                 ],
                 'source_deployment' => $deployments[0],
                 'source_sitreps' => $sourceIndex,
+                'incident_coordinates' => $this->mergeIncidentCoordinates($normalized),
             ],
             'privacy_redactions' => [
                 'inherited' => true,
                 'note' => 'Consolidated from generated SITREP payloads; source redaction state is preserved by provenance.',
             ],
-            'data_quality' => [
+            'data_quality' => $this->sectionWithItems($normalized, 'data_quality', [
+                'global_note' => 'Consolidated from generated SITREP payloads. Population figures and other numeric source fields may overlap and should be verified before operational use.',
                 'source_sitrep_count' => count($normalized),
                 'source_hub_count' => count($sourceIndex),
                 'warnings' => array_map(
                     static fn (SitrepValidationIssue $issue): array => $issue->toArray(),
                     array_values(array_filter($issues, static fn (SitrepValidationIssue $issue): bool => $issue->severity === 'warning')),
                 ),
-            ],
+            ]),
         ];
 
         return new SitrepConsolidationResult(true, $sitrep, $issues, $sourceIndex);
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $normalized
+     * @param array<string, mixed> $context
+     * @return array{started_at: string, ended_at: string}
+     */
+    private function period(array $normalized, array $context): array
+    {
+        return [
+            'started_at' => (string) ($context['period_started_at'] ?? $this->periodBound($normalized, 'period_started_at', 'earliest') ?? $normalized[0]['period_started_at']),
+            'ended_at' => (string) ($context['period_ended_at'] ?? $this->periodBound($normalized, 'period_ended_at', 'latest') ?? $normalized[0]['period_ended_at']),
+        ];
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $normalized
+     */
+    private function periodBound(array $normalized, string $field, string $direction): ?string
+    {
+        $selectedText = null;
+        $selectedTimestamp = null;
+
+        foreach ($normalized as $source) {
+            if (! is_string($source[$field] ?? null) || trim($source[$field]) === '') {
+                continue;
+            }
+
+            $text = $source[$field];
+
+            try {
+                $timestamp = (new \DateTimeImmutable($text))->getTimestamp();
+            } catch (\Throwable) {
+                continue;
+            }
+
+            if (
+                $selectedTimestamp === null
+                || ($direction === 'earliest' && $timestamp < $selectedTimestamp)
+                || ($direction === 'latest' && $timestamp > $selectedTimestamp)
+            ) {
+                $selectedTimestamp = $timestamp;
+                $selectedText = $text;
+            }
+        }
+
+        return $selectedText;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $normalized
+     * @param array<string, mixed> $mergedRollup
+     * @return array{rollup: array<string, mixed>, items: array<int, array<string, mixed>>}
+     */
+    private function sectionWithItems(array $normalized, string $section, array $mergedRollup): array
+    {
+        $items = [];
+
+        foreach ($normalized as $source) {
+            $items[] = [
+                'location' => $this->sourceLocation($source),
+                'data' => $this->sourceSection($source, $section),
+            ];
+        }
+
+        return [
+            'rollup' => count($normalized) === 1 ? ($items[0]['data'] ?? $mergedRollup) : $mergedRollup,
+            'items' => $items,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function sourceLocation(array $source): array
+    {
+        return [
+            'id' => $source['source_hub_id'],
+            'name' => $source['source_hub_name'],
+            'deployment' => $source['source_deployment'],
+            'relay_hub_id' => $source['relay_hub_id'],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function sourceSection(array $source, string $section): array
+    {
+        $data = $source['payload'][$section] ?? [];
+
+        if (! is_array($data)) {
+            return [];
+        }
+
+        return isset($data['rollup']) && is_array($data['rollup'])
+            ? $data['rollup']
+            : $data;
     }
 
     /**
@@ -226,9 +333,10 @@ final class SitrepConsolidator
     {
         $metrics = [];
         $statusCounts = [];
+        $highestAlert = $this->highestAlertLevel($normalized);
 
         foreach ($normalized as $source) {
-            $summary = $source['payload']['summary'] ?? [];
+            $summary = $this->sourceSection($source, 'summary');
 
             foreach (($summary['supporting_metrics'] ?? []) as $key => $value) {
                 if (is_numeric($value)) {
@@ -254,7 +362,30 @@ final class SitrepConsolidator
                 count($normalized) === 1 ? '' : 's',
                 (string) ($context['coverage_area'] ?? $context['target_hub_name'] ?? 'the target coverage area'),
             ),
-            'posture_label' => $this->highestAlertLevel($normalized),
+            'posture' => strtolower($highestAlert),
+            'posture_label' => $highestAlert,
+            'posture_reason' => 'Consolidated posture reflects the highest alert level among accepted source SITREPs.',
+            'primary_concern' => sprintf('%d source hub%s reporting', count($normalized), count($normalized) === 1 ? '' : 's'),
+            'hotspot_area' => (string) ($context['coverage_area'] ?? $context['target_hub_name'] ?? 'Consolidated coverage area'),
+            'hotspot_note' => 'Review source SITREPs for hub-level concentration and incident details.',
+            'confidence_note' => 'This rollup preserves source provenance; operational interpretation remains with the receiving LGU or support organization.',
+            'executive_cards' => [
+                [
+                    'label' => 'Source Hubs',
+                    'value' => (string) count($normalized),
+                    'note' => 'Accepted latest SITREPs included in this consolidation.',
+                ],
+                [
+                    'label' => 'Highest Alert',
+                    'value' => $highestAlert,
+                    'note' => 'Highest alert level among included source SITREPs.',
+                ],
+                [
+                    'label' => 'Resource Units',
+                    'value' => (string) ($metrics['resource_need_units'] ?? 0),
+                    'note' => 'Summed requested resource units reported by sources.',
+                ],
+            ],
             'supporting_metrics' => $metrics,
             'status_counts' => $statusCounts,
             'source_hub_count' => count($normalized),
@@ -263,9 +394,28 @@ final class SitrepConsolidator
 
     private function mergeSituation(array $normalized): array
     {
+        $sourceNames = array_map(static fn (array $source): string => (string) $source['source_hub_name'], $normalized);
+
         return [
+            'executive_assessment' => sprintf(
+                '%d source hub%s contributed to this consolidated operating picture. Review source provenance before treating summed figures as verified totals.',
+                count($normalized),
+                count($normalized) === 1 ? '' : 's',
+            ),
             'narrative' => sprintf('This consolidated SITREP includes %d source report%s.', count($normalized), count($normalized) === 1 ? '' : 's'),
-            'source_hubs' => array_map(static fn (array $source): string => (string) $source['source_hub_name'], $normalized),
+            'source_hubs' => $sourceNames,
+            'areas_of_concern' => $sourceNames,
+            'locations' => array_map(static fn (string $sourceName): array => [
+                'area' => $sourceName,
+                'count' => 1,
+                'note' => 'Source hub included in consolidated SITREP.',
+            ], $sourceNames),
+            'decision_points' => [
+                [
+                    'title' => 'Source verification',
+                    'body' => 'Leadership should review source SITREP provenance and local detail before assigning cross-hub support.',
+                ],
+            ],
         ];
     }
 
@@ -275,7 +425,7 @@ final class SitrepConsolidator
         $recordCount = 0;
 
         foreach ($normalized as $source) {
-            $population = $source['payload']['population'] ?? [];
+            $population = $this->sourceSection($source, 'population');
             $numericTotal += (int) ($population['numeric_total'] ?? 0);
             $recordCount += (int) ($population['record_count'] ?? 0);
         }
@@ -283,6 +433,8 @@ final class SitrepConsolidator
         return [
             'numeric_total' => $numericTotal,
             'record_count' => $recordCount,
+            'numeric_total_note' => 'Summed from source SITREPs. Population fields may overlap across source systems and should not be treated as a verified affected-person total without validation.',
+            'confidence_note' => 'Consolidator preserves source totals for planning awareness; validation remains app-owned.',
         ];
     }
 
@@ -291,13 +443,24 @@ final class SitrepConsolidator
         $totalAssignments = 0;
 
         foreach ($normalized as $source) {
-            foreach (($source['payload']['actions']['deployment_groups'] ?? []) as $group) {
+            $actions = $this->sourceSection($source, 'actions');
+            foreach (($actions['deployment_groups'] ?? []) as $group) {
                 $totalAssignments += (int) ($group['total_assignments'] ?? 0);
             }
         }
 
         return [
             'total_assignments' => $totalAssignments,
+            'deployment_groups' => [
+                [
+                    'category' => 'Source SITREPs',
+                    'team' => 'Consolidated Sources',
+                    'status_counts' => [
+                        'assigned' => $totalAssignments,
+                    ],
+                    'note' => 'Summed from source SITREP deployment groups.',
+                ],
+            ],
         ];
     }
 
@@ -307,7 +470,8 @@ final class SitrepConsolidator
         $total = 0;
 
         foreach ($normalized as $source) {
-            foreach (($source['payload']['needs']['items'] ?? []) as $item) {
+            $needs = $this->sourceSection($source, 'needs');
+            foreach (($needs['items'] ?? []) as $item) {
                 $resource = (string) ($item['resource'] ?? $item['name'] ?? 'Resource');
                 $category = (string) ($item['category'] ?? 'Uncategorized');
                 $key = strtolower($category.'|'.$resource);
@@ -341,7 +505,8 @@ final class SitrepConsolidator
         $items = [];
 
         foreach ($normalized as $source) {
-            foreach (($source['payload'][$section]['items'] ?? []) as $item) {
+            $sectionData = $this->sourceSection($source, $section);
+            foreach (($sectionData['items'] ?? []) as $item) {
                 if (is_array($item)) {
                     $item['source_hub_id'] = $source['source_hub_id'];
                     $items[] = $item;
@@ -352,6 +517,45 @@ final class SitrepConsolidator
         return [
             'items' => $items,
         ];
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $normalized
+     * @return array<int, array{id: mixed, lat: float|int|string, lng: float|int|string, source_hub_id: string}>
+     */
+    private function mergeIncidentCoordinates(array $normalized): array
+    {
+        $coordinates = [];
+        $seen = [];
+
+        foreach ($normalized as $source) {
+            $sourceSnapshot = $this->sourceSection($source, 'source_snapshot');
+            $items = $sourceSnapshot['incident_coordinates'] ?? [];
+            if (! is_array($items)) {
+                continue;
+            }
+
+            foreach ($items as $item) {
+                if (! is_array($item) || ! array_key_exists('id', $item) || ! array_key_exists('lat', $item) || ! array_key_exists('lng', $item)) {
+                    continue;
+                }
+
+                $key = $source['source_hub_id'].'|'.$item['id'];
+                if (isset($seen[$key])) {
+                    continue;
+                }
+
+                $seen[$key] = true;
+                $coordinates[] = [
+                    'id' => $item['id'],
+                    'lat' => $item['lat'],
+                    'lng' => $item['lng'],
+                    'source_hub_id' => (string) $source['source_hub_id'],
+                ];
+            }
+        }
+
+        return $coordinates;
     }
 
     /**

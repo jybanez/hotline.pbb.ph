@@ -1,15 +1,15 @@
 @php
     $isPreview = $isPreview ?? false;
-    $summary = $sitrep->summary_json ?? [];
-    $situation = $sitrep->situation_json ?? [];
-    $damage = $sitrep->damage_json ?? [];
-    $population = $sitrep->population_json ?? [];
-    $actions = $sitrep->actions_json ?? [];
-    $needs = $sitrep->needs_json ?? [];
-    $gaps = $sitrep->gaps_json ?? [];
-    $dataQuality = $sitrep->data_quality_json ?? [];
+    $summary = \App\Support\Sitreps\SitrepPayloadSchema::rollup($sitrep->summary_json ?? []);
+    $situation = \App\Support\Sitreps\SitrepPayloadSchema::rollup($sitrep->situation_json ?? []);
+    $damage = \App\Support\Sitreps\SitrepPayloadSchema::rollup($sitrep->damage_json ?? []);
+    $population = \App\Support\Sitreps\SitrepPayloadSchema::rollup($sitrep->population_json ?? []);
+    $actions = \App\Support\Sitreps\SitrepPayloadSchema::rollup($sitrep->actions_json ?? []);
+    $needs = \App\Support\Sitreps\SitrepPayloadSchema::rollup($sitrep->needs_json ?? []);
+    $gaps = \App\Support\Sitreps\SitrepPayloadSchema::rollup($sitrep->gaps_json ?? []);
+    $dataQuality = \App\Support\Sitreps\SitrepPayloadSchema::rollup($sitrep->data_quality_json ?? []);
     $redactions = $sitrep->privacy_redactions_json ?? [];
-    $sourceSnapshot = $sitrep->source_snapshot_json ?? [];
+    $sourceSnapshot = \App\Support\Sitreps\SitrepPayloadSchema::rollup($sitrep->source_snapshot_json ?? []);
     $generation = $sourceSnapshot['generation'] ?? [];
     $preparedByLabel = $generation['prepared_by_label'] ?? ($sitrep->prepared_by_user_id === null ? 'System Generated' : trim((string) ($sitrep->preparedBy?->name ?? '')));
     $preparedByLabel = $preparedByLabel !== '' ? $preparedByLabel : 'System Generated';

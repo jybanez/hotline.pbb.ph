@@ -131,6 +131,85 @@ class SitrepViewerSdkTest extends TestCase
         $this->assertStringNotContainsString('PrivateElevatedSystem', $text);
     }
 
+    public function test_renders_consolidated_sitrep_target_and_source_provenance(): void
+    {
+        $viewer = new SitrepViewer();
+        $payload = $this->sitrep();
+        $payload['title'] = 'City SITREP - Cebu City, Cebu';
+        $payload['source_snapshot'] = [
+            'generation' => [
+                'type' => 'consolidated',
+                'sdk' => 'pbb-sitrep-consolidator',
+                'sdk_version' => '0.1.0',
+                'merge_rule_version' => 1,
+                'prepared_by_label' => 'System Generated',
+            ],
+            'target' => [
+                'hub_id' => '21',
+                'name' => 'Cebu City, Cebu',
+                'level' => 'city',
+            ],
+            'source_sitreps' => [
+                ['source_hub_id' => '12', 'source_hub_name' => 'Guadalupe'],
+                ['source_hub_id' => '13', 'source_hub_name' => 'Lahug'],
+            ],
+        ];
+
+        $html = $viewer->render($payload, ['full_document' => false]);
+
+        $this->assertStringContainsString('<h1>City SITREP</h1>', $html);
+        $this->assertStringContainsString('Cebu City, Cebu', $html);
+        $this->assertStringContainsString('Consolidated by pbb sitrep consolidator', $html);
+        $this->assertStringContainsString('SDK 0.1.0', $html);
+        $this->assertStringContainsString('Merge rule 1', $html);
+        $this->assertStringContainsString('Target: Cebu City, Cebu', $html);
+        $this->assertStringContainsString('Sources: 2 accepted SITREPs', $html);
+    }
+
+    public function test_renders_v2_rollup_sections_without_exposing_wrapper_labels(): void
+    {
+        $viewer = new SitrepViewer();
+        $payload = $this->sitrep();
+        $payload['schema_version'] = 2;
+        $payload['location_count'] = 1;
+        $location = [
+            'id' => '072217029',
+            'name' => 'Guadalupe, Cebu City, Cebu',
+            'deployment' => 'barangay',
+            'relay_hub_id' => '072217029',
+        ];
+
+        foreach (['summary', 'situation', 'damage', 'population', 'actions', 'needs', 'gaps', 'source_snapshot', 'data_quality'] as $section) {
+            $sectionData = $payload[$section] ?? [];
+            $payload[$section] = [
+                'rollup' => $sectionData,
+                'items' => [[
+                    'location' => $location,
+                    'data' => $sectionData,
+                ]],
+            ];
+        }
+
+        $html = $viewer->render($payload, ['full_document' => false]);
+
+        $this->assertStringContainsString('Rescue and assistance reports remain concentrated in Guadalupe.', $html);
+        $this->assertStringContainsString('Current reports indicate continued life-safety and resource support needs.', $html);
+        $this->assertStringContainsString('Source Snapshot', $html);
+        $this->assertStringNotContainsString('rollup', $html);
+        $this->assertStringNotContainsString('items', $html);
+    }
+
+    public function test_viewer_css_keeps_preview_header_from_squeezing_title(): void
+    {
+        $css = (new SitrepViewer())->css();
+
+        $this->assertStringContainsString('grid-template-columns: minmax(18rem, 1fr) minmax(0, 34rem);', $css);
+        $this->assertStringContainsString('.sitrep-page.is-preview .sitrep-header h1', $css);
+        $this->assertStringContainsString('@media (max-width: 980px)', $css);
+        $this->assertStringContainsString('grid-template-columns: 1fr;', $css);
+        $this->assertStringContainsString('justify-content: flex-start;', $css);
+    }
+
     /**
      * @return array<string, mixed>
      */

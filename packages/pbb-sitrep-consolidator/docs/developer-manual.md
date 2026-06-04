@@ -14,7 +14,7 @@ The SDK owns:
 - Validation errors and warnings.
 - Grouping by deployment.
 - Latest-by-hub staging helpers.
-- Consolidation into a SITREP-like output payload.
+- Consolidation into a viewer-compatible SITREP output payload.
 - Source provenance output.
 
 The host app owns:
@@ -66,6 +66,9 @@ source_snapshot.hub_node.snapshot.hub_id
 source_snapshot.hub_node.snapshot.deployment
 source_snapshot.hub_node.snapshot.name
 ```
+
+For schema v2 payloads, the SDK also accepts the same metadata under
+`source_snapshot.rollup.hub_node.snapshot.*`.
 
 `hub_id` is the PBB HUB HQ system-generated unique ID. Use it for staging filenames:
 
@@ -136,6 +139,71 @@ $citySitrep = $result->sitrep;
 `consolidate()` rejects mixed deployment batches. Use `groupByDeployment()` first when the intake set may contain barangay and city SITREPs together.
 
 Direct consolidation also rejects duplicate `hub_id` values. Stage incoming SITREPs first when a host app wants latest-by-hub overwrite behavior.
+
+## Consolidated Output Contract
+
+The output is intended to be passed directly to `pbb/sitrep-viewer` and relayed
+upstream as a consolidated SITREP. It includes the normal top-level SITREP
+fields:
+
+```text
+schema_version
+title
+coverage_area
+coverage_level
+location_count
+period_started_at
+period_ended_at
+generated_at
+status
+visibility
+alert_level
+summary
+situation
+damage
+population
+actions
+needs
+gaps
+source_snapshot
+privacy_redactions
+data_quality
+```
+
+The operational sections use the schema v2 shape:
+
+```text
+section.rollup
+section.items[].location
+section.items[].data
+```
+
+`rollup` is the consolidated section rendered as the main report. `items`
+preserves each accepted source location's original section content. For a
+single-source consolidation, `rollup` is the source section so rich Hotline
+content such as `summary.gap_cards`, `summary.accomplishment_cards`, and
+`situation.executive_assessment` is retained.
+
+Default `status` is `draft` and default `visibility` is `private`. A host app
+may override those in the consolidation context when leadership approves a
+different publication workflow.
+
+When context does not provide `period_started_at` or `period_ended_at`, the SDK
+uses the earliest source start and latest source end. This prevents a
+consolidation batch from accidentally inheriting only the first source period.
+
+`source_snapshot.generation` identifies the consolidator SDK, version, merge
+rule, and prepared-by label. `source_snapshot.target` records the receiving hub
+or organization, while `source_snapshot.source_sitreps` records accepted source
+provenance. If sources contain `source_snapshot.incident_coordinates`, the SDK
+rolls them up into `source_snapshot.incident_coordinates` and adds
+`source_hub_id` to each coordinate entry.
+
+Population and other numeric fields are summed only for planning awareness. The
+SDK emits `population.rollup.numeric_total_note`,
+`population.rollup.confidence_note`, and `data_quality.rollup.global_note` to
+make clear that source values may overlap and
+should be validated by the host app before operational use.
 
 ## Validation Issues
 

@@ -42,7 +42,13 @@ final class SitrepPayload
     {
         $section = $this->payload[$key] ?? [];
 
-        return is_array($section) ? $section : [];
+        if (! is_array($section)) {
+            return [];
+        }
+
+        return isset($section['rollup']) && is_array($section['rollup'])
+            ? $section['rollup']
+            : $section;
     }
 
     /**

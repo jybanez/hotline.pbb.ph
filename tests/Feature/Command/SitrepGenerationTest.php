@@ -133,6 +133,7 @@ class SitrepGenerationTest extends TestCase
 
         $report = DB::table('sitrep_reports')->first();
         $sourceSnapshot = json_decode($report->source_snapshot_json, true);
+        $sourceSnapshot = $sourceSnapshot['rollup'] ?? $sourceSnapshot;
 
         $this->assertSame([$incidentId], $sourceSnapshot['incident_ids']);
         $this->assertSame([[
