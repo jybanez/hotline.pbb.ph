@@ -21,7 +21,7 @@ SITREP payload schema v2 preserves the same report sections used by Hotline and 
 
 `rollup` is the section content rendered as the main SITREP. `items` preserves per-location source content for consolidated reports and for future upstream rollups. A Hotline-generated single-location SITREP has `location_count = 1`; consolidated SITREPs can contain multiple locations.
 
-The affected sections are:
+Exported and relayed SITREP JSON intentionally wraps these sections:
 
 ```text
 summary
@@ -39,9 +39,26 @@ data_quality
 
 ## Compatibility
 
-The Hotline command API and Blade preview unwrap `rollup` for existing UI compatibility. Exported SITREP JSON and Relay payloads use schema v2.
+The Hotline runtime remains compatible with existing screens by unwrapping `rollup` in these paths:
+
+- Command API responses.
+- Public bootstrap latest SITREP summary.
+- Blade preview and public rendering.
+- Relay target derivation from `source_snapshot.rollup.hub_node.snapshot.uplinks`.
+
+Exported SITREP JSON and Relay payloads use schema v2.
 
 The framework-agnostic viewer SDK accepts both legacy flat sections and schema v2 sections. The consolidator SDK also accepts both shapes and emits schema v2.
+
+SDK consumers should use the updated Viewer and Consolidator helpers. Consumers must not assume `source_snapshot.hub_node` or operational section fields are always top-level. For schema v2, those fields are under each section's `rollup`.
+
+This document is the source of truth for Support and other PHP apps consuming SITREP JSON from Hotline or from the consolidator SDK.
+
+## Installer And Update Metadata
+
+Schema v2 changes the stored JSON payload shape only. It does not add or alter database tables or columns, so this change does not require a database migration.
+
+The legacy cleanup command is an optional manual/admin maintenance command for transactional SITREP snapshots. It is not part of Hotline Data Prep, which manages fixed reference data and runtime settings. Therefore `release.json.update.requires_data_prep_rerun` remains `false`.
 
 ## Legacy Cleanup
 
