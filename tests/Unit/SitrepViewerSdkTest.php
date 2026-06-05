@@ -59,6 +59,48 @@ class SitrepViewerSdkTest extends TestCase
         $viewer->renderSection($this->sitrep(), 'unknown');
     }
 
+    public function test_builds_visualization_datasets_for_helper_backed_dashboards(): void
+    {
+        $viewer = new SitrepViewer();
+        $payload = $this->sitrep();
+        $payload['source_snapshot']['incident_coordinates'] = [
+            ['id' => 101, 'lat' => 10.321234, 'lng' => 123.891234],
+        ];
+
+        $data = $viewer->visualizationData($payload);
+
+        $this->assertSame(1, $data['schema_version']);
+        $this->assertContains('ui.stat.cards', $data['helper_targets']);
+        $this->assertContains('ui.charts', $data['helper_targets']);
+        $this->assertContains('ui.map.markers', $data['helper_targets']);
+        $this->assertSame('ui.stat.cards', $data['sections']['population']['stat_cards']['component']);
+        $this->assertSame('People at Risk', $data['sections']['population']['stat_cards']['items'][0]['label']);
+        $this->assertSame(18, $data['sections']['population']['stat_cards']['items'][0]['value']);
+        $this->assertSame('population.people-at-risk', $data['sections']['population']['stat_cards']['items'][0]['icon']);
+        $this->assertSame('ui.charts', $data['sections']['situation']['incident_types']['component']);
+        $this->assertSame('horizontal-bar', $data['sections']['situation']['incident_types']['type']);
+        $this->assertSame('Rescue', $data['sections']['situation']['incident_types']['data'][0]['label']);
+        $this->assertSame('ui.charts', $data['sections']['needs']['category_demand']['component']);
+        $this->assertSame('Transport', $data['sections']['needs']['category_demand']['data'][0]['label']);
+        $this->assertSame('ui.map.markers', $data['sections']['map']['incident_markers']['component']);
+        $this->assertSame(10.32123, $data['sections']['map']['incident_markers']['items'][0]['lat']);
+        $this->assertSame(123.89123, $data['sections']['map']['incident_markers']['items'][0]['lng']);
+    }
+
+    public function test_builds_one_visualization_section_and_rejects_unknown_visualization_sections(): void
+    {
+        $viewer = new SitrepViewer();
+
+        $population = $viewer->visualizationSection($this->sitrep(), 'population');
+
+        $this->assertSame('Affected People', $population['stat_cards']['title']);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Unknown SITREP visualization section [unknown]');
+
+        $viewer->visualizationSection($this->sitrep(), 'unknown');
+    }
+
     public function test_exposes_payload_schema_reference_by_section(): void
     {
         $viewer = new SitrepViewer();

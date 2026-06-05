@@ -118,6 +118,91 @@ handling, source-location shortening, table rules, empty states, and
 `location_count` behavior. The host app should only decide where those sections
 are placed.
 
+## Build Visualization Data
+
+The SDK can also return framework-agnostic visualization datasets. These arrays
+do not render charts or maps by themselves. They describe the official SITREP
+data in a shape that host apps can feed into app-owned dashboards or future
+Helper components.
+
+```php
+$visuals = $viewer->visualizationData($payload);
+
+$populationVisuals = $viewer->visualizationSection($payload, 'population');
+```
+
+The top-level dataset declares the Helper component families it is designed to
+feed:
+
+```php
+$visuals['helper_targets'];
+// [
+//     'ui.stat.cards',
+//     'ui.charts',
+//     'ui.map.legend',
+//     'ui.map.markers',
+// ]
+```
+
+Available visualization sections:
+
+```text
+summary
+situation
+population
+actions
+needs
+gaps
+map
+```
+
+Example population stat cards:
+
+```php
+$visuals['sections']['population']['stat_cards'];
+// [
+//     'component' => 'ui.stat.cards',
+//     'title' => 'Affected People',
+//     'items' => [
+//         ['label' => 'People at Risk', 'value' => 61, ...],
+//         ['label' => 'People Helped', 'value' => 8, ...],
+//         ['label' => 'Current Records', 'value' => 42, ...],
+//     ],
+// ]
+```
+
+Example chart dataset:
+
+```php
+$visuals['sections']['needs']['category_demand'];
+// [
+//     'component' => 'ui.charts',
+//     'type' => 'horizontal-bar',
+//     'title' => 'Resource Demand By Category',
+//     'data' => [
+//         ['label' => 'Rescue and Extraction', 'value' => 38, ...],
+//     ],
+// ]
+```
+
+Example map marker dataset:
+
+```php
+$visuals['sections']['map']['incident_markers'];
+// [
+//     'component' => 'ui.map.markers',
+//     'title' => 'Incident Coordinates',
+//     'items' => [
+//         ['type' => 'incident', 'lat' => 10.32123, 'lng' => 123.89123, ...],
+//     ],
+// ]
+```
+
+The Viewer SDK intentionally does not depend on Helper JavaScript. This keeps
+the package usable by plain PHP apps, CLI tools, and server-side renderers. Host
+apps decide whether to render these datasets with Helper, another frontend
+layer, or simple local HTML.
+
 ## Render For PDF
 
 ```php

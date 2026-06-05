@@ -30,4 +30,15 @@ $summary = $viewer->renderSection($sitrepPayload, 'summary');
 $tabs = $viewer->renderSections($sitrepPayload, ['population', 'needs', 'gaps']);
 ```
 
+For dashboard or map layouts, build framework-agnostic visualization datasets:
+
+```php
+$visuals = $viewer->visualizationData($sitrepPayload);
+$populationVisuals = $viewer->visualizationSection($sitrepPayload, 'population');
+```
+
+The visualization data is plain PHP arrays that can be rendered by app-owned UI
+or future Helper components such as `ui.stat.cards`, `ui.charts`,
+`ui.map.legend`, and `ui.map.markers`.
+
 See `docs/developer-manual.md` for integration notes and `demo/render.php` for a plain PHP example.

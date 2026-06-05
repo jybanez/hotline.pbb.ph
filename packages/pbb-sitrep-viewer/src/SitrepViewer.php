@@ -69,6 +69,28 @@ final class SitrepViewer
         return SitrepDocumentRenderer::sectionNames();
     }
 
+    /**
+     * Build framework-agnostic visualization datasets for the full SITREP.
+     *
+     * @param array<string, mixed>|string $sitrep
+     * @return array<string, mixed>
+     */
+    public function visualizationData(array|string $sitrep): array
+    {
+        return (new SitrepVisualizationDataBuilder())->build(SitrepPayload::from($sitrep));
+    }
+
+    /**
+     * Build framework-agnostic visualization datasets for one SITREP section.
+     *
+     * @param array<string, mixed>|string $sitrep
+     * @return array<string, mixed>
+     */
+    public function visualizationSection(array|string $sitrep, string $section): array
+    {
+        return (new SitrepVisualizationDataBuilder())->section(SitrepPayload::from($sitrep), $section);
+    }
+
     public function css(): string
     {
         $path = dirname(__DIR__).DIRECTORY_SEPARATOR.'assets'.DIRECTORY_SEPARATOR.'sitrep-viewer.css';
