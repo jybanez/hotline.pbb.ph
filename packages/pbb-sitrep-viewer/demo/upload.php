@@ -3,6 +3,7 @@
 require __DIR__.'/../src/Html.php';
 require __DIR__.'/../src/SitrepPayload.php';
 require __DIR__.'/../src/SitrepViewOptions.php';
+require __DIR__.'/../src/SitrepSchemaReference.php';
 require __DIR__.'/../src/SitrepDocumentRenderer.php';
 require __DIR__.'/../src/SitrepViewer.php';
 
@@ -141,6 +142,11 @@ function e(mixed $value): string
             color: #93c5fd;
             font-size: 13px;
         }
+
+        .demo-reference {
+            max-width: 920px;
+            margin: 18px auto 28px;
+        }
     </style>
 </head>
 <body>
@@ -167,6 +173,10 @@ function e(mixed $value): string
                 Upload a generated SITREP JSON payload to render it with the framework-agnostic viewer SDK.
             </div>
         <?php endif; ?>
+
+        <div class="demo-reference">
+            <?= $viewer->schemaReferenceHtml() ?>
+        </div>
     </div>
 </body>
 </html>

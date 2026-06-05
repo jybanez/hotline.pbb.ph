@@ -4,12 +4,33 @@ namespace Pbb\Sitreps\Viewer;
 
 final class SitrepDocumentRenderer
 {
+    /**
+     * @return array<int, string>
+     */
+    public static function sectionNames(): array
+    {
+        return [
+            'header',
+            'summary',
+            'situation',
+            'damage',
+            'population',
+            'actions',
+            'needs',
+            'gaps',
+            'period_activity',
+            'verification_notes',
+            'footer',
+        ];
+    }
+
     public function render(SitrepPayload $sitrep, SitrepViewOptions $options): string
     {
         $summary = $sitrep->section('summary');
         $situation = $sitrep->section('situation');
         $sourceSnapshot = $sitrep->section('source_snapshot');
         $identity = $this->identity($sitrep);
+        $showLocations = (int) $sitrep->get('location_count', 1) > 1;
         $classes = ['pbb-sitrep-viewer', 'sitrep-page'];
         if ($options->preview) {
             $classes[] = 'is-preview';
@@ -25,18 +46,57 @@ final class SitrepDocumentRenderer
             .'<article class="sitrep-document">'
             .$this->previewBanner($sitrep, $options)
             .$this->header($sitrep, $summary, $sourceSnapshot, $identity)
-            .$this->summary($summary, $situation)
+            .$this->summary($summary, $situation, $sourceSnapshot)
             .$this->situation($situation)
             .$this->damage($sitrep->section('damage'))
-            .$this->population($sitrep->section('population'))
+            .$this->population($sitrep->section('population'), $showLocations)
             .$this->actions($sitrep->section('actions'))
-            .$this->needs($sitrep->section('needs'))
-            .$this->gaps($sitrep->section('gaps'))
+            .$this->needs($sitrep->section('needs'), $showLocations)
+            .$this->gaps($sitrep->section('gaps'), $sourceSnapshot)
             .$this->periodActivity($situation)
             .$this->verificationNotes($situation)
             .$this->footer($sitrep)
             .'</article>'
             .'</main>';
+    }
+
+    public function renderSection(SitrepPayload $sitrep, string $section): string
+    {
+        $section = strtolower(trim(str_replace('-', '_', $section)));
+        $summary = $sitrep->section('summary');
+        $situation = $sitrep->section('situation');
+        $sourceSnapshot = $sitrep->section('source_snapshot');
+        $showLocations = (int) $sitrep->get('location_count', 1) > 1;
+
+        return match ($section) {
+            'header' => $this->header($sitrep, $summary, $sourceSnapshot, $this->identity($sitrep)),
+            'summary' => $this->summary($summary, $situation, $sourceSnapshot),
+            'situation' => $this->situation($situation),
+            'damage' => $this->damage($sitrep->section('damage')),
+            'population' => $this->population($sitrep->section('population'), $showLocations),
+            'actions' => $this->actions($sitrep->section('actions')),
+            'needs' => $this->needs($sitrep->section('needs'), $showLocations),
+            'gaps' => $this->gaps($sitrep->section('gaps'), $sourceSnapshot),
+            'period_activity', 'period_activity_report' => $this->periodActivity($situation),
+            'verification_notes', 'verification' => $this->verificationNotes($situation),
+            'footer', 'source_snapshot', 'data_quality' => $this->footer($sitrep),
+            default => throw new \InvalidArgumentException(sprintf(
+                'Unknown SITREP section [%s]. Supported sections: %s.',
+                $section,
+                implode(', ', self::sectionNames()),
+            )),
+        };
+    }
+
+    /**
+     * @param array<int, string> $sections
+     */
+    public function renderSections(SitrepPayload $sitrep, array $sections): string
+    {
+        return implode('', array_map(
+            fn (string $section): string => $this->renderSection($sitrep, $section),
+            $sections,
+        ));
     }
 
     private function previewBanner(SitrepPayload $sitrep, SitrepViewOptions $options): string
@@ -79,21 +139,23 @@ final class SitrepDocumentRenderer
     /**
      * @param array<string, mixed> $summary
      * @param array<string, mixed> $situation
+     * @param array<string, mixed> $sourceSnapshot
      */
-    private function summary(array $summary, array $situation): string
+    private function summary(array $summary, array $situation, array $sourceSnapshot): string
     {
+        $targetName = $this->targetName($sourceSnapshot);
         $html = '<section class="sitrep-section sitrep-summary">'
             .$this->sectionHead('Summary', 'Executive Situation Assessment')
             .'<p class="sitrep-narrative">'.Html::text($situation['executive_assessment'] ?? $situation['narrative'] ?? 'No executive assessment is available.').'</p>';
 
         if (! empty($summary['gap_cards']) && is_array($summary['gap_cards'])) {
-            $html .= $this->cardRow('Gaps', $summary['gap_cards']);
+            $html .= $this->cardRow('Gaps', $summary['gap_cards'], false, $targetName);
         }
 
         if (! empty($summary['accomplishment_cards']) && is_array($summary['accomplishment_cards'])) {
-            $html .= $this->cardRow('Accomplishments', $summary['accomplishment_cards'], true);
+            $html .= $this->cardRow('Accomplishments', $summary['accomplishment_cards'], true, $targetName);
         } elseif (! empty($summary['executive_cards']) && is_array($summary['executive_cards'])) {
-            $html .= $this->pictureGrid($summary['executive_cards']);
+            $html .= $this->pictureGrid($summary['executive_cards'], $targetName);
         } else {
             $html .= $this->pictureGrid([
                 [
@@ -111,7 +173,7 @@ final class SitrepDocumentRenderer
                     'value' => $summary['hotspot_area'] ?? 'No hotspot identified',
                     'note' => $summary['hotspot_note'] ?? 'Dominant type: '.(string) ($summary['dominant_incident_type'] ?? 'Unclassified'),
                 ],
-            ]);
+            ], $targetName);
         }
 
         if (! empty($situation['decision_points']) && is_array($situation['decision_points'])) {
@@ -174,12 +236,20 @@ final class SitrepDocumentRenderer
             $html .= '</div>';
         }
 
-        $locationRows = array_map(fn (array $row): array => [$row['area'] ?? 'Unknown', $row['count'] ?? $row['report_count'] ?? 0], array_filter($situation['locations'] ?? [], 'is_array'));
-        $typeRows = array_map(fn (array $row): array => [$row['type'] ?? 'Unclassified', $row['count'] ?? 0], array_filter($situation['incident_types'] ?? [], 'is_array'));
+        $locationRows = array_map(fn (array $row): array => [
+            $row['area'] ?? 'Unknown',
+            $row['alert_level'] ?? '',
+            $row['count'] ?? $row['report_count'] ?? 0,
+        ], array_filter($situation['locations'] ?? [], 'is_array'));
+        $typeRows = array_map(fn (array $row): array => [
+            $row['type'] ?? 'Unclassified',
+            $row['location_count'] ?? count(array_unique(array_filter((array) ($row['source_hubs'] ?? []), 'is_scalar'))),
+            $row['count'] ?? 0,
+        ], array_filter($situation['incident_types'] ?? [], 'is_array'));
 
         return $html.'<div class="sitrep-two-column">'
-            .$this->table('Current Locations', ['Area', 'Incidents'], $locationRows, 'No location distribution available.')
-            .$this->table('Current Incident Types', ['Type', 'Mentions'], $typeRows, 'No incident type distribution available.')
+            .$this->table('Current Locations', ['Area', 'Alert Level', 'Incidents'], $locationRows, 'No location distribution available.')
+            .$this->table('Current Incident Types', ['Type', 'Locations', 'Mentions'], $typeRows, 'No incident type distribution available.')
             .'</div></section>';
     }
 
@@ -209,12 +279,13 @@ final class SitrepDocumentRenderer
     /**
      * @param array<string, mixed> $population
      */
-    private function population(array $population): string
+    private function population(array $population, bool $showLocations): string
     {
         $html = '<section class="sitrep-section">'.$this->sectionHead('Population', 'Affected People')
             .'<div class="sitrep-metrics is-compact">'
-            .$this->metric('Citizens assisted', $population['citizens_assisted'] ?? $population['callers_assisted'] ?? 0)
-            .$this->metric('Current records', $population['record_count'] ?? count($population['items'] ?? []))
+            .$this->metric('People at Risk', $population['people_at_risk'] ?? $population['numeric_total'] ?? 0)
+            .$this->metric('People Helped', $population['citizens_assisted'] ?? $population['callers_assisted'] ?? 0, 'is-positive')
+            .$this->metric('Current Records', $population['record_count'] ?? count($population['items'] ?? []))
             .'</div>';
 
         if (! empty($population['numeric_total_note'])) {
@@ -222,13 +293,22 @@ final class SitrepDocumentRenderer
         }
 
         if (! empty($population['population_groups']) && is_array($population['population_groups'])) {
-            $rows = array_map(fn (array $row): array => [
-                $row['population_signal'] ?? 'Population signal',
-                $row['reports'] ?? 0,
-                $row['people_families'] ?? '',
-                $row['notes'] ?? '',
-            ], array_filter($population['population_groups'], 'is_array'));
-            $html .= $this->table('Population Summary', ['Population Signal', 'Reports', 'People / Families', 'Notes'], $rows, (string) ($population['empty_state'] ?? 'No population entries available.'));
+            $headers = $showLocations
+                ? ['Population Signal', 'Locations', 'Reports', 'People / Families', 'Notes']
+                : ['Population Signal', 'Reports', 'People / Families', 'Notes'];
+            $rows = array_map(fn (array $row): array => $showLocations ? [
+                    $row['population_signal'] ?? 'Population signal',
+                    $this->locationCount($row),
+                    $row['reports'] ?? 0,
+                    $row['people_or_families'] ?? $row['people_families'] ?? '',
+                    $row['notes'] ?? '',
+                ] : [
+                    $row['population_signal'] ?? 'Population signal',
+                    $row['reports'] ?? 0,
+                    $row['people_or_families'] ?? $row['people_families'] ?? '',
+                    $row['notes'] ?? '',
+                ], array_filter($population['population_groups'], 'is_array'));
+            $html .= $this->table('Population Summary', $headers, $rows, (string) ($population['empty_state'] ?? 'No population entries available.'));
 
             $breakdownRows = [];
             foreach ($population['population_groups'] as $group) {
@@ -237,12 +317,24 @@ final class SitrepDocumentRenderer
                 }
                 foreach (($group['breakdowns'] ?? []) as $row) {
                     if (is_array($row)) {
-                        $breakdownRows[] = [$group['population_signal'] ?? 'Population signal', $row['breakdown'] ?? 'Breakdown', $row['count'] ?? 0];
+                        $breakdownRows[] = $showLocations ? [
+                            $group['population_signal'] ?? 'Population signal',
+                            $row['breakdown'] ?? 'Breakdown',
+                            $this->locationCount($row),
+                            $row['count'] ?? 0,
+                        ] : [
+                            $group['population_signal'] ?? 'Population signal',
+                            $row['breakdown'] ?? 'Breakdown',
+                            $row['count'] ?? 0,
+                        ];
                     }
                 }
             }
             if ($breakdownRows !== []) {
-                $html .= $this->table('Declared Member Breakdown', ['Population Signal', 'Breakdown', 'Count'], $breakdownRows, 'No member breakdowns declared.');
+                $headers = $showLocations
+                    ? ['Population Signal', 'Breakdown', 'Locations', 'Count']
+                    : ['Population Signal', 'Breakdown', 'Count'];
+                $html .= $this->table('Declared Member Breakdown', $headers, $breakdownRows, 'No member breakdowns declared.');
             }
             $html .= '<p class="sitrep-note">Individual population entries are retained in the source snapshot and exports.</p>';
         } else {
@@ -268,8 +360,6 @@ final class SitrepDocumentRenderer
                 ($counts['accepted'] ?? 0) ?: '',
                 ($counts['en_route'] ?? 0) ?: '',
                 ($counts['on_scene'] ?? 0) ?: '',
-                ($counts['completed'] ?? 0) ?: '',
-                ($counts['cancelled'] ?? 0) ?: '',
             ];
         }, array_filter($actions['deployment_groups'] ?? [], 'is_array'));
 
@@ -280,15 +370,13 @@ final class SitrepDocumentRenderer
             $row['assigned_to_accepted'] ?? '',
             $row['accepted_to_en_route'] ?? '',
             $row['en_route_to_on_scene'] ?? '',
-            $row['on_scene_to_completed'] ?? '',
-            $row['assigned_to_cancelled'] ?? '',
             $row['elapsed_time'] ?? '',
         ], array_filter($actions['timing_rows'] ?? [], 'is_array'));
 
         return '<section class="sitrep-section">'
             .$this->sectionHead('Actions', 'Response Posture')
-            .$this->table('Team Deployment', ['Category', 'Team', 'Requested', 'Assigned', 'Accepted', 'En Route', 'On Scene', 'Completed', 'Cancelled'], $deploymentRows, 'No team assignments recorded.', 'is-team-deployment')
-            .$this->table('Assignment Timing', ['Incident', 'Team', 'Status', 'Accepted', 'En Route', 'On Scene', 'Completed', 'Cancelled', 'Time in Status'], $timingRows, 'No assignment timing milestones recorded.', 'is-assignment-timing')
+            .$this->table('Team Deployment', ['Category', 'Team', 'Requested', 'Assigned', 'Accepted', 'En Route', 'On Scene'], $deploymentRows, 'No team assignments recorded.', 'is-team-deployment')
+            .$this->table('Assignment Timing', ['Incident', 'Team', 'Status', 'Accepted', 'En Route', 'On Scene', 'Time in Status'], $timingRows, 'No assignment timing milestones recorded.', 'is-assignment-timing')
             .'<p class="sitrep-note">Timing rows are scenario-specific and derived from team assignment milestone timestamps. Time in Status shows how long an open assignment has been in its current status, falling back to assignment time when older records do not have the milestone timestamp.</p>'
             .'</section>';
     }
@@ -296,36 +384,54 @@ final class SitrepDocumentRenderer
     /**
      * @param array<string, mixed> $needs
      */
-    private function needs(array $needs): string
+    private function needs(array $needs, bool $showLocations): string
     {
         $html = '<section class="sitrep-section">'.$this->sectionHead('Needs', 'Current Resource Posture');
 
         if (! empty($needs['category_groups']) && is_array($needs['category_groups'])) {
-            $rows = array_map(fn (array $row): array => [
-                $row['category'] ?? 'Uncategorized',
-                $row['quantity_requested'] ?? 0,
-                implode(', ', $row['resources'] ?? []),
-            ], array_filter($needs['category_groups'], 'is_array'));
-            $html .= $this->table('Category Demand', ['Category', 'Quantity', 'Resources'], $rows, 'No category demand available.');
+            $headers = $showLocations
+                ? ['Category', 'Locations', 'Quantity', 'Resources']
+                : ['Category', 'Quantity', 'Resources'];
+            $rows = array_map(fn (array $row): array => $showLocations ? [
+                    $row['category'] ?? 'Uncategorized',
+                    $this->locationCount($row),
+                    $row['quantity_requested'] ?? 0,
+                    implode(', ', $row['resources'] ?? []),
+                ] : [
+                    $row['category'] ?? 'Uncategorized',
+                    $row['quantity_requested'] ?? 0,
+                    implode(', ', $row['resources'] ?? []),
+                ], array_filter($needs['category_groups'], 'is_array'));
+            $html .= $this->table('Category Demand', $headers, $rows, 'No category demand available.');
         }
 
-        $rows = array_map(fn (array $row): array => [
-            $row['resource'] ?? 'Resource',
-            $row['category'] ?? 'Uncategorized',
-            $row['quantity_requested'] ?? 0,
-            $row['incident_count'] ?? 0,
-        ], array_filter($needs['items'] ?? [], 'is_array'));
+        $headers = $showLocations
+            ? ['Resource', 'Category', 'Locations', 'Quantity', 'Incidents']
+            : ['Resource', 'Category', 'Quantity', 'Incidents'];
+        $rows = array_map(fn (array $row): array => $showLocations ? [
+                $row['resource'] ?? 'Resource',
+                $row['category'] ?? 'Uncategorized',
+                $this->locationCount($row),
+                $row['quantity_requested'] ?? 0,
+                $row['incident_count'] ?? 0,
+            ] : [
+                $row['resource'] ?? 'Resource',
+                $row['category'] ?? 'Uncategorized',
+                $row['quantity_requested'] ?? 0,
+                $row['incident_count'] ?? 0,
+            ], array_filter($needs['items'] ?? [], 'is_array'));
 
         return $html
-            .$this->table('Resource Needs', ['Resource', 'Category', 'Quantity', 'Incidents'], $rows, (string) ($needs['empty_state'] ?? 'No structured resource needs recorded.'))
+            .$this->table('Resource Needs', $headers, $rows, (string) ($needs['empty_state'] ?? 'No structured resource needs recorded.'))
             .'<p class="sitrep-note">'.Html::text($needs['confidence_note'] ?? '').'</p></section>';
     }
 
     /**
      * @param array<string, mixed> $gaps
      */
-    private function gaps(array $gaps): string
+    private function gaps(array $gaps, array $sourceSnapshot): string
     {
+        $targetName = $this->targetName($sourceSnapshot);
         $html = '<section class="sitrep-section">'.$this->sectionHead('Gaps', (string) ($gaps['title'] ?? 'Response Constraints and Confidence Gaps'));
         if (! empty($gaps['intro'])) {
             $html .= '<p class="sitrep-narrative">'.Html::text($gaps['intro']).'</p>';
@@ -348,7 +454,7 @@ final class SitrepDocumentRenderer
             }
             if (! empty($gap['evidence'])) {
                 $html .= '<dl class="sitrep-gap-details">';
-                $html .= '<div><dt>Evidence</dt><dd>'.Html::text($gap['evidence']).'</dd></div>';
+                $html .= '<div><dt>Evidence</dt><dd>'.$this->gapEvidence($gap, $targetName).'</dd></div>';
                 if (! empty($gap['confidence_note'])) {
                     $html .= '<div><dt>Confidence</dt><dd>'.Html::text($gap['confidence_note']).'</dd></div>';
                 }
@@ -356,24 +462,65 @@ final class SitrepDocumentRenderer
             }
             $details = array_filter($gap['items'] ?? [], 'is_array');
             if ($details !== []) {
-                $html .= '<ul class="sitrep-gap-evidence">';
+                $rows = [];
                 foreach ($details as $detail) {
-                    $html .= '<li><strong>'.Html::text($detail['status'] ?? 'Reported').'</strong> '
-                        .'<span class="sitrep-gap-route">'.Html::text($detail['route_location'] ?? 'Location not specified').'</span>';
-                    if (! empty($detail['obstruction_type'])) {
-                        $html .= ' <span class="sitrep-gap-obstruction">&mdash; '.Html::text($detail['obstruction_type']).'</span>';
-                    }
-                    if (! empty($detail['cleared'])) {
-                        $html .= ' <span class="sitrep-gap-cleared">Cleared: '.Html::text($detail['cleared']).'</span>';
-                    }
-                    $html .= '</li>';
+                    $rows[] = [
+                        $this->shortLocation((string) ($detail['source_hub_name'] ?? 'Source'), $targetName),
+                        $detail['status'] ?? 'Reported',
+                        $detail['route_location'] ?? 'Location not specified',
+                        $detail['obstruction_type'] ?? '',
+                        ! empty($detail['cleared']) ? $detail['cleared'] : '',
+                    ];
                 }
-                $html .= '</ul>';
+                $html .= $this->table('Route Evidence', ['Location', 'Status', 'Route', 'Obstruction', 'Cleared'], $rows, 'No route evidence reported.');
             }
             $html .= '</article>';
         }
 
         return $html.'</section>';
+    }
+
+    /**
+     * @param array<string, mixed> $gap
+     */
+    private function gapEvidence(array $gap, ?string $targetName): string
+    {
+        $evidence = trim((string) ($gap['evidence'] ?? ''));
+        $sourceHubs = array_values(array_filter((array) ($gap['source_hubs'] ?? []), 'is_scalar'));
+        if ($evidence === '' || $sourceHubs === []) {
+            return Html::text($evidence);
+        }
+
+        $rows = [];
+        foreach ($sourceHubs as $index => $sourceHub) {
+            $source = (string) $sourceHub;
+            $start = strpos($evidence, $source.':');
+            if ($start === false) {
+                continue;
+            }
+
+            $start += strlen($source) + 1;
+            $end = strlen($evidence);
+            foreach (array_slice($sourceHubs, $index + 1) as $nextSourceHub) {
+                $next = strpos($evidence, (string) $nextSourceHub.':', $start);
+                if ($next !== false) {
+                    $end = $next;
+                    break;
+                }
+            }
+
+            $text = trim(substr($evidence, $start, $end - $start));
+            $text = preg_replace('/\s+$/', '', rtrim($text, " \t\n\r\0\x0B.")) ?? $text;
+            if ($text !== '') {
+                $rows[] = [$this->shortLocation($source, $targetName), $text];
+            }
+        }
+
+        if ($rows === []) {
+            return Html::text($evidence);
+        }
+
+        return $this->table('', ['Location', 'Evidence'], $rows, 'No source evidence reported.');
     }
 
     /**
@@ -493,17 +640,34 @@ final class SitrepDocumentRenderer
     }
 
     /**
-     * @param array<int, array<string, mixed>> $cards
+     * @param array<string, mixed> $row
      */
-    private function cardRow(string $title, array $cards, bool $positive = false): string
+    private function locationCount(array $row): int
     {
-        return '<div class="sitrep-card-row'.($positive ? ' is-positive' : '').'"><h3>'.Html::text($title).'</h3>'.$this->pictureGrid($cards).'</div>';
+        if (isset($row['location_count'])) {
+            return max(0, (int) $row['location_count']);
+        }
+
+        $sourceHubs = array_unique(array_filter((array) ($row['source_hubs'] ?? []), 'is_scalar'));
+        if ($sourceHubs !== []) {
+            return count($sourceHubs);
+        }
+
+        return 1;
     }
 
     /**
      * @param array<int, array<string, mixed>> $cards
      */
-    private function pictureGrid(array $cards): string
+    private function cardRow(string $title, array $cards, bool $positive = false, ?string $targetName = null): string
+    {
+        return '<div class="sitrep-card-row'.($positive ? ' is-positive' : '').'"><h3>'.Html::text($title).'</h3>'.$this->pictureGrid($cards, $targetName).'</div>';
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $cards
+     */
+    private function pictureGrid(array $cards, ?string $targetName = null): string
     {
         $html = '<div class="sitrep-picture-grid">';
         foreach ($cards as $card) {
@@ -512,10 +676,66 @@ final class SitrepDocumentRenderer
             }
             $html .= '<article><span>'.Html::text($card['label'] ?? 'Summary').'</span>'
                 .'<strong>'.Html::text($card['value'] ?? 'Not reported').'</strong>'
-                .'<p>'.Html::text($card['note'] ?? 'Generated from available records.').'</p></article>';
+                .$this->cardDetail($card, $targetName)
+                .'</article>';
         }
 
         return $html.'</div>';
+    }
+
+    /**
+     * @param array<string, mixed> $card
+     */
+    private function cardDetail(array $card, ?string $targetName): string
+    {
+        $sourceValues = array_values(array_filter($card['source_values'] ?? [], 'is_array'));
+        if ($sourceValues === []) {
+            return '<p>'.Html::text($card['note'] ?? 'Generated from available records.').'</p>';
+        }
+
+        $html = '<ul class="sitrep-card-sources">';
+        foreach (array_slice($sourceValues, 0, 5) as $row) {
+            $source = $this->shortLocation((string) ($row['source_hub_name'] ?? 'Source'), $targetName);
+            $label = trim((string) ($row['label'] ?? $row['value'] ?? 'Reported'));
+            $html .= '<li><strong>'.Html::text($source).'</strong><span>'.Html::text($label).'</span></li>';
+        }
+        $remaining = count($sourceValues) - 5;
+        if ($remaining > 0) {
+            $html .= '<li><strong>More sources</strong><span>'.Html::text($remaining.' additional source'.($remaining === 1 ? '' : 's')).'</span></li>';
+        }
+
+        return $html.'</ul>';
+    }
+
+    /**
+     * @param array<string, mixed> $sourceSnapshot
+     */
+    private function targetName(array $sourceSnapshot): ?string
+    {
+        $targetName = trim((string) ($sourceSnapshot['target']['name'] ?? ''));
+        if ($targetName !== '') {
+            return $targetName;
+        }
+
+        $hubNode = is_array($sourceSnapshot['hub_node'] ?? null) ? $sourceSnapshot['hub_node'] : [];
+        $snapshot = is_array($hubNode['snapshot'] ?? null) ? $hubNode['snapshot'] : [];
+        $name = trim((string) ($snapshot['name'] ?? ''));
+
+        return $name !== '' ? $name : null;
+    }
+
+    private function shortLocation(string $location, ?string $targetName): string
+    {
+        $short = trim($location);
+        $target = trim((string) $targetName);
+
+        if ($target !== '') {
+            $short = preg_replace('/,\s*'.preg_quote($target, '/').'$/i', '', $short) ?? $short;
+        }
+
+        $short = preg_replace('/^Barangay\s+/i', '', $short) ?? $short;
+
+        return trim($short) !== '' ? trim($short) : $location;
     }
 
     /**
@@ -524,7 +744,7 @@ final class SitrepDocumentRenderer
      */
     private function table(string $title, array $headers, array $rows, string $empty, string $class = ''): string
     {
-        $html = '<div class="sitrep-table-card"><h3>'.Html::text($title).'</h3>';
+        $html = '<div class="sitrep-table-card">'.(trim($title) !== '' ? '<h3>'.Html::text($title).'</h3>' : '');
         if ($rows === []) {
             return $html.'<p class="sitrep-empty">'.Html::text($empty).'</p></div>';
         }
@@ -565,9 +785,11 @@ final class SitrepDocumentRenderer
         return $html.'</div>';
     }
 
-    private function metric(string $label, mixed $value): string
+    private function metric(string $label, mixed $value, string $class = ''): string
     {
-        return '<div class="sitrep-metric"><span>'.Html::text($label).'</span><strong>'.Html::number($value).'</strong></div>';
+        $className = trim('sitrep-metric '.$class);
+
+        return '<div class="'.Html::text($className).'"><span>'.Html::text($label).'</span><strong>'.Html::number($value).'</strong></div>';
     }
 
     /**

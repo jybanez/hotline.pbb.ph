@@ -40,10 +40,52 @@ final class SitrepViewer
             .'</html>'.PHP_EOL;
     }
 
+    /**
+     * Render one official SITREP section as an embeddable fragment.
+     *
+     * @param array<string, mixed>|string $sitrep
+     */
+    public function renderSection(array|string $sitrep, string $section): string
+    {
+        return (new SitrepDocumentRenderer())->renderSection(SitrepPayload::from($sitrep), $section);
+    }
+
+    /**
+     * Render selected official SITREP sections as one embeddable fragment.
+     *
+     * @param array<string, mixed>|string $sitrep
+     * @param array<int, string> $sections
+     */
+    public function renderSections(array|string $sitrep, array $sections): string
+    {
+        return (new SitrepDocumentRenderer())->renderSections(SitrepPayload::from($sitrep), $sections);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function sectionNames(): array
+    {
+        return SitrepDocumentRenderer::sectionNames();
+    }
+
     public function css(): string
     {
         $path = dirname(__DIR__).DIRECTORY_SEPARATOR.'assets'.DIRECTORY_SEPARATOR.'sitrep-viewer.css';
 
         return is_file($path) ? (string) file_get_contents($path) : '';
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function schemaReference(): array
+    {
+        return SitrepSchemaReference::sections();
+    }
+
+    public function schemaReferenceHtml(): string
+    {
+        return SitrepSchemaReference::html();
     }
 }

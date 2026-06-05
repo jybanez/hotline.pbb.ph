@@ -238,6 +238,82 @@ class SitrepConsolidatorSdkTest extends TestCase
         $this->assertSame('2026-05-29T01:00:00+00:00', $result->sitrep['period_ended_at']);
     }
 
+    public function test_consolidated_rollups_preserve_source_operational_fidelity(): void
+    {
+        $consolidator = new SitrepConsolidator();
+
+        $first = $this->richSitrep(12, 'Guadalupe', 'Flood', 'Team Alpha', 'Rescue Boat', 'Road/access constraints may affect movement');
+        $second = $this->richSitrep(13, 'Apas', 'Road Accident', 'Team Bravo', 'Ambulance', 'Resource supply not confirmed');
+
+        $result = $consolidator->consolidate([$first, $second], [
+            'target_level' => 'city',
+            'target_hub_id' => '11',
+            'target_hub_name' => 'CEBU CITY, CEBU',
+        ]);
+
+        $this->assertTrue($result->ok);
+        $this->assertSame(2, $result->sitrep['location_count']);
+        $this->assertSame('People at Risk', $result->sitrep['summary']['rollup']['gap_cards'][0]['label']);
+        $this->assertSame('2', $result->sitrep['summary']['rollup']['gap_cards'][0]['value']);
+        $this->assertCount(2, $result->sitrep['summary']['rollup']['gap_cards'][0]['source_values']);
+        $this->assertSame(1, $result->sitrep['summary']['rollup']['gap_cards'][0]['source_values'][0]['numeric_value']);
+        $this->assertSame('1 active report', $result->sitrep['summary']['rollup']['gap_cards'][0]['source_values'][0]['label']);
+        $this->assertSame('Access to Help', $result->sitrep['summary']['rollup']['gap_cards'][1]['label']);
+        $this->assertSame('All clear', $result->sitrep['summary']['rollup']['gap_cards'][1]['value']);
+        $this->assertSame('Clear', $result->sitrep['summary']['rollup']['gap_cards'][1]['source_values'][0]['label']);
+        $this->assertSame('Response Progress', $result->sitrep['summary']['rollup']['gap_cards'][2]['label']);
+        $this->assertSame('2 open', $result->sitrep['summary']['rollup']['gap_cards'][2]['value']);
+        $this->assertSame('People Helped', $result->sitrep['summary']['rollup']['accomplishment_cards'][0]['label']);
+        $this->assertSame('2', $result->sitrep['summary']['rollup']['accomplishment_cards'][0]['value']);
+        $this->assertSame('Teams / Resources Deployed', $result->sitrep['summary']['rollup']['accomplishment_cards'][1]['label']);
+        $this->assertSame('1 assignments; 2 units', $result->sitrep['summary']['rollup']['accomplishment_cards'][1]['source_values'][0]['label']);
+        $this->assertSame('River level monitoring', $result->sitrep['summary']['rollup']['priority_watch_items'][0]['title']);
+        $this->assertSame('Life safety', $result->sitrep['summary']['rollup']['decision_points'][0]['title']);
+        $this->assertStringContainsString('Raised by 2 source hubs', $result->sitrep['summary']['rollup']['decision_points'][0]['body']);
+        $this->assertSame(2, $result->sitrep['situation']['rollup']['current_operating_picture']['open_reports']);
+        $this->assertSame('Guadalupe', $result->sitrep['situation']['rollup']['locations'][0]['area']);
+        $this->assertSame('Elevated', $result->sitrep['situation']['rollup']['locations'][0]['alert_level']);
+        $this->assertSame('Flood', $result->sitrep['situation']['rollup']['incident_types'][0]['type']);
+        $this->assertSame(1, $result->sitrep['situation']['rollup']['incident_types'][0]['location_count']);
+        $this->assertSame('Life safety', $result->sitrep['situation']['rollup']['concern_groups'][0]['concern']);
+        $this->assertSame('Barangay Teams', $result->sitrep['actions']['rollup']['deployment_groups'][0]['category']);
+        $this->assertSame(1, $result->sitrep['actions']['rollup']['deployment_groups'][0]['status_counts']['assigned']);
+        $this->assertSame(1, $result->sitrep['actions']['rollup']['deployment_groups'][1]['status_counts']['en_route']);
+        $this->assertCount(2, $result->sitrep['actions']['rollup']['timing_rows']);
+        $this->assertSame('Transport', $result->sitrep['needs']['rollup']['category_groups'][0]['category']);
+        $this->assertSame(2, $result->sitrep['needs']['rollup']['category_groups'][0]['location_count']);
+        $this->assertSame(5, $result->sitrep['needs']['rollup']['category_groups'][0]['quantity_requested']);
+        $this->assertSame(1, $result->sitrep['needs']['rollup']['items'][0]['location_count']);
+        $this->assertSame(5, array_sum(array_column($result->sitrep['needs']['rollup']['items'], 'quantity_requested')));
+        $this->assertSame('People injured', $result->sitrep['population']['rollup']['population_groups'][0]['population_signal']);
+        $this->assertSame(2, $result->sitrep['population']['rollup']['people_at_risk']);
+        $this->assertSame(2, $result->sitrep['population']['rollup']['citizens_assisted']);
+        $this->assertSame(2, $result->sitrep['population']['rollup']['population_groups'][0]['reports']);
+        $this->assertSame('2 people', $result->sitrep['population']['rollup']['population_groups'][0]['people_or_families']);
+        $affectedFamily = collect($result->sitrep['population']['rollup']['population_groups'])
+            ->firstWhere('population_signal', 'Affected family');
+        $this->assertSame(2, $affectedFamily['reports']);
+        $this->assertSame(2, $affectedFamily['location_count']);
+        $this->assertSame('3 families / 15 people', $affectedFamily['people_or_families']);
+        $this->assertSame([
+            ['breakdown' => 'Children', 'count' => 7, 'location_count' => 2],
+            ['breakdown' => 'Senior citizens', 'count' => 3, 'location_count' => 2],
+            ['breakdown' => 'PWD', 'count' => 3, 'location_count' => 2],
+            ['breakdown' => 'Pregnant', 'count' => 2, 'location_count' => 2],
+        ], array_map(
+            static fn (array $row): array => [
+                'breakdown' => $row['breakdown'],
+                'count' => $row['count'],
+                'location_count' => $row['location_count'],
+            ],
+            $affectedFamily['breakdowns'],
+        ));
+        $this->assertSame('Infrastructure damage', $result->sitrep['damage']['rollup']['damage_groups'][0]['damage_type']);
+        $this->assertSame(2, $result->sitrep['damage']['rollup']['damage_groups'][0]['reports']);
+        $this->assertCount(2, $result->sitrep['gaps']['rollup']['items']);
+        $this->assertSame('Movement', $result->sitrep['gaps']['rollup']['items'][0]['category']);
+    }
+
     public function test_rejects_mixed_source_deployment_consolidation(): void
     {
         $consolidator = new SitrepConsolidator();
@@ -360,6 +436,190 @@ class SitrepConsolidatorSdkTest extends TestCase
             'privacy_redactions' => [],
             'data_quality' => [],
         ];
+    }
+
+    private function richSitrep(int $hubId, string $area, string $type, string $team, string $resource, string $gapTitle): array
+    {
+        $sitrep = $this->sitrep($hubId, 'barangay', 'Elevated', sequence: $hubId, totalIncidents: 1, resourceUnits: 2, population: 3);
+        $location = [
+            'id' => (string) $hubId,
+            'name' => $area,
+            'deployment' => 'barangay',
+            'relay_hub_id' => null,
+        ];
+        $sitrep['source_snapshot']['hub_node']['snapshot']['name'] = $area;
+        $sitrep['summary']['supporting_metrics']['team_assignments'] = 1;
+        $sitrep['summary']['status_counts'] = [
+            'Active' => 1,
+            'Deferred' => 0,
+        ];
+        $sitrep['summary']['gap_cards'] = [
+            [
+                'label' => 'People at Risk',
+                'value' => '1 active report',
+                'note' => 'Life-safety signals require leadership visibility.',
+            ],
+            [
+                'label' => 'Access to Help',
+                'value' => 'No current access constraint reported',
+                'note' => 'No blocked or limited route report is present in configured road/access fields.',
+            ],
+            [
+                'label' => 'Response Progress',
+                'value' => '1 open / 0 addressed',
+                'note' => 'One report remains open.',
+            ],
+        ];
+        $sitrep['summary']['accomplishment_cards'] = [
+            [
+                'label' => 'People Helped',
+                'value' => '1 family assisted',
+                'note' => 'Resolved support remains visible for leadership.',
+            ],
+            [
+                'label' => 'Teams / Resources Deployed',
+                'value' => '1 completed team assignments; 2 resource units',
+                'note' => 'Completed team assignments and resources are no longer current demand.',
+            ],
+        ];
+        $sitrep['summary']['priority_watch_items'] = [
+            'River level monitoring',
+        ];
+        $sitrep['summary']['decision_points'] = [
+            [
+                'title' => 'Life safety',
+                'body' => $area.' may need prioritization.',
+            ],
+        ];
+        $sitrep['situation'] = [
+            'current_operating_picture' => [
+                'open_reports' => 1,
+                'active_reports' => 1,
+                'deferred_reports' => 0,
+                'current_assignments' => 1,
+                'current_resource_units' => 2,
+            ],
+            'locations' => [
+                ['area' => $area, 'count' => 1],
+            ],
+            'incident_types' => [
+                ['type' => $type, 'count' => 1],
+            ],
+            'concern_groups' => [
+                [
+                    'concern' => 'Life safety',
+                    'open_reports' => 1,
+                    'areas' => [$area],
+                    'main_signals' => $type,
+                    'current_assignments' => 1,
+                    'resource_units' => 2,
+                ],
+            ],
+            'decision_points' => [
+                [
+                    'title' => 'Life safety',
+                    'body' => $area.' field reports should be reviewed before cross-hub deployment.',
+                ],
+            ],
+        ];
+        $sitrep['actions'] = [
+            'deployment_groups' => [
+                [
+                    'category' => 'Barangay Teams',
+                    'team' => $team,
+                    'incident_ids' => [$hubId * 10],
+                    'status_counts' => [
+                        'assigned' => $hubId === 12 ? 1 : 0,
+                        'en_route' => $hubId === 12 ? 0 : 1,
+                    ],
+                    'reports_covered' => 1,
+                    'total_assignments' => 1,
+                ],
+            ],
+            'timing_rows' => [
+                ['incident_id' => $hubId * 10, 'team' => $team, 'current_status' => $hubId === 12 ? 'Assigned' : 'En Route'],
+            ],
+        ];
+        $sitrep['needs'] = [
+            'category_groups' => [
+                ['category' => 'Transport', 'quantity_requested' => $hubId === 12 ? 2 : 3, 'resources' => [$resource]],
+            ],
+            'items' => [
+                [
+                    'resource' => $resource,
+                    'category' => 'Transport',
+                    'quantity_requested' => $hubId === 12 ? 2 : 3,
+                    'incident_count' => 1,
+                ],
+            ],
+        ];
+        $sitrep['population'] = [
+            'numeric_total' => 1,
+            'citizens_assisted' => $hubId === 12 ? 1 : 0,
+            'record_count' => 1,
+            'population_groups' => [
+                [
+                    'population_signal' => 'People injured',
+                    'reports' => 1,
+                    'people_or_families' => '1 record',
+                    'notes' => 'Details reported; verification required.',
+                ],
+                [
+                    'population_signal' => 'Affected family',
+                    'reports' => 1,
+                    'people_or_families' => $hubId === 12 ? '1 family / 6 people' : '2 families / 9 people',
+                    'notes' => '1 displacement signal',
+                    'breakdowns' => [
+                        ['breakdown' => 'Children', 'count' => $hubId === 12 ? 3 : 4],
+                        ['breakdown' => 'Senior citizens', 'count' => $hubId === 12 ? 1 : 2],
+                        ['breakdown' => 'PWD', 'count' => $hubId === 12 ? 1 : 2],
+                        ['breakdown' => 'Pregnant', 'count' => 1],
+                    ],
+                ],
+            ],
+        ];
+        $sitrep['damage'] = [
+            'items' => [
+                [
+                    'label' => 'Infrastructure damage',
+                    'value' => 'minor damage',
+                    'source' => ['asset_type' => 'road', 'damage_level' => 'minor'],
+                ],
+            ],
+        ];
+        $sitrep['gaps'] = [
+            'items' => [
+                [
+                    'category' => 'Movement',
+                    'title' => $gapTitle,
+                    'body' => 'Route needs field verification.',
+                    'evidence' => '1 route affected.',
+                    'items' => [
+                        ['route_location' => $area.' access road', 'status' => 'limited', 'obstruction_type' => 'debris', 'cleared' => 'No'],
+                    ],
+                ],
+            ],
+        ];
+
+        foreach (['summary', 'situation', 'damage', 'population', 'actions', 'needs', 'gaps', 'data_quality'] as $section) {
+            $sitrep[$section] = [
+                'rollup' => $sitrep[$section],
+                'items' => [[
+                    'location' => $location,
+                    'data' => $sitrep[$section],
+                ]],
+            ];
+        }
+
+        $sitrep['source_snapshot'] = [
+            'rollup' => $sitrep['source_snapshot'],
+            'items' => [[
+                'location' => $location,
+                'data' => $sitrep['source_snapshot'],
+            ]],
+        ];
+
+        return $sitrep;
     }
 
     private function removeDirectory(string $path): void

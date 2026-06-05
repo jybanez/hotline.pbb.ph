@@ -3,6 +3,7 @@
 require __DIR__.'/../src/Html.php';
 require __DIR__.'/../src/SitrepPayload.php';
 require __DIR__.'/../src/SitrepViewOptions.php';
+require __DIR__.'/../src/SitrepSchemaReference.php';
 require __DIR__.'/../src/SitrepDocumentRenderer.php';
 require __DIR__.'/../src/SitrepViewer.php';
 
