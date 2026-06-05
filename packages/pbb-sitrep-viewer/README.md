@@ -23,4 +23,11 @@ $fragment = $viewer->render($sitrepPayload, [
 $css = $viewer->css();
 ```
 
+For custom layouts, render official sections individually:
+
+```php
+$summary = $viewer->renderSection($sitrepPayload, 'summary');
+$tabs = $viewer->renderSections($sitrepPayload, ['population', 'needs', 'gaps']);
+```
+
 See `docs/developer-manual.md` for integration notes and `demo/render.php` for a plain PHP example.

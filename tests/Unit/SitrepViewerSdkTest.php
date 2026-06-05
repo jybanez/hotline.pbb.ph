@@ -30,6 +30,52 @@ class SitrepViewerSdkTest extends TestCase
         $this->assertStringNotContainsString('<!doctype html>', $html);
     }
 
+    public function test_renders_individual_official_sections_for_custom_layouts(): void
+    {
+        $viewer = new SitrepViewer();
+        $payload = $this->sitrep();
+
+        $summary = $viewer->renderSection($payload, 'summary');
+        $tabs = $viewer->renderSections($payload, ['population', 'needs']);
+
+        $this->assertContains('summary', $viewer->sectionNames());
+        $this->assertStringStartsWith('<section class="sitrep-section sitrep-summary">', $summary);
+        $this->assertStringContainsString('Executive Situation Assessment', $summary);
+        $this->assertStringContainsString('People at Risk', $summary);
+        $this->assertStringNotContainsString('Affected People', $summary);
+        $this->assertStringNotContainsString('<main', $summary);
+        $this->assertStringContainsString('Affected People', $tabs);
+        $this->assertStringContainsString('Current Resource Posture', $tabs);
+        $this->assertStringNotContainsString('Executive Situation Assessment', $tabs);
+    }
+
+    public function test_rejects_unknown_section_names(): void
+    {
+        $viewer = new SitrepViewer();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Unknown SITREP section [unknown]');
+
+        $viewer->renderSection($this->sitrep(), 'unknown');
+    }
+
+    public function test_exposes_payload_schema_reference_by_section(): void
+    {
+        $viewer = new SitrepViewer();
+
+        $reference = $viewer->schemaReference();
+        $html = $viewer->schemaReferenceHtml();
+
+        $this->assertNotEmpty($reference);
+        $this->assertSame('Envelope', $reference[0]['name']);
+        $this->assertContains('summary', $reference[0]['required']);
+        $this->assertContains('rollup', $reference[1]['required']);
+        $this->assertContains('items[]', $reference[1]['required']);
+        $this->assertStringContainsString('SITREP Payload Reference', $html);
+        $this->assertStringContainsString('<code>rollup</code>', $html);
+        $this->assertStringContainsString('privacy_redactions', $html);
+    }
+
     public function test_escapes_untrusted_payload_text(): void
     {
         $viewer = new SitrepViewer();
@@ -50,22 +96,28 @@ class SitrepViewerSdkTest extends TestCase
             'category' => 'Access',
             'title' => 'Blocked route',
             'decision_relevance' => 'Response routing may need adjustment.',
-            'evidence' => 'Access reports include blocked routes.',
+            'evidence' => 'Barangay Guadalupe, Cebu City, Cebu: Access reports include blocked routes.',
             'confidence_note' => 'Field verification is still required.',
+            'source_hubs' => ['Barangay Guadalupe, Cebu City, Cebu'],
             'items' => [[
                 'status' => 'Blocked',
                 'route_location' => 'M. Velez Street',
                 'obstruction_type' => 'Flooding',
                 'cleared' => 'No',
+                'source_hub_name' => 'Barangay Guadalupe, Cebu City, Cebu',
             ]],
         ]];
+        $payload['source_snapshot']['target'] = ['name' => 'Cebu City, Cebu'];
 
         $html = $viewer->render($payload);
 
-        $this->assertStringContainsString('sitrep-gap-evidence', $html);
+        $this->assertStringContainsString('<th>Location</th><th>Evidence</th>', $html);
+        $this->assertStringContainsString('<td>Guadalupe</td><td>Access reports include blocked routes</td>', $html);
+        $this->assertStringContainsString('Route Evidence', $html);
+        $this->assertStringContainsString('<th>Location</th><th>Status</th><th>Route</th><th>Obstruction</th><th>Cleared</th>', $html);
         $this->assertStringContainsString('M. Velez Street', $html);
         $this->assertStringContainsString('Flooding', $html);
-        $this->assertStringContainsString('Cleared: No', $html);
+        $this->assertStringContainsString('<td>No</td>', $html);
         $this->assertStringContainsString('Field verification is still required.', $html);
     }
 
@@ -82,6 +134,11 @@ class SitrepViewerSdkTest extends TestCase
         $this->assertStringContainsString('Situation report generated from Hotline incident records.', $html);
         $this->assertStringContainsString('Most current reports remain in Guadalupe.', $html);
         $this->assertStringContainsString('Time in Status shows how long an open assignment has been in its current status', $html);
+        $this->assertStringContainsString('<th>Category</th><th>Quantity</th><th>Resources</th>', $html);
+        $this->assertStringContainsString('<th>Resource</th><th>Category</th><th>Quantity</th><th>Incidents</th>', $html);
+        $this->assertStringNotContainsString('<th>Resource</th><th>Category</th><th>Locations</th>', $html);
+        $this->assertStringNotContainsString('<th>Completed</th>', $html);
+        $this->assertStringNotContainsString('<th>Cancelled</th>', $html);
         $this->assertStringNotContainsString('Situation report generated from PBB incident records.', $html);
     }
 
@@ -120,9 +177,8 @@ class SitrepViewerSdkTest extends TestCase
         $this->assertStringContainsString('<p class="sitrep-metaline"><span>#0054</span> <span class="sitrep-separator">&middot;</span> <span>Draft / Private</span>', $html);
         $this->assertStringContainsString('<span>System Generated</span>', $html);
         $this->assertStringContainsString('<strong>Current totals:</strong> <span>23 open reports</span> <span class="sitrep-separator">&middot;</span> <span>19 active</span>', $html);
-        $this->assertStringContainsString('<span class="sitrep-gap-route">Riverside bridge approach</span>', $html);
-        $this->assertStringContainsString('<span class="sitrep-gap-obstruction">&mdash; Floodwater</span>', $html);
-        $this->assertStringContainsString('<span class="sitrep-gap-cleared">Cleared: No</span>', $html);
+        $this->assertStringContainsString('<th>Location</th><th>Status</th><th>Route</th><th>Obstruction</th><th>Cleared</th>', $html);
+        $this->assertStringContainsString('<td>Riverside bridge approach</td><td>Floodwater</td><td>No</td>', $html);
         $this->assertStringContainsString('<span>Hotline: v1-5.6.1</span> <span class="sitrep-separator">&middot;</span> <span>Build source-template</span>', $html);
         $this->assertStringContainsString('<span>Hub Node: Guadalupe, Cebu City, Cebu</span> <span class="sitrep-separator">&middot;</span> <span>Barangay</span> <span class="sitrep-separator">&middot;</span> <span>072217029</span>', $html);
 
@@ -166,6 +222,58 @@ class SitrepViewerSdkTest extends TestCase
         $this->assertStringContainsString('Sources: 2 accepted SITREPs', $html);
     }
 
+    public function test_summary_source_card_details_use_bullets_and_short_locations(): void
+    {
+        $viewer = new SitrepViewer();
+        $payload = $this->sitrep();
+        $location = [
+            'id' => '12',
+            'name' => 'Barangay Guadalupe, Cebu City, Cebu',
+            'deployment' => 'barangay',
+            'relay_hub_id' => null,
+        ];
+
+        foreach (['summary', 'situation', 'damage', 'population', 'actions', 'needs', 'gaps', 'data_quality'] as $section) {
+            $sectionData = $payload[$section] ?? [];
+            $payload[$section] = [
+                'rollup' => $sectionData,
+                'items' => [[
+                    'location' => $location,
+                    'data' => $sectionData,
+                ]],
+            ];
+        }
+
+        $payload['source_snapshot'] = [
+            'rollup' => [
+                'target' => ['name' => 'Cebu City, Cebu'],
+                'generation' => ['type' => 'consolidated', 'prepared_by_label' => 'System Generated'],
+                'hub_node' => [
+                    'snapshot' => [
+                        'hub_id' => '11',
+                        'name' => 'Cebu City, Cebu',
+                        'deployment' => 'city',
+                    ],
+                ],
+            ],
+            'items' => [],
+        ];
+        $payload['summary']['rollup']['gap_cards'] = [[
+            'label' => 'People at Risk',
+            'value' => '20',
+            'source_values' => [[
+                'source_hub_name' => 'Barangay Guadalupe, Cebu City, Cebu',
+                'label' => '20 people',
+            ]],
+        ]];
+
+        $html = $viewer->render($payload);
+
+        $this->assertStringContainsString('sitrep-card-sources', $html);
+        $this->assertStringContainsString('<strong>Guadalupe</strong><span>20 people</span>', $html);
+        $this->assertStringNotContainsString('<strong>Barangay Guadalupe, Cebu City, Cebu</strong><span>20 people</span>', $html);
+    }
+
     public function test_renders_v2_rollup_sections_without_exposing_wrapper_labels(): void
     {
         $viewer = new SitrepViewer();
@@ -194,9 +302,33 @@ class SitrepViewerSdkTest extends TestCase
 
         $this->assertStringContainsString('Rescue and assistance reports remain concentrated in Guadalupe.', $html);
         $this->assertStringContainsString('Current reports indicate continued life-safety and resource support needs.', $html);
+        $this->assertStringContainsString('<span>People at Risk</span><strong>18</strong>', $html);
+        $this->assertStringContainsString('<div class="sitrep-metric is-positive"><span>People Helped</span><strong>2</strong></div>', $html);
+        $this->assertStringContainsString('<span>Current Records</span><strong>6</strong>', $html);
+        $this->assertStringContainsString('<th>Alert Level</th>', $html);
+        $this->assertStringContainsString('<th>Locations</th>', $html);
+        $this->assertStringContainsString('<td>Elevated</td>', $html);
+        $this->assertStringContainsString('<td>6 records</td>', $html);
+        $this->assertStringContainsString('Declared Member Breakdown', $html);
+        $this->assertStringContainsString('<td>Children</td><td>3</td>', $html);
+        $this->assertStringNotContainsString('<th>Breakdown</th><th>Locations</th><th>Count</th>', $html);
         $this->assertStringContainsString('Source Snapshot', $html);
         $this->assertStringNotContainsString('rollup', $html);
         $this->assertStringNotContainsString('items', $html);
+    }
+
+    public function test_multilocation_tables_show_location_columns(): void
+    {
+        $viewer = new SitrepViewer();
+        $payload = $this->sitrep();
+        $payload['location_count'] = 2;
+
+        $html = $viewer->render($payload, ['full_document' => false]);
+
+        $this->assertStringContainsString('<th>Population Signal</th><th>Locations</th><th>Reports</th><th>People / Families</th><th>Notes</th>', $html);
+        $this->assertStringContainsString('<th>Population Signal</th><th>Breakdown</th><th>Locations</th><th>Count</th>', $html);
+        $this->assertStringContainsString('<th>Category</th><th>Locations</th><th>Quantity</th><th>Resources</th>', $html);
+        $this->assertStringContainsString('<th>Resource</th><th>Category</th><th>Locations</th><th>Quantity</th><th>Incidents</th>', $html);
     }
 
     public function test_renders_direct_source_identity_from_hub_nodes_array(): void
@@ -258,10 +390,10 @@ class SitrepViewerSdkTest extends TestCase
                     'current_resource_units' => 183,
                 ],
                 'locations' => [
-                    ['area' => 'Guadalupe', 'count' => 18],
+                    ['area' => 'Guadalupe', 'alert_level' => 'Elevated', 'count' => 18],
                 ],
                 'incident_types' => [
-                    ['type' => 'Rescue', 'count' => 8],
+                    ['type' => 'Rescue', 'location_count' => 1, 'count' => 8],
                 ],
             ],
             'source_snapshot' => [
@@ -283,6 +415,41 @@ class SitrepViewerSdkTest extends TestCase
                                 ],
                             ],
                         ],
+                    ],
+                ],
+            ],
+            'population' => [
+                'people_at_risk' => 18,
+                'citizens_assisted' => 2,
+                'record_count' => 6,
+                'population_groups' => [
+                    [
+                        'population_signal' => 'People injured',
+                        'reports' => 6,
+                        'people_or_families' => '6 records',
+                        'notes' => 'Details reported; verification required.',
+                        'breakdowns' => [
+                            ['breakdown' => 'Children', 'count' => 3],
+                        ],
+                    ],
+                ],
+            ],
+            'needs' => [
+                'category_groups' => [
+                    [
+                        'category' => 'Transport',
+                        'location_count' => 1,
+                        'quantity_requested' => 2,
+                        'resources' => ['Rescue Boat'],
+                    ],
+                ],
+                'items' => [
+                    [
+                        'resource' => 'Rescue Boat',
+                        'category' => 'Transport',
+                        'location_count' => 1,
+                        'quantity_requested' => 2,
+                        'incident_count' => 1,
                     ],
                 ],
             ],

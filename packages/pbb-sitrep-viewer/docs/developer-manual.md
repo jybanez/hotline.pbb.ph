@@ -73,6 +73,51 @@ $css = $viewer->css();
 
 Use this when the host app already owns the page shell and wants to mount the SITREP report into an existing route.
 
+## Render Official Sections For Custom Layouts
+
+Host applications can render official SITREP sections individually while owning
+the surrounding layout. This is useful for tabbed views, split map/report
+screens, accordions, or dashboards that need the official section content
+without the full long-form document.
+
+```php
+$summary = $viewer->renderSection($payload, 'summary');
+
+$tabContent = $viewer->renderSections($payload, [
+    'population',
+    'actions',
+    'needs',
+    'gaps',
+]);
+```
+
+Supported section names are available at runtime:
+
+```php
+$sections = $viewer->sectionNames();
+```
+
+Current supported sections:
+
+```text
+header
+summary
+situation
+damage
+population
+actions
+needs
+gaps
+period_activity
+verification_notes
+footer
+```
+
+Section rendering still uses the SDK's official labels, schema v2 rollup
+handling, source-location shortening, table rules, empty states, and
+`location_count` behavior. The host app should only decide where those sections
+are placed.
+
 ## Render For PDF
 
 ```php
@@ -118,6 +163,35 @@ sections. When a section contains `rollup`, the viewer renders that rollup as
 the main document content and ignores the wrapper labels. This lets the same
 viewer render direct Hotline SITREPs and consolidated SITREPs without requiring
 Laravel, Eloquent, Relay, or database access.
+
+## Payload Reference
+
+The viewer SDK exposes the section/property reference used by the upload demo:
+
+```php
+$reference = $viewer->schemaReference();
+$referenceHtml = $viewer->schemaReferenceHtml();
+```
+
+`schemaReference()` returns an array of sections. Each section contains:
+
+```text
+name
+description
+required[]
+optional[]
+```
+
+The reference is written from the viewer/schema v2 perspective:
+
+- Current payload sections should provide `rollup` and `items[]`.
+- `rollup` is the main rendered section.
+- `items[]` carries source/location drill-down, especially for consolidated SITREPs.
+- `privacy_redactions` intentionally remains flat.
+- Legacy flat sections are still accepted for compatibility, but new producers should emit schema v2 wrappers.
+
+Use `schemaReferenceHtml()` when building an admin/developer surface where operators
+or integrators need to inspect which section properties are required or optional.
 
 Schema v2 sections use:
 
