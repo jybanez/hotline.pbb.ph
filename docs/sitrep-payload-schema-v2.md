@@ -79,6 +79,8 @@ source_snapshot.items[].data.hub_node
 
 Each accepted source hub contributes one `hub_nodes[]` entry. Consumers should use `hub_node` for the current generated SITREP location and `hub_nodes[]` for submitted source SITREP locations.
 
+Hub snapshots preserve Relay `/hub.json` administrative geography codes when present. These fields are deployment-scoped: `country_code` may be present for all hubs, `reg_code` for region and below, `prov_code` for province and below, `citymun_code` for city/municipality and barangay hubs, and `brgy_code` only for barangay hubs. The same rule applies to nested `hub_node.snapshot.uplinks[].hub` and `hub_node.snapshot.sources[].hub` entries when Relay/HQ provides them.
+
 This document is the source of truth for Support and other PHP apps consuming SITREP JSON from Hotline or from the consolidator SDK.
 
 ## Installer And Update Metadata

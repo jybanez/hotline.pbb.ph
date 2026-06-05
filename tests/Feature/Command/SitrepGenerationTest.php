@@ -50,9 +50,33 @@ class SitrepGenerationTest extends TestCase
                         'deployment' => 'city',
                         'domain' => 'cebu-cebu.pbb.ph',
                         'status' => 'active',
+                        'country_code' => 'PH',
+                        'reg_code' => '07',
+                        'prov_code' => '0722',
+                        'citymun_code' => '072217',
                     ],
                 ]],
-                'sources' => [],
+                'sources' => [[
+                    'id' => 30,
+                    'source_hub_id' => 13,
+                    'source_type' => 'hierarchy',
+                    'source_domain' => 'apas-cebu-cebu.pbb.ph',
+                    'priority' => 1,
+                    'is_primary' => false,
+                    'hub' => [
+                        'id' => 13,
+                        'name' => 'Apas, CEBU CITY, CEBU',
+                        'code' => 'apas-cebu-cebu',
+                        'deployment' => 'barangay',
+                        'domain' => 'apas-cebu-cebu.pbb.ph',
+                        'status' => 'active',
+                        'country_code' => 'PH',
+                        'reg_code' => '07',
+                        'prov_code' => '0722',
+                        'citymun_code' => '072217',
+                        'brgy_code' => '072217003',
+                    ],
+                ]],
                 'hydrated_at' => '2026-05-26T09:28:40+00:00',
                 'hydrated_from' => 'hq_heartbeat',
                 'snapshot_version' => 'hub-12:test',
@@ -116,6 +140,21 @@ class SitrepGenerationTest extends TestCase
             ->assertJsonPath('sitrep.source_snapshot.hub_node.available', true)
             ->assertJsonPath('sitrep.source_snapshot.hub_node.snapshot.deployment', 'barangay')
             ->assertJsonPath('sitrep.source_snapshot.hub_node.snapshot.relay_hub_id', '072217029')
+            ->assertJsonPath('sitrep.source_snapshot.hub_node.snapshot.country_code', 'PH')
+            ->assertJsonPath('sitrep.source_snapshot.hub_node.snapshot.reg_code', '07')
+            ->assertJsonPath('sitrep.source_snapshot.hub_node.snapshot.prov_code', '0722')
+            ->assertJsonPath('sitrep.source_snapshot.hub_node.snapshot.citymun_code', '072217')
+            ->assertJsonPath('sitrep.source_snapshot.hub_node.snapshot.brgy_code', '072217029')
+            ->assertJsonPath('sitrep.source_snapshot.hub_node.snapshot.uplinks.0.hub.country_code', 'PH')
+            ->assertJsonPath('sitrep.source_snapshot.hub_node.snapshot.uplinks.0.hub.reg_code', '07')
+            ->assertJsonPath('sitrep.source_snapshot.hub_node.snapshot.uplinks.0.hub.prov_code', '0722')
+            ->assertJsonPath('sitrep.source_snapshot.hub_node.snapshot.uplinks.0.hub.citymun_code', '072217')
+            ->assertJsonMissingPath('sitrep.source_snapshot.hub_node.snapshot.uplinks.0.hub.brgy_code')
+            ->assertJsonPath('sitrep.source_snapshot.hub_node.snapshot.sources.0.hub.country_code', 'PH')
+            ->assertJsonPath('sitrep.source_snapshot.hub_node.snapshot.sources.0.hub.reg_code', '07')
+            ->assertJsonPath('sitrep.source_snapshot.hub_node.snapshot.sources.0.hub.prov_code', '0722')
+            ->assertJsonPath('sitrep.source_snapshot.hub_node.snapshot.sources.0.hub.citymun_code', '072217')
+            ->assertJsonPath('sitrep.source_snapshot.hub_node.snapshot.sources.0.hub.brgy_code', '072217003')
             ->assertJsonPath('sitrep.source_snapshot.hub_nodes', [])
             ->assertJsonPath('sitrep.source_snapshot.incident_coordinates.0.id', $incidentId)
             ->assertJsonPath('sitrep.source_snapshot.incident_coordinates.0.lat', 10.33049)
@@ -145,6 +184,21 @@ class SitrepGenerationTest extends TestCase
         $this->assertSame('pbb-hotline', $sourceSnapshot['hotline']['app']);
         $this->assertSame('v1-5.6.1', $sourceSnapshot['hotline']['display_version']);
         $this->assertSame('Guadalupe, CEBU CITY, CEBU', $sourceSnapshot['hub_node']['snapshot']['name']);
+        $this->assertSame('PH', $sourceSnapshot['hub_node']['snapshot']['country_code']);
+        $this->assertSame('07', $sourceSnapshot['hub_node']['snapshot']['reg_code']);
+        $this->assertSame('0722', $sourceSnapshot['hub_node']['snapshot']['prov_code']);
+        $this->assertSame('072217', $sourceSnapshot['hub_node']['snapshot']['citymun_code']);
+        $this->assertSame('072217029', $sourceSnapshot['hub_node']['snapshot']['brgy_code']);
+        $this->assertSame('PH', $sourceSnapshot['hub_node']['snapshot']['uplinks'][0]['hub']['country_code']);
+        $this->assertSame('07', $sourceSnapshot['hub_node']['snapshot']['uplinks'][0]['hub']['reg_code']);
+        $this->assertSame('0722', $sourceSnapshot['hub_node']['snapshot']['uplinks'][0]['hub']['prov_code']);
+        $this->assertSame('072217', $sourceSnapshot['hub_node']['snapshot']['uplinks'][0]['hub']['citymun_code']);
+        $this->assertArrayNotHasKey('brgy_code', $sourceSnapshot['hub_node']['snapshot']['uplinks'][0]['hub']);
+        $this->assertSame('PH', $sourceSnapshot['hub_node']['snapshot']['sources'][0]['hub']['country_code']);
+        $this->assertSame('07', $sourceSnapshot['hub_node']['snapshot']['sources'][0]['hub']['reg_code']);
+        $this->assertSame('0722', $sourceSnapshot['hub_node']['snapshot']['sources'][0]['hub']['prov_code']);
+        $this->assertSame('072217', $sourceSnapshot['hub_node']['snapshot']['sources'][0]['hub']['citymun_code']);
+        $this->assertSame('072217003', $sourceSnapshot['hub_node']['snapshot']['sources'][0]['hub']['brgy_code']);
         $this->assertSame([], $sourceSnapshot['hub_nodes']);
         $this->assertSame($command->name, $sourceSnapshot['generation']['prepared_by_label']);
         $this->assertSame(1, $sourceSnapshot['adapter_version']);
