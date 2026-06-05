@@ -352,3 +352,21 @@ http://127.0.0.1:8096/upload.php
 
 The upload demo accepts a generated `.json` SITREP payload, renders it with the
 viewer SDK, and does not persist the uploaded file.
+
+For a Helper-backed visualization demo, start PHP's built-in server from the
+Hotline repository root so the page can load `public/vendor/helpers.pbb.ph`:
+
+```bash
+php -S 127.0.0.1:8097 -t C:\wamp64\www\pbb\hotline
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8097/packages/pbb-sitrep-viewer/demo/visualization.php
+```
+
+`demo/visualization.php` uses `SitrepViewer::visualizationData()` server-side
+and renders the returned datasets with Helper `ui.stat.cards`, `ui.charts`,
+`ui.map.legend`, and `ui.map.markers`. The SDK still does not require Helper;
+the demo is only an integration example for apps that already vendor Helper.

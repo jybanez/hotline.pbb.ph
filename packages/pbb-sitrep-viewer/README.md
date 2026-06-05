@@ -42,3 +42,13 @@ or future Helper components such as `ui.stat.cards`, `ui.charts`,
 `ui.map.legend`, and `ui.map.markers`.
 
 See `docs/developer-manual.md` for integration notes and `demo/render.php` for a plain PHP example.
+For a Helper-backed browser visualization demo, run PHP's built-in server from
+the Hotline repo root and open:
+
+```bash
+php -S 127.0.0.1:8097 -t C:\wamp64\www\pbb\hotline
+```
+
+```text
+http://127.0.0.1:8097/packages/pbb-sitrep-viewer/demo/visualization.php
+```
