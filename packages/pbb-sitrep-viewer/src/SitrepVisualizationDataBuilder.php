@@ -377,7 +377,7 @@ final class SitrepVisualizationDataBuilder
         return match (strtolower($this->text($alert))) {
             'critical' => 'critical',
             'elevated' => 'warning',
-            'normal' => 'success',
+            'normal' => 'info',
             default => 'neutral',
         };
     }
