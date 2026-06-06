@@ -127,6 +127,9 @@ class SitrepConsolidatorSdkTest extends TestCase
         $this->assertSame(3, $result->sitrep['actions']['rollup']['deployment_groups'][0]['status_counts']['assigned']);
         $this->assertCount(3, $result->sitrep['source_snapshot']['rollup']['source_sitreps']);
         $this->assertCount(3, $result->sitrep['source_snapshot']['items']);
+        $this->assertSame(['Normal', 'Critical', 'Elevated'], array_column($result->sitrep['source_snapshot']['items'], 'alert_level'));
+        $this->assertSame(['Normal', 'Critical', 'Elevated'], array_column(array_column($result->sitrep['source_snapshot']['items'], 'location'), 'alert_level'));
+        $this->assertSame(['Normal', 'Critical', 'Elevated'], array_column($result->sitrep['source_snapshot']['rollup']['source_sitreps'], 'alert_level'));
     }
 
     public function test_single_source_v2_consolidation_preserves_rich_source_sections(): void

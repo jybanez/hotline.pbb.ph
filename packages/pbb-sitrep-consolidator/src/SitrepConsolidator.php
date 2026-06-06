@@ -222,6 +222,7 @@ final class SitrepConsolidator
         foreach ($normalized as $source) {
             $items[] = [
                 'location' => $this->sourceLocation($source),
+                'alert_level' => (string) $source['alert_level'],
                 'data' => $this->sourceSection($source, 'source_snapshot'),
             ];
         }
@@ -260,6 +261,7 @@ final class SitrepConsolidator
             'name' => $source['source_hub_name'],
             'deployment' => $source['source_deployment'],
             'relay_hub_id' => $source['relay_hub_id'],
+            'alert_level' => (string) $source['alert_level'],
         ];
     }
 
@@ -355,6 +357,7 @@ final class SitrepConsolidator
                 'period_started_at' => $source['period_started_at'],
                 'period_ended_at' => $source['period_ended_at'],
                 'generated_at' => $source['generated_at'],
+                'alert_level' => (string) $source['alert_level'],
                 'hash' => $source['payload_hash'],
                 'status' => 'accepted',
             ];
