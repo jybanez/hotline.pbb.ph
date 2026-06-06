@@ -451,4 +451,3 @@ final class SitrepVisualizationDataBuilder
         };
     }
 }
-
