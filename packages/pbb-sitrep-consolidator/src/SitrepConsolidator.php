@@ -751,6 +751,7 @@ final class SitrepConsolidator
 
         foreach ($normalized as $source) {
             $actions = $this->sourceSection($source, 'actions');
+            $assignmentIndex = $this->assignmentTimingIndex($actions['assignments'] ?? []);
             foreach (($actions['deployment_groups'] ?? []) as $group) {
                 if (! is_array($group)) {
                     continue;
@@ -800,6 +801,7 @@ final class SitrepConsolidator
 
             foreach (($actions['timing_rows'] ?? []) as $row) {
                 if (is_array($row)) {
+                    $row['elapsed_time'] = $this->timingRowElapsedTime($row, $assignmentIndex, $source);
                     $row['source_hub_id'] = $source['source_hub_id'];
                     $row['source_hub_name'] = $source['source_hub_name'];
                     $timingRows[] = $row;
@@ -818,6 +820,120 @@ final class SitrepConsolidator
             'timing_rows' => $timingRows,
             'confidence_note' => 'Team deployment counts are summed from source SITREPs; source hub provenance is retained per group and timing row.',
         ];
+    }
+
+    /**
+     * @param mixed $assignments
+     * @return array<string, array<string, mixed>>
+     */
+    private function assignmentTimingIndex(mixed $assignments): array
+    {
+        if (! is_array($assignments)) {
+            return [];
+        }
+
+        $index = [];
+        foreach ($assignments as $assignment) {
+            if (! is_array($assignment)) {
+                continue;
+            }
+
+            $key = $this->assignmentTimingKey($assignment['incident_id'] ?? null, $assignment['team'] ?? null);
+            if ($key !== null) {
+                $index[$key] = $assignment;
+            }
+        }
+
+        return $index;
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     * @param array<string, array<string, mixed>> $assignmentIndex
+     * @param array<string, mixed> $source
+     */
+    private function timingRowElapsedTime(array $row, array $assignmentIndex, array $source): string
+    {
+        $current = trim((string) ($row['elapsed_time'] ?? ''));
+        if ($current !== '') {
+            return $current;
+        }
+
+        $key = $this->assignmentTimingKey($row['incident_id'] ?? null, $row['team'] ?? null);
+        if ($key === null || ! isset($assignmentIndex[$key])) {
+            return '';
+        }
+
+        $assignment = $assignmentIndex[$key];
+        $startedAt = $this->assignmentStatusStartedAt($assignment, $row['current_status'] ?? $assignment['status'] ?? null);
+        $generatedAt = $this->dateTime((string) ($source['generated_at'] ?? ''));
+        if ($startedAt === null || $generatedAt === null || $generatedAt < $startedAt) {
+            return '';
+        }
+
+        return $this->formatDurationSeconds(max(0, $generatedAt->getTimestamp() - $startedAt->getTimestamp()));
+    }
+
+    private function assignmentTimingKey(mixed $incidentId, mixed $team): ?string
+    {
+        $incident = trim((string) $incidentId);
+        $teamName = strtolower(trim((string) $team));
+        if ($incident === '' || $teamName === '') {
+            return null;
+        }
+
+        return $incident.'|'.$teamName;
+    }
+
+    /**
+     * @param array<string, mixed> $assignment
+     */
+    private function assignmentStatusStartedAt(array $assignment, mixed $status): ?\DateTimeImmutable
+    {
+        $statusKey = strtolower(str_replace(['-', ' '], '_', trim((string) $status)));
+        $field = match ($statusKey) {
+            'accepted' => 'accepted_at',
+            'en_route' => isset($assignment['enroute_at']) ? 'enroute_at' : 'en_route_at',
+            'on_scene' => isset($assignment['arrived_at']) ? 'arrived_at' : 'on_scene_at',
+            'completed' => 'completed_at',
+            'cancelled' => 'cancelled_at',
+            default => 'assigned_at',
+        };
+
+        return $this->dateTime((string) ($assignment[$field] ?? $assignment['assigned_at'] ?? ''));
+    }
+
+    private function dateTime(string $value): ?\DateTimeImmutable
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return null;
+        }
+
+        try {
+            return new \DateTimeImmutable($value);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function formatDurationSeconds(int $seconds): string
+    {
+        $minutes = intdiv($seconds, 60);
+        if ($minutes < 1) {
+            return '<1m';
+        }
+
+        $days = intdiv($minutes, 1440);
+        $minutes %= 1440;
+        $hours = intdiv($minutes, 60);
+        $minutes %= 60;
+
+        return implode(' ', array_slice(array_values(array_filter([
+            $days > 0 ? $days.'d' : null,
+            $hours > 0 ? $hours.'h' : null,
+            $minutes > 0 ? $minutes.'m' : null,
+        ])), 0, 2));
     }
 
     private function mergeNeeds(array $normalized): array

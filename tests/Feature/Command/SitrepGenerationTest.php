@@ -598,6 +598,7 @@ class SitrepGenerationTest extends TestCase
             ->assertJsonPath('sitrep.actions.deployment_groups.0.reports_covered', 1)
             ->assertJsonPath('sitrep.actions.timing_rows.0.current_status', 'Assigned')
             ->assertJsonPath('sitrep.actions.timing_rows.0.assigned_to_accepted', '')
+            ->assertJsonPath('sitrep.actions.timing_rows.0.elapsed_time', '1h 30m')
             ->assertJsonPath('sitrep.situation.current_operating_picture.current_resource_units', 3)
             ->assertJsonPath('sitrep.situation.current_operating_picture.current_assignments', 1)
             ->assertJsonPath('sitrep.situation.period_activity.resolved_during_period', 1)
@@ -605,7 +606,6 @@ class SitrepGenerationTest extends TestCase
 
         $this->assertStringContainsString('2 families / 6 people addressed', $response->json('sitrep.summary.resolved_progress.note'));
         $this->assertStringContainsString('3 children, 1 senior, 1 pregnant, 1 PWD declared in resolved family records', $response->json('sitrep.summary.resolved_progress.note'));
-        $this->assertNotSame('', $response->json('sitrep.actions.timing_rows.0.elapsed_time'));
         $this->assertSame($activeIncidentId, $response->json('sitrep.source_snapshot.incident_ids.0'));
     }
 

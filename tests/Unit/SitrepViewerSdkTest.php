@@ -49,6 +49,70 @@ class SitrepViewerSdkTest extends TestCase
         $this->assertStringNotContainsString('Executive Situation Assessment', $tabs);
     }
 
+    public function test_supports_compact_layout_for_embedded_viewers_and_sections(): void
+    {
+        $viewer = new SitrepViewer();
+        $payload = $this->sitrep();
+        $payload['situation']['concern_groups'] = [[
+            'concern' => 'Flood, Rescue, and Displacement',
+            'open_reports' => 14,
+            'areas' => ['Guadalupe', 'Apas'],
+            'main_signals' => '2 limited access points; Types: Rescue, Flood; Key needs: Rescue Team',
+            'current_assignments' => 14,
+            'resource_units' => 85,
+        ]];
+        $payload['actions']['deployment_groups'] = [[
+            'category' => 'Rescue and Medical',
+            'team' => 'Rescue Team',
+            'requested' => 1,
+            'assigned' => 1,
+            'accepted' => 0,
+            'en_route' => 1,
+            'on_scene' => 2,
+        ]];
+        $payload['actions']['timing_rows'] = [[
+            'incident_id' => 556,
+            'team' => 'Rescue Team',
+            'current_status' => 'On Scene',
+            'assigned_to_accepted' => '14m',
+            'accepted_to_en_route' => '20m',
+            'en_route_to_on_scene' => '43m',
+            'elapsed_time' => '1h 17m',
+        ]];
+
+        $document = $viewer->render($payload, ['full_document' => false, 'layout' => 'compact']);
+        $section = $viewer->renderSection($payload, 'summary', ['layout' => 'compact']);
+        $tabs = $viewer->renderSections($payload, ['summary', 'population'], ['layout' => 'compact']);
+        $situation = $viewer->renderSection($payload, 'situation', ['layout' => 'compact']);
+        $actions = $viewer->renderSection($payload, 'actions', ['layout' => 'compact']);
+        $needs = $viewer->renderSection($payload, 'needs', ['layout' => 'compact']);
+
+        $this->assertStringStartsWith('<main', $document);
+        $this->assertStringContainsString('is-layout-compact', $document);
+        $this->assertStringStartsWith('<div class="pbb-sitrep-viewer sitrep-section-fragment is-layout-compact">', $section);
+        $this->assertStringContainsString('Executive Situation Assessment', $section);
+        $this->assertStringContainsString('Executive Situation Assessment', $tabs);
+        $this->assertStringContainsString('Affected People', $tabs);
+        $this->assertStringContainsString('sitrep-property-list', $situation);
+        $this->assertStringContainsString('<dt>Main Signals</dt><dd><ul class="sitrep-property-bullets">', $situation);
+        $this->assertStringContainsString('<li>2 limited access points</li>', $situation);
+        $this->assertStringContainsString('sitrep-team-groups', $actions);
+        $this->assertStringContainsString('<h4>Rescue and Medical</h4>', $actions);
+        $this->assertStringContainsString('sitrep-team-matrix', $actions);
+        $this->assertStringContainsString('sitrep-team-cards', $actions);
+        $this->assertStringContainsString('sitrep-assignment-groups', $actions);
+        $this->assertStringContainsString('sitrep-assignment-matrix', $actions);
+        $this->assertStringContainsString('sitrep-assignment-cards', $actions);
+        $this->assertStringContainsString('<td>#000556</td>', $actions);
+        $this->assertStringNotContainsString('<dt>Team</dt><dd>Rescue Team</dd>', $actions);
+        $this->assertStringContainsString('sitrep-property-list', $needs);
+        $this->assertStringContainsString('sitrep-resource-groups', $needs);
+        $this->assertStringContainsString('<h4>Transport</h4>', $needs);
+        $this->assertStringContainsString('sitrep-resource-matrix', $needs);
+        $this->assertStringContainsString('sitrep-resource-cards', $needs);
+        $this->assertStringNotContainsString('<!doctype html>', $document);
+    }
+
     public function test_rejects_unknown_section_names(): void
     {
         $viewer = new SitrepViewer();
@@ -152,14 +216,21 @@ class SitrepViewerSdkTest extends TestCase
         $payload['source_snapshot']['target'] = ['name' => 'Cebu City, Cebu'];
 
         $html = $viewer->render($payload);
+        $compactHtml = $viewer->renderSection($payload, 'gaps', ['layout' => 'compact']);
 
-        $this->assertStringContainsString('<th>Location</th><th>Evidence</th>', $html);
-        $this->assertStringContainsString('<td>Guadalupe</td><td>Access reports include blocked routes</td>', $html);
+        $this->assertStringContainsString('sitrep-property-list', $html);
+        $this->assertStringContainsString('<h4><span>Location</span>Guadalupe</h4>', $html);
+        $this->assertStringContainsString('<dt>Evidence</dt><dd>Access reports include blocked routes</dd>', $html);
         $this->assertStringContainsString('Route Evidence', $html);
         $this->assertStringContainsString('<th>Location</th><th>Status</th><th>Route</th><th>Obstruction</th><th>Cleared</th>', $html);
         $this->assertStringContainsString('M. Velez Street', $html);
         $this->assertStringContainsString('Flooding', $html);
         $this->assertStringContainsString('<td>No</td>', $html);
+        $this->assertStringContainsString('sitrep-route-evidence', $compactHtml);
+        $this->assertStringContainsString('<h4>Guadalupe</h4>', $compactHtml);
+        $this->assertStringContainsString('<strong>M. Velez Street</strong>', $compactHtml);
+        $this->assertStringContainsString('<li>Blocked · Flooding · not cleared</li>', $compactHtml);
+        $this->assertStringNotContainsString('<th>Location</th><th>Status</th><th>Route</th><th>Obstruction</th><th>Cleared</th>', $compactHtml);
         $this->assertStringContainsString('Field verification is still required.', $html);
     }
 
@@ -175,7 +246,7 @@ class SitrepViewerSdkTest extends TestCase
 
         $this->assertStringContainsString('Situation report generated from Hotline incident records.', $html);
         $this->assertStringContainsString('Most current reports remain in Guadalupe.', $html);
-        $this->assertStringContainsString('Time in Status shows how long an open assignment has been in its current status', $html);
+        $this->assertStringContainsString('Time in Status shows how long an open assignment had been in its current status as of report generation', $html);
         $this->assertStringContainsString('<th>Category</th><th>Quantity</th><th>Resources</th>', $html);
         $this->assertStringContainsString('<th>Resource</th><th>Category</th><th>Quantity</th><th>Incidents</th>', $html);
         $this->assertStringNotContainsString('<th>Resource</th><th>Category</th><th>Locations</th>', $html);

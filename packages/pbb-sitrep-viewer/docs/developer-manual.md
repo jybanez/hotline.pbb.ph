@@ -91,6 +91,24 @@ $tabContent = $viewer->renderSections($payload, [
 ]);
 ```
 
+Use compact layout when the official SITREP content is embedded in a narrow
+side panel beside a map or dashboard:
+
+```php
+$summary = $viewer->renderSection($payload, 'summary', [
+    'layout' => 'compact',
+]);
+
+$tabContent = $viewer->renderSections($payload, [
+    'summary',
+    'population',
+    'actions',
+    'needs',
+], [
+    'layout' => 'compact',
+]);
+```
+
 Supported section names are available at runtime:
 
 ```php

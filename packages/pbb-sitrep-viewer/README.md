@@ -30,6 +30,18 @@ $summary = $viewer->renderSection($sitrepPayload, 'summary');
 $tabs = $viewer->renderSections($sitrepPayload, ['population', 'needs', 'gaps']);
 ```
 
+For constrained side panels, request the compact layout:
+
+```php
+$summary = $viewer->renderSection($sitrepPayload, 'summary', [
+    'layout' => 'compact',
+]);
+
+$tabs = $viewer->renderSections($sitrepPayload, ['summary', 'population', 'needs'], [
+    'layout' => 'compact',
+]);
+```
+
 For dashboard or map layouts, build framework-agnostic visualization datasets:
 
 ```php

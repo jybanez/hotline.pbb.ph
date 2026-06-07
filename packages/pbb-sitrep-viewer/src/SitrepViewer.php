@@ -22,6 +22,9 @@ final class SitrepViewer
         if ($viewOptions->pdf) {
             $classes[] = 'is-pdf';
         }
+        if ($viewOptions->layout !== 'document') {
+            $classes[] = 'is-layout-'.$viewOptions->layout;
+        }
 
         $style = $viewOptions->inlineCss ? '<style>'.PHP_EOL.$this->css().PHP_EOL.'</style>'.PHP_EOL : '';
         $title = Html::text($payload->get('title')).' | '.Html::text($viewOptions->titleSuffix);
@@ -45,9 +48,9 @@ final class SitrepViewer
      *
      * @param array<string, mixed>|string $sitrep
      */
-    public function renderSection(array|string $sitrep, string $section): string
+    public function renderSection(array|string $sitrep, string $section, array|SitrepViewOptions|null $options = null): string
     {
-        return (new SitrepDocumentRenderer())->renderSection(SitrepPayload::from($sitrep), $section);
+        return (new SitrepDocumentRenderer())->renderSection(SitrepPayload::from($sitrep), $section, SitrepViewOptions::from($options));
     }
 
     /**
@@ -56,9 +59,9 @@ final class SitrepViewer
      * @param array<string, mixed>|string $sitrep
      * @param array<int, string> $sections
      */
-    public function renderSections(array|string $sitrep, array $sections): string
+    public function renderSections(array|string $sitrep, array $sections, array|SitrepViewOptions|null $options = null): string
     {
-        return (new SitrepDocumentRenderer())->renderSections(SitrepPayload::from($sitrep), $sections);
+        return (new SitrepDocumentRenderer())->renderSections(SitrepPayload::from($sitrep), $sections, SitrepViewOptions::from($options));
     }
 
     /**

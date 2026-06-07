@@ -283,6 +283,8 @@ class SitrepConsolidatorSdkTest extends TestCase
         $this->assertSame(1, $result->sitrep['actions']['rollup']['deployment_groups'][0]['status_counts']['assigned']);
         $this->assertSame(1, $result->sitrep['actions']['rollup']['deployment_groups'][1]['status_counts']['en_route']);
         $this->assertCount(2, $result->sitrep['actions']['rollup']['timing_rows']);
+        $this->assertSame('2h', $result->sitrep['actions']['rollup']['timing_rows'][0]['elapsed_time']);
+        $this->assertSame('1h', $result->sitrep['actions']['rollup']['timing_rows'][1]['elapsed_time']);
         $this->assertSame('Transport', $result->sitrep['needs']['rollup']['category_groups'][0]['category']);
         $this->assertSame(2, $result->sitrep['needs']['rollup']['category_groups'][0]['location_count']);
         $this->assertSame(5, $result->sitrep['needs']['rollup']['category_groups'][0]['quantity_requested']);
@@ -541,6 +543,15 @@ class SitrepConsolidatorSdkTest extends TestCase
             ],
             'timing_rows' => [
                 ['incident_id' => $hubId * 10, 'team' => $team, 'current_status' => $hubId === 12 ? 'Assigned' : 'En Route'],
+            ],
+            'assignments' => [
+                [
+                    'incident_id' => $hubId * 10,
+                    'team' => $team,
+                    'status' => $hubId === 12 ? 'Assigned' : 'En Route',
+                    'assigned_at' => $hubId === 12 ? '2026-05-29T15:16:00+08:00' : '2026-05-29T15:45:00+08:00',
+                    'enroute_at' => $hubId === 12 ? null : '2026-05-29T16:16:00+08:00',
+                ],
             ],
         ];
         $sitrep['needs'] = [
