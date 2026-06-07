@@ -9,6 +9,7 @@ final class SitrepViewOptions
         public readonly bool $inlineCss = true,
         public readonly bool $preview = false,
         public readonly bool $pdf = false,
+        public readonly string $layout = 'document',
         public readonly string $titleSuffix = 'PBB SITREP',
         public readonly string $lang = 'en',
     ) {
@@ -30,8 +31,19 @@ final class SitrepViewOptions
             inlineCss: (bool) ($options['inline_css'] ?? $options['inlineCss'] ?? true),
             preview: (bool) ($options['preview'] ?? false),
             pdf: (bool) ($options['pdf'] ?? false),
+            layout: self::layout((string) ($options['layout'] ?? 'document')),
             titleSuffix: (string) ($options['title_suffix'] ?? $options['titleSuffix'] ?? 'PBB SITREP'),
             lang: (string) ($options['lang'] ?? 'en'),
         );
+    }
+
+    private static function layout(string $layout): string
+    {
+        $layout = strtolower(trim(str_replace('-', '_', $layout)));
+
+        return match ($layout) {
+            'compact', 'section', 'brief' => $layout,
+            default => 'document',
+        };
     }
 }

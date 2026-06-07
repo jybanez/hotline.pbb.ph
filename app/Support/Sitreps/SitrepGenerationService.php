@@ -43,11 +43,12 @@ class SitrepGenerationService
 
         $incidents = $this->scopedIncidents($preparedBy, $periodStart, $periodEnd);
         $context = $this->buildContext($incidents, $periodStart, $periodEnd);
+        $generatedAt = now();
         $summary = $this->buildSummary($context, $periodStart, $periodEnd, $coverageArea);
         $situation = $this->buildSituation($context);
         $damage = $this->buildDamage($context);
         $population = $this->buildPopulation($context);
-        $actions = $this->buildActions($context);
+        $actions = $this->buildActions($context, $generatedAt);
         $needs = $this->buildNeeds($context);
         $gaps = $this->buildGaps($context);
         $dataQuality = $this->buildDataQuality($context);
@@ -55,7 +56,6 @@ class SitrepGenerationService
         $location = SitrepPayloadSchema::locationFromSourceSnapshot($sourceSnapshot);
 
         $sequence = (int) SitrepReport::query()->max('sequence_number') + 1;
-        $generatedAt = now();
 
         $report = SitrepReport::query()->create([
             'sequence_number' => $sequence,
@@ -557,7 +557,7 @@ class SitrepGenerationService
         return collect($keys)->sum(fn (string $key): int => (int) data_get($item, 'source.'.$key, 0));
     }
 
-    private function buildActions(array $context): array
+    private function buildActions(array $context, Carbon $generatedAt): array
     {
         $assignmentRows = $context['current_team_assignments']
             ->map(fn ($assignment) => [
@@ -567,7 +567,11 @@ class SitrepGenerationService
                 'status' => (string) $assignment->status,
                 'status_label' => $this->statusLabel($assignment->status),
                 'assigned_at' => $assignment->assigned_at?->toIso8601String(),
+                'accepted_at' => $assignment->accepted_at?->toIso8601String(),
+                'enroute_at' => $assignment->enroute_at?->toIso8601String(),
+                'arrived_at' => $assignment->arrived_at?->toIso8601String(),
                 'completed_at' => $assignment->completed_at?->toIso8601String(),
+                'cancelled_at' => $assignment->cancelled_at?->toIso8601String(),
             ])
             ->values()
             ->all();
@@ -575,7 +579,7 @@ class SitrepGenerationService
         return [
             'assignment_status_counts' => $context['current_team_assignments']->countBy(fn ($assignment) => (string) $assignment->status)->all(),
             'deployment_groups' => $this->teamDeploymentGroups($context['current_team_assignments']),
-            'timing_rows' => $this->teamAssignmentTimingRows($context['current_team_assignments']),
+            'timing_rows' => $this->teamAssignmentTimingRows($context['current_team_assignments'], $generatedAt),
             'assignments' => $assignmentRows,
             'call_session_count' => $context['call_sessions']->count(),
             'status_decisions' => $context['status_counts'],
@@ -639,7 +643,7 @@ class SitrepGenerationService
         return $buckets;
     }
 
-    private function teamAssignmentTimingRows(Collection $assignments): array
+    private function teamAssignmentTimingRows(Collection $assignments, Carbon $generatedAt): array
     {
         return $assignments
             ->map(fn ($assignment) => [
@@ -651,19 +655,19 @@ class SitrepGenerationService
                 'en_route_to_on_scene' => $this->durationBetween($assignment->enroute_at, $assignment->arrived_at),
                 'on_scene_to_completed' => $this->durationBetween($assignment->arrived_at, $assignment->completed_at),
                 'assigned_to_cancelled' => $this->durationBetween($assignment->assigned_at, $assignment->cancelled_at),
-                'elapsed_time' => $this->assignmentElapsedTime($assignment),
+                'elapsed_time' => $this->assignmentElapsedTime($assignment, $generatedAt),
             ])
             ->values()
             ->all();
     }
 
-    private function assignmentElapsedTime($assignment): string
+    private function assignmentElapsedTime($assignment, Carbon $generatedAt): string
     {
         if (in_array($this->normalizedAssignmentStatus($assignment->status), ['completed', 'cancelled'], true)) {
             return '';
         }
 
-        return $this->durationSince($this->assignmentStatusStartedAt($assignment));
+        return $this->durationSince($this->assignmentStatusStartedAt($assignment), $generatedAt);
     }
 
     private function assignmentStatusStartedAt($assignment): ?Carbon
@@ -694,19 +698,17 @@ class SitrepGenerationService
         return $this->formatDurationSeconds((int) floor($start->diffInSeconds($end)));
     }
 
-    private function durationSince(?Carbon $start): string
+    private function durationSince(?Carbon $start, Carbon $asOf): string
     {
         if (! $start) {
             return '';
         }
 
-        $now = now();
-
-        if ($now->lt($start)) {
+        if ($asOf->lt($start)) {
             return '';
         }
 
-        return $this->formatDurationSeconds((int) floor($start->diffInSeconds($now)));
+        return $this->formatDurationSeconds((int) floor($start->diffInSeconds($asOf)));
     }
 
     private function formatDurationSeconds(int $seconds): string

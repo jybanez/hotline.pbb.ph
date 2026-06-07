@@ -4,6 +4,8 @@ namespace Pbb\Sitreps\Viewer;
 
 final class SitrepDocumentRenderer
 {
+    private string $layout = 'document';
+
     /**
      * @return array<int, string>
      */
@@ -26,6 +28,7 @@ final class SitrepDocumentRenderer
 
     public function render(SitrepPayload $sitrep, SitrepViewOptions $options): string
     {
+        $this->layout = $options->layout;
         $summary = $sitrep->section('summary');
         $situation = $sitrep->section('situation');
         $sourceSnapshot = $sitrep->section('source_snapshot');
@@ -37,6 +40,9 @@ final class SitrepDocumentRenderer
         }
         if ($options->pdf) {
             $classes[] = 'is-pdf';
+        }
+        if ($options->layout !== 'document') {
+            $classes[] = 'is-layout-'.$options->layout;
         }
         if ($sitrep->get('status') === 'draft') {
             $classes[] = 'is-draft';
@@ -60,15 +66,18 @@ final class SitrepDocumentRenderer
             .'</main>';
     }
 
-    public function renderSection(SitrepPayload $sitrep, string $section): string
+    public function renderSection(SitrepPayload $sitrep, string $section, ?SitrepViewOptions $options = null): string
     {
+        $options ??= new SitrepViewOptions();
+        $previousLayout = $this->layout;
+        $this->layout = $options->layout;
         $section = strtolower(trim(str_replace('-', '_', $section)));
         $summary = $sitrep->section('summary');
         $situation = $sitrep->section('situation');
         $sourceSnapshot = $sitrep->section('source_snapshot');
         $showLocations = (int) $sitrep->get('location_count', 1) > 1;
 
-        return match ($section) {
+        $html = match ($section) {
             'header' => $this->header($sitrep, $summary, $sourceSnapshot, $this->identity($sitrep)),
             'summary' => $this->summary($summary, $situation, $sourceSnapshot),
             'situation' => $this->situation($situation),
@@ -86,17 +95,32 @@ final class SitrepDocumentRenderer
                 implode(', ', self::sectionNames()),
             )),
         };
+
+        $this->layout = $previousLayout;
+
+        if ($options->layout === 'document') {
+            return $html;
+        }
+
+        return '<div class="pbb-sitrep-viewer sitrep-section-fragment is-layout-'.Html::escape($options->layout).'">'.$html.'</div>';
     }
 
     /**
      * @param array<int, string> $sections
      */
-    public function renderSections(SitrepPayload $sitrep, array $sections): string
+    public function renderSections(SitrepPayload $sitrep, array $sections, ?SitrepViewOptions $options = null): string
     {
-        return implode('', array_map(
-            fn (string $section): string => $this->renderSection($sitrep, $section),
+        $options ??= new SitrepViewOptions();
+        $html = implode('', array_map(
+            fn (string $section): string => $this->renderSection($sitrep, $section, $options),
             $sections,
         ));
+
+        if ($options->layout === 'document') {
+            return $html;
+        }
+
+        return '<div class="pbb-sitrep-viewer sitrep-section-fragment is-layout-'.Html::escape($options->layout).'">'.$html.'</div>';
     }
 
     private function previewBanner(SitrepPayload $sitrep, SitrepViewOptions $options): string
@@ -377,7 +401,7 @@ final class SitrepDocumentRenderer
             .$this->sectionHead('Actions', 'Response Posture')
             .$this->table('Team Deployment', ['Category', 'Team', 'Requested', 'Assigned', 'Accepted', 'En Route', 'On Scene'], $deploymentRows, 'No team assignments recorded.', 'is-team-deployment')
             .$this->table('Assignment Timing', ['Incident', 'Team', 'Status', 'Accepted', 'En Route', 'On Scene', 'Time in Status'], $timingRows, 'No assignment timing milestones recorded.', 'is-assignment-timing')
-            .'<p class="sitrep-note">Timing rows are scenario-specific and derived from team assignment milestone timestamps. Time in Status shows how long an open assignment has been in its current status, falling back to assignment time when older records do not have the milestone timestamp.</p>'
+            .'<p class="sitrep-note">Timing rows are scenario-specific and derived from team assignment milestone timestamps. Time in Status shows how long an open assignment had been in its current status as of report generation, falling back to assignment time when older records do not have the milestone timestamp.</p>'
             .'</section>';
     }
 
@@ -402,7 +426,7 @@ final class SitrepDocumentRenderer
                     $row['quantity_requested'] ?? 0,
                     implode(', ', $row['resources'] ?? []),
                 ], array_filter($needs['category_groups'], 'is_array'));
-            $html .= $this->table('Category Demand', $headers, $rows, 'No category demand available.');
+            $html .= $this->table('Category Demand', $headers, $rows, 'No category demand available.', 'is-category-demand');
         }
 
         $headers = $showLocations
@@ -422,7 +446,7 @@ final class SitrepDocumentRenderer
             ], array_filter($needs['items'] ?? [], 'is_array'));
 
         return $html
-            .$this->table('Resource Needs', $headers, $rows, (string) ($needs['empty_state'] ?? 'No structured resource needs recorded.'))
+            .$this->table('Resource Needs', $headers, $rows, (string) ($needs['empty_state'] ?? 'No structured resource needs recorded.'), 'is-resource-needs')
             .'<p class="sitrep-note">'.Html::text($needs['confidence_note'] ?? '').'</p></section>';
     }
 
@@ -472,7 +496,7 @@ final class SitrepDocumentRenderer
                         ! empty($detail['cleared']) ? $detail['cleared'] : '',
                     ];
                 }
-                $html .= $this->table('Route Evidence', ['Location', 'Status', 'Route', 'Obstruction', 'Cleared'], $rows, 'No route evidence reported.');
+                $html .= $this->routeEvidence($rows);
             }
             $html .= '</article>';
         }
@@ -520,7 +544,68 @@ final class SitrepDocumentRenderer
             return Html::text($evidence);
         }
 
-        return $this->table('', ['Location', 'Evidence'], $rows, 'No source evidence reported.');
+        return $this->propertyList(['Location', 'Evidence'], $rows);
+    }
+
+    /**
+     * @param array<int, array<int, mixed>> $rows
+     */
+    private function routeEvidence(array $rows): string
+    {
+        if ($this->layout !== 'compact') {
+            return $this->table('Route Evidence', ['Location', 'Status', 'Route', 'Obstruction', 'Cleared'], $rows, 'No route evidence reported.');
+        }
+
+        if ($rows === []) {
+            return '<div class="sitrep-table-card"><h3>Route Evidence</h3><p class="sitrep-empty">No route evidence reported.</p></div>';
+        }
+
+        $groups = [];
+        foreach ($rows as $row) {
+            $location = trim((string) ($row[0] ?? 'Location'));
+            $status = trim((string) ($row[1] ?? 'Reported'));
+            $route = trim((string) ($row[2] ?? 'Location not specified'));
+            $obstruction = trim((string) ($row[3] ?? ''));
+            $cleared = trim((string) ($row[4] ?? ''));
+
+            $groups[$location !== '' ? $location : 'Location'][$route !== '' ? $route : 'Location not specified'][] = [
+                'status' => $status !== '' ? $status : 'Reported',
+                'obstruction' => $obstruction,
+                'cleared' => $cleared,
+            ];
+        }
+
+        $html = '<div class="sitrep-table-card"><h3>Route Evidence</h3><div class="sitrep-route-evidence">';
+        foreach ($groups as $location => $routes) {
+            $html .= '<section><h4>'.Html::text($location).'</h4>';
+            foreach ($routes as $route => $items) {
+                $html .= '<article><strong>'.Html::text($route).'</strong><ul>';
+                foreach ($items as $item) {
+                    $html .= '<li>'.Html::text($this->routeEvidenceLine($item)).'</li>';
+                }
+                $html .= '</ul></article>';
+            }
+            $html .= '</section>';
+        }
+
+        return $html.'</div></div>';
+    }
+
+    /**
+     * @param array{status: string, obstruction: string, cleared: string} $item
+     */
+    private function routeEvidenceLine(array $item): string
+    {
+        $parts = [$item['status']];
+        if ($item['obstruction'] !== '') {
+            $parts[] = $item['obstruction'];
+        }
+
+        if ($item['cleared'] !== '') {
+            $parts[] = strcasecmp($item['cleared'], 'yes') === 0 ? 'cleared' : 'not cleared';
+        }
+
+        return implode(' · ', $parts);
     }
 
     /**
@@ -749,6 +834,26 @@ final class SitrepDocumentRenderer
             return $html.'<p class="sitrep-empty">'.Html::text($empty).'</p></div>';
         }
 
+        if ($class === 'is-team-deployment') {
+            return $html.$this->teamDeploymentGroups($headers, $rows).'</div>';
+        }
+
+        if ($class === 'is-assignment-timing') {
+            return $html.$this->assignmentTimingGroups($headers, $rows).'</div>';
+        }
+
+        if ($this->layout === 'compact' && $class === 'is-resource-needs') {
+            return $html.$this->resourceNeedGroups($headers, $rows).'</div>';
+        }
+
+        if ($this->layout === 'compact' && $class === 'is-category-demand') {
+            return $html.$this->propertyList($headers, $rows).'</div>';
+        }
+
+        if ($this->layout === 'compact' && count($headers) > 4) {
+            return $html.$this->propertyList($headers, $rows).'</div>';
+        }
+
         $html .= '<table class="sitrep-table '.Html::escape($class).'"><thead><tr>';
         foreach ($headers as $header) {
             $html .= '<th>'.Html::text($header).'</th>';
@@ -763,6 +868,278 @@ final class SitrepDocumentRenderer
         }
 
         return $html.'</tbody></table></div>';
+    }
+
+    /**
+     * @param array<int, string> $headers
+     * @param array<int, array<int, mixed>> $rows
+     */
+    private function teamDeploymentGroups(array $headers, array $rows): string
+    {
+        $statusHeaders = array_slice($headers, 2);
+        $groups = [];
+
+        foreach ($rows as $row) {
+            $category = trim((string) ($row[0] ?? 'Uncategorized'));
+            $team = trim((string) ($row[1] ?? 'Team'));
+            $groups[$category !== '' ? $category : 'Uncategorized'][] = [
+                'team' => $team !== '' ? $team : 'Team',
+                'statuses' => array_map(
+                    fn (string $label, int $offset): array => [
+                        'label' => $label,
+                        'value' => $row[$offset + 2] ?? null,
+                    ],
+                    $statusHeaders,
+                    array_keys($statusHeaders),
+                ),
+            ];
+        }
+
+        $html = '<div class="sitrep-team-groups">';
+        foreach ($groups as $category => $teams) {
+            $html .= '<section class="sitrep-team-group"><h4>'.Html::text($category).'</h4>';
+            $html .= '<table class="sitrep-team-matrix"><thead><tr><th>Team</th>';
+            foreach ($statusHeaders as $header) {
+                $html .= '<th>'.Html::text($header).'</th>';
+            }
+            $html .= '</tr></thead><tbody>';
+
+            foreach ($teams as $team) {
+                $html .= '<tr><td>'.Html::text($team['team']).'</td>';
+                foreach ($team['statuses'] as $status) {
+                    $html .= '<td>'.Html::text($this->statusValue($status['value'])).'</td>';
+                }
+                $html .= '</tr>';
+            }
+
+            $html .= '</tbody></table><div class="sitrep-team-cards">';
+            foreach ($teams as $team) {
+                $html .= '<article><strong>'.Html::text($team['team']).'</strong><ul>';
+                foreach ($team['statuses'] as $status) {
+                    if ($this->isEmptyPropertyValue($status['value'])) {
+                        continue;
+                    }
+                    $html .= '<li><span>'.Html::text($status['label']).'</span><b>'.Html::text($this->statusValue($status['value'])).'</b></li>';
+                }
+                $html .= '</ul></article>';
+            }
+            $html .= '</div></section>';
+        }
+
+        return $html.'</div>';
+    }
+
+    private function statusValue(mixed $value): string
+    {
+        if ($this->isEmptyPropertyValue($value)) {
+            return '-';
+        }
+
+        return trim((string) $value);
+    }
+
+    /**
+     * @param array<int, string> $headers
+     * @param array<int, array<int, mixed>> $rows
+     */
+    private function resourceNeedGroups(array $headers, array $rows): string
+    {
+        $categoryIndex = array_search('Category', $headers, true);
+        $resourceIndex = array_search('Resource', $headers, true);
+        if ($categoryIndex === false || $resourceIndex === false) {
+            return $this->propertyList($headers, $rows);
+        }
+
+        $metricIndexes = [];
+        foreach ($headers as $index => $header) {
+            if ($index === $categoryIndex || $index === $resourceIndex) {
+                continue;
+            }
+            $metricIndexes[$index] = $header;
+        }
+
+        $groups = [];
+        foreach ($rows as $row) {
+            $category = trim((string) ($row[$categoryIndex] ?? 'Uncategorized'));
+            $resource = trim((string) ($row[$resourceIndex] ?? 'Resource'));
+            $groups[$category !== '' ? $category : 'Uncategorized'][] = [
+                'resource' => $resource !== '' ? $resource : 'Resource',
+                'metrics' => array_map(
+                    fn (string $label, int $index): array => [
+                        'label' => $label,
+                        'value' => $row[$index] ?? null,
+                    ],
+                    array_values($metricIndexes),
+                    array_keys($metricIndexes),
+                ),
+            ];
+        }
+
+        $html = '<div class="sitrep-resource-groups">';
+        foreach ($groups as $category => $resources) {
+            $html .= '<section class="sitrep-resource-group"><h4>'.Html::text($category).'</h4>';
+            $html .= '<table class="sitrep-resource-matrix"><thead><tr><th>Resource</th>';
+            foreach ($metricIndexes as $header) {
+                $html .= '<th>'.Html::text($header).'</th>';
+            }
+            $html .= '</tr></thead><tbody>';
+
+            foreach ($resources as $resource) {
+                $html .= '<tr><td>'.Html::text($resource['resource']).'</td>';
+                foreach ($resource['metrics'] as $metric) {
+                    $html .= '<td>'.Html::text($this->statusValue($metric['value'])).'</td>';
+                }
+                $html .= '</tr>';
+            }
+
+            $html .= '</tbody></table><div class="sitrep-resource-cards">';
+            foreach ($resources as $resource) {
+                $html .= '<article><strong>'.Html::text($resource['resource']).'</strong><ul>';
+                foreach ($resource['metrics'] as $metric) {
+                    if ($this->isEmptyPropertyValue($metric['value'])) {
+                        continue;
+                    }
+                    $html .= '<li><span>'.Html::text($metric['label']).'</span><b>'.Html::text($this->statusValue($metric['value'])).'</b></li>';
+                }
+                $html .= '</ul></article>';
+            }
+            $html .= '</div></section>';
+        }
+
+        return $html.'</div>';
+    }
+
+    /**
+     * @param array<int, string> $headers
+     * @param array<int, array<int, mixed>> $rows
+     */
+    private function assignmentTimingGroups(array $headers, array $rows): string
+    {
+        $teamIndex = array_search('Team', $headers, true);
+        $incidentIndex = array_search('Incident', $headers, true);
+        if ($teamIndex === false || $incidentIndex === false) {
+            return $this->propertyList($headers, $rows);
+        }
+
+        $statusHeaders = [];
+        foreach ($headers as $index => $header) {
+            if ($index === $teamIndex || $index === $incidentIndex) {
+                continue;
+            }
+            $statusHeaders[$index] = $header;
+        }
+
+        $groups = [];
+        foreach ($rows as $row) {
+            $team = trim((string) ($row[$teamIndex] ?? 'Team'));
+            $incident = trim((string) ($row[$incidentIndex] ?? 'Incident'));
+            $groups[$team !== '' ? $team : 'Team'][] = [
+                'incident' => $incident !== '' ? $incident : 'Incident',
+                'statuses' => array_map(
+                    fn (string $label, int $index): array => [
+                        'label' => $label,
+                        'value' => $row[$index] ?? null,
+                    ],
+                    array_values($statusHeaders),
+                    array_keys($statusHeaders),
+                ),
+            ];
+        }
+
+        $html = '<div class="sitrep-assignment-groups">';
+        foreach ($groups as $team => $incidents) {
+            $html .= '<section class="sitrep-assignment-group"><h4>'.Html::text($team).'</h4>';
+            $html .= '<table class="sitrep-assignment-matrix"><thead><tr><th>Incident</th>';
+            foreach ($statusHeaders as $header) {
+                $html .= '<th>'.Html::text($header).'</th>';
+            }
+            $html .= '</tr></thead><tbody>';
+
+            foreach ($incidents as $incident) {
+                $html .= '<tr><td>'.Html::text($incident['incident']).'</td>';
+                foreach ($incident['statuses'] as $status) {
+                    $html .= '<td>'.Html::text($this->statusValue($status['value'])).'</td>';
+                }
+                $html .= '</tr>';
+            }
+
+            $html .= '</tbody></table><div class="sitrep-assignment-cards">';
+            foreach ($incidents as $incident) {
+                $html .= '<article><strong>'.Html::text($incident['incident']).'</strong><ul>';
+                foreach ($incident['statuses'] as $status) {
+                    if ($this->isEmptyPropertyValue($status['value'])) {
+                        continue;
+                    }
+                    $html .= '<li><span>'.Html::text($status['label']).'</span><b>'.Html::text($this->statusValue($status['value'])).'</b></li>';
+                }
+                $html .= '</ul></article>';
+            }
+            $html .= '</div></section>';
+        }
+
+        return $html.'</div>';
+    }
+
+    /**
+     * @param array<int, string> $headers
+     * @param array<int, array<int, mixed>> $rows
+     */
+    private function propertyList(array $headers, array $rows): string
+    {
+        $html = '<div class="sitrep-property-list">';
+        $titleHeader = $headers[0] ?? 'Group';
+
+        foreach ($rows as $row) {
+            $title = trim((string) ($row[0] ?? ''));
+            $html .= '<article class="sitrep-property-group">';
+            $html .= '<h4><span>'.Html::text($titleHeader).'</span>'.Html::text($title !== '' ? $title : 'Item').'</h4>';
+            $html .= '<dl>';
+
+            foreach ($headers as $index => $header) {
+                if ($index === 0) {
+                    continue;
+                }
+
+                $value = $row[$index] ?? null;
+                if ($this->isEmptyPropertyValue($value)) {
+                    continue;
+                }
+
+                $html .= '<div><dt>'.Html::text($header).'</dt><dd>'.$this->propertyValue($header, $value).'</dd></div>';
+            }
+
+            $html .= '</dl></article>';
+        }
+
+        return $html.'</div>';
+    }
+
+    private function isEmptyPropertyValue(mixed $value): bool
+    {
+        if ($value === null) {
+            return true;
+        }
+
+        return trim((string) $value) === '';
+    }
+
+    private function propertyValue(string $header, mixed $value): string
+    {
+        $text = trim((string) $value);
+
+        if (strcasecmp($header, 'Main Signals') === 0) {
+            $parts = array_values(array_filter(array_map('trim', explode(';', $text)), fn (string $part): bool => $part !== ''));
+            if (count($parts) > 1) {
+                $html = '<ul class="sitrep-property-bullets">';
+                foreach ($parts as $part) {
+                    $html .= '<li>'.Html::text($part).'</li>';
+                }
+
+                return $html.'</ul>';
+            }
+        }
+
+        return Html::text($text);
     }
 
     /**

@@ -30,4 +30,37 @@ $summary = $viewer->renderSection($sitrepPayload, 'summary');
 $tabs = $viewer->renderSections($sitrepPayload, ['population', 'needs', 'gaps']);
 ```
 
+For constrained side panels, request the compact layout:
+
+```php
+$summary = $viewer->renderSection($sitrepPayload, 'summary', [
+    'layout' => 'compact',
+]);
+
+$tabs = $viewer->renderSections($sitrepPayload, ['summary', 'population', 'needs'], [
+    'layout' => 'compact',
+]);
+```
+
+For dashboard or map layouts, build framework-agnostic visualization datasets:
+
+```php
+$visuals = $viewer->visualizationData($sitrepPayload);
+$populationVisuals = $viewer->visualizationSection($sitrepPayload, 'population');
+```
+
+The visualization data is plain PHP arrays that can be rendered by app-owned UI
+or future Helper components such as `ui.stat.cards`, `ui.charts`,
+`ui.map.legend`, and `ui.map.markers`.
+
 See `docs/developer-manual.md` for integration notes and `demo/render.php` for a plain PHP example.
+For a Helper-backed browser visualization demo, run PHP's built-in server from
+the Hotline repo root and open:
+
+```bash
+php -S 127.0.0.1:8097 -t C:\wamp64\www\pbb\hotline
+```
+
+```text
+http://127.0.0.1:8097/packages/pbb-sitrep-viewer/demo/visualization.php
+```
