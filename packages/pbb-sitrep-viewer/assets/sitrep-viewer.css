@@ -445,6 +445,42 @@
     color: #f3fbff;
 }
 
+.sitrep-counting-notes {
+    display: grid;
+    gap: 0.45rem;
+    margin-top: 0.75rem;
+}
+
+.sitrep-counting-notes > span {
+    color: #93c5fd;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.sitrep-counting-notes ul {
+    display: grid;
+    gap: 0.55rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.sitrep-counting-notes li {
+    border-top: 1px solid rgba(125, 183, 255, 0.18);
+    padding-top: 0.55rem;
+}
+
+.sitrep-counting-notes li:first-child {
+    border-top: 0;
+    padding-top: 0;
+}
+
+.sitrep-counting-notes p {
+    margin: 0.2rem 0 0;
+}
+
 .sitrep-source-lines > span {
     display: block;
 }

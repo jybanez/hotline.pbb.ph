@@ -484,6 +484,24 @@
         <div>
             <strong>Data Quality</strong>
             <p>{{ $dataQuality['global_note'] ?? 'Generated from current Hotline data.' }}</p>
+            @if (! empty($dataQuality['counting_notes'] ?? []))
+                <div class="sitrep-counting-notes">
+                    <span>Counting Notes</span>
+                    <ul>
+                        @foreach ($dataQuality['counting_notes'] as $note)
+                            @continue(! is_array($note))
+                            <li>
+                                <strong>{{ $note['title'] ?? 'Counting note' }}</strong>
+                                @foreach (['body', 'evidence', 'confidence_note'] as $field)
+                                    @if (! empty($note[$field] ?? null))
+                                        <p>{{ $note[$field] }}</p>
+                                    @endif
+                                @endforeach
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
         </div>
         <div>
             <strong>Privacy Defaults</strong>
