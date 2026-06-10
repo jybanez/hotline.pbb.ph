@@ -59,9 +59,6 @@ const COMMAND_CURRENT_SITREP_SECTIONS = [
     { id: 'actions', label: 'Actions' },
     { id: 'needs', label: 'Needs' },
     { id: 'gaps', label: 'Gaps' },
-    { id: 'period_activity', label: 'Period' },
-    { id: 'verification_notes', label: 'Verification' },
-    { id: 'footer', label: 'Sources' },
 ];
 
 let sitrepGridInstance = null;
