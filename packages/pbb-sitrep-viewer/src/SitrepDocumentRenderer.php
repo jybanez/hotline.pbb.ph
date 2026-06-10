@@ -58,7 +58,7 @@ final class SitrepDocumentRenderer
             .$this->population($sitrep->section('population'), $showLocations)
             .$this->actions($sitrep->section('actions'))
             .$this->needs($sitrep->section('needs'), $showLocations)
-            .$this->gaps($sitrep->section('gaps'), $sourceSnapshot)
+            .$this->gaps($sitrep->section('gaps'), $sourceSnapshot, $sitrep->section('needs'), $sitrep->section('population'))
             .$this->periodActivity($situation)
             .$this->verificationNotes($situation)
             .$this->footer($sitrep)
@@ -85,7 +85,7 @@ final class SitrepDocumentRenderer
             'population' => $this->population($sitrep->section('population'), $showLocations),
             'actions' => $this->actions($sitrep->section('actions')),
             'needs' => $this->needs($sitrep->section('needs'), $showLocations),
-            'gaps' => $this->gaps($sitrep->section('gaps'), $sourceSnapshot),
+            'gaps' => $this->gaps($sitrep->section('gaps'), $sourceSnapshot, $sitrep->section('needs'), $sitrep->section('population')),
             'period_activity', 'period_activity_report' => $this->periodActivity($situation),
             'verification_notes', 'verification' => $this->verificationNotes($situation),
             'footer', 'source_snapshot', 'data_quality' => $this->footer($sitrep),
@@ -453,7 +453,7 @@ final class SitrepDocumentRenderer
     /**
      * @param array<string, mixed> $gaps
      */
-    private function gaps(array $gaps, array $sourceSnapshot): string
+    private function gaps(array $gaps, array $sourceSnapshot, array $needs, array $population): string
     {
         $targetName = $this->targetName($sourceSnapshot);
         $html = '<section class="sitrep-section">'.$this->sectionHead('Gaps', (string) ($gaps['title'] ?? 'Response Constraints and Confidence Gaps'));
@@ -461,7 +461,7 @@ final class SitrepDocumentRenderer
             $html .= '<p class="sitrep-narrative">'.Html::text($gaps['intro']).'</p>';
         }
 
-        $items = array_filter($gaps['items'] ?? [], 'is_array');
+        $items = array_filter($gaps['items'] ?? [], fn (mixed $item): bool => is_array($item) && ! $this->isCountingScopeGap($item));
         if ($items === []) {
             return $html.'<p class="sitrep-empty">'.Html::text($gaps['empty_state'] ?? 'No gaps identified.').'</p></section>';
         }
@@ -476,27 +476,16 @@ final class SitrepDocumentRenderer
             if ($body !== '') {
                 $html .= '<p>'.Html::text($body).'</p>';
             }
-            if (! empty($gap['evidence'])) {
+            $evidence = $this->gapEvidence($gap, $targetName, $needs, $population);
+            if ($evidence !== '' || ! empty($gap['confidence_note'])) {
                 $html .= '<dl class="sitrep-gap-details">';
-                $html .= '<div><dt>Evidence</dt><dd>'.$this->gapEvidence($gap, $targetName).'</dd></div>';
+                if ($evidence !== '') {
+                    $html .= '<div><dt>Evidence</dt><dd>'.$evidence.'</dd></div>';
+                }
                 if (! empty($gap['confidence_note'])) {
                     $html .= '<div><dt>Confidence</dt><dd>'.Html::text($gap['confidence_note']).'</dd></div>';
                 }
                 $html .= '</dl>';
-            }
-            $details = array_filter($gap['items'] ?? [], 'is_array');
-            if ($details !== []) {
-                $rows = [];
-                foreach ($details as $detail) {
-                    $rows[] = [
-                        $this->shortLocation((string) ($detail['source_hub_name'] ?? 'Source'), $targetName),
-                        $detail['status'] ?? 'Reported',
-                        $detail['route_location'] ?? 'Location not specified',
-                        $detail['obstruction_type'] ?? '',
-                        ! empty($detail['cleared']) ? $detail['cleared'] : '',
-                    ];
-                }
-                $html .= $this->routeEvidence($rows);
             }
             $html .= '</article>';
         }
@@ -507,10 +496,34 @@ final class SitrepDocumentRenderer
     /**
      * @param array<string, mixed> $gap
      */
-    private function gapEvidence(array $gap, ?string $targetName): string
+    private function gapEvidence(array $gap, ?string $targetName, array $needs, array $population): string
     {
         $evidence = trim((string) ($gap['evidence'] ?? ''));
         $sourceHubs = array_values(array_filter((array) ($gap['source_hubs'] ?? []), 'is_scalar'));
+        if ($this->isResourceSupplyGap($gap)) {
+            $groups = $this->resourceEvidenceGroups($gap, $needs, $targetName);
+            if ($groups !== []) {
+                return $this->resourceEvidenceCards($groups);
+            }
+        }
+
+        if ($this->isPopulationConfidenceGap($gap)) {
+            $groups = $this->populationEvidenceGroups($gap, $population, $targetName);
+            if ($groups !== []) {
+                return $this->populationEvidenceCards($groups);
+            }
+
+            $groups = $this->populationEvidenceGroupsFromEvidence($evidence, $sourceHubs, $targetName);
+            if ($groups !== []) {
+                return $this->populationEvidenceCards($groups);
+            }
+        }
+
+        $routeGroups = $this->routeEvidenceGroups($gap, $targetName);
+        if ($routeGroups !== []) {
+            return $this->routeEvidenceCards($routeGroups);
+        }
+
         if ($evidence === '' || $sourceHubs === []) {
             return Html::text($evidence);
         }
@@ -544,68 +557,498 @@ final class SitrepDocumentRenderer
             return Html::text($evidence);
         }
 
+        $populationRows = $this->populationEvidenceRows($rows);
+        if ($populationRows !== []) {
+            return $this->table('Population Evidence', ['Location', 'People', 'Breakdown'], $populationRows, 'No population evidence reported.');
+        }
+
+        $resourceRows = $this->resourceEvidenceRowsFromSourceRows($rows);
+        if ($resourceRows !== []) {
+            return $this->resourceEvidenceCards(array_map(fn (array $row): array => [
+                'location' => $row[0],
+                'headers' => ['Units', 'Note'],
+                'rows' => [[$row[1], $row[2]]],
+            ], $resourceRows));
+        }
+
         return $this->propertyList(['Location', 'Evidence'], $rows);
     }
 
     /**
-     * @param array<int, array<int, mixed>> $rows
+     * @param array<string, mixed> $gap
      */
-    private function routeEvidence(array $rows): string
+    private function isResourceSupplyGap(array $gap): bool
     {
-        if ($this->layout !== 'compact') {
-            return $this->table('Route Evidence', ['Location', 'Status', 'Route', 'Obstruction', 'Cleared'], $rows, 'No route evidence reported.');
-        }
+        $type = strtolower(trim((string) ($gap['type'] ?? '')));
+        $title = strtolower(trim((string) ($gap['title'] ?? '')));
 
-        if ($rows === []) {
-            return '<div class="sitrep-table-card"><h3>Route Evidence</h3><p class="sitrep-empty">No route evidence reported.</p></div>';
-        }
-
-        $groups = [];
-        foreach ($rows as $row) {
-            $location = trim((string) ($row[0] ?? 'Location'));
-            $status = trim((string) ($row[1] ?? 'Reported'));
-            $route = trim((string) ($row[2] ?? 'Location not specified'));
-            $obstruction = trim((string) ($row[3] ?? ''));
-            $cleared = trim((string) ($row[4] ?? ''));
-
-            $groups[$location !== '' ? $location : 'Location'][$route !== '' ? $route : 'Location not specified'][] = [
-                'status' => $status !== '' ? $status : 'Reported',
-                'obstruction' => $obstruction,
-                'cleared' => $cleared,
-            ];
-        }
-
-        $html = '<div class="sitrep-table-card"><h3>Route Evidence</h3><div class="sitrep-route-evidence">';
-        foreach ($groups as $location => $routes) {
-            $html .= '<section><h4>'.Html::text($location).'</h4>';
-            foreach ($routes as $route => $items) {
-                $html .= '<article><strong>'.Html::text($route).'</strong><ul>';
-                foreach ($items as $item) {
-                    $html .= '<li>'.Html::text($this->routeEvidenceLine($item)).'</li>';
-                }
-                $html .= '</ul></article>';
-            }
-            $html .= '</section>';
-        }
-
-        return $html.'</div></div>';
+        return $type === 'open_needs' || str_contains($title, 'resource supply');
     }
 
     /**
-     * @param array{status: string, obstruction: string, cleared: string} $item
+     * @param array<string, mixed> $gap
      */
-    private function routeEvidenceLine(array $item): string
+    private function isPopulationConfidenceGap(array $gap): bool
     {
-        $parts = [$item['status']];
-        if ($item['obstruction'] !== '') {
-            $parts[] = $item['obstruction'];
+        $category = strtolower(trim((string) ($gap['category'] ?? '')));
+        $title = strtolower(trim((string) ($gap['title'] ?? '')));
+
+        return str_contains($category, 'data confidence') && str_contains($title, 'population');
+    }
+
+    /**
+     * @param array<int, array<int, mixed>> $rows
+     * @return array<int, array<int, mixed>>
+     */
+    private function populationEvidenceRows(array $rows): array
+    {
+        $populationRows = [];
+        foreach ($rows as $row) {
+            $location = trim((string) ($row[0] ?? ''));
+            $evidence = trim((string) ($row[1] ?? ''));
+            if (! preg_match('/^(\d+)\s+current\s+population\/life-safety\s+records?\s+reported:\s*(.+)$/i', $evidence, $matches)) {
+                return [];
+            }
+
+            $populationRows[] = [$location, $matches[1], trim($matches[2])];
         }
 
-        if ($item['cleared'] !== '') {
-            $parts[] = strcasecmp($item['cleared'], 'yes') === 0 ? 'cleared' : 'not cleared';
+        return $populationRows;
+    }
+
+    /**
+     * @param array<int, mixed> $sourceHubs
+     * @return array<int, array{location: string, rows: array<int, array<int, mixed>>}>
+     */
+    private function populationEvidenceGroupsFromEvidence(string $evidence, array $sourceHubs, ?string $targetName): array
+    {
+        if (! preg_match('/^(\d+)\s+current\s+population\/life-safety\s+records?\s+reported:\s*(.+)$/i', trim($evidence), $matches)) {
+            return [];
         }
 
-        return implode(' · ', $parts);
+        $location = 'Current Location';
+        if (count($sourceHubs) === 1) {
+            $location = $this->shortLocation((string) $sourceHubs[0], $targetName);
+        } elseif (trim((string) $targetName) !== '') {
+            $location = $this->shortLocation((string) $targetName, null);
+        }
+
+        return [[
+            'location' => $location,
+            'rows' => [[
+                'Population/life-safety records',
+                (int) $matches[1],
+                (int) $matches[1],
+                trim($matches[2]),
+            ]],
+        ]];
+    }
+
+    /**
+     * @param array<string, mixed> $gap
+     * @param array<string, mixed> $population
+     * @return array<int, array{location: string, rows: array<int, array<int, mixed>>}>
+     */
+    private function populationEvidenceGroups(array $gap, array $population, ?string $targetName): array
+    {
+        $sourceHubs = array_values(array_filter((array) ($gap['source_hubs'] ?? []), 'is_scalar'));
+        if ($sourceHubs === []) {
+            return [];
+        }
+
+        $allowedLocations = array_fill_keys(array_map(fn (mixed $source): string => $this->shortLocation((string) $source, $targetName), $sourceHubs), true);
+        $groups = [];
+        foreach (array_filter($population['population_groups'] ?? [], 'is_array') as $populationGroup) {
+            $signal = trim((string) ($populationGroup['population_signal'] ?? 'Population signal'));
+            $notes = trim((string) ($populationGroup['notes'] ?? ''));
+            foreach (array_filter($populationGroup['source_values'] ?? [], 'is_array') as $source) {
+                $sourceName = trim((string) ($source['source_hub_name'] ?? ''));
+                if ($sourceName === '') {
+                    continue;
+                }
+
+                $location = $this->shortLocation($sourceName, $targetName);
+                if (! isset($allowedLocations[$location])) {
+                    continue;
+                }
+
+                $reports = (int) ($source['reports'] ?? 0);
+                $peopleOrFamilies = trim((string) ($source['people_or_families'] ?? ''));
+                $people = $this->populationPeopleValue($peopleOrFamilies, $reports);
+                $notesText = $this->populationEvidenceNotes($notes, $peopleOrFamilies, $populationGroup);
+                $groups[$location] ??= [
+                    'location' => $location,
+                    'rows' => [],
+                ];
+                $groups[$location]['rows'][] = [
+                    $signal,
+                    $reports,
+                    $people,
+                    $notesText,
+                ];
+            }
+        }
+
+        return array_values(array_filter($groups, fn (array $group): bool => $group['rows'] !== []));
+    }
+
+    private function populationPeopleValue(string $peopleOrFamilies, int $fallback): int
+    {
+        if (preg_match('/(\d+)\s+people\b/i', $peopleOrFamilies, $matches)) {
+            return (int) $matches[1];
+        }
+
+        if (preg_match('/(\d+)\s+persons?\b/i', $peopleOrFamilies, $matches)) {
+            return (int) $matches[1];
+        }
+
+        if (preg_match('/(\d+)\s+records?\b/i', $peopleOrFamilies, $matches)) {
+            return (int) $matches[1];
+        }
+
+        return $fallback;
+    }
+
+    /**
+     * @param array<string, mixed> $populationGroup
+     */
+    private function populationEvidenceNotes(string $notes, string $peopleOrFamilies, array $populationGroup): string
+    {
+        $parts = [];
+        if (preg_match('/(\d+)\s+famil(?:y|ies)\b/i', $peopleOrFamilies, $matches)) {
+            $familyCount = (int) $matches[1];
+            $parts[] = $familyCount.' '.($familyCount === 1 ? 'family' : 'families');
+        }
+
+        $noteSummary = $this->compactNoteList($notes);
+        if ($noteSummary !== '') {
+            $parts[] = $noteSummary;
+        }
+
+        $breakdown = $this->populationBreakdownNote($populationGroup);
+        if ($breakdown !== '') {
+            $parts[] = $breakdown;
+        }
+
+        return implode('; ', array_values(array_unique($parts)));
+    }
+
+    private function compactNoteList(string $notes): string
+    {
+        $notes = trim($notes);
+        if ($notes === '') {
+            return '';
+        }
+
+        $fragments = preg_split('/\s*;\s*/', $notes) ?: [];
+        $unique = [];
+        foreach ($fragments as $fragment) {
+            $fragment = trim($fragment);
+            if ($fragment === '') {
+                continue;
+            }
+
+            $key = strtolower($fragment);
+            $unique[$key] ??= $fragment;
+        }
+
+        return implode('; ', array_values($unique));
+    }
+
+    /**
+     * @param array<string, mixed> $populationGroup
+     */
+    private function populationBreakdownNote(array $populationGroup): string
+    {
+        $breakdowns = [];
+        foreach (array_filter($populationGroup['breakdowns'] ?? [], 'is_array') as $breakdown) {
+            $label = trim((string) ($breakdown['breakdown'] ?? ''));
+            $count = (int) ($breakdown['count'] ?? 0);
+            if ($label !== '' && $count > 0) {
+                $breakdowns[] = $count.' '.$label;
+            }
+        }
+
+        return $breakdowns === [] ? '' : 'Overall declared breakdown: '.implode(', ', $breakdowns);
+    }
+
+    /**
+     * @param array<int, array{location: string, rows: array<int, array<int, mixed>>}> $groups
+     */
+    private function populationEvidenceCards(array $groups): string
+    {
+        if ($groups === []) {
+            return '<p class="sitrep-empty">No population evidence reported.</p>';
+        }
+
+        if (count($groups) === 1) {
+            return $this->evidenceTable(['Signal', 'Reports', 'People', 'Notes'], $groups[0]['rows']);
+        }
+
+        $html = '<div class="sitrep-population-evidence-groups">';
+        foreach ($groups as $group) {
+            $html .= '<section class="sitrep-population-evidence-card"><h4>'.Html::text($group['location']).'</h4>';
+            $html .= $this->evidenceTable(['Signal', 'Reports', 'People', 'Notes'], $group['rows']).'</section>';
+        }
+
+        return $html.'</div>';
+    }
+
+    /**
+     * @param array<string, mixed> $gap
+     * @return array<int, array<int, mixed>>
+     */
+    private function resourceEvidenceRows(array $gap): array
+    {
+        $categories = array_values(array_filter($gap['resource_categories'] ?? [], 'is_array'));
+        if ($categories === []) {
+            return [];
+        }
+
+        return $this->resourceCategoryRows($categories);
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $categories
+     * @return array<int, array<int, mixed>>
+     */
+    private function resourceCategoryRows(array $categories): array
+    {
+        return array_map(function (array $row): array {
+            $resources = $row['resources'] ?? [];
+
+            return [
+                $row['category'] ?? 'Uncategorized',
+                $row['quantity_requested'] ?? $row['quantity'] ?? 0,
+                is_array($resources) ? implode(', ', array_filter($resources, 'is_scalar')) : $resources,
+            ];
+        }, $categories);
+    }
+
+    /**
+     * @param array<string, mixed> $gap
+     * @param array<string, mixed> $needs
+     * @return array<int, array{location: string, headers: array<int, string>, rows: array<int, array<int, mixed>>}>
+     */
+    private function resourceEvidenceGroups(array $gap, array $needs, ?string $targetName): array
+    {
+        $sourceHubs = array_values(array_filter((array) ($gap['source_hubs'] ?? []), 'is_scalar'));
+        if ($sourceHubs !== []) {
+            $sourceGroups = $this->resourceEvidenceGroupsFromNeeds($needs, $targetName, $sourceHubs);
+            if ($sourceGroups !== []) {
+                return $sourceGroups;
+            }
+        }
+
+        $rows = $this->resourceEvidenceRows($gap);
+        if ($rows !== []) {
+            return [[
+                'location' => $this->resourceEvidenceLocation($gap, $targetName),
+                'headers' => ['Category', 'Quantity', 'Resources'],
+                'rows' => $rows,
+            ]];
+        }
+
+        return [];
+    }
+
+    /**
+     * @param array<string, mixed> $needs
+     * @return array<int, array{location: string, headers: array<int, string>, rows: array<int, array<int, mixed>>}>
+     */
+    private function resourceEvidenceGroupsFromNeeds(array $needs, ?string $targetName, array $sourceHubs): array
+    {
+        $items = array_values(array_filter($needs['items'] ?? [], 'is_array'));
+        if ($items === []) {
+            return [];
+        }
+
+        $locations = [];
+        $allowedLocations = array_fill_keys(array_map(fn (mixed $source): string => $this->shortLocation((string) $source, $targetName), $sourceHubs), true);
+        foreach ($items as $item) {
+            $resource = trim((string) ($item['resource'] ?? ''));
+            $category = trim((string) ($item['category'] ?? 'Uncategorized'));
+            foreach (array_filter($item['sources'] ?? [], 'is_array') as $source) {
+                $sourceName = trim((string) ($source['source_hub_name'] ?? ''));
+                if ($sourceName === '') {
+                    continue;
+                }
+
+                $location = $this->shortLocation($sourceName, $targetName);
+                if (! isset($allowedLocations[$location])) {
+                    continue;
+                }
+                $quantity = (int) ($source['quantity_requested'] ?? 0);
+                $locations[$location] ??= [];
+                $locations[$location][$category] ??= [
+                    'category' => $category,
+                    'quantity_requested' => 0,
+                    'resources' => [],
+                ];
+                $locations[$location][$category]['quantity_requested'] += $quantity;
+                if ($resource !== '') {
+                    $locations[$location][$category]['resources'][$resource] = $resource;
+                }
+            }
+        }
+
+        $groups = [];
+        foreach ($locations as $location => $categories) {
+            $categoryRows = array_map(function (array $row): array {
+                $resources = array_values($row['resources'] ?? []);
+
+                return [
+                    $row['category'],
+                    $row['quantity_requested'],
+                    implode(', ', $resources),
+                ];
+            }, array_values($categories));
+
+            if ($categoryRows !== []) {
+                $groups[] = [
+                    'location' => $location,
+                    'headers' => ['Category', 'Quantity', 'Resources'],
+                    'rows' => $categoryRows,
+                ];
+            }
+        }
+
+        return $groups;
+    }
+
+    /**
+     * @param array<int, array<int, mixed>> $rows
+     * @return array<int, array<int, mixed>>
+     */
+    private function resourceEvidenceRowsFromSourceRows(array $rows): array
+    {
+        $resourceRows = [];
+        foreach ($rows as $row) {
+            $location = trim((string) ($row[0] ?? ''));
+            $evidence = trim((string) ($row[1] ?? ''));
+            if (! preg_match('/^(\d+)\s+requested\s+resource\s+units?\s+remain\s+tied\s+to\s+active\/deferred\s+incidents\.?\s*(.*)$/i', $evidence, $matches)) {
+                return [];
+            }
+
+            $resourceRows[] = [$location, $matches[1], trim($matches[2])];
+        }
+
+        return $resourceRows;
+    }
+
+    /**
+     * @param array<int, array{location: mixed, headers: array<int, string>, rows: array<int, array<int, mixed>>}> $groups
+     */
+    private function resourceEvidenceCards(array $groups): string
+    {
+        if ($groups === []) {
+            return '<p class="sitrep-empty">No resource evidence reported.</p>';
+        }
+
+        $html = '<div class="sitrep-resource-evidence-groups">';
+        foreach ($groups as $group) {
+            $location = trim((string) ($group['location'] ?? 'Location'));
+            $headers = $group['headers'];
+            $rows = $group['rows'];
+            if (count($groups) === 1) {
+                return $this->evidenceTable($headers, $rows);
+            }
+            $html .= '<section class="sitrep-resource-evidence-card"><h4>'.Html::text($location !== '' ? $location : 'Location').'</h4>';
+            $html .= $this->evidenceTable($headers, $rows).'</section>';
+        }
+
+        return $html.'</div>';
+    }
+
+    /**
+     * @param array<string, mixed> $gap
+     */
+    private function resourceEvidenceLocation(array $gap, ?string $targetName): string
+    {
+        $sourceHubs = array_values(array_filter((array) ($gap['source_hubs'] ?? []), 'is_scalar'));
+        if (count($sourceHubs) === 1) {
+            return $this->shortLocation((string) $sourceHubs[0], $targetName);
+        }
+
+        return $sourceHubs === [] ? 'Current Location' : 'All Locations';
+    }
+
+    /**
+     * @param array<string, mixed> $gap
+     * @return array<int, array{location: string, rows: array<int, array<int, mixed>>}>
+     */
+    private function routeEvidenceGroups(array $gap, ?string $targetName): array
+    {
+        $items = array_values(array_filter($gap['items'] ?? [], 'is_array'));
+        if ($items === []) {
+            return [];
+        }
+
+        $groups = [];
+        foreach ($items as $item) {
+            $route = trim((string) ($item['route_location'] ?? ''));
+            if ($route === '') {
+                continue;
+            }
+
+            $source = trim((string) ($item['source_hub_name'] ?? $item['location'] ?? 'Location'));
+            $location = $this->shortLocation($source !== '' ? $source : 'Location', $targetName);
+            $groups[$location] ??= [
+                'location' => $location,
+                'rows' => [],
+            ];
+            $groups[$location]['rows'][] = [
+                $route,
+                $item['status'] ?? 'Reported',
+                $item['obstruction_type'] ?? '',
+                ! empty($item['cleared']) ? $item['cleared'] : '',
+            ];
+        }
+
+        return array_values(array_filter($groups, fn (array $group): bool => $group['rows'] !== []));
+    }
+
+    /**
+     * @param array<int, array{location: string, rows: array<int, array<int, mixed>>}> $groups
+     */
+    private function routeEvidenceCards(array $groups): string
+    {
+        if ($groups === []) {
+            return '<p class="sitrep-empty">No route evidence reported.</p>';
+        }
+
+        $html = '<div class="sitrep-route-evidence-groups">';
+        foreach ($groups as $group) {
+            if (count($groups) === 1) {
+                return $this->evidenceTable(['Route', 'Status', 'Obstruction', 'Cleared'], $group['rows']);
+            }
+            $html .= '<section class="sitrep-route-evidence-card"><h4>'.Html::text($group['location']).'</h4>';
+            $html .= $this->evidenceTable(['Route', 'Status', 'Obstruction', 'Cleared'], $group['rows']).'</section>';
+        }
+
+        return $html.'</div>';
+    }
+
+    /**
+     * @param array<int, string> $headers
+     * @param array<int, array<int, mixed>> $rows
+     */
+    private function evidenceTable(array $headers, array $rows): string
+    {
+        $html = '<table class="sitrep-table sitrep-evidence-table"><thead><tr>';
+        foreach ($headers as $header) {
+            $html .= '<th>'.Html::text($header).'</th>';
+        }
+        $html .= '</tr></thead><tbody>';
+        foreach ($rows as $row) {
+            $html .= '<tr>';
+            foreach ($row as $cell) {
+                $html .= '<td>'.Html::text($cell).'</td>';
+            }
+            $html .= '</tr>';
+        }
+
+        return $html.'</tbody></table>';
     }
 
     /**
@@ -651,6 +1094,7 @@ final class SitrepDocumentRenderer
     private function footer(SitrepPayload $sitrep): string
     {
         $dataQuality = $sitrep->section('data_quality');
+        $gaps = $sitrep->section('gaps');
         $redactions = $sitrep->section('privacy_redactions');
         $sourceSnapshot = $sitrep->section('source_snapshot');
         $hotline = is_array($sourceSnapshot['hotline'] ?? null) ? $sourceSnapshot['hotline'] : [];
@@ -713,7 +1157,7 @@ final class SitrepDocumentRenderer
         }
 
         return '<footer class="sitrep-footer">'
-            .'<div><strong>Data Quality</strong><p>'.Html::text($dataQuality['global_note'] ?? 'Generated from current PBB data.').'</p>'.$this->countingNotes($dataQuality).'</div>'
+            .'<div><strong>Data Quality</strong><p>'.Html::text($dataQuality['global_note'] ?? 'Generated from current PBB data.').'</p>'.$this->countingNotes($dataQuality, $gaps).'</div>'
             .'<div><strong>Privacy Defaults</strong><p>'.Html::text(implode(', ', $privacy)).'</p></div>'
             .'<div><strong>Source Snapshot</strong><p class="sitrep-source-lines">'.$sourceHtml.'</p></div>'
             .'</footer>';
@@ -721,10 +1165,17 @@ final class SitrepDocumentRenderer
 
     /**
      * @param array<string, mixed> $dataQuality
+     * @param array<string, mixed> $gaps
      */
-    private function countingNotes(array $dataQuality): string
+    private function countingNotes(array $dataQuality, array $gaps): string
     {
         $notes = array_values(array_filter($dataQuality['counting_notes'] ?? [], 'is_array'));
+        foreach (array_filter($gaps['items'] ?? [], 'is_array') as $gap) {
+            if ($this->isCountingScopeGap($gap)) {
+                $notes[] = $gap;
+            }
+        }
+
         if ($notes === []) {
             return '';
         }
@@ -743,6 +1194,17 @@ final class SitrepDocumentRenderer
         }
 
         return $html.'</ul></div>';
+    }
+
+    /**
+     * @param array<string, mixed> $gap
+     */
+    private function isCountingScopeGap(array $gap): bool
+    {
+        $type = strtolower(trim((string) ($gap['type'] ?? '')));
+        $category = strtolower(trim((string) ($gap['category'] ?? '')));
+
+        return $type === 'counting_scope' || $category === 'counting rule';
     }
 
     private function sectionHead(string $eyebrow, string $title): string

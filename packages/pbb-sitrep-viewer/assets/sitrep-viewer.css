@@ -275,6 +275,8 @@
 .sitrep-table th,
 .sitrep-table td {
     border-bottom: 1px solid rgba(114, 164, 207, 0.18);
+    min-width: 0;
+    overflow-wrap: anywhere;
     padding: 0.55rem 0;
     text-align: left;
     vertical-align: top;
@@ -742,6 +744,16 @@
 .sitrep-assignment-matrix td {
     color: #d8ecff;
     font-size: 0.82rem;
+    overflow-wrap: anywhere;
+}
+
+.sitrep-property-bullets {
+    margin: 0;
+    padding-left: 1.15rem;
+}
+
+.sitrep-property-bullets li + li {
+    margin-top: 0.16rem;
 }
 
 .sitrep-team-matrix th:not(:first-child),
@@ -833,6 +845,29 @@
     font-size: 0.78rem;
 }
 
+.sitrep-population-evidence-groups,
+.sitrep-resource-evidence-groups,
+.sitrep-route-evidence-groups {
+    display: grid;
+    gap: 0.85rem;
+}
+
+.sitrep-population-evidence-card,
+.sitrep-resource-evidence-card,
+.sitrep-route-evidence-card {
+    border: 1px solid rgba(125, 183, 255, 0.2);
+    border-radius: 0.65rem;
+    padding: 0.85rem;
+}
+
+.sitrep-population-evidence-card h4,
+.sitrep-resource-evidence-card h4,
+.sitrep-route-evidence-card h4 {
+    color: #f3fbff;
+    font-size: 1rem;
+    margin: 0 0 0.55rem;
+}
+
 .pbb-sitrep-viewer.is-layout-compact .sitrep-property-list {
     display: grid;
     gap: 0.75rem;
@@ -902,6 +937,61 @@
 
 .pbb-sitrep-viewer.is-layout-compact.sitrep-section-fragment {
     color: #edf7ff;
+}
+
+.pbb-sitrep-js-viewer-host {
+    min-width: 0;
+}
+
+.pbb-sitrep-js-viewer .sitrep-js-grouped-matrix {
+    display: grid;
+    gap: 0.8rem;
+}
+
+.pbb-sitrep-js-viewer .sitrep-js-grouped-matrix > h3 {
+    margin-bottom: 0;
+}
+
+.pbb-sitrep-js-viewer .sitrep-js-matrix-group {
+    min-width: 0;
+    padding: 0.8rem;
+    border: 1px solid rgba(96, 165, 250, 0.24);
+    border-radius: 8px;
+    background: rgba(2, 12, 21, 0.28);
+}
+
+.pbb-sitrep-js-viewer .sitrep-js-matrix-group h4 {
+    margin: 0 0 0.65rem;
+    color: #f8fbff;
+    font-size: 1rem;
+}
+
+.pbb-sitrep-js-viewer .sitrep-js-matrix-group .sitrep-simple-table {
+    margin: 0;
+}
+
+.pbb-sitrep-js-viewer [data-sitrep-evidence-ref],
+.pbb-sitrep-js-viewer [data-source-hub-id],
+.pbb-sitrep-js-viewer [data-concern-group] {
+    scroll-margin-block: 5rem;
+}
+
+.pbb-sitrep-js-viewer [data-sitrep-evidence-ref]:where(:hover, :focus-visible),
+.pbb-sitrep-js-viewer [data-source-hub-id]:where(:hover, :focus-visible),
+.pbb-sitrep-js-viewer [data-concern-group]:where(:hover, :focus-visible) {
+    outline: 1px solid rgba(147, 197, 253, 0.55);
+    outline-offset: 2px;
+}
+
+.pbb-sitrep-js-viewer .is-sitrep-highlighted {
+    outline: 2px solid #facc15;
+    outline-offset: 3px;
+    background-color: rgba(250, 204, 21, 0.12);
+    box-shadow: 0 0 0 5px rgba(250, 204, 21, 0.08);
+}
+
+.pbb-sitrep-js-viewer .is-source-filtered-out {
+    display: none !important;
 }
 
 @container (max-width: 520px) {
