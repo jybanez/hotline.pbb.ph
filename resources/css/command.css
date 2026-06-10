@@ -668,7 +668,7 @@
 }
 
 .command-current-card small,
-.command-current-detail p {
+.command-current-detail > p {
     color: var(--muted);
 }
 
@@ -677,47 +677,38 @@
     gap: 0.5rem;
 }
 
-.command-current-detail h3,
-.command-current-detail p {
-    margin: 0;
-}
-
 .command-current-sitrep-panel {
-    background: rgba(7, 22, 36, 0.72);
-    border: 1px solid rgba(125, 175, 235, 0.22);
-    border-radius: 0.9rem;
-    display: grid;
-    gap: 0.75rem;
+    grid-template-rows: auto minmax(0, 1fr);
+    min-height: 34rem;
     min-width: 0;
-    padding: 0.9rem;
+    overflow: hidden;
 }
 
 .command-current-sitrep-tabs {
-    border-bottom: 1px solid rgba(125, 175, 235, 0.18);
-    display: flex;
-    gap: 0.5rem;
-    padding-bottom: 0.55rem;
+    min-height: 0;
+    overflow: hidden;
 }
 
-.command-current-sitrep-tab {
-    background: rgba(16, 42, 65, 0.82);
-    border: 1px solid rgba(125, 175, 235, 0.28);
-    border-radius: 0.55rem;
-    color: var(--text);
-    cursor: default;
-    font: inherit;
-    font-size: 0.78rem;
-    font-weight: 800;
-    min-height: 2.05rem;
-    padding: 0.42rem 0.7rem;
+.command-current-sitrep-tabs > .ui-tabs {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    height: 100%;
+    min-height: 0;
 }
 
-.command-current-sitrep-tab.is-active {
-    border-color: rgba(142, 197, 255, 0.52);
-    color: #dbeafe;
+.command-current-sitrep-tabs .ui-tablist {
+    overflow-x: auto;
+    padding: 0 0 0.55rem;
+}
+
+.command-current-sitrep-tabs .ui-tabpanel {
+    min-height: 0;
+    overflow: auto;
+    padding: 0;
 }
 
 .command-current-sitrep-viewer {
+    min-height: 0;
     min-width: 0;
 }
 
@@ -727,12 +718,25 @@
     padding: 0;
 }
 
-.command-current-sitrep-viewer .pbb-sitrep-viewer.is-layout-compact .sitrep-section {
-    padding: 0;
+.command-current-sitrep-viewer .sitrep-document {
+    border-left: 0;
+    border-right: 0;
+    box-shadow: none;
+    margin: 0;
 }
 
-.command-current-sitrep-viewer .pbb-sitrep-viewer.is-layout-compact .sitrep-document {
-    max-width: none;
+.command-current-sitrep-viewer .sitrep-section {
+    padding-left: clamp(0.75rem, 1.6vw, 1.25rem);
+    padding-right: clamp(0.75rem, 1.6vw, 1.25rem);
+}
+
+.command-current-sitrep-viewer .sitrep-preview-banner {
+    display: none;
+}
+
+.command-current-detail > h3,
+.command-current-detail > p {
+    margin: 0;
 }
 
 .command-current-sitrep-viewer .sitrep-row-action {
