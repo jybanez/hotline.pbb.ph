@@ -46,7 +46,7 @@ Running without `--config` is allowed for bundle/host validation and returns war
 - backs up the existing `.env` before rewrite when overwrite is allowed
 - writes a generated `.env` from installer config
 - writes `VIEW_COMPILED_PATH` to the absolute in-root `storage/framework/views` path before Laravel config/view cache commands run
-- writes session cookie domain from `app.session_domain`, but normalizes accidental local-only values such as `localhost` to the `app.app_url` host when installing for a non-local host
+- writes `SESSION_DOMAIN` and `HOTLINE_SESSION_DOMAIN` blank so Laravel issues host-only Hotline session and CSRF cookies
 - generates a fresh Laravel `APP_KEY`
 - prepares `storage/app/installer` and `storage/app/installer/services`
 - applies `database/schema/hotline-schema-mysql.sql` for fresh installs when `options.database_setup=baseline_schema` is set, with `options.use_baseline_schema=true` retained as a backward-compatible fallback

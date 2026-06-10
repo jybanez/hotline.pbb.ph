@@ -13,7 +13,7 @@
     "app_url": "https://hotline.pbb.ph",
     "app_env": "production",
     "app_debug": false,
-    "session_domain": "hotline.pbb.ph",
+    "session_domain": "",
     "force_https": true
   },
   "database": {

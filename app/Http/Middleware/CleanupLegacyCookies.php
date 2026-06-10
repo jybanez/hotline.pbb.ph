@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\Http\SessionCookieDomain;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -21,16 +22,27 @@ class CleanupLegacyCookies
             $this->expireDomainCookie($response, 'pbb_maestro_session', 'hotline.pbb.ph', true);
         }
 
+        $activeSessionDomain = SessionCookieDomain::normalize(config('session.domain'), config('app.url'));
+        $legacyDomains = SessionCookieDomain::legacyDomains(config('app.url'));
+
         if ($request->cookies->has('pbb_hotline_session')) {
-            $this->expireDomainCookie($response, 'pbb_hotline_session', 'hotline.pbb.ph', true);
-            $this->expireDomainCookie($response, 'pbb_hotline_session', '.pbb.ph', true);
-            $this->expireDomainCookie($response, 'pbb_hotline_session', 'pbb.ph', true);
+            foreach ($legacyDomains as $domain) {
+                if ($domain === $activeSessionDomain) {
+                    continue;
+                }
+
+                $this->expireDomainCookie($response, 'pbb_hotline_session', $domain, true);
+            }
         }
 
         if ($request->cookies->has('XSRF-TOKEN')) {
-            $this->expireDomainCookie($response, 'XSRF-TOKEN', 'hotline.pbb.ph', false);
-            $this->expireDomainCookie($response, 'XSRF-TOKEN', '.pbb.ph', false);
-            $this->expireDomainCookie($response, 'XSRF-TOKEN', 'pbb.ph', false);
+            foreach ($legacyDomains as $domain) {
+                if ($domain === $activeSessionDomain) {
+                    continue;
+                }
+
+                $this->expireDomainCookie($response, 'XSRF-TOKEN', $domain, false);
+            }
         }
 
         return $response;
