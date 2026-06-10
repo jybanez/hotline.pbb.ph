@@ -133,8 +133,12 @@
 }
 
 .command-splitter-host {
+    background: rgba(10, 25, 35, 0.88);
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius);
     display: block;
     min-height: 0;
+    overflow: hidden;
 }
 
 .command-splitter-host:not(.has-helper-splitter) {
@@ -250,6 +254,10 @@
 
 .command-map-pane,
 .command-command-pane {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
     box-sizing: border-box;
     display: grid;
     height: 100%;
@@ -343,10 +351,46 @@
 }
 
 .command-command-pane .ui-tablist {
-    padding: 0.75rem 0.75rem 0;
+    align-items: flex-end;
+    border-bottom: 1px solid rgba(125, 175, 235, 0.2);
+    flex-wrap: nowrap;
+    gap: 0.15rem;
+    overflow-x: auto;
+    padding: 0.65rem 0.75rem 0;
+}
+
+.command-command-pane .ui-tab {
+    background: transparent;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    color: var(--muted);
+    flex: 0 0 auto;
+    padding: 0.55rem 0.8rem 0.65rem;
+}
+
+.command-command-pane .ui-tab:hover {
+    background: rgba(96, 165, 250, 0.08);
+    color: var(--text);
+}
+
+.command-command-pane .ui-tab.is-active {
+    background: rgba(96, 165, 250, 0.1);
+    border-bottom-color: rgba(142, 197, 255, 0.95);
+    color: #e7f0ff;
 }
 
 .command-command-pane .ui-tabpanel {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    min-height: 0;
+    overflow: hidden;
+    padding: 0;
+}
+
+.command-command-pane [data-command-current-panel] {
+    height: 100%;
     min-height: 0;
     overflow: hidden;
 }
@@ -360,8 +404,7 @@
     padding: 1rem;
 }
 
-.command-incidents-board,
-.command-current-summary {
+.command-incidents-board {
     display: grid;
     gap: 1rem;
     height: 100%;
@@ -571,120 +614,49 @@
     box-shadow: inset 3px 0 0 rgba(96, 165, 250, 0.74);
 }
 
-.command-current-summary {
-    align-content: start;
-    overflow: auto;
-}
-
-.command-current-hero {
-    align-items: flex-start;
-    background:
-        radial-gradient(circle at 80% 20%, rgba(56, 189, 248, 0.14), transparent 38%),
-        rgba(9, 26, 42, 0.74);
-    border: 1px solid rgba(125, 175, 235, 0.26);
-    border-radius: 1rem;
-    display: flex;
-    gap: 1rem;
-    justify-content: space-between;
-    padding: 1rem;
-}
-
-.command-current-hero.is-alert-elevated {
-    background:
-        radial-gradient(circle at 82% 20%, rgba(255, 214, 102, 0.16), transparent 38%),
-        linear-gradient(90deg, rgba(255, 193, 7, 0.12), rgba(255, 193, 7, 0.03) 42%, transparent 76%),
-        rgba(9, 26, 42, 0.74);
-    border-color: rgba(214, 170, 63, 0.46);
-    box-shadow: inset 4px 0 0 rgba(214, 170, 63, 0.68);
-}
-
-.command-current-hero.is-alert-critical {
-    background:
-        radial-gradient(circle at 82% 20%, rgba(255, 122, 122, 0.18), transparent 40%),
-        linear-gradient(90deg, rgba(198, 40, 40, 0.14), rgba(198, 40, 40, 0.035) 44%, transparent 78%),
-        rgba(9, 26, 42, 0.74);
-    border-color: rgba(201, 92, 92, 0.48);
-    box-shadow: inset 4px 0 0 rgba(201, 92, 92, 0.72);
-}
-
-.command-current-hero h2 {
-    font-size: clamp(1.35rem, 2vw, 2.05rem);
-    line-height: 1.05;
-    margin: 0.2rem 0 0;
-}
-
-.command-current-hero p:last-child {
-    color: var(--muted);
-    margin: 0.45rem 0 0;
-}
-
-.command-generate-sitrep-button {
-    align-self: flex-start;
-    background: rgba(11, 28, 45, 0.62);
-    border-color: rgba(125, 175, 235, 0.24);
-    color: var(--muted);
-    flex: 0 0 auto;
-    font-size: 0.72rem;
-    min-height: 1.95rem;
-    padding: 0.35rem 0.6rem;
-}
-
-.command-generate-sitrep-button:hover {
-    border-color: rgba(142, 197, 255, 0.46);
-    color: #dbeafe;
-}
-
-.command-current-cards {
-    display: grid;
-    gap: 0.75rem;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.command-current-card,
-.command-current-detail {
-    background: rgba(7, 22, 36, 0.72);
-    border: 1px solid rgba(125, 175, 235, 0.22);
-    border-radius: 0.9rem;
-    padding: 0.9rem;
-}
-
-.command-current-card {
-    display: grid;
-    gap: 0.22rem;
-}
-
-.command-current-card span {
-    color: #8ec5ff;
-    font-size: 0.72rem;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-}
-
-.command-current-card strong {
-    color: var(--text);
-    font-size: 1.35rem;
-    line-height: 1;
-}
-
-.command-current-card small,
-.command-current-detail > p {
-    color: var(--muted);
-}
-
-.command-current-detail {
-    display: grid;
-    gap: 0.5rem;
-}
-
 .command-current-sitrep-panel {
+    display: grid;
     grid-template-rows: auto minmax(0, 1fr);
-    min-height: 34rem;
-    min-width: 0;
+    height: 100%;
+    min-height: 0;
     overflow: hidden;
 }
 
+.command-current-sitrep-toolbar {
+    align-items: center;
+    background: rgba(12, 27, 45, 0.6);
+    border-bottom: 1px solid rgba(125, 175, 235, 0.18);
+    display: flex;
+    gap: 0.75rem;
+    justify-content: space-between;
+    min-width: 0;
+    padding: 0.7rem 0.9rem;
+}
+
+.command-current-sitrep-toolbar .ui-eyebrow {
+    margin: 0;
+}
+
+.command-current-sitrep-toolbar-copy {
+    color: var(--muted);
+    font-size: 0.82rem;
+    margin: 0.1rem 0 0;
+}
+
+.command-current-sitrep-empty {
+    align-items: center;
+    display: grid;
+    gap: 0.7rem;
+    justify-items: start;
+    padding: 1rem;
+}
+
+.command-current-sitrep-empty p {
+    margin: 0;
+}
+
 .command-current-sitrep-tabs {
+    height: 100%;
     min-height: 0;
     overflow: hidden;
 }
@@ -697,23 +669,36 @@
 }
 
 .command-current-sitrep-tabs .ui-tablist {
-    overflow-x: auto;
-    padding: 0 0 0.55rem;
+    background: rgba(12, 27, 45, 0.6);
+    border-bottom: 1px solid rgba(125, 175, 235, 0.18);
+    padding: 0.45rem 0.75rem 0;
 }
 
 .command-current-sitrep-tabs .ui-tabpanel {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr);
+    height: 100%;
     min-height: 0;
-    overflow: auto;
+    overflow: hidden;
     padding: 0;
 }
 
 .command-current-sitrep-viewer {
+    height: 100%;
+    max-height: 100%;
     min-height: 0;
     min-width: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
 }
 
 .command-current-sitrep-viewer .pbb-sitrep-viewer {
     background: transparent;
+    height: auto;
     min-height: 0;
     padding: 0;
 }
@@ -732,11 +717,6 @@
 
 .command-current-sitrep-viewer .sitrep-preview-banner {
     display: none;
-}
-
-.command-current-detail > h3,
-.command-current-detail > p {
-    margin: 0;
 }
 
 .command-current-sitrep-viewer .sitrep-row-action {
@@ -1107,10 +1087,6 @@
         grid-template-rows: minmax(16rem, 38vh) 0 minmax(24rem, 1fr) !important;
     }
 
-    .command-current-cards {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
     .command-sitrep-header {
         display: grid;
     }
@@ -1128,11 +1104,4 @@
 }
 
 @media (max-width: 520px) {
-    .command-current-hero {
-        display: grid;
-    }
-
-    .command-current-cards {
-        grid-template-columns: minmax(0, 1fr);
-    }
 }
