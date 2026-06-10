@@ -719,6 +719,19 @@
     display: none;
 }
 
+.command-current-sitrep-viewer .sitrep-row-action {
+    background: rgba(30, 64, 112, 0.92);
+    border-color: rgba(142, 197, 255, 0.34);
+    color: #dbeafe;
+}
+
+.command-current-sitrep-viewer .sitrep-row-action:hover,
+.command-current-sitrep-viewer .sitrep-row-action:focus-visible {
+    background: rgba(37, 99, 235, 0.34);
+    border-color: rgba(191, 219, 254, 0.56);
+    color: #eff6ff;
+}
+
 .command-grid-stacked-cell {
     display: grid;
     gap: 0.12rem;

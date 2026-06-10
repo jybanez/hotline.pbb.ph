@@ -183,6 +183,33 @@ renderSitrepSection(sitrep, section, options)
 sectionNames()
 ```
 
+Row actions are optional host-owned callbacks for supported evidence rows. The
+viewer renders only generic action slots and does not implement app-specific
+workflows.
+
+```js
+createSitrepViewer(container, {
+    sitrep,
+    section: 'gaps',
+    layout: 'compact',
+    rowActions: [{
+        id: 'request-support',
+        label: 'Request Support',
+        title: 'Request outside support for this item',
+        appliesTo: ({ section, gap, row }) => section === 'gaps' && gap?.type === 'open_needs',
+        onClick: ({ sitrep, section, gap, row, rowIndex, evidenceRef, sourceHubId, sourceRelayHubId, locationName, event }) => {
+            // Host app owns the side effect.
+        },
+    }],
+});
+```
+
+When `rowActions` is omitted, or no action applies to a row, rendered output
+stays unchanged. When actions apply, evidence tables receive an `Actions`
+column with buttons. Callback context includes the SITREP, section, owning gap,
+evidence row payload, row index, evidence ref, source identifiers, location
+name, and click event.
+
 Viewer instance methods:
 
 ```text
@@ -490,3 +517,13 @@ http://127.0.0.1:8097/packages/pbb-sitrep-viewer/demo/js-viewer.html
 `demo/js-viewer.html` renders two independent viewer instances from the same
 SITREP payload: one compact multi-section report and one compact section-only
 panel. Uploading a JSON file updates both instances without a server render.
+
+For a host-owned row actions demo, open:
+
+```text
+http://127.0.0.1:8097/packages/pbb-sitrep-viewer/demo/js-viewer-command.html
+```
+
+`demo/js-viewer-command.html` renders the Gaps section with generic row actions
+and a demo-owned Request Support preview dialog. It is an SDK integration
+example only; it does not submit to Hotline.
