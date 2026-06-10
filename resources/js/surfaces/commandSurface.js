@@ -1386,7 +1386,9 @@ function wireCurrentSitrepGenerateActions(root, host) {
         button.disabled = isGeneratingSitrep;
         button.addEventListener('click', () => {
             button.disabled = true;
-            void generateCurrentDaySitrep(root);
+            void generateCurrentDaySitrep(root).catch(() => {
+                button.disabled = isGeneratingSitrep;
+            });
         });
     });
 }
