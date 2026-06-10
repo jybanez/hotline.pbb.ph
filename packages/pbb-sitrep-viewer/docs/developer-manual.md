@@ -136,6 +136,98 @@ handling, source-location shortening, table rules, empty states, and
 `location_count` behavior. The host app should only decide where those sections
 are placed.
 
+## Render Interactive Browser Instances
+
+The package includes a JavaScript viewer for interactive app surfaces. This is
+not a replacement for the authoritative PHP renderer used for public preview,
+server export, or PDF-safe output. Use it when a browser app needs tabs,
+compact map-side panels, comparison panes, or multiple independent SITREP views
+without asking the server to render HTML fragments repeatedly.
+
+```html
+<link rel="stylesheet" href="/packages/pbb-sitrep-viewer/assets/sitrep-viewer.css">
+<script type="module">
+import { createSitrepViewer } from '/packages/pbb-sitrep-viewer/js/sitrep-viewer.js';
+
+const fullViewer = createSitrepViewer(document.querySelector('#current-sitrep'), {
+    sitrep,
+    layout: 'compact',
+    sections: ['header', 'summary', 'population', 'needs', 'gaps'],
+    onInteraction: ({ type, ref, sourceHubId, section }) => {
+        console.log(type, ref, sourceHubId, section);
+    },
+});
+
+const sourceViewer = createSitrepViewer(document.querySelector('#source-sitrep'), {
+    sitrep: sourceSitrep,
+    layout: 'section',
+    section: 'summary',
+});
+
+sourceViewer.setSection('actions');
+fullViewer.update({ layout: 'compact' });
+sourceViewer.destroy();
+</script>
+```
+
+Each `createSitrepViewer(...)` call owns only the container passed to it. There
+is no singleton state, so one page may render a current consolidated SITREP, a
+source barangay SITREP, and a section-only summary card at the same time.
+
+Public JavaScript API:
+
+```text
+createSitrepViewer(container, options)
+renderSitrep(sitrep, options)
+renderSitrepSection(sitrep, section, options)
+sectionNames()
+```
+
+Viewer instance methods:
+
+```text
+update(options)
+setSitrep(sitrep)
+setLayout(layout)
+setSection(section)
+setSections(sections)
+findEvidence(ref)
+scrollToEvidence(ref, options)
+highlightEvidence(ref, options)
+clearHighlight()
+filterBySource(sourceHubId)
+clearSourceFilter()
+getState()
+destroy()
+```
+
+Interactive render anchors:
+
+```text
+data-sitrep-section
+data-sitrep-evidence-ref
+data-source-hub-id
+data-source-relay-hub-id
+data-location-name
+data-concern-group
+```
+
+Callbacks:
+
+```text
+onInteraction({ type, ref, sourceHubId, sourceRelayHubId, section, locationName, concernGroup, payload, event })
+onEvidenceClick(payload)
+onSourceClick(payload)
+onConcernClick(payload)
+```
+
+`findEvidence`, `scrollToEvidence`, and `highlightEvidence` use the same
+`data-sitrep-evidence-ref` values rendered into the DOM. When the SITREP
+payload provides `evidence_ref`, `evidenceRef`, `ref`, or `evidence_refs[]`,
+that value is preserved; otherwise the viewer emits deterministic section
+fallback refs. `filterBySource(sourceHubId)` only hides source-tagged evidence
+nodes and can be cleared with `clearSourceFilter()`.
+
 ## Build Visualization Data
 
 The SDK can also return framework-agnostic visualization datasets. These arrays
@@ -388,3 +480,13 @@ http://127.0.0.1:8097/packages/pbb-sitrep-viewer/demo/visualization.php
 and renders the returned datasets with Helper `ui.stat.cards`, `ui.charts`,
 `ui.map.legend`, and `ui.map.markers`. The SDK still does not require Helper;
 the demo is only an integration example for apps that already vendor Helper.
+
+For the framework-agnostic JavaScript viewer demo, use the same server and open:
+
+```text
+http://127.0.0.1:8097/packages/pbb-sitrep-viewer/demo/js-viewer.html
+```
+
+`demo/js-viewer.html` renders two independent viewer instances from the same
+SITREP payload: one compact multi-section report and one compact section-only
+panel. Uploading a JSON file updates both instances without a server render.

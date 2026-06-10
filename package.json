@@ -4,7 +4,8 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-        "dev": "vite"
+        "dev": "vite",
+        "test:sitrep-viewer-js": "node tests/js/sitrepViewerJsSdk.test.mjs"
     },
     "dependencies": {
         "maplibre-gl": "^5.9.0"

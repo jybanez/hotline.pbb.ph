@@ -218,19 +218,20 @@ class SitrepViewerSdkTest extends TestCase
         $html = $viewer->render($payload);
         $compactHtml = $viewer->renderSection($payload, 'gaps', ['layout' => 'compact']);
 
-        $this->assertStringContainsString('sitrep-property-list', $html);
-        $this->assertStringContainsString('<h4><span>Location</span>Guadalupe</h4>', $html);
-        $this->assertStringContainsString('<dt>Evidence</dt><dd>Access reports include blocked routes</dd>', $html);
-        $this->assertStringContainsString('Route Evidence', $html);
-        $this->assertStringContainsString('<th>Location</th><th>Status</th><th>Route</th><th>Obstruction</th><th>Cleared</th>', $html);
+        $this->assertStringContainsString('sitrep-evidence-table', $html);
+        $this->assertStringNotContainsString('<h4>Guadalupe</h4>', $html);
+        $this->assertStringContainsString('<th>Route</th><th>Status</th><th>Obstruction</th><th>Cleared</th>', $html);
+        $this->assertStringContainsString('<td>M. Velez Street</td><td>Blocked</td><td>Flooding</td><td>No</td>', $html);
         $this->assertStringContainsString('M. Velez Street', $html);
         $this->assertStringContainsString('Flooding', $html);
         $this->assertStringContainsString('<td>No</td>', $html);
-        $this->assertStringContainsString('sitrep-route-evidence', $compactHtml);
-        $this->assertStringContainsString('<h4>Guadalupe</h4>', $compactHtml);
-        $this->assertStringContainsString('<strong>M. Velez Street</strong>', $compactHtml);
-        $this->assertStringContainsString('<li>Blocked · Flooding · not cleared</li>', $compactHtml);
-        $this->assertStringNotContainsString('<th>Location</th><th>Status</th><th>Route</th><th>Obstruction</th><th>Cleared</th>', $compactHtml);
+        $this->assertStringNotContainsString('Route Evidence', $html);
+        $this->assertStringContainsString('sitrep-evidence-table', $compactHtml);
+        $this->assertStringNotContainsString('sitrep-route-evidence-card', $compactHtml);
+        $this->assertStringNotContainsString('<h4>Guadalupe</h4>', $compactHtml);
+        $this->assertStringContainsString('<th>Route</th><th>Status</th><th>Obstruction</th><th>Cleared</th>', $compactHtml);
+        $this->assertStringContainsString('<td>M. Velez Street</td><td>Blocked</td><td>Flooding</td><td>No</td>', $compactHtml);
+        $this->assertStringNotContainsString('Route Evidence', $compactHtml);
         $this->assertStringContainsString('Field verification is still required.', $html);
     }
 
@@ -238,7 +239,14 @@ class SitrepViewerSdkTest extends TestCase
     {
         $viewer = new SitrepViewer();
         $payload = $this->sitrep();
-        $payload['gaps']['items'] = [];
+        $payload['gaps']['items'] = [[
+            'type' => 'counting_scope',
+            'category' => 'Counting Rule',
+            'title' => 'Closed and discarded reports are not current pressure',
+            'body' => 'This keeps the operating picture focused on reports that still need leadership visibility.',
+            'evidence' => '4 resolved reports were treated as addressed history.',
+            'confidence_note' => 'Resolved reports cannot carry pending entries under current Hotline rules.',
+        ]];
         $payload['data_quality']['counting_notes'] = [[
             'type' => 'counting_scope',
             'title' => 'Resolved and discarded reports are excluded from current pressure',
@@ -250,11 +258,194 @@ class SitrepViewerSdkTest extends TestCase
         $gapsHtml = $viewer->renderSection($payload, 'gaps');
         $dataQualityHtml = $viewer->renderSection($payload, 'data_quality');
 
+        $this->assertStringNotContainsString('Closed and discarded reports are not current pressure', $gapsHtml);
         $this->assertStringNotContainsString('Resolved and discarded reports are excluded from current pressure', $gapsHtml);
         $this->assertStringContainsString('Counting Notes', $dataQualityHtml);
+        $this->assertStringContainsString('Closed and discarded reports are not current pressure', $dataQualityHtml);
+        $this->assertStringContainsString('4 resolved reports were treated as addressed history.', $dataQualityHtml);
         $this->assertStringContainsString('Resolved and discarded reports are excluded from current pressure', $dataQualityHtml);
         $this->assertStringContainsString('5 resolved reports were treated as addressed history', $dataQualityHtml);
         $this->assertStringContainsString('Resolved reports cannot carry pending entries under current Hotline rules.', $dataQualityHtml);
+    }
+
+    public function test_renders_population_gap_evidence_as_table(): void
+    {
+        $viewer = new SitrepViewer();
+        $payload = $this->sitrep();
+        $payload['source_snapshot']['target'] = ['name' => 'Cebu City, Cebu'];
+        $payload['population']['population_groups'] = [[
+            'population_signal' => 'People injured',
+            'reports' => 5,
+            'people_or_families' => '5 people',
+            'notes' => 'Details reported; verification required.',
+            'source_values' => [[
+                'source_hub_name' => 'Barangay Guadalupe, Cebu City, Cebu',
+                'reports' => 1,
+                'people_or_families' => '1 person',
+            ], [
+                'source_hub_name' => 'Barangay Apas, Cebu City, Cebu',
+                'reports' => 2,
+                'people_or_families' => '2 people',
+            ]],
+        ], [
+            'population_signal' => 'Patient or injured person',
+            'reports' => 3,
+            'people_or_families' => '3 people',
+            'notes' => 'serious; guarded; stable; serious; stable',
+            'source_values' => [[
+                'source_hub_name' => 'Barangay Guadalupe, Cebu City, Cebu',
+                'reports' => 3,
+                'people_or_families' => '3 people',
+            ]],
+        ], [
+            'population_signal' => 'Evacuation Needed',
+            'reports' => 3,
+            'people_or_families' => '3 people',
+            'notes' => '1 displacement signal',
+            'breakdowns' => [[
+                'breakdown' => 'Children',
+                'count' => 6,
+            ], [
+                'breakdown' => 'Pregnant',
+                'count' => 2,
+            ]],
+            'source_values' => [[
+                'source_hub_name' => 'Barangay Guadalupe, Cebu City, Cebu',
+                'reports' => 1,
+                'people_or_families' => '1 family / 5 people',
+            ], [
+                'source_hub_name' => 'Barangay Apas, Cebu City, Cebu',
+                'reports' => 1,
+                'people_or_families' => '1 person',
+            ]],
+        ]];
+        $payload['gaps']['items'] = [[
+            'category' => 'Data Confidence',
+            'title' => 'Population figures require verification',
+            'decision_relevance' => 'Population fields require validation before operational use.',
+            'evidence' => 'Barangay Guadalupe, Cebu City, Cebu: 6 current population/life-safety records reported: People injured, Patient or injured person, Evacuation Needed. Barangay Apas, Cebu City, Cebu: 10 current population/life-safety records reported: Patients, Patient or injured person, Evacuation Needed, Estimated people involved.',
+            'source_hubs' => [
+                'Barangay Guadalupe, Cebu City, Cebu',
+                'Barangay Apas, Cebu City, Cebu',
+            ],
+        ]];
+
+        $html = $viewer->renderSection($payload, 'gaps');
+
+        $this->assertStringContainsString('sitrep-population-evidence-card', $html);
+        $this->assertStringContainsString('<h4>Guadalupe</h4>', $html);
+        $this->assertStringContainsString('<h4>Apas</h4>', $html);
+        $this->assertStringContainsString('<th>Signal</th><th>Reports</th><th>People</th><th>Notes</th>', $html);
+        $this->assertStringContainsString('<td>People injured</td><td>1</td><td>1</td><td>Details reported; verification required.</td>', $html);
+        $this->assertStringContainsString('<td>Patient or injured person</td><td>3</td><td>3</td><td>serious; guarded; stable</td>', $html);
+        $this->assertStringNotContainsString('serious; guarded; stable; serious; stable', $html);
+        $this->assertStringContainsString('<td>Evacuation Needed</td><td>1</td><td>5</td><td>1 family; 1 displacement signal; Overall declared breakdown: 6 Children, 2 Pregnant</td>', $html);
+        $this->assertStringNotContainsString('Population Evidence', $html);
+        $this->assertStringNotContainsString('sitrep-property-group', $html);
+    }
+
+    public function test_renders_single_location_population_gap_evidence_as_direct_table(): void
+    {
+        $viewer = new SitrepViewer();
+        $payload = $this->sitrep();
+        $payload['location_count'] = 1;
+        $payload['gaps']['items'] = [[
+            'category' => 'Data Confidence',
+            'title' => 'Population figures require verification',
+            'decision_relevance' => 'Population fields require validation before operational use.',
+            'evidence' => '6 current population/life-safety records reported: People injured, Patient or injured person, Estimated people involved, Evacuation Needed.',
+            'confidence_note' => 'Family, shelter, evacuation, patient, missing-person, and affected-person fields may overlap.',
+        ]];
+
+        $html = $viewer->renderSection($payload, 'gaps');
+
+        $this->assertStringContainsString('sitrep-evidence-table', $html);
+        $this->assertStringNotContainsString('sitrep-population-evidence-card', $html);
+        $this->assertStringNotContainsString('<h4>Guadalupe, CEBU CITY, CEBU</h4>', $html);
+        $this->assertStringContainsString('<th>Signal</th><th>Reports</th><th>People</th><th>Notes</th>', $html);
+        $this->assertStringContainsString('<td>Population/life-safety records</td><td>6</td><td>6</td><td>People injured, Patient or injured person, Estimated people involved, Evacuation Needed.</td>', $html);
+        $this->assertStringNotContainsString('<dt>Evidence</dt><dd>6 current population/life-safety records reported', $html);
+        $this->assertStringNotContainsString('Population Evidence', $html);
+    }
+
+    public function test_renders_resource_gap_evidence_as_table(): void
+    {
+        $viewer = new SitrepViewer();
+        $payload = $this->sitrep();
+        $payload['gaps']['items'] = [[
+            'type' => 'open_needs',
+            'category' => 'Operational constraint',
+            'title' => 'Resource supply not confirmed',
+            'decision_relevance' => 'Leadership should verify whether requested resources are available.',
+            'evidence' => '17 requested resource units remain tied to active/deferred incidents. Category detail is shown in Current Resource Posture.',
+            'resource_categories' => [[
+                'category' => 'Rescue and Extraction',
+                'quantity_requested' => 17,
+                'resources' => ['Body Harness', 'Rescue Boat'],
+            ]],
+        ]];
+
+        $html = $viewer->renderSection($payload, 'gaps');
+
+        $this->assertStringContainsString('sitrep-evidence-table', $html);
+        $this->assertStringNotContainsString('sitrep-resource-evidence-card', $html);
+        $this->assertStringNotContainsString('<h4>Current Location</h4>', $html);
+        $this->assertStringContainsString('<th>Category</th><th>Quantity</th><th>Resources</th>', $html);
+        $this->assertStringContainsString('<td>Rescue and Extraction</td><td>17</td><td>Body Harness, Rescue Boat</td>', $html);
+        $this->assertStringNotContainsString('<h3>Resource Evidence</h3>', $html);
+    }
+
+    public function test_renders_location_resource_gap_evidence_as_table(): void
+    {
+        $viewer = new SitrepViewer();
+        $payload = $this->sitrep();
+        $payload['source_snapshot']['target'] = ['name' => 'Cebu City, Cebu'];
+        $payload['gaps']['items'] = [[
+            'type' => 'open_needs',
+            'category' => 'Operational constraint',
+            'title' => 'Resource supply not confirmed',
+            'decision_relevance' => 'Leadership should verify whether requested resources are available.',
+            'evidence' => 'Barangay Guadalupe, Cebu City, Cebu: 49 requested resource units remain tied to active/deferred incidents. Category detail is shown in Current Resource Posture. Barangay Apas, Cebu City, Cebu: 58 requested resource units remain tied to active/deferred incidents. Category detail is shown in Current Resource Posture.',
+            'source_hubs' => [
+                'Barangay Guadalupe, Cebu City, Cebu',
+                'Barangay Apas, Cebu City, Cebu',
+            ],
+        ]];
+        $payload['needs']['items'] = [[
+            'resource' => 'Body Harness',
+            'category' => 'Rescue and Extraction',
+            'quantity_requested' => 17,
+            'sources' => [[
+                'source_hub_name' => 'Barangay Guadalupe, Cebu City, Cebu',
+                'quantity_requested' => 7,
+            ], [
+                'source_hub_name' => 'Barangay Apas, Cebu City, Cebu',
+                'quantity_requested' => 10,
+            ]],
+        ], [
+            'resource' => 'Structural Assessment Team',
+            'category' => 'Search and Damage Assessment',
+            'quantity_requested' => 13,
+            'sources' => [[
+                'source_hub_name' => 'Barangay Guadalupe, Cebu City, Cebu',
+                'quantity_requested' => 5,
+            ], [
+                'source_hub_name' => 'Barangay Apas, Cebu City, Cebu',
+                'quantity_requested' => 8,
+            ]],
+        ]];
+
+        $html = $viewer->renderSection($payload, 'gaps');
+
+        $this->assertStringContainsString('sitrep-resource-evidence-card', $html);
+        $this->assertStringContainsString('<h4>Guadalupe</h4>', $html);
+        $this->assertStringContainsString('<h4>Apas</h4>', $html);
+        $this->assertStringContainsString('<th>Category</th><th>Quantity</th><th>Resources</th>', $html);
+        $this->assertStringContainsString('<td>Rescue and Extraction</td><td>7</td><td>Body Harness</td>', $html);
+        $this->assertStringContainsString('<td>Search and Damage Assessment</td><td>8</td><td>Structural Assessment Team</td>', $html);
+        $this->assertStringNotContainsString('<th>Units</th><th>Note</th>', $html);
+        $this->assertStringNotContainsString('<h3>Resource Evidence</h3>', $html);
+        $this->assertStringNotContainsString('sitrep-property-group', $html);
     }
 
     public function test_uses_hotline_preview_fallback_copy(): void
@@ -313,8 +504,8 @@ class SitrepViewerSdkTest extends TestCase
         $this->assertStringContainsString('<p class="sitrep-metaline"><span>#0054</span> <span class="sitrep-separator">&middot;</span> <span>Draft / Private</span>', $html);
         $this->assertStringContainsString('<span>System Generated</span>', $html);
         $this->assertStringContainsString('<strong>Current totals:</strong> <span>23 open reports</span> <span class="sitrep-separator">&middot;</span> <span>19 active</span>', $html);
-        $this->assertStringContainsString('<th>Location</th><th>Status</th><th>Route</th><th>Obstruction</th><th>Cleared</th>', $html);
-        $this->assertStringContainsString('<td>Riverside bridge approach</td><td>Floodwater</td><td>No</td>', $html);
+        $this->assertStringContainsString('<th>Route</th><th>Status</th><th>Obstruction</th><th>Cleared</th>', $html);
+        $this->assertStringContainsString('<td>Riverside bridge approach</td><td>Blocked</td><td>Floodwater</td><td>No</td>', $html);
         $this->assertStringContainsString('<span>Hotline: v1-5.6.1</span> <span class="sitrep-separator">&middot;</span> <span>Build source-template</span>', $html);
         $this->assertStringContainsString('<span>Hub Node: Guadalupe, Cebu City, Cebu</span> <span class="sitrep-separator">&middot;</span> <span>Barangay</span> <span class="sitrep-separator">&middot;</span> <span>072217029</span>', $html);
 
