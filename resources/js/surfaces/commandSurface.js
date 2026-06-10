@@ -1351,45 +1351,15 @@ function renderCurrentSnapshot(root, targetHost = null) {
 
     destroyCurrentSitrepSectionTabs();
     const latest = latestSitreps[0] ?? null;
-    const period = currentManilaDayPeriod();
-    const activeCount = latestIncidents.filter((incident) => ['Active', 'Deferred'].includes(incident.status)).length;
-    const closedCount = latestIncidents.filter((incident) => ['Resolved', 'Discarded'].includes(incident.status)).length;
-    const assignmentCount = latestIncidents.reduce((total, incident) => total + (Array.isArray(incident.team_assignments) ? incident.team_assignments.length : 0), 0);
-    const locatedCount = latestIncidents.filter(hasIncidentCoordinates).length;
-    const summary = latest?.summary ?? {};
-    const liveAlertLevel = appState.bootstrap?.alert_level ?? latest?.alert_level ?? 'Normal';
-    const alertTone = formatAlertTone(liveAlertLevel);
 
     host.innerHTML = `
-        <section class="command-current-summary">
-            <div class="command-current-hero is-alert-${alertTone}">
-                <div>
-                    <p class="ui-eyebrow">Current Snapshot</p>
-                    <h2>${escapeHtml(latest?.title ?? `Daily SITREP - ${period.label}`)}</h2>
-                    <p>${escapeHtml(summary?.headline ?? summary?.primary_concern ?? 'Generate a SITREP snapshot to capture the current operational picture.')}</p>
-                </div>
-                <button class="surface-button secondary tiny command-generate-sitrep-button" type="button" data-command-generate-current title="Generate today's SITREP manually">Generate Today</button>
+        <section class="command-current-sitrep-panel">
+            <div class="command-current-sitrep-tabs" data-command-current-sitrep-tabs>
+                <p class="surface-empty">${latest ? 'Loading official SITREP sections...' : 'Generate a SITREP to view official section tabs.'}</p>
             </div>
-            <div class="command-current-cards">
-                ${renderCurrentCard('Latest SITREP', latest ? formatSitrepNumber(latest.sequence_number ?? latest.id) : 'None', latest ? `Record ${formatSitrepRecordNumber(latest.id)} · ${formatDateTime(latest.generated_at)}` : 'No generated snapshot yet')}
-                ${renderCurrentCard('Open Incidents', activeCount, 'Active and deferred incidents')}
-                ${renderCurrentCard('Closed Incidents', closedCount, 'Resolved and discarded incidents')}
-                ${renderCurrentCard('Assignments', assignmentCount, 'Team assignment records')}
-                ${renderCurrentCard('Mapped Incidents', `${locatedCount}/${latestIncidents.length}`, 'Incidents with coordinates')}
-                ${renderCurrentCard('Alert Level', formatStatusLabel(liveAlertLevel), 'Current command alert')}
-            </div>
-            <section class="command-current-detail command-current-sitrep-panel">
-                <h3>Current SITREP</h3>
-                <div class="command-current-sitrep-tabs" data-command-current-sitrep-tabs>
-                    <p class="surface-empty">${latest ? 'Loading official SITREP sections...' : 'Generate a SITREP to view official section tabs.'}</p>
-                </div>
-            </section>
         </section>
     `;
 
-    host.querySelector('[data-command-generate-current]')?.addEventListener('click', () => {
-        void generateCurrentDaySitrep(root);
-    });
     if (latest) {
         void mountCurrentSitrepSectionTabs(host.querySelector('[data-command-current-sitrep-tabs]'), latest);
     }
@@ -1502,20 +1472,6 @@ function mountCurrentSitrepViewerSection(panel, sitrep, section) {
         },
     });
     trackSurfaceInstance(commandCurrentSitrepViewerInstance);
-}
-
-function renderCurrentCard(label, value, detail) {
-    return `
-        <article class="command-current-card">
-            <span>${escapeHtml(label)}</span>
-            <strong>${escapeHtml(String(value ?? ''))}</strong>
-            <small>${escapeHtml(detail)}</small>
-        </article>
-    `;
-}
-
-function hasIncidentCoordinates(incident) {
-    return Number.isFinite(Number(incident?.latitude)) && Number.isFinite(Number(incident?.longitude));
 }
 
 function renderSitrepsGrid(host, items, root = null) {
@@ -2496,16 +2452,6 @@ function renderIncidentFallbackList(items) {
             `).join('')}
         </div>
     `;
-}
-
-function formatSitrepRecordNumber(value) {
-    const numeric = Number(value);
-
-    if (!Number.isFinite(numeric)) {
-        return `#${value ?? ''}`.trim();
-    }
-
-    return `#${String(numeric).padStart(6, '0')}`;
 }
 
 function formatSitrepNumber(value) {
