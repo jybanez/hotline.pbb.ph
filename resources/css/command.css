@@ -133,8 +133,12 @@
 }
 
 .command-splitter-host {
+    background: rgba(10, 25, 35, 0.88);
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius);
     display: block;
     min-height: 0;
+    overflow: hidden;
 }
 
 .command-splitter-host:not(.has-helper-splitter) {
@@ -250,6 +254,10 @@
 
 .command-map-pane,
 .command-command-pane {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
     box-sizing: border-box;
     display: grid;
     height: 100%;
@@ -343,12 +351,42 @@
 }
 
 .command-command-pane .ui-tablist {
-    padding: 0.75rem 0.75rem 0;
+    align-items: flex-end;
+    border-bottom: 1px solid rgba(125, 175, 235, 0.2);
+    flex-wrap: nowrap;
+    gap: 0.15rem;
+    overflow-x: auto;
+    padding: 0.65rem 0.75rem 0;
+}
+
+.command-command-pane .ui-tab {
+    background: transparent;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    color: var(--muted);
+    flex: 0 0 auto;
+    padding: 0.55rem 0.8rem 0.65rem;
+}
+
+.command-command-pane .ui-tab:hover {
+    background: rgba(96, 165, 250, 0.08);
+    color: var(--text);
+}
+
+.command-command-pane .ui-tab.is-active {
+    background: rgba(96, 165, 250, 0.1);
+    border-bottom-color: rgba(142, 197, 255, 0.95);
+    color: #e7f0ff;
 }
 
 .command-command-pane .ui-tabpanel {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
     min-height: 0;
     overflow: hidden;
+    padding: 0;
 }
 
 .command-sitrep-board {
@@ -576,10 +614,10 @@
     height: 100%;
     min-height: 0;
     overflow: hidden;
-    padding: 0.75rem;
 }
 
 .command-current-sitrep-tabs {
+    height: 100%;
     min-height: 0;
     overflow: hidden;
 }
@@ -592,23 +630,32 @@
 }
 
 .command-current-sitrep-tabs .ui-tablist {
-    overflow-x: auto;
-    padding: 0 0 0.55rem;
+    background: rgba(12, 27, 45, 0.6);
+    border-bottom: 1px solid rgba(125, 175, 235, 0.18);
+    padding: 0.45rem 0.75rem 0;
 }
 
 .command-current-sitrep-tabs .ui-tabpanel {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
     min-height: 0;
-    overflow: auto;
+    overflow: hidden;
     padding: 0;
 }
 
 .command-current-sitrep-viewer {
+    height: 100%;
     min-height: 0;
     min-width: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
 }
 
 .command-current-sitrep-viewer .pbb-sitrep-viewer {
     background: transparent;
+    height: auto;
     min-height: 0;
     padding: 0;
 }
