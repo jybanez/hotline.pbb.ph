@@ -168,6 +168,7 @@ function normalizeOptions(options) {
   const sections = Array.isArray(options.sections)
     ? options.sections.map(normalizeSectionName).filter(Boolean)
     : null;
+  const rowActions = normalizeRowActions(options.rowActions);
 
   return {
     sitrep,
@@ -176,6 +177,7 @@ function normalizeOptions(options) {
     sections,
     preview: Boolean(options.preview),
     sourceFilter: options.sourceFilter ? text(options.sourceFilter) : null,
+    rowActions,
     onInteraction: functionOrNull(options.onInteraction),
     onEvidenceClick: functionOrNull(options.onEvidenceClick),
     onSourceClick: functionOrNull(options.onSourceClick),
@@ -219,6 +221,23 @@ function normalizeSectionName(section) {
   return normalized === '' ? null : normalized;
 }
 
+function normalizeRowActions(rowActions) {
+  if (!Array.isArray(rowActions)) {
+    return [];
+  }
+
+  return rowActions
+    .filter(isObject)
+    .map((action) => ({
+      id: text(action.id),
+      label: text(action.label),
+      title: text(action.title),
+      appliesTo: functionOrNull(action.appliesTo),
+      onClick: functionOrNull(action.onClick),
+    }))
+    .filter((action) => action.id && action.label && action.onClick);
+}
+
 function renderViewer(state, instanceId) {
   const root = element('main', {
     class: classNames(
@@ -238,7 +257,7 @@ function renderViewer(state, instanceId) {
 
   const sections = selectedSections(state);
   sections.forEach((section) => {
-    document.append(renderSection(state.sitrep, section, state.layout));
+    document.append(renderSection(state.sitrep, section, state.layout, state));
   });
 
   root.append(document);
@@ -256,7 +275,7 @@ function selectedSections(state) {
   return SECTION_NAMES;
 }
 
-function renderSection(sitrep, section, layout = 'document') {
+function renderSection(sitrep, section, layout = 'document', state = {}) {
   let node;
   switch (section) {
     case 'header':
@@ -281,7 +300,7 @@ function renderSection(sitrep, section, layout = 'document') {
       node = renderNeeds(sitrep, layout);
       break;
     case 'gaps':
-      node = renderGaps(sitrep, layout);
+      node = renderGaps(sitrep, layout, state);
       break;
     case 'period_activity':
     case 'period_activity_report':
@@ -559,7 +578,7 @@ function renderNeeds(sitrep, layout = 'document') {
   return wrapper;
 }
 
-function renderGaps(sitrep, layout = 'document') {
+function renderGaps(sitrep, layout = 'document', state = {}) {
   const gaps = section(sitrep, 'gaps');
   const needs = section(sitrep, 'needs');
   const population = section(sitrep, 'population');
@@ -575,9 +594,10 @@ function renderGaps(sitrep, layout = 'document') {
     return wrapper;
   }
   gapItems.forEach((gap) => {
+    const fallbackRef = `gaps:${indexSlug(gap.title ?? gap.category ?? 'gap')}`;
     const card = element('article', {
       class: 'sitrep-gap',
-      ...evidenceAttrs(gap, `gaps:${indexSlug(gap.title ?? gap.category ?? 'gap')}`),
+      ...evidenceAttrs(gap, fallbackRef),
       'data-sitrep-section': 'gaps',
       'data-concern-group': text(gap.category),
     });
@@ -587,7 +607,13 @@ function renderGaps(sitrep, layout = 'document') {
       element('strong', {}, text(gap.title, 'Gap')),
       body ? element('p', {}, text(body)) : null,
     );
-    const evidence = gapEvidence(gap, targetName, needs, population);
+    const evidence = gapEvidence(gap, targetName, needs, population, {
+      sitrep,
+      section: 'gaps',
+      gap,
+      layout,
+      rowActions: state.rowActions,
+    });
     if (evidence || gap.confidence_note) {
       const details = element('dl', { class: 'sitrep-gap-details' });
       if (evidence) {
@@ -807,6 +833,83 @@ function metricGrid(metrics) {
   return grid;
 }
 
+function applicableRowActions(context, rowActions = []) {
+  const actionContext = rowActionContext(context);
+
+  return array(rowActions).filter((action) => {
+    if (!action?.appliesTo) {
+      return true;
+    }
+
+    try {
+      return action.appliesTo(actionContext) !== false;
+    } catch (error) {
+      console.warn('[pbb-sitrep-viewer] row action appliesTo failed.', error);
+      return false;
+    }
+  });
+}
+
+function renderRowActions(context, rowActions = []) {
+  const actionContext = rowActionContext(context);
+  const actions = applicableRowActions(actionContext, rowActions);
+
+  if (!actions.length) {
+    return null;
+  }
+
+  const wrap = element('div', {
+    class: 'sitrep-row-actions',
+    'aria-label': 'Row actions',
+  });
+
+  actions.forEach((action) => {
+    const button = element('button', {
+      type: 'button',
+      class: 'sitrep-row-action',
+      title: action.title,
+      'data-sitrep-row-action': action.id,
+    }, action.label);
+
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      try {
+        const result = action.onClick({
+          ...actionContext,
+          event,
+        });
+        if (result && typeof result.catch === 'function') {
+          result.catch((error) => console.error('[pbb-sitrep-viewer] row action failed.', error));
+        }
+      } catch (error) {
+        console.error('[pbb-sitrep-viewer] row action failed.', error);
+      }
+    });
+
+    wrap.append(button);
+  });
+
+  return wrap;
+}
+
+function rowActionContext(context = {}) {
+  const row = object(context.row ?? context.gap);
+
+  return {
+    sitrep: context.sitrep ?? null,
+    section: context.section ?? null,
+    gap: context.gap ?? null,
+    row,
+    rowIndex: Number.isFinite(Number(context.rowIndex ?? context.index)) ? Number(context.rowIndex ?? context.index) : null,
+    evidenceRef: text(context.evidenceRef),
+    sourceHubId: text(row.source_hub_id ?? row.hub_id) || null,
+    sourceRelayHubId: text(row.source_relay_hub_id ?? row.relay_hub_id) || null,
+    locationName: text(row.source_hub_name ?? row.location ?? row.area ?? row.name) || null,
+  };
+}
+
 function table(title, headers, rows, options = {}) {
   const wrap = element('div', { class: 'sitrep-table-card' });
   if (text(title)) {
@@ -821,17 +924,36 @@ function table(title, headers, rows, options = {}) {
     return wrap;
   }
   const tableEl = element('table', { class: classNames('sitrep-table', options.className) });
-  tableEl.append(element('thead', {}, element('tr', {}, ...headers.map((header) => element('th', {}, header)))));
+  const rowContexts = rows.map((row, index) => {
+    const payload = object(options.rowPayloads?.[index] ?? row);
+    return {
+      sitrep: options.sitrep ?? null,
+      section: options.section ?? null,
+      gap: options.gap ?? null,
+      row: payload,
+      evidenceRef: evidenceRef(payload, `${options.section ?? 'table'}.${indexSlug(title)}.${index + 1}`),
+      rowIndex: index,
+      layout: options.layout ?? 'document',
+    };
+  });
+  const hasRowActions = rowContexts.some((context) => applicableRowActions(context, options.rowActions).length > 0);
+  tableEl.append(element('thead', {}, element('tr', {},
+    ...headers.map((header) => element('th', {}, header)),
+    hasRowActions ? element('th', { class: 'sitrep-row-actions-heading' }, 'Actions') : null,
+  )));
   const tbody = element('tbody');
   rows.forEach((row, index) => {
     const payload = object(options.rowPayloads?.[index] ?? row);
+    const rowContext = rowContexts[index];
     tbody.append(element('tr', {
-      ...evidenceAttrs(payload, `${options.section ?? 'table'}.${indexSlug(title)}.${index + 1}`),
+      ...evidenceAttrs(payload, rowContext.evidenceRef),
       ...sourceAttrs(payload),
       'data-sitrep-section': options.section,
       'data-location-name': payload[options.locationKey] ?? payload.location ?? payload.area,
       'data-concern-group': payload[options.concernKey] ?? payload.concern,
-    }, ...row.map((value) => element('td', {}, tableCellText(value)))));
+    },
+    ...row.map((value) => element('td', {}, tableCellText(value))),
+    hasRowActions ? element('td', {}, renderRowActions(rowContext, options.rowActions)) : null));
   });
   tableEl.append(tbody);
   wrap.append(tableEl);
@@ -868,6 +990,18 @@ function propertyRows(headers, rows, options = {}) {
       list.append(element('div', {}, element('dt', {}, header), element('dd', {}, propertyValue(header, row[headerIndex]))));
     });
     group.append(list);
+    const actions = renderRowActions({
+      sitrep: options.sitrep ?? null,
+      section: options.section ?? null,
+      gap: options.gap ?? null,
+      row: payload,
+      evidenceRef: evidenceRef(payload, `${options.section ?? 'property'}.${indexSlug(titleHeader)}.${index + 1}`),
+      rowIndex: index,
+      layout: options.layout ?? 'compact',
+    }, options.rowActions);
+    if (actions) {
+      group.append(actions);
+    }
     wrap.append(group);
   });
   return wrap;
@@ -948,31 +1082,31 @@ function propertyList(title, rows, options = {}) {
   return wrap;
 }
 
-function gapEvidence(gap, targetName, needs = {}, population = {}) {
+function gapEvidence(gap, targetName, needs = {}, population = {}, options = {}) {
   const evidence = text(gap.evidence);
   const sourceHubs = array(gap.source_hubs).map((source) => text(source)).filter(Boolean);
   if (isResourceSupplyGap(gap)) {
     const groups = resourceEvidenceGroups(gap, needs, targetName);
     if (groups.length) {
-      return resourceEvidenceCards(groups);
+      return resourceEvidenceCards(groups, options);
     }
   }
 
   if (isPopulationConfidenceGap(gap)) {
     const groups = populationEvidenceGroups(gap, population, targetName);
     if (groups.length) {
-      return populationEvidenceCards(groups);
+      return populationEvidenceCards(groups, options);
     }
 
     const evidenceGroups = populationEvidenceGroupsFromEvidence(evidence, sourceHubs, targetName);
     if (evidenceGroups.length) {
-      return populationEvidenceCards(evidenceGroups);
+      return populationEvidenceCards(evidenceGroups, options);
     }
   }
 
   const routeGroups = routeEvidenceGroups(gap, targetName);
   if (routeGroups.length) {
-    return routeEvidenceCards(routeGroups);
+    return routeEvidenceCards(routeGroups, options);
   }
 
   if (!evidence || !sourceHubs.length) {
@@ -1007,7 +1141,16 @@ function gapEvidence(gap, targetName, needs = {}, population = {}) {
 
   const populationRows = populationEvidenceRows(rows);
   if (populationRows.length) {
-    return table('Population Evidence', ['Location', 'People', 'Breakdown'], populationRows, { section: 'gaps' });
+    return table('Population Evidence', ['Location', 'People', 'Breakdown'], populationRows, {
+      ...options,
+      section: 'gaps',
+      rowPayloads: rows.map((row) => ({
+        ...object(row[2]),
+        location: row[0],
+        people: row[1],
+        breakdown: row[2],
+      })),
+    });
   }
 
   const resourceRows = resourceEvidenceRowsFromSourceRows(rows);
@@ -1016,7 +1159,13 @@ function gapEvidence(gap, targetName, needs = {}, population = {}) {
       location: row[0],
       headers: ['Units', 'Note'],
       rows: [[row[1], row[2]]],
-    })));
+      rowPayloads: [{
+        ...object(row[3]),
+        location: row[0],
+        quantity_requested: row[1],
+        note: row[2],
+      }],
+    })), options);
   }
 
   return propertyList('', rows, { section: 'gaps' });
@@ -1031,7 +1180,7 @@ function populationEvidenceRows(rows) {
     if (!match) {
       return [];
     }
-    output.push([location, match[1], match[2].trim()]);
+    output.push([location, match[1], match[2].trim(), object(row[2])]);
   }
 
   return output;
@@ -1058,6 +1207,14 @@ function populationEvidenceGroupsFromEvidence(evidence, sourceHubs, targetName) 
       Number(match[1]),
       match[2].trim(),
     ]],
+    rowPayloads: [{
+      location,
+      signal: 'Population/life-safety records',
+      reports: Number(match[1]),
+      people: Number(match[1]),
+      notes: match[2].trim(),
+      source_hub_name: sourceHubs.length === 1 ? sourceHubs[0] : location,
+    }],
   }];
 }
 
@@ -1096,11 +1253,25 @@ function populationEvidenceGroups(gap, population, targetName) {
       if (!groups.has(location)) {
         groups.set(location, []);
       }
-      groups.get(location).push([signal, reports, people, notesText]);
+      groups.get(location).push({
+        cells: [signal, reports, people, notesText],
+        payload: {
+          ...source,
+          location,
+          population_signal: signal,
+          reports,
+          people,
+          notes: notesText,
+        },
+      });
     });
   });
 
-  return [...groups.entries()].map(([location, rows]) => ({ location, rows })).filter((group) => group.rows.length);
+  return [...groups.entries()].map(([location, rows]) => ({
+    location,
+    rows: rows.map((row) => row.cells),
+    rowPayloads: rows.map((row) => row.payload),
+  })).filter((group) => group.rows.length);
 }
 
 function populationPeopleValue(peopleOrFamilies, fallback) {
@@ -1159,15 +1330,21 @@ function populationBreakdownNote(populationGroup) {
   return breakdowns.length ? `Overall declared breakdown: ${breakdowns.join(', ')}` : '';
 }
 
-function populationEvidenceCards(groups) {
+function populationEvidenceCards(groups, options = {}) {
   if (groups.length === 1) {
-    return evidenceTable(['Signal', 'Reports', 'People', 'Notes'], groups[0].rows);
+    return evidenceTable(['Signal', 'Reports', 'People', 'Notes'], groups[0].rows, {
+      ...options,
+      rowPayloads: groups[0].rowPayloads,
+    });
   }
 
   const groupsWrap = element('div', { class: 'sitrep-population-evidence-groups' });
   groups.forEach((group) => {
     const card = element('section', { class: 'sitrep-population-evidence-card' }, element('h4', {}, text(group.location, 'Location')));
-    card.append(evidenceTable(['Signal', 'Reports', 'People', 'Notes'], group.rows));
+    card.append(evidenceTable(['Signal', 'Reports', 'People', 'Notes'], group.rows, {
+      ...options,
+      rowPayloads: group.rowPayloads,
+    }));
     groupsWrap.append(card);
   });
 
@@ -1209,6 +1386,13 @@ function resourceEvidenceGroups(gap, needs, targetName) {
       location: resourceEvidenceLocation(gap, targetName),
       headers: ['Category', 'Quantity', 'Resources'],
       rows,
+      rowPayloads: array(gap.resource_categories).filter(isObject).map((row) => ({
+        ...row,
+        location: resourceEvidenceLocation(gap, targetName),
+        category: text(row.category, 'Uncategorized'),
+        quantity_requested: row.quantity_requested ?? row.quantity ?? 0,
+        resources: array(row.resources),
+      })),
     }];
   }
 
@@ -1237,7 +1421,13 @@ function resourceEvidenceGroupsFromNeeds(needs, targetName, sourceHubs) {
       }
       const categories = locations.get(location);
       if (!categories.has(category)) {
-        categories.set(category, { quantity: 0, resources: new Set() });
+        categories.set(category, {
+          quantity: 0,
+          resources: new Set(),
+          source,
+          source_hub_name: sourceName,
+          location,
+        });
       }
       const row = categories.get(category);
       row.quantity += quantity;
@@ -1255,6 +1445,14 @@ function resourceEvidenceGroupsFromNeeds(needs, targetName, sourceHubs) {
       row.quantity,
       [...row.resources].join(', '),
     ]),
+    rowPayloads: [...categories.entries()].map(([category, row]) => ({
+      ...object(row.source),
+      category,
+      quantity_requested: row.quantity,
+      resources: [...row.resources],
+      source_hub_name: row.source_hub_name,
+      location: row.location,
+    })),
   })).filter((group) => group.rows.length);
 }
 
@@ -1273,15 +1471,21 @@ function resourceEvidenceRowsFromSourceRows(rows) {
   return output;
 }
 
-function resourceEvidenceCards(groups) {
+function resourceEvidenceCards(groups, options = {}) {
   if (groups.length === 1) {
-    return evidenceTable(groups[0].headers, groups[0].rows);
+    return evidenceTable(groups[0].headers, groups[0].rows, {
+      ...options,
+      rowPayloads: groups[0].rowPayloads,
+    });
   }
 
   const groupsWrap = element('div', { class: 'sitrep-resource-evidence-groups' });
   groups.forEach((group) => {
     const card = element('section', { class: 'sitrep-resource-evidence-card' }, element('h4', {}, text(group.location, 'Location')));
-    card.append(evidenceTable(group.headers, group.rows));
+    card.append(evidenceTable(group.headers, group.rows, {
+      ...options,
+      rowPayloads: group.rowPayloads,
+    }));
     groupsWrap.append(card);
   });
 
@@ -1309,36 +1513,82 @@ function routeEvidenceGroups(gap, targetName = null) {
     if (!groups.has(location)) {
       groups.set(location, []);
     }
-    groups.get(location).push([
-      route,
-      text(item.status, 'Reported'),
-      text(item.obstruction_type),
-      text(item.cleared),
-    ]);
+    groups.get(location).push({
+      cells: [
+        route,
+        text(item.status, 'Reported'),
+        text(item.obstruction_type),
+        text(item.cleared),
+      ],
+      payload: {
+        ...item,
+        location,
+        route_location: route,
+      },
+    });
   });
 
-  return [...groups.entries()].map(([location, rows]) => ({ location, rows })).filter((group) => group.rows.length);
+  return [...groups.entries()].map(([location, rows]) => ({
+    location,
+    rows: rows.map((row) => row.cells),
+    rowPayloads: rows.map((row) => row.payload),
+  })).filter((group) => group.rows.length);
 }
 
-function routeEvidenceCards(groups) {
+function routeEvidenceCards(groups, options = {}) {
   if (groups.length === 1) {
-    return evidenceTable(['Route', 'Status', 'Obstruction', 'Cleared'], groups[0].rows);
+    return evidenceTable(['Route', 'Status', 'Obstruction', 'Cleared'], groups[0].rows, {
+      ...options,
+      rowPayloads: groups[0].rowPayloads,
+    });
   }
 
   const groupsWrap = element('div', { class: 'sitrep-route-evidence-groups' });
   groups.forEach((group) => {
     const card = element('section', { class: 'sitrep-route-evidence-card' }, element('h4', {}, text(group.location, 'Location')));
-    card.append(evidenceTable(['Route', 'Status', 'Obstruction', 'Cleared'], group.rows));
+    card.append(evidenceTable(['Route', 'Status', 'Obstruction', 'Cleared'], group.rows, {
+      ...options,
+      rowPayloads: group.rowPayloads,
+    }));
     groupsWrap.append(card);
   });
 
   return groupsWrap;
 }
 
-function evidenceTable(headers, rows) {
+function evidenceTable(headers, rows, options = {}) {
   const tableEl = element('table', { class: 'sitrep-table sitrep-evidence-table' });
-  tableEl.append(element('thead', {}, element('tr', {}, ...headers.map((header) => element('th', {}, header)))));
-  tableEl.append(element('tbody', {}, ...rows.map((row) => element('tr', {}, ...row.map((cell) => element('td', {}, text(cell, '-')))))));
+  const rowContexts = rows.map((row, index) => {
+    const payload = object(options.rowPayloads?.[index] ?? {});
+    return {
+      sitrep: options.sitrep ?? null,
+      section: options.section ?? 'gaps',
+      gap: options.gap ?? null,
+      row: payload,
+      rowIndex: index,
+      evidenceRef: evidenceRef(payload, `${options.section ?? 'gaps'}.evidence.${index + 1}`),
+    };
+  });
+  const hasRowActions = rowContexts.some((context) => applicableRowActions(context, options.rowActions).length > 0);
+
+  tableEl.append(element('thead', {}, element('tr', {},
+    ...headers.map((header) => element('th', {}, header)),
+    hasRowActions ? element('th', { class: 'sitrep-row-actions-heading' }, 'Actions') : null,
+  )));
+  tableEl.append(element('tbody', {}, ...rows.map((row, index) => {
+    const payload = object(options.rowPayloads?.[index] ?? {});
+    const rowAttrs = hasRowActions
+      ? {
+        ...evidenceAttrs(payload, rowContexts[index].evidenceRef),
+        ...sourceAttrs(payload),
+        'data-sitrep-section': options.section ?? 'gaps',
+      }
+      : {};
+
+    return element('tr', rowAttrs,
+    ...row.map((cell) => element('td', {}, text(cell, '-'))),
+    hasRowActions ? element('td', {}, renderRowActions(rowContexts[index], options.rowActions)) : null);
+  })));
   return tableEl;
 }
 

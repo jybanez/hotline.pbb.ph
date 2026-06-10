@@ -13,6 +13,7 @@ import {
 } from './surfaceShared.js';
 import { createOperatorPresenceAvatars, normalizeOperatorPresenceItems } from '../features/operatorPresenceAvatars.js';
 import { createDashboardMap } from '../maps/dashboardMap.js';
+import { createSitrepViewer } from '../../../packages/pbb-sitrep-viewer/js/sitrep-viewer.js';
 import {
     buildPresenceSubscribePayload,
     buildRoomJoinPayload,
@@ -71,6 +72,8 @@ let commandAssignmentBoardInstance = null;
 let commandIncidentStatusFilters = [];
 let commandIncidentStatusSelectInstance = null;
 let commandWorkbenchRenderFrame = null;
+let commandCurrentGapsViewer = null;
+let commandCurrentGapsRequestId = 0;
 
 export async function renderCommandSurface(root, bootstrap) {
     appState.runtime.navbarItems = [];
@@ -1362,13 +1365,331 @@ function renderCurrentSnapshot(root, targetHost = null) {
                 <p><strong>Primary concern:</strong> ${escapeHtml(summary?.primary_concern ?? 'No generated primary concern yet.')}</p>
                 <p><strong>Hotspot:</strong> ${escapeHtml(summary?.hotspot ?? 'No hotspot identified yet.')}</p>
             </section>
+            <section class="command-current-sitrep-panel" aria-labelledby="command-current-sitrep-gaps-title">
+                <div class="command-current-sitrep-tabs" role="tablist" aria-label="Current SITREP sections">
+                    <button class="command-current-sitrep-tab is-active" id="command-current-sitrep-gaps-title" type="button" role="tab" aria-selected="true">Current SITREP Gaps</button>
+                </div>
+                <div class="command-current-sitrep-viewer" data-command-current-sitrep-gaps>
+                    <p class="surface-empty">Loading current SITREP gaps...</p>
+                </div>
+            </section>
         </section>
     `;
 
     host.querySelector('[data-command-generate-current]')?.addEventListener('click', () => {
         void generateCurrentDaySitrep(root);
     });
+    void renderCurrentSitrepGaps(root, latest, host.querySelector('[data-command-current-sitrep-gaps]'));
     refreshCommandOperatorPresence(root);
+}
+
+async function renderCurrentSitrepGaps(root, latest, host) {
+    commandCurrentGapsViewer?.destroy?.();
+    commandCurrentGapsViewer = null;
+    const requestId = ++commandCurrentGapsRequestId;
+
+    if (!host) {
+        return;
+    }
+
+    if (!latest?.id) {
+        host.innerHTML = '<p class="surface-empty">Generate a SITREP to review current gaps.</p>';
+        return;
+    }
+
+    host.innerHTML = '<p class="surface-empty">Loading current SITREP gaps...</p>';
+
+    try {
+        const payload = await fetchJson(`${SITREP_INDEX_URL}/${encodeURIComponent(latest.id)}`);
+
+        if (requestId !== commandCurrentGapsRequestId) {
+            return;
+        }
+
+        const sitrep = payload?.sitrep ?? latest;
+
+        host.replaceChildren();
+        commandCurrentGapsViewer = createSitrepViewer(host, {
+            sitrep,
+            section: 'gaps',
+            layout: 'compact',
+            rowActions: commandCurrentGapRowActions(root),
+        });
+        trackSurfaceInstance(commandCurrentGapsViewer);
+    } catch (error) {
+        if (requestId !== commandCurrentGapsRequestId) {
+            return;
+        }
+
+        host.innerHTML = '<p class="surface-empty">Unable to load current SITREP gaps.</p>';
+        showToast('Unable to load current SITREP gaps.', 'error');
+    }
+}
+
+function commandCurrentGapRowActions(root) {
+    return [{
+        id: 'request-support',
+        label: 'Request Support',
+        title: 'Request outside support for this item',
+        appliesTo: (context) => context?.section === 'gaps' && commandSupportActionApplies(context),
+        onClick: (context) => {
+            void openCommandSupportRequestModal(root, context);
+        },
+    }];
+}
+
+async function openCommandSupportRequestModal(root, context) {
+    await ensureHelperUi();
+
+    if (!appState.helper.createFormModal) {
+        showToast('Support request form is unavailable.', 'error');
+        return;
+    }
+
+    const gap = context?.gap ?? {};
+    const row = context?.row ?? {};
+    const sitrep = context?.sitrep ?? {};
+    const title = String(gap.title ?? 'SITREP gap').trim() || 'SITREP gap';
+    const category = String(gap.category ?? '').trim();
+    const evidenceSummary = commandEvidenceRowSummary(row);
+    const requester = commandRequesterIdentity();
+    const initialPayload = buildCommandSupportRequestPayload(context, {
+        requested_assistance: commandDefaultRequestedAssistance(context),
+        quantity: commandDefaultSupportQuantity(row),
+        urgency: normalizeCommandAlertLevel(appState.bootstrap?.alert_level) === 'Critical' ? 'urgent' : 'normal',
+        staging_notes: '',
+        command_notes: '',
+    });
+    const modal = appState.helper.createFormModal({
+        title: 'Request Support (Backend Not Wired)',
+        submitLabel: 'Preview Only',
+        busyMessage: 'Preparing request preview...',
+        initialValues: {
+            sitrep_ref: sitrep?.sequence_number ? `${formatSitrepNumber(sitrep.sequence_number)} / record ${formatSitrepRecordNumber(sitrep.id)}` : `Record ${sitrep?.id ?? 'unknown'}`,
+            gap_ref: category ? `${title} / ${category}` : title,
+            evidence_row: evidenceSummary,
+            requested_assistance: commandDefaultRequestedAssistance(context),
+            quantity: commandDefaultSupportQuantity(row),
+            priority: normalizeCommandAlertLevel(appState.bootstrap?.alert_level) === 'Critical' ? 'urgent' : 'normal',
+            staging_notes: '',
+            command_notes: '',
+            requested_by: requester.name ? `${requester.name}${requester.id ? ` (#${requester.id})` : ''}` : 'Current command user',
+            future_payload: JSON.stringify(initialPayload, null, 2),
+        },
+        rows: [
+            [
+                {
+                    type: 'input',
+                    name: 'sitrep_ref',
+                    label: 'Source SITREP',
+                    readOnly: true,
+                },
+            ],
+            [
+                {
+                    type: 'input',
+                    name: 'gap_ref',
+                    label: 'Gap',
+                    readOnly: true,
+                },
+            ],
+            [
+                {
+                    type: 'textarea',
+                    name: 'evidence_row',
+                    label: 'Evidence Row',
+                    readOnly: true,
+                    rows: 3,
+                },
+            ],
+            [
+                {
+                    type: 'input',
+                    name: 'requested_assistance',
+                    label: 'Requested Assistance / Capability',
+                    required: true,
+                    maxlength: 160,
+                },
+                {
+                    type: 'input',
+                    name: 'quantity',
+                    label: 'Quantity',
+                    placeholder: 'Optional',
+                    maxlength: 40,
+                },
+            ],
+            [
+                {
+                    type: 'select',
+                    name: 'priority',
+                    label: 'Urgency',
+                    required: true,
+                    options: [
+                        { value: 'normal', label: 'Normal' },
+                        { value: 'urgent', label: 'Urgent' },
+                    ],
+                },
+            ],
+            [
+                {
+                    type: 'textarea',
+                    name: 'staging_notes',
+                    label: 'Staging / Access / Logistics Notes',
+                    maxlength: 2000,
+                },
+            ],
+            [
+                {
+                    type: 'textarea',
+                    name: 'command_notes',
+                    label: 'Command Notes',
+                    maxlength: 2000,
+                },
+            ],
+            [
+                {
+                    type: 'input',
+                    name: 'requested_by',
+                    label: 'Requester / Approver',
+                    readOnly: true,
+                },
+            ],
+            [
+                {
+                    type: 'textarea',
+                    name: 'future_payload',
+                    label: 'Future Backend Payload Preview',
+                    readOnly: true,
+                    rows: 8,
+                },
+            ],
+        ],
+        async onSubmit(values, modalContext) {
+            if (!String(values?.requested_assistance ?? '').trim()) {
+                modalContext?.setErrors?.({
+                    requested_assistance: 'Enter the requested assistance or capability.',
+                });
+                return false;
+            }
+
+            const payload = buildCommandSupportRequestPayload(context, {
+                requested_assistance: values.requested_assistance,
+                quantity: values.quantity,
+                urgency: values.priority,
+                staging_notes: values.staging_notes,
+                command_notes: values.command_notes,
+            });
+
+            console.info('[hotline.command] support request backend is not wired yet.', payload);
+            modalContext?.setErrors?.({
+                command_notes: 'Backend submission is not wired yet. Review the payload preview and keep this request in command handoff notes for now.',
+            });
+            showToast('Support request backend is not wired yet.', 'warn');
+            return false;
+        },
+    });
+
+    trackSurfaceInstance(modal);
+    await modal.open();
+}
+
+function commandSupportActionApplies(context) {
+    const gap = context?.gap ?? {};
+    const row = context?.row ?? {};
+    const category = String(gap.category ?? '').trim().toLowerCase();
+
+    if (category === 'data confidence') {
+        return false;
+    }
+
+    return isCommandResourceSupportContext(gap, row) || isCommandAccessSupportContext(gap, row);
+}
+
+function isCommandResourceSupportContext(gap, row) {
+    const gapType = String(gap?.type ?? '').trim().toLowerCase();
+    const title = String(gap?.title ?? '').trim().toLowerCase();
+
+    return gapType === 'open_needs'
+        || title.includes('resource supply')
+        || row?.quantity_requested != null
+        || row?.quantity != null
+        || Array.isArray(row?.resources);
+}
+
+function isCommandAccessSupportContext(gap, row) {
+    const title = String(gap?.title ?? '').trim().toLowerCase();
+    const category = String(gap?.category ?? '').trim().toLowerCase();
+
+    return Boolean(row?.route_location)
+        || Boolean(row?.obstruction_type)
+        || title.includes('route')
+        || title.includes('road')
+        || title.includes('access')
+        || category.includes('access');
+}
+
+function commandEvidenceRowSummary(row) {
+    const parts = [
+        row?.location ?? row?.source_hub_name ?? null,
+        row?.category ?? row?.route_location ?? row?.population_signal ?? null,
+        row?.quantity_requested != null ? `${row.quantity_requested} units` : null,
+        Array.isArray(row?.resources) ? row.resources.filter(Boolean).join(', ') : null,
+        row?.status ?? null,
+        row?.obstruction_type ?? null,
+        row?.notes ?? row?.note ?? null,
+    ];
+
+    return parts.map((part) => String(part ?? '').trim()).filter(Boolean).join(' / ') || 'Evidence row';
+}
+
+function commandDefaultRequestedAssistance(context) {
+    const row = context?.row ?? {};
+    const options = [
+        row?.resource,
+        Array.isArray(row?.resources) ? row.resources.filter(Boolean).join(', ') : '',
+        row?.category,
+        row?.route_location,
+    ];
+
+    return options.map((value) => String(value ?? '').trim()).find(Boolean) ?? '';
+}
+
+function commandDefaultSupportQuantity(row) {
+    const quantity = row?.quantity_requested ?? row?.quantity ?? null;
+
+    return quantity === null || quantity === undefined ? '' : String(quantity);
+}
+
+function commandRequesterIdentity() {
+    const user = appState.bootstrap?.user ?? {};
+
+    return {
+        id: user?.id ?? null,
+        name: user?.name ?? user?.email ?? '',
+    };
+}
+
+function buildCommandSupportRequestPayload(context, values = {}) {
+    const sitrep = context?.sitrep ?? {};
+    const gap = context?.gap ?? {};
+    const row = context?.row ?? {};
+
+    return {
+        sitrep_id: sitrep?.id ?? null,
+        sitrep_sequence: sitrep?.sequence_number ? String(sitrep.sequence_number).padStart(4, '0') : null,
+        gap: {
+            title: gap?.title ?? null,
+            category: gap?.category ?? null,
+            evidence_ref: context?.evidenceRef ?? null,
+        },
+        evidence_row: row,
+        requested_assistance: String(values.requested_assistance ?? '').trim(),
+        quantity: String(values.quantity ?? '').trim() || null,
+        urgency: String(values.urgency ?? 'normal').trim() || 'normal',
+        staging_notes: String(values.staging_notes ?? '').trim(),
+        command_notes: String(values.command_notes ?? '').trim(),
+        requested_by: commandRequesterIdentity(),
+    };
 }
 
 function renderCurrentCard(label, value, detail) {

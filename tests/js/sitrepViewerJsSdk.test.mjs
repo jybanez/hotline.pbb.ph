@@ -141,6 +141,76 @@ try {
     viewerA.clearSourceFilter();
     const sourceFilterCleared = [...document.querySelectorAll('#viewer-a [data-source-hub-id]')].every((node) => !node.hidden);
 
+    const actionHost = document.createElement('div');
+    document.body.append(actionHost);
+    window.rowActionClicks = [];
+    window.rowActionAppliesTo = [];
+    const actionSitrep = {
+      title: 'Action SITREP',
+      gaps: {
+        items: [{
+          type: 'open_needs',
+          category: 'Operational constraint',
+          title: 'Resource supply not confirmed',
+          decision_relevance: 'Leadership should request external support.',
+          resource_categories: [{
+            category: 'Rescue and Extraction',
+            quantity_requested: 4,
+            resources: ['Rescue Boat'],
+          }],
+        }],
+      },
+      needs: {},
+    };
+    const noActionNode = api.renderSitrepSection(actionSitrep, 'gaps', { layout: 'compact' });
+    const rowActionViewer = api.createSitrepViewer(actionHost, {
+      sitrep: actionSitrep,
+      section: 'gaps',
+      layout: 'compact',
+      rowActions: [{
+        id: 'request-support',
+        label: 'Request Support',
+        title: 'Request outside support for this item',
+        appliesTo: ({ section, gap, row, evidenceRef }) => {
+          window.rowActionAppliesTo.push({
+            section,
+            hasGap: Boolean(gap),
+            sameRow: gap === row,
+            evidenceRef,
+          });
+          return section === 'gaps' && Boolean(gap);
+        },
+        onClick: ({ section, gap, row, rowIndex, evidenceRef, sourceHubId, sourceRelayHubId, locationName, event }) => {
+          window.rowActionClicks.push({
+            section,
+            gapTitle: gap?.title ?? null,
+            rowCategory: row?.category ?? null,
+            rowIndex,
+            sameRow: gap === row,
+            evidenceRef,
+            sourceHubId,
+            sourceRelayHubId,
+            locationName,
+            eventType: event?.type ?? null,
+          });
+        },
+      }],
+    });
+    const rowActionButton = actionHost.querySelector('[data-sitrep-row-action="request-support"]');
+    rowActionButton?.click();
+    const rowActionResult = {
+      buttonCount: actionHost.querySelectorAll('[data-sitrep-row-action="request-support"]').length,
+      label: rowActionButton?.textContent ?? null,
+      title: rowActionButton?.getAttribute('title') ?? null,
+      appliesTo: window.rowActionAppliesTo,
+      clicks: window.rowActionClicks,
+      hasActionsHeader: Boolean(actionHost.querySelector('.sitrep-row-actions-heading')),
+      noActionButtonCount: noActionNode.querySelectorAll('[data-sitrep-row-action]').length,
+      noActionHeaderCount: noActionNode.querySelectorAll('.sitrep-row-actions-heading').length,
+    };
+    rowActionViewer.destroy();
+    actionHost.remove();
+
     viewerB.setSection('summary');
     const afterSectionChange = {
       text: document.querySelector('#viewer-b').textContent,
@@ -154,7 +224,7 @@ try {
       bText: document.querySelector('#viewer-b').textContent,
     };
 
-    return { before, afterHighlight, sourceNodes, filteredState, sourceFilterCleared, afterSectionChange, afterDestroy };
+    return { before, afterHighlight, sourceNodes, filteredState, sourceFilterCleared, rowActionResult, afterSectionChange, afterDestroy };
   }, fixture);
 
   const canonicalResult = await page.evaluate(() => {
@@ -446,6 +516,23 @@ try {
   assert.equal(result.sourceNodes.some((node) => node.sourceHubId === '12' && node.hidden === false), true);
   assert.equal(result.sourceNodes.some((node) => node.sourceHubId === '13' && node.hidden === true), true);
   assert.equal(result.sourceFilterCleared, true);
+  assert.equal(result.rowActionResult.buttonCount > 0, true);
+  assert.equal(result.rowActionResult.label, 'Request Support');
+  assert.equal(result.rowActionResult.title, 'Request outside support for this item');
+  assert.equal(result.rowActionResult.appliesTo.some((item) => item.section === 'gaps' && item.hasGap && !item.sameRow && item.evidenceRef), true);
+  assert.equal(result.rowActionResult.clicks.length, 1);
+  assert.equal(result.rowActionResult.clicks[0].section, 'gaps');
+  assert.equal(result.rowActionResult.clicks[0].gapTitle, 'Resource supply not confirmed');
+  assert.equal(result.rowActionResult.clicks[0].rowCategory, 'Rescue and Extraction');
+  assert.equal(result.rowActionResult.clicks[0].rowIndex, 0);
+  assert.equal(result.rowActionResult.clicks[0].evidenceRef, 'gaps.evidence.1');
+  assert.equal(result.rowActionResult.clicks[0].sourceHubId, null);
+  assert.equal(result.rowActionResult.clicks[0].sourceRelayHubId, null);
+  assert.equal(result.rowActionResult.clicks[0].locationName, 'Current Location');
+  assert.equal(result.rowActionResult.clicks[0].eventType, 'click');
+  assert.equal(result.rowActionResult.hasActionsHeader, true);
+  assert.equal(result.rowActionResult.noActionButtonCount, 0);
+  assert.equal(result.rowActionResult.noActionHeaderCount, 0);
 
   assert.match(result.afterSectionChange.text, /Executive Situation Assessment/);
   assert.match(result.afterSectionChange.text, /<script>alert\(1\)<\/script>/);

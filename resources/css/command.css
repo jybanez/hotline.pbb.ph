@@ -1,3 +1,5 @@
+@import "../../packages/pbb-sitrep-viewer/assets/sitrep-viewer.css";
+
 .command-shell {
     background:
         radial-gradient(circle at 48% 16%, rgba(88, 182, 255, 0.12), transparent 34%),
@@ -678,6 +680,72 @@
 .command-current-detail h3,
 .command-current-detail p {
     margin: 0;
+}
+
+.command-current-sitrep-panel {
+    background: rgba(7, 22, 36, 0.72);
+    border: 1px solid rgba(125, 175, 235, 0.22);
+    border-radius: 0.9rem;
+    display: grid;
+    gap: 0.75rem;
+    min-width: 0;
+    padding: 0.9rem;
+}
+
+.command-current-sitrep-tabs {
+    border-bottom: 1px solid rgba(125, 175, 235, 0.18);
+    display: flex;
+    gap: 0.5rem;
+    padding-bottom: 0.55rem;
+}
+
+.command-current-sitrep-tab {
+    background: rgba(16, 42, 65, 0.82);
+    border: 1px solid rgba(125, 175, 235, 0.28);
+    border-radius: 0.55rem;
+    color: var(--text);
+    cursor: default;
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 800;
+    min-height: 2.05rem;
+    padding: 0.42rem 0.7rem;
+}
+
+.command-current-sitrep-tab.is-active {
+    border-color: rgba(142, 197, 255, 0.52);
+    color: #dbeafe;
+}
+
+.command-current-sitrep-viewer {
+    min-width: 0;
+}
+
+.command-current-sitrep-viewer .pbb-sitrep-viewer {
+    background: transparent;
+    min-height: 0;
+    padding: 0;
+}
+
+.command-current-sitrep-viewer .pbb-sitrep-viewer.is-layout-compact .sitrep-section {
+    padding: 0;
+}
+
+.command-current-sitrep-viewer .pbb-sitrep-viewer.is-layout-compact .sitrep-document {
+    max-width: none;
+}
+
+.command-current-sitrep-viewer .sitrep-row-action {
+    background: rgba(30, 64, 112, 0.92);
+    border-color: rgba(142, 197, 255, 0.34);
+    color: #dbeafe;
+}
+
+.command-current-sitrep-viewer .sitrep-row-action:hover,
+.command-current-sitrep-viewer .sitrep-row-action:focus-visible {
+    background: rgba(37, 99, 235, 0.34);
+    border-color: rgba(191, 219, 254, 0.56);
+    color: #eff6ff;
 }
 
 .command-grid-stacked-cell {

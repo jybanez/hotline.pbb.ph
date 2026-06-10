@@ -68,7 +68,16 @@ import { createSitrepViewer } from '/packages/pbb-sitrep-viewer/js/sitrep-viewer
 const viewer = createSitrepViewer(document.querySelector('#sitrep-panel'), {
     sitrep,
     layout: 'compact',
-    sections: ['summary', 'population', 'needs'],
+    sections: ['summary', 'population', 'needs', 'gaps'],
+    rowActions: [{
+        id: 'request-support',
+        label: 'Request Support',
+        title: 'Request outside support for this item',
+        appliesTo: ({ section, gap, row }) => section === 'gaps' && gap?.type === 'open_needs',
+        onClick: ({ sitrep, section, gap, row, rowIndex, evidenceRef, sourceHubId, sourceRelayHubId, locationName, event }) => {
+            // Host app owns the action. The viewer only supplies row context.
+        },
+    }],
 });
 
 viewer.setSection('gaps');
@@ -90,6 +99,13 @@ Rendered nodes include stable browser-side anchors for app integration:
 Host apps can use `onInteraction`, `onEvidenceClick`, `onSourceClick`, and
 `onConcernClick` callbacks to connect map markers, source lists, and strategy
 panels to official SITREP content.
+
+`rowActions` is optional. When omitted, or when no action `appliesTo` a row, the
+rendered output is unchanged. When actions apply to supported evidence rows, the
+viewer adds an `Actions` column with keyboard-usable buttons and passes
+structured context (`sitrep`, `section`, `gap`, `row`, `rowIndex`,
+`evidenceRef`, source identifiers, location name, and the click `event`) to the
+host callback.
 
 See `docs/developer-manual.md` for integration notes and `demo/render.php` for a plain PHP example.
 For a Helper-backed browser visualization demo, run PHP's built-in server from
