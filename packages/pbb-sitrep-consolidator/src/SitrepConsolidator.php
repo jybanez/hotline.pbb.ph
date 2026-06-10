@@ -130,6 +130,7 @@ final class SitrepConsolidator
                 'global_note' => 'Consolidated from generated SITREP payloads. Population figures and other numeric source fields may overlap and should be verified before operational use.',
                 'source_sitrep_count' => count($normalized),
                 'source_hub_count' => count($sourceIndex),
+                'counting_notes' => $this->mergeCountingNotes($normalized),
                 'warnings' => array_map(
                     static fn (SitrepValidationIssue $issue): array => $issue->toArray(),
                     array_values(array_filter($issues, static fn (SitrepValidationIssue $issue): bool => $issue->severity === 'warning')),
@@ -276,9 +277,13 @@ final class SitrepConsolidator
             return [];
         }
 
-        return isset($data['rollup']) && is_array($data['rollup'])
+        $sectionData = isset($data['rollup']) && is_array($data['rollup'])
             ? $data['rollup']
             : $data;
+
+        return $section === 'gaps'
+            ? $this->withoutCountingScopeGaps($sectionData)
+            : $sectionData;
     }
 
     /**
@@ -1102,6 +1107,70 @@ final class SitrepConsolidator
             }, $groups)), 'title', false),
             'empty_state' => 'No gaps identified.',
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $gaps
+     * @return array<string, mixed>
+     */
+    private function withoutCountingScopeGaps(array $gaps): array
+    {
+        if (! isset($gaps['items']) || ! is_array($gaps['items'])) {
+            return $gaps;
+        }
+
+        $gaps['items'] = array_values(array_filter($gaps['items'], fn (mixed $gap): bool => ! (
+            is_array($gap)
+            && $this->text($gap['type'] ?? '', '') === 'counting_scope'
+        )));
+
+        return $gaps;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $normalized
+     * @return array<int, array<string, mixed>>
+     */
+    private function mergeCountingNotes(array $normalized): array
+    {
+        $notes = [];
+
+        foreach ($normalized as $source) {
+            $dataQuality = $this->sourceSection($source, 'data_quality');
+            foreach (($dataQuality['counting_notes'] ?? []) as $note) {
+                if (! is_array($note)) {
+                    continue;
+                }
+
+                $note['source_hub_id'] = $source['source_hub_id'];
+                $note['source_hub_name'] = $source['source_hub_name'];
+                $notes[] = $note;
+            }
+
+            $rawGaps = $source['payload']['gaps'] ?? [];
+            $rawGaps = is_array($rawGaps) && isset($rawGaps['rollup']) && is_array($rawGaps['rollup'])
+                ? $rawGaps['rollup']
+                : (is_array($rawGaps) ? $rawGaps : []);
+
+            foreach (($rawGaps['items'] ?? []) as $gap) {
+                if (! is_array($gap) || $this->text($gap['type'] ?? '', '') !== 'counting_scope') {
+                    continue;
+                }
+
+                $notes[] = [
+                    'type' => 'counting_scope',
+                    'category' => 'Counting note',
+                    'title' => $this->text($gap['title'] ?? null, 'Resolved and discarded reports were excluded from current pressure'),
+                    'body' => $this->text($gap['decision_relevance'] ?? $gap['body'] ?? null, ''),
+                    'evidence' => $this->text($gap['evidence'] ?? null, ''),
+                    'confidence_note' => $this->text($gap['confidence_note'] ?? null, ''),
+                    'source_hub_id' => $source['source_hub_id'],
+                    'source_hub_name' => $source['source_hub_name'],
+                ];
+            }
+        }
+
+        return $notes;
     }
 
     private function mergeSectionItems(array $normalized, string $section): array
