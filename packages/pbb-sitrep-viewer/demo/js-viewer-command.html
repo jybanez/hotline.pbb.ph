@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PBB SITREP JS Viewer Command Actions Demo</title>
+    <link rel="stylesheet" href="../assets/sitrep-viewer.css">
+    <style>
+        body {
+            margin: 0;
+            background: #07111c;
+            color: #e5edf8;
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        .demo-shell {
+            min-height: 100vh;
+        }
+
+        .demo-toolbar {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 14px 18px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+            background: rgba(7, 17, 28, 0.96);
+        }
+
+        .demo-toolbar h1 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .demo-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .demo-controls input[type="file"] {
+            width: 280px;
+            max-width: 100%;
+            color: #cbd5e1;
+        }
+
+        .demo-controls button,
+        .demo-dialog-actions button {
+            border: 1px solid rgba(96, 165, 250, 0.55);
+            border-radius: 6px;
+            background: #1d4ed8;
+            color: white;
+            font: inherit;
+            font-weight: 700;
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+
+        .demo-controls button.secondary,
+        .demo-dialog-actions button.secondary {
+            background: #0f1b2e;
+            color: #dbeafe;
+        }
+
+        .demo-message {
+            max-width: 1180px;
+            margin: 18px auto 0;
+            padding: 12px 14px;
+            border: 1px solid rgba(248, 113, 113, 0.45);
+            border-radius: 8px;
+            background: rgba(127, 29, 29, 0.28);
+            color: #fecaca;
+        }
+
+        .demo-file {
+            max-width: 1180px;
+            margin: 18px auto 0;
+            color: #93c5fd;
+            font-size: 13px;
+        }
+
+        .demo-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+            gap: 18px;
+            max-width: 1180px;
+            margin: 18px auto 32px;
+            padding: 0 16px;
+        }
+
+        .demo-frame,
+        .demo-panel {
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            border-radius: 8px;
+            background: rgba(15, 23, 42, 0.45);
+            overflow: hidden;
+        }
+
+        .demo-panel {
+            align-self: start;
+            display: grid;
+            gap: 12px;
+            padding: 14px;
+        }
+
+        .demo-panel h2 {
+            margin: 0;
+            font-size: 15px;
+        }
+
+        .demo-panel p {
+            margin: 0;
+            color: #cbd5e1;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .demo-preview {
+            max-height: 520px;
+            overflow: auto;
+            margin: 0;
+            padding: 12px;
+            border-radius: 8px;
+            background: #020617;
+            color: #dbeafe;
+            font-size: 12px;
+            line-height: 1.45;
+            white-space: pre-wrap;
+        }
+
+        .demo-dialog {
+            width: min(720px, calc(100vw - 32px));
+            border: 1px solid rgba(96, 165, 250, 0.38);
+            border-radius: 10px;
+            background: #0b1524;
+            color: #e5edf8;
+            padding: 0;
+        }
+
+        .demo-dialog::backdrop {
+            background: rgba(2, 6, 23, 0.72);
+        }
+
+        .demo-dialog form {
+            display: grid;
+            gap: 14px;
+            padding: 18px;
+        }
+
+        .demo-dialog h2 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .demo-fields {
+            display: grid;
+            gap: 12px;
+        }
+
+        .demo-field {
+            display: grid;
+            gap: 5px;
+        }
+
+        .demo-field label {
+            color: #bfdbfe;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .demo-field input,
+        .demo-field select,
+        .demo-field textarea {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            border-radius: 7px;
+            background: #07111c;
+            color: #e5edf8;
+            font: inherit;
+            padding: 9px 10px;
+        }
+
+        .demo-field textarea {
+            min-height: 78px;
+            resize: vertical;
+        }
+
+        .demo-field input[readonly],
+        .demo-field textarea[readonly] {
+            color: #cbd5e1;
+            background: rgba(15, 23, 42, 0.8);
+        }
+
+        .demo-dialog-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        @media (max-width: 900px) {
+            .demo-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-shell">
+        <header class="demo-toolbar">
+            <h1>PBB SITREP JS Viewer Command Actions Demo</h1>
+            <div class="demo-controls">
+                <input id="sitrep-file" type="file" accept="application/json,.json">
+                <button id="load-sample" type="button">Load Sample</button>
+                <button id="load-command-sample" class="secondary" type="button">Load Command Sample</button>
+            </div>
+        </header>
+
+        <p id="demo-message" class="demo-message" hidden></p>
+        <p id="demo-file" class="demo-file" hidden></p>
+
+        <main class="demo-grid">
+            <section class="demo-frame" aria-label="Current SITREP gaps">
+                <div id="command-viewer"></div>
+            </section>
+            <aside class="demo-panel" aria-label="Request support payload preview">
+                <h2>Host-Owned Request Support Preview</h2>
+                <p>This page demonstrates generic SDK row actions. The viewer renders action buttons and context only; this demo owns the command workflow and payload preview.</p>
+                <pre id="payload-preview" class="demo-preview">Click an allowed Request Support row action to preview the future backend payload.</pre>
+            </aside>
+        </main>
+    </div>
+
+    <dialog id="support-dialog" class="demo-dialog">
+        <form method="dialog">
+            <h2>Request Support</h2>
+            <div class="demo-fields">
+                <div class="demo-field">
+                    <label for="sitrep-ref">Source SITREP</label>
+                    <input id="sitrep-ref" name="sitrep_ref" readonly>
+                </div>
+                <div class="demo-field">
+                    <label for="gap-ref">Gap</label>
+                    <input id="gap-ref" name="gap_ref" readonly>
+                </div>
+                <div class="demo-field">
+                    <label for="evidence-row">Evidence Row</label>
+                    <textarea id="evidence-row" name="evidence_row" readonly></textarea>
+                </div>
+                <div class="demo-field">
+                    <label for="requested-assistance">Requested Assistance / Capability</label>
+                    <input id="requested-assistance" name="requested_assistance" required>
+                </div>
+                <div class="demo-field">
+                    <label for="quantity">Quantity</label>
+                    <input id="quantity" name="quantity" placeholder="Optional">
+                </div>
+                <div class="demo-field">
+                    <label for="urgency">Urgency</label>
+                    <select id="urgency" name="urgency">
+                        <option value="normal">Normal</option>
+                        <option value="urgent">Urgent</option>
+                    </select>
+                </div>
+                <div class="demo-field">
+                    <label for="staging-notes">Staging / Access / Logistics Notes</label>
+                    <textarea id="staging-notes" name="staging_notes"></textarea>
+                </div>
+                <div class="demo-field">
+                    <label for="command-notes">Command Notes</label>
+                    <textarea id="command-notes" name="command_notes"></textarea>
+                </div>
+                <div class="demo-field">
+                    <label for="requested-by">Requester / Approver</label>
+                    <input id="requested-by" name="requested_by" value="Command demo user" readonly>
+                </div>
+            </div>
+            <div class="demo-dialog-actions">
+                <button class="secondary" value="cancel" type="button" data-close-dialog>Close</button>
+                <button value="default" type="submit">Preview Payload</button>
+            </div>
+        </form>
+    </dialog>
+
+    <script type="module">
+        import { createSitrepViewer } from '../js/sitrep-viewer.js';
+
+        const sampleUrl = './input/sitrep.json';
+        const message = document.querySelector('#demo-message');
+        const fileInput = document.querySelector('#sitrep-file');
+        const payloadPreview = document.querySelector('#payload-preview');
+        const dialog = document.querySelector('#support-dialog');
+        const form = dialog.querySelector('form');
+        let payload = {};
+        let selectedContext = null;
+
+        const viewer = createSitrepViewer(document.querySelector('#command-viewer'), {
+            sitrep: payload,
+            section: 'gaps',
+            layout: 'compact',
+            rowActions: [{
+                id: 'request-support',
+                label: 'Request Support',
+                title: 'Request outside support for this item',
+                appliesTo: (context) => context.section === 'gaps' && supportActionApplies(context),
+                onClick: openSupportDialog,
+            }],
+        });
+
+        function showError(error) {
+            message.hidden = false;
+            message.textContent = error instanceof Error ? error.message : String(error);
+        }
+
+        function clearError() {
+            message.hidden = true;
+            message.textContent = '';
+        }
+
+        function applyPayload(nextPayload, label = null) {
+            payload = nextPayload;
+            viewer.setSitrep(payload);
+            document.querySelector('#demo-file').hidden = false;
+            document.querySelector('#demo-file').textContent = label ?? (payload.title ? `Rendered ${payload.title}` : 'Rendered SITREP payload');
+            payloadPreview.textContent = 'Click an allowed Request Support row action to preview the future backend payload.';
+        }
+
+        async function loadSample(augmentForCommand = false) {
+            clearError();
+            const response = await fetch(sampleUrl);
+            if (!response.ok) {
+                throw new Error(`Sample SITREP failed to load (${response.status}).`);
+            }
+            const sample = await response.json();
+            applyPayload(augmentForCommand ? commandSample(sample) : sample, augmentForCommand ? 'Rendered command row action sample' : null);
+        }
+
+        function commandSample(sample) {
+            return {
+                ...sample,
+                title: `${sample.title ?? 'PBB SITREP'} - Command Row Actions Demo`,
+                gaps: {
+                    title: 'Response Constraints and Confidence Gaps',
+                    items: [
+                        {
+                            type: 'open_needs',
+                            category: 'Operational constraint',
+                            title: 'Resource supply not confirmed',
+                            decision_relevance: 'Command can request outside support for unresolved operational supply needs.',
+                            source_hubs: ['Guadalupe, CEBU CITY, CEBU'],
+                            resource_categories: [
+                                {
+                                    category: 'Rescue and Extraction',
+                                    quantity_requested: 4,
+                                    resources: ['Rescue boat', 'Swiftwater team'],
+                                },
+                                {
+                                    category: 'Food and Relief',
+                                    quantity_requested: 120,
+                                    resources: ['Ready-to-eat meals', 'Water containers'],
+                                },
+                            ],
+                        },
+                        {
+                            category: 'Access constraint',
+                            title: 'Road access constrained near evacuation route',
+                            decision_relevance: 'Command can request route clearing or transport support.',
+                            items: [
+                                {
+                                    source_hub_id: 12,
+                                    source_relay_hub_id: '072217029',
+                                    source_hub_name: 'Guadalupe, CEBU CITY, CEBU',
+                                    route_location: 'V. Rama access road',
+                                    status: 'Constrained',
+                                    obstruction_type: 'Flooded lane',
+                                    cleared: 'No',
+                                },
+                            ],
+                        },
+                        {
+                            category: 'Data Confidence',
+                            title: 'Population verification still incomplete',
+                            decision_relevance: 'This row is intentionally blocked by the host action rule.',
+                            evidence: 'Population fields are report-level declarations.',
+                            source_hubs: ['Guadalupe, CEBU CITY, CEBU'],
+                            confidence_note: 'Treat as planning signal, not census count.',
+                        },
+                    ],
+                },
+            };
+        }
+
+        function supportActionApplies(context) {
+            const gap = context.gap ?? {};
+            const row = context.row ?? {};
+            const category = String(gap.category ?? '').trim().toLowerCase();
+
+            if (category === 'data confidence') {
+                return false;
+            }
+
+            return isResourceContext(gap, row) || isAccessContext(gap, row);
+        }
+
+        function isResourceContext(gap, row) {
+            const type = String(gap.type ?? '').trim().toLowerCase();
+            const title = String(gap.title ?? '').trim().toLowerCase();
+
+            return type === 'open_needs'
+                || title.includes('resource supply')
+                || row.quantity_requested != null
+                || row.quantity != null
+                || Array.isArray(row.resources);
+        }
+
+        function isAccessContext(gap, row) {
+            const title = String(gap.title ?? '').trim().toLowerCase();
+            const category = String(gap.category ?? '').trim().toLowerCase();
+
+            return Boolean(row.route_location)
+                || Boolean(row.obstruction_type)
+                || title.includes('route')
+                || title.includes('road')
+                || title.includes('access')
+                || category.includes('access');
+        }
+
+        function openSupportDialog(context) {
+            selectedContext = context;
+            const gap = context.gap ?? {};
+            const row = context.row ?? {};
+            const sitrep = context.sitrep ?? {};
+            form.elements.sitrep_ref.value = sitrep.sequence_number ? `SITREP ${String(sitrep.sequence_number).padStart(4, '0')} / record ${sitrep.id ?? 'unknown'}` : `Record ${sitrep.id ?? 'unknown'}`;
+            form.elements.gap_ref.value = [gap.title, gap.category].filter(Boolean).join(' / ');
+            form.elements.evidence_row.value = evidenceSummary(row);
+            form.elements.requested_assistance.value = defaultRequestedAssistance(context);
+            form.elements.quantity.value = row.quantity_requested ?? row.quantity ?? '';
+            form.elements.urgency.value = 'normal';
+            form.elements.staging_notes.value = '';
+            form.elements.command_notes.value = '';
+            dialog.showModal();
+        }
+
+        function evidenceSummary(row) {
+            return [
+                row.location ?? row.source_hub_name,
+                row.category ?? row.route_location ?? row.population_signal,
+                row.quantity_requested != null ? `${row.quantity_requested} units` : null,
+                Array.isArray(row.resources) ? row.resources.filter(Boolean).join(', ') : null,
+                row.status,
+                row.obstruction_type,
+                row.notes ?? row.note,
+            ].map((part) => String(part ?? '').trim()).filter(Boolean).join(' / ') || 'Evidence row';
+        }
+
+        function defaultRequestedAssistance(context) {
+            const row = context.row ?? {};
+            return [
+                row.resource,
+                Array.isArray(row.resources) ? row.resources.filter(Boolean).join(', ') : '',
+                row.category,
+                row.route_location,
+            ].map((value) => String(value ?? '').trim()).find(Boolean) ?? '';
+        }
+
+        function supportPayload(context, values) {
+            const sitrep = context.sitrep ?? {};
+            const gap = context.gap ?? {};
+            return {
+                sitrep_id: sitrep.id ?? null,
+                sitrep_sequence: sitrep.sequence_number ? String(sitrep.sequence_number).padStart(4, '0') : null,
+                gap: {
+                    title: gap.title ?? null,
+                    category: gap.category ?? null,
+                    evidence_ref: context.evidenceRef ?? null,
+                },
+                evidence_row: context.row ?? {},
+                requested_assistance: values.requested_assistance.trim(),
+                quantity: values.quantity.trim() || null,
+                urgency: values.urgency || 'normal',
+                staging_notes: values.staging_notes.trim(),
+                command_notes: values.command_notes.trim(),
+                requested_by: {
+                    id: 'demo-command-user',
+                    name: values.requested_by.trim() || 'Command demo user',
+                },
+            };
+        }
+
+        form.addEventListener('submit', (event) => {
+            event.preventDefault();
+            if (!selectedContext) {
+                return;
+            }
+            const values = Object.fromEntries(new FormData(form));
+            payloadPreview.textContent = JSON.stringify(supportPayload(selectedContext, values), null, 2);
+            dialog.close();
+        });
+
+        document.querySelector('[data-close-dialog]').addEventListener('click', () => {
+            dialog.close();
+        });
+
+        document.querySelector('#load-sample').addEventListener('click', () => {
+            loadSample(false).catch(showError);
+        });
+
+        document.querySelector('#load-command-sample').addEventListener('click', () => {
+            loadSample(true).catch(showError);
+        });
+
+        fileInput.addEventListener('change', async () => {
+            clearError();
+            const file = fileInput.files?.[0];
+            if (!file) {
+                return;
+            }
+            try {
+                applyPayload(JSON.parse(await file.text()), `Rendered ${file.name}`);
+            } catch (error) {
+                showError(error);
+            }
+        });
+
+        loadSample(true).catch(showError);
+    </script>
+</body>
+</html>

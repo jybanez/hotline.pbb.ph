@@ -517,3 +517,13 @@ http://127.0.0.1:8097/packages/pbb-sitrep-viewer/demo/js-viewer.html
 `demo/js-viewer.html` renders two independent viewer instances from the same
 SITREP payload: one compact multi-section report and one compact section-only
 panel. Uploading a JSON file updates both instances without a server render.
+
+For a host-owned row actions demo, open:
+
+```text
+http://127.0.0.1:8097/packages/pbb-sitrep-viewer/demo/js-viewer-command.html
+```
+
+`demo/js-viewer-command.html` renders the Gaps section with generic row actions
+and a demo-owned Request Support preview dialog. It is an SDK integration
+example only; it does not submit to Hotline.

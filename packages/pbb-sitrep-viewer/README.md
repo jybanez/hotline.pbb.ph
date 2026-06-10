@@ -124,3 +124,9 @@ For the JavaScript interactive viewer demo, open:
 ```text
 http://127.0.0.1:8097/packages/pbb-sitrep-viewer/demo/js-viewer.html
 ```
+
+For a host-owned row actions demo, open:
+
+```text
+http://127.0.0.1:8097/packages/pbb-sitrep-viewer/demo/js-viewer-command.html
+```
