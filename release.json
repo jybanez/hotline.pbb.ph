@@ -29,7 +29,7 @@
     "requires_database_migration": true,
     "database_migration": {
       "policy": "additive",
-      "summary": "Adds the sitrep_relay_deliveries outbox table for latest-only SITREP Relay handoff and stores Relay message IDs as strings.",
+      "summary": "Adds the sitrep_relay_deliveries outbox table and Support Request local persistence/history tables for Relay-backed operational support requests.",
       "rollback": "app-owned; forward repair reruns Laravel migrations",
       "destructive": false,
       "drops_tables": false,
@@ -71,7 +71,7 @@
       "baseline_schema": {
         "path": "database/schema/hotline-schema-mysql.sql",
         "engine": "mysql",
-        "generated_at": "2026-05-30T19:41:00Z",
+        "generated_at": "2026-06-11T00:00:00Z",
         "source": "current-release-schema"
       },
       "upgrade_strategy": "laravel_migrations",
@@ -79,7 +79,7 @@
         "path": "database/schema/hotline-schema-mysql.sql",
         "driver": "mysql",
         "fresh_install_method": "baseline_schema",
-        "migration_count": 51
+        "migration_count": 53
       }
     },
     "tools": {
