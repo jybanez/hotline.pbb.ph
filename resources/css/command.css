@@ -1,3 +1,5 @@
+@import "../../packages/pbb-sitrep-viewer/assets/sitrep-viewer.css";
+
 .command-shell {
     background:
         radial-gradient(circle at 48% 16%, rgba(88, 182, 255, 0.12), transparent 34%),
@@ -666,7 +668,7 @@
 }
 
 .command-current-card small,
-.command-current-detail p {
+.command-current-detail > p {
     color: var(--muted);
 }
 
@@ -675,8 +677,64 @@
     gap: 0.5rem;
 }
 
-.command-current-detail h3,
-.command-current-detail p {
+.command-current-sitrep-panel {
+    grid-template-rows: auto minmax(0, 1fr);
+    min-height: 34rem;
+    overflow: hidden;
+}
+
+.command-current-sitrep-tabs {
+    min-height: 0;
+    overflow: hidden;
+}
+
+.command-current-sitrep-tabs > .ui-tabs {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    height: 100%;
+    min-height: 0;
+}
+
+.command-current-sitrep-tabs .ui-tablist {
+    overflow-x: auto;
+    padding: 0 0 0.55rem;
+}
+
+.command-current-sitrep-tabs .ui-tabpanel {
+    min-height: 0;
+    overflow: auto;
+    padding: 0;
+}
+
+.command-current-sitrep-viewer {
+    min-height: 0;
+    min-width: 0;
+}
+
+.command-current-sitrep-viewer .pbb-sitrep-viewer {
+    background: transparent;
+    min-height: 0;
+    padding: 0;
+}
+
+.command-current-sitrep-viewer .sitrep-document {
+    border-left: 0;
+    border-right: 0;
+    box-shadow: none;
+    margin: 0;
+}
+
+.command-current-sitrep-viewer .sitrep-section {
+    padding-left: clamp(0.75rem, 1.6vw, 1.25rem);
+    padding-right: clamp(0.75rem, 1.6vw, 1.25rem);
+}
+
+.command-current-sitrep-viewer .sitrep-preview-banner {
+    display: none;
+}
+
+.command-current-detail > h3,
+.command-current-detail > p {
     margin: 0;
 }
 
