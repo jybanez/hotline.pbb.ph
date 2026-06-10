@@ -21,6 +21,7 @@ import {
     reducePresenceRosterEvent,
     RealtimeSocketClient,
 } from '../vendor/pbb-realtime-sdk/index.js';
+import { createSitrepViewer } from '../../../packages/pbb-sitrep-viewer/js/sitrep-viewer.js';
 
 const SITREP_INDEX_URL = '/api/command/sitreps';
 const COMMAND_INCIDENTS_URL = '/api/command/incidents';
@@ -50,6 +51,15 @@ const COMMAND_ALERT_LEVEL_OPTIONS = [
     { value: 'Elevated', label: 'Elevated' },
     { value: 'Critical', label: 'Critical' },
 ];
+const COMMAND_CURRENT_SITREP_SECTIONS = [
+    { id: 'summary', label: 'Summary' },
+    { id: 'situation', label: 'Situation' },
+    { id: 'damage', label: 'Damage' },
+    { id: 'population', label: 'Population' },
+    { id: 'actions', label: 'Actions' },
+    { id: 'needs', label: 'Needs' },
+    { id: 'gaps', label: 'Gaps' },
+];
 
 let sitrepGridInstance = null;
 let commandIncidentsGridInstance = null;
@@ -71,6 +81,9 @@ let commandAssignmentBoardInstance = null;
 let commandIncidentStatusFilters = [];
 let commandIncidentStatusSelectInstance = null;
 let commandWorkbenchRenderFrame = null;
+let commandCurrentSitrepTabsInstance = null;
+let commandCurrentSitrepViewerInstance = null;
+let commandCurrentSitrepRequestToken = 0;
 
 export async function renderCommandSurface(root, bootstrap) {
     appState.runtime.navbarItems = [];
@@ -197,8 +210,6 @@ function setCommandAlertLevel(root, alertLevel) {
             shell.classList.add(toneClass);
         }
     }
-
-    renderCurrentSnapshot(root);
 }
 
 function applyCommandAlertLevel(root, alertLevel) {
@@ -797,11 +808,16 @@ function mountCommandTabs(root) {
         return;
     }
 
+    destroyCurrentSitrepSectionTabs();
     commandTabsInstance?.destroy?.();
     commandTabsInstance = appState.helper.createTabs(tabsHost, {
         activeId: 'current',
         ariaLabel: 'Command workspace tabs',
         onChange(tab) {
+            if (tab?.id !== 'current') {
+                destroyCurrentSitrepSectionTabs();
+            }
+
             if (tab?.id === 'incidents') {
                 renderCommandIncidents(root);
             }
@@ -1328,61 +1344,161 @@ function renderCurrentSnapshot(root, targetHost = null) {
         return;
     }
 
+    destroyCurrentSitrepSectionTabs();
     const latest = latestSitreps[0] ?? null;
-    const period = currentManilaDayPeriod();
-    const activeCount = latestIncidents.filter((incident) => ['Active', 'Deferred'].includes(incident.status)).length;
-    const closedCount = latestIncidents.filter((incident) => ['Resolved', 'Discarded'].includes(incident.status)).length;
-    const assignmentCount = latestIncidents.reduce((total, incident) => total + (Array.isArray(incident.team_assignments) ? incident.team_assignments.length : 0), 0);
-    const locatedCount = latestIncidents.filter(hasIncidentCoordinates).length;
-    const summary = latest?.summary ?? {};
-    const liveAlertLevel = appState.bootstrap?.alert_level ?? latest?.alert_level ?? 'Normal';
-    const alertTone = formatAlertTone(liveAlertLevel);
 
     host.innerHTML = `
-        <section class="command-current-summary">
-            <div class="command-current-hero is-alert-${alertTone}">
+        <section class="command-current-sitrep-panel">
+            <div class="command-current-sitrep-toolbar">
                 <div>
-                    <p class="ui-eyebrow">Current Snapshot</p>
-                    <h2>${escapeHtml(latest?.title ?? `Daily SITREP - ${period.label}`)}</h2>
-                    <p>${escapeHtml(summary?.headline ?? summary?.primary_concern ?? 'Generate a SITREP snapshot to capture the current operational picture.')}</p>
+                    <p class="ui-eyebrow">Current SITREP</p>
+                    <p class="command-current-sitrep-toolbar-copy">${latest ? 'Official section rendering from the SITREP Viewer SDK.' : 'No current SITREP is available yet.'}</p>
                 </div>
-                <button class="surface-button secondary tiny command-generate-sitrep-button" type="button" data-command-generate-current title="Generate today's SITREP manually">Generate Today</button>
+                <button class="surface-button secondary tiny" type="button" data-command-generate-current-sitrep>
+                    ${isGeneratingSitrep ? 'Generating...' : 'Generate Today'}
+                </button>
             </div>
-            <div class="command-current-cards">
-                ${renderCurrentCard('Latest SITREP', latest ? formatSitrepNumber(latest.sequence_number ?? latest.id) : 'None', latest ? `Record ${formatSitrepRecordNumber(latest.id)} · ${formatDateTime(latest.generated_at)}` : 'No generated snapshot yet')}
-                ${renderCurrentCard('Open Incidents', activeCount, 'Active and deferred incidents')}
-                ${renderCurrentCard('Closed Incidents', closedCount, 'Resolved and discarded incidents')}
-                ${renderCurrentCard('Assignments', assignmentCount, 'Team assignment records')}
-                ${renderCurrentCard('Mapped Incidents', `${locatedCount}/${latestIncidents.length}`, 'Incidents with coordinates')}
-                ${renderCurrentCard('Alert Level', formatStatusLabel(liveAlertLevel), 'Current command alert')}
+            <div class="command-current-sitrep-tabs" data-command-current-sitrep-tabs>
+                ${latest
+                    ? '<p class="surface-empty">Loading official SITREP sections...</p>'
+                    : `
+                        <div class="surface-empty command-current-sitrep-empty">
+                            <p>Generate a SITREP to view official section tabs.</p>
+                            <button class="surface-button primary tiny" type="button" data-command-generate-current-sitrep>
+                                ${isGeneratingSitrep ? 'Generating...' : 'Generate Today'}
+                            </button>
+                        </div>
+                    `}
             </div>
-            <section class="command-current-detail">
-                <h3>Situation Readout</h3>
-                <p><strong>Operational posture:</strong> ${escapeHtml(summary?.operational_posture ?? 'Pending generated assessment.')}</p>
-                <p><strong>Primary concern:</strong> ${escapeHtml(summary?.primary_concern ?? 'No generated primary concern yet.')}</p>
-                <p><strong>Hotspot:</strong> ${escapeHtml(summary?.hotspot ?? 'No hotspot identified yet.')}</p>
-            </section>
         </section>
     `;
 
-    host.querySelector('[data-command-generate-current]')?.addEventListener('click', () => {
-        void generateCurrentDaySitrep(root);
-    });
+    wireCurrentSitrepGenerateActions(root, host);
+
+    if (latest) {
+        void mountCurrentSitrepSectionTabs(host.querySelector('[data-command-current-sitrep-tabs]'), latest);
+    }
     refreshCommandOperatorPresence(root);
 }
 
-function renderCurrentCard(label, value, detail) {
-    return `
-        <article class="command-current-card">
-            <span>${escapeHtml(label)}</span>
-            <strong>${escapeHtml(String(value ?? ''))}</strong>
-            <small>${escapeHtml(detail)}</small>
-        </article>
-    `;
+function wireCurrentSitrepGenerateActions(root, host) {
+    host.querySelectorAll('[data-command-generate-current-sitrep]').forEach((button) => {
+        button.disabled = isGeneratingSitrep;
+        button.addEventListener('click', () => {
+            button.disabled = true;
+            void generateCurrentDaySitrep(root).catch(() => {
+                button.disabled = isGeneratingSitrep;
+            });
+        });
+    });
 }
 
-function hasIncidentCoordinates(incident) {
-    return Number.isFinite(Number(incident?.latitude)) && Number.isFinite(Number(incident?.longitude));
+function destroyCurrentSitrepViewer() {
+    commandCurrentSitrepViewerInstance?.destroy?.();
+    commandCurrentSitrepViewerInstance = null;
+}
+
+function destroyCurrentSitrepSectionTabs() {
+    commandCurrentSitrepRequestToken += 1;
+    destroyCurrentSitrepViewer();
+    commandCurrentSitrepTabsInstance?.destroy?.();
+    commandCurrentSitrepTabsInstance = null;
+}
+
+async function mountCurrentSitrepSectionTabs(host, latest) {
+    if (!host || !latest?.id) {
+        return;
+    }
+
+    const requestToken = commandCurrentSitrepRequestToken;
+
+    try {
+        const payload = await fetchJson(`${SITREP_INDEX_URL}/${encodeURIComponent(latest.id)}`);
+        const sitrep = payload?.sitrep ?? null;
+
+        if (requestToken !== commandCurrentSitrepRequestToken || !host.isConnected) {
+            return;
+        }
+
+        if (!sitrep) {
+            host.innerHTML = '<p class="surface-empty">Unable to load current SITREP sections.</p>';
+            return;
+        }
+
+        if (!appState.helper.createTabs) {
+            mountCurrentSitrepViewerSection(host, sitrep, 'summary');
+            return;
+        }
+
+        host.innerHTML = '';
+        commandCurrentSitrepTabsInstance?.destroy?.();
+        commandCurrentSitrepTabsInstance = appState.helper.createTabs(host, {
+            activeId: 'summary',
+            ariaLabel: 'Current SITREP section tabs',
+            tabs: COMMAND_CURRENT_SITREP_SECTIONS.map((section) => ({
+                id: section.id,
+                label: section.label,
+                render(panel) {
+                    mountCurrentSitrepViewerSection(panel, sitrep, section.id);
+                },
+            })),
+        });
+        trackSurfaceInstance(commandCurrentSitrepTabsInstance);
+    } catch (error) {
+        if (requestToken !== commandCurrentSitrepRequestToken || !host.isConnected) {
+            return;
+        }
+
+        host.innerHTML = '<p class="surface-empty">Unable to load current SITREP sections.</p>';
+        showToast('Unable to load current SITREP sections.', 'error');
+    }
+}
+
+function mountCurrentSitrepViewerSection(panel, sitrep, section) {
+    destroyCurrentSitrepViewer();
+
+    if (!panel) {
+        return;
+    }
+
+    panel.innerHTML = '<div class="command-current-sitrep-viewer" data-command-current-sitrep-viewer></div>';
+    const viewerHost = panel.querySelector('[data-command-current-sitrep-viewer]');
+
+    if (!viewerHost) {
+        return;
+    }
+
+    commandCurrentSitrepViewerInstance = createSitrepViewer(viewerHost, {
+        sitrep,
+        section,
+        layout: 'section',
+        preview: true,
+        onInteraction(payload) {
+            viewerHost.dispatchEvent(new CustomEvent('command:sitrep-interaction', {
+                bubbles: true,
+                detail: payload,
+            }));
+        },
+        onEvidenceClick(payload) {
+            viewerHost.dispatchEvent(new CustomEvent('command:sitrep-evidence', {
+                bubbles: true,
+                detail: payload,
+            }));
+        },
+        onSourceClick(payload) {
+            viewerHost.dispatchEvent(new CustomEvent('command:sitrep-source', {
+                bubbles: true,
+                detail: payload,
+            }));
+        },
+        onConcernClick(payload) {
+            viewerHost.dispatchEvent(new CustomEvent('command:sitrep-concern', {
+                bubbles: true,
+                detail: payload,
+            }));
+        },
+    });
+    trackSurfaceInstance(commandCurrentSitrepViewerInstance);
 }
 
 function renderSitrepsGrid(host, items, root = null) {
@@ -2363,16 +2479,6 @@ function renderIncidentFallbackList(items) {
             `).join('')}
         </div>
     `;
-}
-
-function formatSitrepRecordNumber(value) {
-    const numeric = Number(value);
-
-    if (!Number.isFinite(numeric)) {
-        return `#${value ?? ''}`.trim();
-    }
-
-    return `#${String(numeric).padStart(6, '0')}`;
 }
 
 function formatSitrepNumber(value) {
