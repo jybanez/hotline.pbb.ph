@@ -1032,15 +1032,42 @@ function operatorAlertToneClass(alertLevel) {
     return '';
 }
 
+function operatorAlertClockVariant(alertLevel) {
+    const normalized = String(alertLevel ?? '').trim().toLowerCase();
+
+    if (normalized === 'elevated') {
+        return 'warn';
+    }
+
+    if (normalized === 'critical') {
+        return 'critical';
+    }
+
+    return 'neutral';
+}
+
+function operatorAlertClockOptions(alertLevel) {
+    const normalized = String(alertLevel ?? 'Normal').trim() || 'Normal';
+
+    return {
+        label: `Alert: ${normalized.toUpperCase()}`,
+        showDate: true,
+        showSeconds: true,
+        hour12: true,
+        dateFormat: 'short',
+        size: 'sm',
+        chrome: true,
+        variant: operatorAlertClockVariant(normalized),
+        locale: 'en-PH',
+        timezone: 'Asia/Manila',
+        ariaLabel: 'Operator alert clock',
+    };
+}
+
 function setOperatorAlertLevel(root, alertLevel) {
-    const label = root?.querySelector('[data-operator-alert-level]');
     const command = root?.querySelector('[data-operator-alert-clock]');
     const shell = root?.querySelector('.operator-shell-compact');
     const toneClass = operatorAlertToneClass(alertLevel);
-
-    if (label) {
-        label.textContent = `Alert: ${String(alertLevel ?? 'Normal').toUpperCase()}`;
-    }
 
     if (command) {
         command.classList.remove('is-alert-elevated', 'is-alert-critical');
@@ -1057,6 +1084,30 @@ function setOperatorAlertLevel(root, alertLevel) {
             shell.classList.add(toneClass);
         }
     }
+
+    appState.runtime.operatorAlertClock?.update?.(operatorAlertClockOptions(alertLevel));
+}
+
+async function mountOperatorAlertClock(root, bootstrap) {
+    appState.runtime.operatorAlertClock?.destroy?.();
+    appState.runtime.operatorAlertClock = null;
+    setOperatorAlertLevel(root, bootstrap?.alert_level);
+
+    const host = root.querySelector('[data-operator-alert-clock]');
+
+    if (!host) {
+        return;
+    }
+
+    const helper = await ensureHelperUi();
+    const createClock = helper.createClock ?? await helper.uiLoader?.get?.('ui.clock');
+
+    if (typeof createClock !== 'function' || !host.isConnected) {
+        return;
+    }
+
+    const alertLevel = appState.bootstrap?.alert_level ?? bootstrap?.alert_level;
+    appState.runtime.operatorAlertClock = createClock(host, operatorAlertClockOptions(alertLevel));
 }
 
 async function connectOperatorRealtimeStream(root, options = {}) {
@@ -7287,11 +7338,7 @@ function renderOperator(root, bootstrap, dashboard, primerReport) {
     const alertToneClass = operatorAlertToneClass(bootstrap?.alert_level);
     const content = `
         <div class="operator-fixed-command" aria-live="polite">
-            <div class="operator-alert-clock ${alertToneClass}" data-operator-alert-clock>
-                <span class="operator-alert-level" data-operator-alert-level>Alert: ${escapeHtml(String(bootstrap.alert_level ?? 'Normal').toUpperCase())}</span>
-                <strong class="operator-live-time" data-live-time>--:--:--</strong>
-                <small class="operator-live-date" data-live-date>---</small>
-            </div>
+            <div class="operator-alert-clock ${alertToneClass}" data-operator-alert-clock></div>
         </div>
         <section class="panel-card operator-stage-shell">
             <div class="operator-map-stage">
@@ -7371,33 +7418,7 @@ function renderOperator(root, bootstrap, dashboard, primerReport) {
     mountOperatorActiveTabs(root, dashboard);
     mountOperatorUtilityTabs(root, dashboard);
     mountOperatorAssignmentBoard(root, dashboard);
-
-    const liveTime = root.querySelector('[data-live-time]');
-    const liveDate = root.querySelector('[data-live-date]');
-    const updateClock = () => {
-        const now = new Date();
-
-        if (liveTime) {
-            liveTime.textContent = now.toLocaleTimeString('en-PH', {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: true,
-            });
-        }
-
-        if (liveDate) {
-            liveDate.textContent = now.toLocaleDateString('en-PH', {
-                weekday: 'short',
-                month: 'short',
-                day: '2-digit',
-                year: 'numeric',
-            });
-        }
-    };
-
-    updateClock();
-    appState.runtime.operatorClockTimer = window.setInterval(updateClock, 1000);
+    void mountOperatorAlertClock(root, bootstrap);
 
     appState.runtime.operatorIncomingCallItem = null;
     appState.runtime.operatorIncomingCallPhase = null;

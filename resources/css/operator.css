@@ -64,63 +64,40 @@
 }
 
 .operator-alert-clock {
-    display: inline-grid;
-    justify-items: center;
     width: max-content;
-    padding: 0.45rem 1rem 0.5rem;
-    border-left: 1px solid rgba(194, 141, 45, 0.55);
-    border-right: 1px solid rgba(194, 141, 45, 0.55);
-    background: linear-gradient(180deg, rgba(92, 62, 9, 0.92), rgba(76, 49, 8, 0.9));
-    color: #f5ead3;
+}
+
+.operator-alert-clock .ui-clock {
+    min-width: 10.5rem;
     white-space: nowrap;
 }
 
-.operator-alert-clock.is-alert-elevated {
-    border-left-color: rgba(214, 170, 63, 0.68);
-    border-right-color: rgba(214, 170, 63, 0.68);
-    background:
-        radial-gradient(circle at 50% 18%, rgba(255, 232, 166, 0.12), transparent 56%),
+.operator-alert-clock .ui-clock--neutral {
+    --ui-clock-accent: rgba(194, 141, 45, 0.72);
+    --ui-clock-bg: linear-gradient(180deg, rgba(92, 62, 9, 0.92), rgba(76, 49, 8, 0.9));
+    --ui-clock-text: #fffaf0;
+    --ui-clock-muted: rgba(246, 231, 201, 0.84);
+}
+
+.operator-alert-clock .ui-clock--warn {
+    --ui-clock-accent: rgba(214, 170, 63, 0.8);
+    --ui-clock-bg: radial-gradient(circle at 50% 18%, rgba(255, 232, 166, 0.12), transparent 56%),
         linear-gradient(180deg, rgba(112, 78, 12, 0.96), rgba(86, 58, 10, 0.92));
+    --ui-clock-text: #fff7de;
+    --ui-clock-muted: rgba(255, 238, 194, 0.88);
 }
 
-.operator-alert-clock.is-alert-critical {
-    border-left-color: rgba(201, 92, 92, 0.72);
-    border-right-color: rgba(201, 92, 92, 0.72);
-    background:
-        radial-gradient(circle at 50% 18%, rgba(255, 210, 210, 0.12), transparent 56%),
+.operator-alert-clock .ui-clock--critical {
+    --ui-clock-accent: rgba(201, 92, 92, 0.84);
+    --ui-clock-bg: radial-gradient(circle at 50% 18%, rgba(255, 210, 210, 0.12), transparent 56%),
         linear-gradient(180deg, rgba(104, 30, 30, 0.97), rgba(77, 18, 18, 0.94));
+    --ui-clock-text: #fff1f1;
+    --ui-clock-muted: rgba(255, 220, 220, 0.88);
 }
 
-.operator-alert-level,
-.operator-live-date {
-    text-transform: uppercase;
+.operator-alert-clock .ui-clock-label,
+.operator-alert-clock .ui-clock-date {
     letter-spacing: 0.14em;
-    font-size: 0.68rem;
-    color: rgba(246, 231, 201, 0.84);
-}
-
-.operator-live-time {
-    font-size: 1.25rem;
-    line-height: 1.1;
-    color: #fffaf0;
-}
-
-.operator-alert-clock.is-alert-elevated .operator-alert-level,
-.operator-alert-clock.is-alert-elevated .operator-live-date {
-    color: rgba(255, 238, 194, 0.88);
-}
-
-.operator-alert-clock.is-alert-elevated .operator-live-time {
-    color: #fff7de;
-}
-
-.operator-alert-clock.is-alert-critical .operator-alert-level,
-.operator-alert-clock.is-alert-critical .operator-live-date {
-    color: rgba(255, 220, 220, 0.88);
-}
-
-.operator-alert-clock.is-alert-critical .operator-live-time {
-    color: #fff1f1;
 }
 
 .operator-main-compact > * + * {

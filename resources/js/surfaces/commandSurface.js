@@ -137,11 +137,7 @@ export async function renderCommandSurface(root, bootstrap) {
         mainClass: 'command-main',
         content: `
             <div class="command-fixed-command" aria-live="polite">
-                <div class="command-alert-clock ${alertToneClass}" data-command-alert-clock>
-                    <span class="command-alert-level" data-command-alert-level>Alert: ${escapeHtml(String(bootstrap?.alert_level ?? 'Normal').toUpperCase())}</span>
-                    <strong class="command-live-time" data-command-live-time>--:--:--</strong>
-                    <small class="command-live-date" data-command-live-date>---</small>
-                </div>
+                <div class="command-alert-clock ${alertToneClass}" data-command-alert-clock></div>
             </div>
             <section class="command-workspace" aria-label="Command workspace">
                 <div class="command-splitter-host" data-command-splitter>
@@ -162,7 +158,7 @@ export async function renderCommandSurface(root, bootstrap) {
     });
 
     mountSurfaceChrome(root, 'command', bootstrap);
-    mountCommandAlertClock(root, bootstrap);
+    await mountCommandAlertClock(root, bootstrap);
     await mountCommandWorkspace(root);
     void connectCommandRealtimeStream(root);
     await Promise.all([
@@ -185,15 +181,42 @@ function commandAlertToneClass(alertLevel) {
     return '';
 }
 
+function commandAlertClockVariant(alertLevel) {
+    const normalized = String(alertLevel ?? '').trim().toLowerCase();
+
+    if (normalized === 'elevated') {
+        return 'warn';
+    }
+
+    if (normalized === 'critical') {
+        return 'critical';
+    }
+
+    return 'neutral';
+}
+
+function commandAlertClockOptions(alertLevel) {
+    const normalized = String(alertLevel ?? 'Normal').trim() || 'Normal';
+
+    return {
+        label: `Alert: ${normalized.toUpperCase()}`,
+        showDate: true,
+        showSeconds: true,
+        hour12: true,
+        dateFormat: 'short',
+        size: 'sm',
+        chrome: true,
+        variant: commandAlertClockVariant(normalized),
+        locale: 'en-PH',
+        timezone: 'Asia/Manila',
+        ariaLabel: 'Command alert clock',
+    };
+}
+
 function setCommandAlertLevel(root, alertLevel) {
-    const label = root?.querySelector('[data-command-alert-level]');
     const clock = root?.querySelector('[data-command-alert-clock]');
     const shell = root?.querySelector('.command-shell');
     const toneClass = commandAlertToneClass(alertLevel);
-
-    if (label) {
-        label.textContent = `Alert: ${String(alertLevel ?? 'Normal').toUpperCase()}`;
-    }
 
     if (clock) {
         clock.classList.remove('is-alert-elevated', 'is-alert-critical');
@@ -210,6 +233,8 @@ function setCommandAlertLevel(root, alertLevel) {
             shell.classList.add(toneClass);
         }
     }
+
+    appState.runtime.commandAlertClock?.update?.(commandAlertClockOptions(alertLevel));
 }
 
 function applyCommandAlertLevel(root, alertLevel) {
@@ -225,39 +250,26 @@ function applyCommandAlertLevel(root, alertLevel) {
     setCommandAlertLevel(root, alertLevel);
 }
 
-function mountCommandAlertClock(root, bootstrap) {
-    if (appState.runtime.commandClockTimer) {
-        window.clearInterval(appState.runtime.commandClockTimer);
-        appState.runtime.commandClockTimer = null;
+async function mountCommandAlertClock(root, bootstrap) {
+    appState.runtime.commandAlertClock?.destroy?.();
+    appState.runtime.commandAlertClock = null;
+    setCommandAlertLevel(root, bootstrap?.alert_level);
+
+    const host = root.querySelector('[data-command-alert-clock]');
+
+    if (!host) {
+        return;
     }
 
-    const updateClock = () => {
-        const liveTime = root.querySelector('[data-command-live-time]');
-        const liveDate = root.querySelector('[data-command-live-date]');
-        const now = new Date();
+    const helper = await ensureHelperUi();
+    const createClock = helper.createClock ?? await helper.uiLoader?.get?.('ui.clock');
 
-        if (liveTime) {
-            liveTime.textContent = now.toLocaleTimeString('en-PH', {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: true,
-            });
-        }
+    if (typeof createClock !== 'function' || !host.isConnected) {
+        return;
+    }
 
-        if (liveDate) {
-            liveDate.textContent = now.toLocaleDateString('en-PH', {
-                weekday: 'short',
-                month: 'short',
-                day: '2-digit',
-                year: 'numeric',
-            });
-        }
-    };
-
-    setCommandAlertLevel(root, bootstrap?.alert_level);
-    updateClock();
-    appState.runtime.commandClockTimer = window.setInterval(updateClock, 1000);
+    const alertLevel = appState.bootstrap?.alert_level ?? bootstrap?.alert_level;
+    appState.runtime.commandAlertClock = createClock(host, commandAlertClockOptions(alertLevel));
 }
 
 function commandRealtimeReconnectRuntime() {
