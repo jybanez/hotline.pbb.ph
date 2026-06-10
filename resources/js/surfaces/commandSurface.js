@@ -213,8 +213,6 @@ function setCommandAlertLevel(root, alertLevel) {
             shell.classList.add(toneClass);
         }
     }
-
-    renderCurrentSnapshot(root);
 }
 
 function applyCommandAlertLevel(root, alertLevel) {
