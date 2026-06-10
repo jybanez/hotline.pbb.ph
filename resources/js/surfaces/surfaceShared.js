@@ -33,7 +33,7 @@ const SESSION_KEEPALIVE_MIN_INTERVAL_MS = 15 * 1000;
 const SESSION_WATCH_INTERVAL_MS = 5 * 1000;
 const CALL_SESSION_HEARTBEAT_MS = 2000;
 const CALL_SESSION_KEEPALIVE_MS = 60 * 1000;
-const HELPER_VENDOR_REV = '93d562a';
+const HELPER_VENDOR_REV = '0368c81';
 const realtimeCallSessionRegistry = new Map();
 
 function isDebugFlagEnabled(storageKey, globalKey) {
@@ -59,8 +59,8 @@ const appState = {
     activeSurface: null,
     runtime: {
         mounted: [],
-        operatorClockTimer: null,
-        commandClockTimer: null,
+        operatorAlertClock: null,
+        commandAlertClock: null,
         surfaceRefreshTimer: null,
         sessionWatcherTimer: null,
         sessionActivityBound: false,
@@ -734,6 +734,7 @@ async function ensureHelperUi() {
         createVirtualList,
         createTimeline,
         createElapsedTime,
+        createClock,
         createMapControls,
         createSignalStrength,
         uiAlert,
@@ -767,6 +768,7 @@ async function ensureHelperUi() {
         uiLoader.get('ui.virtual.list'),
         uiLoader.get('ui.timeline'),
         uiLoader.get('ui.elapsed.time'),
+        uiLoader.get('ui.clock'),
         uiLoader.get('ui.map.controls'),
         uiLoader.get('ui.signal.strength'),
         uiLoader.get('ui.dialog.alert'),
@@ -807,6 +809,7 @@ async function ensureHelperUi() {
         createVirtualList,
         createTimeline,
         createElapsedTime,
+        createClock,
         createMapControls,
         createSignalStrength,
         uiAlert,
@@ -1046,15 +1049,10 @@ function resetSurfaceRuntime(nextSurface = null) {
     appState.runtime.operatorRealtimeSignal = null;
     appState.runtime.commandRealtimeSignal = null;
 
-    if (appState.runtime.operatorClockTimer) {
-        window.clearInterval(appState.runtime.operatorClockTimer);
-        appState.runtime.operatorClockTimer = null;
-    }
-
-    if (appState.runtime.commandClockTimer) {
-        window.clearInterval(appState.runtime.commandClockTimer);
-        appState.runtime.commandClockTimer = null;
-    }
+    appState.runtime.operatorAlertClock?.destroy?.();
+    appState.runtime.operatorAlertClock = null;
+    appState.runtime.commandAlertClock?.destroy?.();
+    appState.runtime.commandAlertClock = null;
 
     if (appState.runtime.surfaceRefreshTimer) {
         window.clearTimeout(appState.runtime.surfaceRefreshTimer);
