@@ -137,6 +137,7 @@ final class SitrepSchemaReference
                 'source_sitrep_count',
                 'source_hub_count',
                 'warnings[]',
+                'counting_notes[]',
                 'period_activity',
                 'verification_notes[]',
             ]),

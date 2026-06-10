@@ -713,10 +713,36 @@ final class SitrepDocumentRenderer
         }
 
         return '<footer class="sitrep-footer">'
-            .'<div><strong>Data Quality</strong><p>'.Html::text($dataQuality['global_note'] ?? 'Generated from current PBB data.').'</p></div>'
+            .'<div><strong>Data Quality</strong><p>'.Html::text($dataQuality['global_note'] ?? 'Generated from current PBB data.').'</p>'.$this->countingNotes($dataQuality).'</div>'
             .'<div><strong>Privacy Defaults</strong><p>'.Html::text(implode(', ', $privacy)).'</p></div>'
             .'<div><strong>Source Snapshot</strong><p class="sitrep-source-lines">'.$sourceHtml.'</p></div>'
             .'</footer>';
+    }
+
+    /**
+     * @param array<string, mixed> $dataQuality
+     */
+    private function countingNotes(array $dataQuality): string
+    {
+        $notes = array_values(array_filter($dataQuality['counting_notes'] ?? [], 'is_array'));
+        if ($notes === []) {
+            return '';
+        }
+
+        $html = '<div class="sitrep-counting-notes"><span>Counting Notes</span><ul>';
+        foreach ($notes as $note) {
+            $html .= '<li>';
+            $html .= '<strong>'.Html::text($note['title'] ?? 'Counting note').'</strong>';
+            foreach (['body', 'evidence', 'confidence_note'] as $field) {
+                $text = trim((string) ($note[$field] ?? ''));
+                if ($text !== '') {
+                    $html .= '<p>'.Html::text($text).'</p>';
+                }
+            }
+            $html .= '</li>';
+        }
+
+        return $html.'</ul></div>';
     }
 
     private function sectionHead(string $eyebrow, string $title): string

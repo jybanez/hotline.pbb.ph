@@ -234,6 +234,29 @@ class SitrepViewerSdkTest extends TestCase
         $this->assertStringContainsString('Field verification is still required.', $html);
     }
 
+    public function test_renders_counting_notes_under_data_quality_instead_of_gaps(): void
+    {
+        $viewer = new SitrepViewer();
+        $payload = $this->sitrep();
+        $payload['gaps']['items'] = [];
+        $payload['data_quality']['counting_notes'] = [[
+            'type' => 'counting_scope',
+            'title' => 'Resolved and discarded reports are excluded from current pressure',
+            'body' => 'This keeps the operating picture focused on reports that still need leadership visibility.',
+            'evidence' => '5 resolved reports were treated as addressed history; 2 discarded reports were excluded from posture, demand, and severity.',
+            'confidence_note' => 'Resolved reports cannot carry pending entries under current Hotline rules.',
+        ]];
+
+        $gapsHtml = $viewer->renderSection($payload, 'gaps');
+        $dataQualityHtml = $viewer->renderSection($payload, 'data_quality');
+
+        $this->assertStringNotContainsString('Resolved and discarded reports are excluded from current pressure', $gapsHtml);
+        $this->assertStringContainsString('Counting Notes', $dataQualityHtml);
+        $this->assertStringContainsString('Resolved and discarded reports are excluded from current pressure', $dataQualityHtml);
+        $this->assertStringContainsString('5 resolved reports were treated as addressed history', $dataQualityHtml);
+        $this->assertStringContainsString('Resolved reports cannot carry pending entries under current Hotline rules.', $dataQualityHtml);
+    }
+
     public function test_uses_hotline_preview_fallback_copy(): void
     {
         $viewer = new SitrepViewer();
