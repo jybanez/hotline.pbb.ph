@@ -837,21 +837,6 @@ class SitrepGenerationService
             ];
         }
 
-        $resolvedCount = $context['closed_incident_count'];
-        $discardedCount = $context['discarded_incident_count'];
-
-        if (($resolvedCount + $discardedCount) > 0) {
-            $items[] = [
-                'type' => 'counting_scope',
-                'category' => 'Counting rule',
-                'title' => 'Closed and discarded reports are not current pressure',
-                'decision_relevance' => 'This keeps the operating picture focused on reports that still need leadership visibility or downstream coordination.',
-                'evidence' => sprintf('%d resolved report%s treated as addressed history; %d discarded report%s excluded from posture, demand, and severity.', $resolvedCount, $resolvedCount === 1 ? ' was' : 's were', $discardedCount, $discardedCount === 1 ? ' was' : 's were'),
-                'confidence_note' => 'A resolved report cannot carry pending entries under current Hotline rules; discarded reports are neglected for current posture.',
-                'public_visible' => true,
-            ];
-        }
-
         return [
             'items' => $items,
             'title' => 'Response Constraints and Confidence Gaps',
@@ -874,6 +859,7 @@ class SitrepGenerationService
 
         return [
             'global_note' => 'Generated from Hotline incident data using current-picture rules: active/deferred reports drive current posture, resolved reports are addressed history, and discarded reports are excluded.',
+            'counting_notes' => $this->countingNotes($context),
             'missing_citizen_location_count' => $missingLocations,
             'incidents_without_type_count' => $withoutTypes,
             'incidents_without_assignment_count' => $withoutAssignments,
@@ -881,6 +867,28 @@ class SitrepGenerationService
                 ->filter(fn (IncidentTypeDetail $detail) => $this->classifyDetail($detail) === 'situation')
                 ->count(),
         ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function countingNotes(array $context): array
+    {
+        $resolvedCount = (int) $context['closed_incident_count'];
+        $discardedCount = (int) $context['discarded_incident_count'];
+
+        if (($resolvedCount + $discardedCount) === 0) {
+            return [];
+        }
+
+        return [[
+            'type' => 'counting_scope',
+            'category' => 'Counting note',
+            'title' => 'Resolved and discarded reports were excluded from current pressure',
+            'body' => 'This keeps the operating picture focused on reports that still need leadership visibility or downstream coordination.',
+            'evidence' => sprintf('%d resolved report%s treated as addressed history; %d discarded report%s excluded from posture, demand, and severity.', $resolvedCount, $resolvedCount === 1 ? ' was' : 's were', $discardedCount, $discardedCount === 1 ? ' was' : 's were'),
+            'confidence_note' => 'A resolved report cannot carry pending entries under current Hotline rules; discarded reports are neglected for current posture.',
+        ]];
     }
 
     private function buildSourceSnapshot(array $context, Carbon $periodStart, Carbon $periodEnd, array $hubNodeSnapshot, bool $systemGenerated, ?User $preparedBy): array

@@ -319,6 +319,33 @@ class SitrepConsolidatorSdkTest extends TestCase
         $this->assertSame('Movement', $result->sitrep['gaps']['rollup']['items'][0]['category']);
     }
 
+    public function test_consolidated_gaps_exclude_legacy_counting_scope_notes(): void
+    {
+        $consolidator = new SitrepConsolidator();
+        $first = $this->richSitrep(12, 'Guadalupe', 'Flood', 'Team Alpha', 'Rescue Boat', 'Road/access constraints may affect movement');
+        $second = $this->richSitrep(13, 'Apas', 'Road Accident', 'Team Bravo', 'Ambulance', 'Resource supply not confirmed');
+        $first['gaps']['rollup']['items'][] = [
+            'type' => 'counting_scope',
+            'category' => 'Counting rule',
+            'title' => 'Closed and discarded reports are not current pressure',
+            'decision_relevance' => 'This keeps the operating picture focused on current reports.',
+            'evidence' => '5 resolved reports were treated as addressed history.',
+            'confidence_note' => 'Resolved reports are excluded from current pressure.',
+        ];
+
+        $result = $consolidator->consolidate([$first, $second], [
+            'target_level' => 'city',
+            'target_hub_id' => '11',
+            'target_hub_name' => 'CEBU CITY, CEBU',
+        ]);
+
+        $this->assertTrue($result->ok);
+        $gapTypes = array_column($result->sitrep['gaps']['rollup']['items'], 'type');
+        $this->assertNotContains('counting_scope', $gapTypes);
+        $this->assertSame('counting_scope', $result->sitrep['data_quality']['rollup']['counting_notes'][0]['type']);
+        $this->assertSame('Guadalupe', $result->sitrep['data_quality']['rollup']['counting_notes'][0]['source_hub_name']);
+    }
+
     public function test_rejects_mixed_source_deployment_consolidation(): void
     {
         $consolidator = new SitrepConsolidator();
