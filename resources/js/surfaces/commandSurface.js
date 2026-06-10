@@ -1349,16 +1349,46 @@ function renderCurrentSnapshot(root, targetHost = null) {
 
     host.innerHTML = `
         <section class="command-current-sitrep-panel">
+            <div class="command-current-sitrep-toolbar">
+                <div>
+                    <p class="ui-eyebrow">Current SITREP</p>
+                    <p class="command-current-sitrep-toolbar-copy">${latest ? 'Official section rendering from the SITREP Viewer SDK.' : 'No current SITREP is available yet.'}</p>
+                </div>
+                <button class="surface-button secondary tiny" type="button" data-command-generate-current-sitrep>
+                    ${isGeneratingSitrep ? 'Generating...' : 'Generate Today'}
+                </button>
+            </div>
             <div class="command-current-sitrep-tabs" data-command-current-sitrep-tabs>
-                <p class="surface-empty">${latest ? 'Loading official SITREP sections...' : 'Generate a SITREP to view official section tabs.'}</p>
+                ${latest
+                    ? '<p class="surface-empty">Loading official SITREP sections...</p>'
+                    : `
+                        <div class="surface-empty command-current-sitrep-empty">
+                            <p>Generate a SITREP to view official section tabs.</p>
+                            <button class="surface-button primary tiny" type="button" data-command-generate-current-sitrep>
+                                ${isGeneratingSitrep ? 'Generating...' : 'Generate Today'}
+                            </button>
+                        </div>
+                    `}
             </div>
         </section>
     `;
+
+    wireCurrentSitrepGenerateActions(root, host);
 
     if (latest) {
         void mountCurrentSitrepSectionTabs(host.querySelector('[data-command-current-sitrep-tabs]'), latest);
     }
     refreshCommandOperatorPresence(root);
+}
+
+function wireCurrentSitrepGenerateActions(root, host) {
+    host.querySelectorAll('[data-command-generate-current-sitrep]').forEach((button) => {
+        button.disabled = isGeneratingSitrep;
+        button.addEventListener('click', () => {
+            button.disabled = true;
+            void generateCurrentDaySitrep(root);
+        });
+    });
 }
 
 function destroyCurrentSitrepViewer() {
