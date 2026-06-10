@@ -721,18 +721,7 @@ function checkFilesystemBoundaries(string $root, array $config): array
 
 function normalizedSessionDomain(array $config, string $appUrl): string
 {
-    $appHost = strtolower((string) (parse_url($appUrl, PHP_URL_HOST) ?: ''));
-    $configured = strtolower(trim((string) dataGet($config, ['app', 'session_domain'], '')));
-
-    if ($configured === '') {
-        return $appHost;
-    }
-
-    if (! isLocalHost($appHost) && isLocalHost($configured)) {
-        return $appHost;
-    }
-
-    return $configured;
+    return '';
 }
 
 function isLocalHost(string $host): bool

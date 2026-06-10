@@ -1,5 +1,6 @@
 <?php
 
+use App\Support\Http\SessionCookieDomain;
 use Illuminate\Support\Str;
 
 return [
@@ -160,7 +161,10 @@ return [
     |
     */
 
-    'domain' => env('HOTLINE_SESSION_DOMAIN', env('SESSION_DOMAIN')),
+    'domain' => SessionCookieDomain::normalize(
+        env('HOTLINE_SESSION_DOMAIN', env('SESSION_DOMAIN')),
+        env('APP_URL')
+    ),
 
     /*
     |--------------------------------------------------------------------------
