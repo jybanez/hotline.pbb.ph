@@ -648,6 +648,99 @@ CREATE TABLE `sitrep_relay_deliveries` (
   CONSTRAINT `sitrep_relay_deliveries_sitrep_report_id_foreign` FOREIGN KEY (`sitrep_report_id`) REFERENCES `sitrep_reports` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `support_requests`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `support_requests` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `local_request_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `correlation_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `support_request_id` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'requested',
+  `relay_delivery_status` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `relay_attempt_count` int(10) unsigned NOT NULL DEFAULT '0',
+  `relay_id` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `relay_message_id` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `relay_deliveries_count` int(10) unsigned DEFAULT NULL,
+  `relay_last_error` text COLLATE utf8mb4_unicode_ci,
+  `relay_last_attempted_at` timestamp NULL DEFAULT NULL,
+  `relay_submitted_at` timestamp NULL DEFAULT NULL,
+  `relay_response_json` json DEFAULT NULL,
+  `urgency` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'normal',
+  `requested_assistance` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `requested_capability` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `quantity` int(10) unsigned DEFAULT NULL,
+  `quantity_unit` varchar(40) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `staging_notes` text COLLATE utf8mb4_unicode_ci,
+  `command_notes` text COLLATE utf8mb4_unicode_ci,
+  `requester_user_id` bigint(20) unsigned DEFAULT NULL,
+  `requester_name` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `requester_role` varchar(40) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `source_system` varchar(80) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'hotline.command',
+  `source_hub_id` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `source_relay_hub_id` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `source_hub_name` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `source_snapshot_json` json DEFAULT NULL,
+  `sitrep_report_id` bigint(20) unsigned DEFAULT NULL,
+  `sitrep_sequence_number` int(10) unsigned DEFAULT NULL,
+  `sitrep_generated_at` timestamp NULL DEFAULT NULL,
+  `sitrep_section` varchar(80) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `sitrep_evidence_ref` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `gap_json` json DEFAULT NULL,
+  `evidence_row_json` json DEFAULT NULL,
+  `incident_refs_json` json DEFAULT NULL,
+  `requested_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `support_requests_local_request_id_unique` (`local_request_id`),
+  UNIQUE KEY `support_requests_correlation_id_unique` (`correlation_id`),
+  KEY `support_requests_support_request_id_index` (`support_request_id`),
+  KEY `support_requests_status_index` (`status`),
+  KEY `support_requests_relay_delivery_status_index` (`relay_delivery_status`),
+  KEY `support_requests_relay_id_index` (`relay_id`),
+  KEY `support_requests_relay_message_id_index` (`relay_message_id`),
+  KEY `support_requests_urgency_index` (`urgency`),
+  KEY `support_requests_requester_user_id_foreign` (`requester_user_id`),
+  KEY `support_requests_sitrep_report_id_foreign` (`sitrep_report_id`),
+  KEY `support_requests_sitrep_report_id_sitrep_section_index` (`sitrep_report_id`,`sitrep_section`),
+  KEY `support_requests_requested_at_index` (`requested_at`),
+  KEY `support_requests_status_relay_delivery_status_index` (`status`,`relay_delivery_status`),
+  CONSTRAINT `support_requests_requester_user_id_foreign` FOREIGN KEY (`requester_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `support_requests_sitrep_report_id_foreign` FOREIGN KEY (`sitrep_report_id`) REFERENCES `sitrep_reports` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `support_request_histories`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `support_request_histories` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `support_request_id` bigint(20) unsigned NOT NULL,
+  `event_type` varchar(80) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `relay_message_id` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `update_id` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `support_request_external_id` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `source_system` varchar(80) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `actor_name` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `message` text COLLATE utf8mb4_unicode_ci,
+  `payload_json` json DEFAULT NULL,
+  `occurred_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `support_request_histories_request_relay_unique` (`support_request_id`,`relay_message_id`),
+  UNIQUE KEY `support_request_histories_request_update_unique` (`support_request_id`,`update_id`),
+  KEY `support_request_histories_support_request_id_foreign` (`support_request_id`),
+  KEY `support_request_histories_event_type_index` (`event_type`),
+  KEY `support_request_histories_status_index` (`status`),
+  KEY `support_request_histories_relay_message_id_index` (`relay_message_id`),
+  KEY `support_request_histories_update_id_index` (`update_id`),
+  KEY `support_request_histories_support_request_external_id_index` (`support_request_external_id`),
+  KEY `support_request_histories_occurred_at_index` (`occurred_at`),
+  CONSTRAINT `support_request_histories_support_request_id_foreign` FOREIGN KEY (`support_request_id`) REFERENCES `support_requests` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `team_assignment_allocated_resources`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -845,4 +938,6 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES
   ('2026_05_13_000001_refactor_incident_types_for_group_presets', 1),
   ('2026_05_13_000002_refactor_resource_defaults_for_incident_types', 1),
   ('2026_05_30_000001_create_sitrep_relay_deliveries_table', 1),
-  ('2026_05_31_034100_change_sitrep_relay_message_id_to_string', 1);
+  ('2026_05_31_034100_change_sitrep_relay_message_id_to_string', 1),
+  ('2026_06_11_000001_create_support_requests_table', 1),
+  ('2026_06_11_000002_create_support_request_histories_table', 1);
