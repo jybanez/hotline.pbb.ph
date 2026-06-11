@@ -1293,6 +1293,15 @@ function settingsEditorData(state) {
                         autocomplete: 'off',
                         help: 'Comma-separated Relay target system identifiers that should receive SITREP records, such as PBB Support System acting as sitrep.ingestor.',
                     },
+                    {
+                        id: 'support_request_relay_handler_token',
+                        kind: 'password',
+                        label: 'Support Request Update Handler Token',
+                        value: values.support_request_relay_handler_token ?? '',
+                        placeholder: 'Enter Relay handler token',
+                        autocomplete: 'off',
+                        help: 'Shared Relay handler credential expected when Relay delivers support.request.* lifecycle updates back into Hotline.',
+                    },
                 ],
             },
             {

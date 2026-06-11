@@ -13,6 +13,14 @@ class SupportRequest extends Model
     public const STATUS_REQUESTED = 'requested';
     public const STATUS_RELAY_ACCEPTED = 'relay_accepted';
     public const STATUS_FAILED = 'failed';
+    public const STATUS_RECEIVED = 'received';
+    public const STATUS_UNDER_REVIEW = 'under_review';
+    public const STATUS_ACCEPTED = 'accepted';
+    public const STATUS_REJECTED = 'rejected';
+    public const STATUS_ASSIGNED = 'assigned';
+    public const STATUS_EN_ROUTE = 'en_route';
+    public const STATUS_FULFILLED = 'fulfilled';
+    public const STATUS_CLOSED = 'closed';
 
     public const RELAY_PENDING = 'pending';
     public const RELAY_ACCEPTED = 'relay_accepted';

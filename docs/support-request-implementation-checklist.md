@@ -113,6 +113,7 @@ POST /api/internal/relay/support-request-updates
 - Update current request status when the inbound update is valid.
 - Return clear accepted/rejected response to Relay.
 - Preserve authenticated but unknown updates for debugging.
+  - Current first-pass schema cannot persist unknown updates because `support_request_histories` requires a known `support_request_id`; Hotline should log and return a clear unknown-request response until a rejected-message table exists.
 
 ## 5. Tokens And Settings
 
