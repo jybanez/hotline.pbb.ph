@@ -652,23 +652,27 @@ final class SitrepDocumentRenderer
     private function populationEvidenceGroups(array $gap, array $population, ?string $targetName): array
     {
         $sourceHubs = array_values(array_filter((array) ($gap['source_hubs'] ?? []), 'is_scalar'));
-        if ($sourceHubs === []) {
-            return [];
-        }
-
-        $allowedLocations = array_fill_keys(array_map(fn (mixed $source): string => $this->shortLocation((string) $source, $targetName), $sourceHubs), true);
+        $allowedLocations = $sourceHubs === []
+            ? null
+            : array_fill_keys(array_map(fn (mixed $source): string => $this->shortLocation((string) $source, $targetName), $sourceHubs), true);
         $groups = [];
         foreach (array_filter($population['population_groups'] ?? [], 'is_array') as $populationGroup) {
             $signal = trim((string) ($populationGroup['population_signal'] ?? 'Population signal'));
             $notes = trim((string) ($populationGroup['notes'] ?? ''));
-            foreach (array_filter($populationGroup['source_values'] ?? [], 'is_array') as $source) {
-                $sourceName = trim((string) ($source['source_hub_name'] ?? ''));
+            $sourceValues = array_values(array_filter($populationGroup['source_values'] ?? [], 'is_array'));
+            $sources = $sourceValues === [] ? [[
+                'source_hub_name' => trim((string) ($targetName ?? '')) !== '' ? $targetName : 'Current Location',
+                'reports' => $populationGroup['reports'] ?? null,
+                'people_or_families' => $populationGroup['people_or_families'] ?? null,
+            ]] : $sourceValues;
+            foreach ($sources as $source) {
+                $sourceName = trim((string) ($source['source_hub_name'] ?? ($targetName ?? 'Current Location')));
                 if ($sourceName === '') {
                     continue;
                 }
 
                 $location = $this->shortLocation($sourceName, $targetName);
-                if (! isset($allowedLocations[$location])) {
+                if ($allowedLocations !== null && ! isset($allowedLocations[$location])) {
                     continue;
                 }
 

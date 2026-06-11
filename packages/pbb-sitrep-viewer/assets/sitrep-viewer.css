@@ -19,10 +19,6 @@
     max-width: 1180px;
     margin: 0 auto;
     overflow: hidden;
-    background: rgba(5, 16, 24, 0.88);
-    border: 1px solid rgba(88, 142, 185, 0.34);
-    border-radius: 1.35rem;
-    box-shadow: 0 2rem 6rem rgba(0, 0, 0, 0.32);
 }
 
 .sitrep-preview-banner,
@@ -1014,9 +1010,9 @@
     scroll-margin-block: 5rem;
 }
 
-.pbb-sitrep-js-viewer [data-sitrep-evidence-ref]:where(:hover, :focus-visible),
-.pbb-sitrep-js-viewer [data-source-hub-id]:where(:hover, :focus-visible),
-.pbb-sitrep-js-viewer [data-concern-group]:where(:hover, :focus-visible) {
+.pbb-sitrep-js-viewer [data-sitrep-evidence-ref]:focus-visible,
+.pbb-sitrep-js-viewer [data-source-hub-id]:focus-visible,
+.pbb-sitrep-js-viewer [data-concern-group]:focus-visible {
     outline: 1px solid rgba(147, 197, 253, 0.55);
     outline-offset: 2px;
 }

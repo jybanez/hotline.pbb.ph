@@ -85,6 +85,9 @@ let commandWorkbenchRenderFrame = null;
 let commandCurrentSitrepTabsInstance = null;
 let commandCurrentSitrepViewerInstance = null;
 let commandCurrentSitrepRequestToken = 0;
+let commandCurrentSitrepCacheId = null;
+let commandCurrentSitrepCachePayload = null;
+let commandCurrentSitrepCachePromise = null;
 
 export async function renderCommandSurface(root, bootstrap) {
     appState.runtime.navbarItems = [];
@@ -821,6 +824,7 @@ function mountCommandTabs(root) {
         return;
     }
 
+    bindCurrentTabRepeatedActivationGuard(tabsHost);
     destroyCurrentSitrepSectionTabs();
     commandTabsInstance?.destroy?.();
     commandTabsInstance = appState.helper.createTabs(tabsHost, {
@@ -889,6 +893,38 @@ function mountCommandTabs(root) {
         ],
     });
     trackSurfaceInstance(commandTabsInstance);
+}
+
+function bindCurrentTabRepeatedActivationGuard(tabsHost) {
+    if (tabsHost.dataset.commandCurrentTabGuardBound === 'true') {
+        return;
+    }
+
+    const shouldIgnore = (event) => {
+        const tab = event.target?.closest?.('[role="tab"][data-tab-id="current"]');
+
+        return Boolean(tab && tab.getAttribute('aria-selected') === 'true');
+    };
+
+    tabsHost.addEventListener('click', (event) => {
+        if (!shouldIgnore(event)) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+    }, true);
+
+    tabsHost.addEventListener('keydown', (event) => {
+        if (!['Enter', ' '].includes(event.key) || !shouldIgnore(event)) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+    }, true);
+
+    tabsHost.dataset.commandCurrentTabGuardBound = 'true';
 }
 
 function mountCommandDashboardMap(root) {
@@ -1426,7 +1462,7 @@ async function mountCurrentSitrepSectionTabs(host, latest) {
     const requestToken = commandCurrentSitrepRequestToken;
 
     try {
-        const payload = await fetchJson(`${SITREP_INDEX_URL}/${encodeURIComponent(latest.id)}`);
+        const payload = await loadCurrentSitrepPayload(latest.id);
         const sitrep = payload?.sitrep ?? null;
 
         if (requestToken !== commandCurrentSitrepRequestToken || !host.isConnected) {
@@ -1465,6 +1501,45 @@ async function mountCurrentSitrepSectionTabs(host, latest) {
         host.innerHTML = '<p class="surface-empty">Unable to load current SITREP sections.</p>';
         showToast('Unable to load current SITREP sections.', 'error');
     }
+}
+
+async function loadCurrentSitrepPayload(sitrepId) {
+    const cacheId = String(sitrepId ?? '');
+
+    if (!cacheId) {
+        return null;
+    }
+
+    if (commandCurrentSitrepCacheId === cacheId && commandCurrentSitrepCachePayload) {
+        return commandCurrentSitrepCachePayload;
+    }
+
+    if (commandCurrentSitrepCacheId === cacheId && commandCurrentSitrepCachePromise) {
+        return commandCurrentSitrepCachePromise;
+    }
+
+    commandCurrentSitrepCacheId = cacheId;
+    commandCurrentSitrepCachePayload = null;
+    commandCurrentSitrepCachePromise = fetchJson(`${SITREP_INDEX_URL}/${encodeURIComponent(cacheId)}`)
+        .then((payload) => {
+            commandCurrentSitrepCachePayload = payload;
+            return payload;
+        })
+        .catch((error) => {
+            if (commandCurrentSitrepCacheId === cacheId) {
+                commandCurrentSitrepCacheId = null;
+                commandCurrentSitrepCachePayload = null;
+            }
+
+            throw error;
+        })
+        .finally(() => {
+            if (commandCurrentSitrepCacheId === cacheId) {
+                commandCurrentSitrepCachePromise = null;
+            }
+        });
+
+    return commandCurrentSitrepCachePromise;
 }
 
 function mountCurrentSitrepViewerSection(panel, sitrep, section) {
