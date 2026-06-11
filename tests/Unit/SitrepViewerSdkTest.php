@@ -344,7 +344,7 @@ class SitrepViewerSdkTest extends TestCase
         $this->assertStringNotContainsString('sitrep-property-group', $html);
     }
 
-    public function test_renders_single_location_population_gap_evidence_as_direct_table(): void
+    public function test_renders_single_location_population_gap_evidence_as_direct_detailed_table(): void
     {
         $viewer = new SitrepViewer();
         $payload = $this->sitrep();
@@ -363,7 +363,8 @@ class SitrepViewerSdkTest extends TestCase
         $this->assertStringNotContainsString('sitrep-population-evidence-card', $html);
         $this->assertStringNotContainsString('<h4>Guadalupe, CEBU CITY, CEBU</h4>', $html);
         $this->assertStringContainsString('<th>Signal</th><th>Reports</th><th>People</th><th>Notes</th>', $html);
-        $this->assertStringContainsString('<td>Population/life-safety records</td><td>6</td><td>6</td><td>People injured, Patient or injured person, Estimated people involved, Evacuation Needed.</td>', $html);
+        $this->assertStringContainsString('<td>People injured</td><td>6</td><td>6</td><td>Details reported; verification required.; Overall declared breakdown: 3 Children</td>', $html);
+        $this->assertStringNotContainsString('<td>Population/life-safety records</td>', $html);
         $this->assertStringNotContainsString('<dt>Evidence</dt><dd>6 current population/life-safety records reported', $html);
         $this->assertStringNotContainsString('Population Evidence', $html);
     }

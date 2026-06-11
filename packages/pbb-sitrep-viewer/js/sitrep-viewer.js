@@ -1139,18 +1139,11 @@ function gapEvidence(gap, targetName, needs = {}, population = {}, options = {})
     return document.createTextNode(evidence);
   }
 
-  const populationRows = populationEvidenceRows(rows);
-  if (populationRows.length) {
-    return table('Population Evidence', ['Location', 'People', 'Breakdown'], populationRows, {
-      ...options,
-      section: 'gaps',
-      rowPayloads: rows.map((row) => ({
-        ...object(row[2]),
-        location: row[0],
-        people: row[1],
-        breakdown: row[2],
-      })),
-    });
+  if (isPopulationConfidenceGap(gap)) {
+    const populationGroups = populationEvidenceGroupsFromSourceRows(rows);
+    if (populationGroups.length) {
+      return populationEvidenceCards(populationGroups, options);
+    }
   }
 
   const resourceRows = resourceEvidenceRowsFromSourceRows(rows);
@@ -1184,6 +1177,39 @@ function populationEvidenceRows(rows) {
   }
 
   return output;
+}
+
+function populationEvidenceGroupsFromSourceRows(rows) {
+  const populationRows = populationEvidenceRows(rows);
+  if (!populationRows.length) {
+    return [];
+  }
+
+  return populationRows.map((row) => {
+    const location = text(row[0], 'Current Location');
+    const reports = Number(row[1]) || 0;
+    const notes = text(row[2]);
+    const payload = object(row[3]);
+
+    return {
+      location,
+      rows: [[
+        'Population/life-safety records',
+        reports,
+        reports,
+        notes,
+      ]],
+      rowPayloads: [{
+        ...payload,
+        location,
+        signal: 'Population/life-safety records',
+        reports,
+        people: reports,
+        notes,
+        source_hub_name: payload.source_hub_name ?? location,
+      }],
+    };
+  });
 }
 
 function populationEvidenceGroupsFromEvidence(evidence, sourceHubs, targetName) {
@@ -1226,23 +1252,27 @@ function isPopulationConfidenceGap(gap) {
 
 function populationEvidenceGroups(gap, population, targetName) {
   const sourceHubs = array(gap.source_hubs).map((source) => text(source)).filter(Boolean);
-  if (!sourceHubs.length) {
-    return [];
-  }
-
-  const allowedLocations = new Set(sourceHubs.map((source) => shortLocation(source, targetName)));
+  const allowedLocations = sourceHubs.length
+    ? new Set(sourceHubs.map((source) => shortLocation(source, targetName)))
+    : null;
   const groups = new Map();
   array(population.population_groups).filter(isObject).forEach((populationGroup) => {
     const signal = text(populationGroup.population_signal, 'Population signal');
     const notes = text(populationGroup.notes);
-    array(populationGroup.source_values).filter(isObject).forEach((source) => {
-      const sourceName = text(source.source_hub_name);
+    const sourceValues = array(populationGroup.source_values).filter(isObject);
+    const sources = sourceValues.length ? sourceValues : [{
+      source_hub_name: targetName || 'Current Location',
+      reports: populationGroup.reports,
+      people_or_families: populationGroup.people_or_families,
+    }];
+    sources.forEach((source) => {
+      const sourceName = text(source.source_hub_name, targetName || 'Current Location');
       if (!sourceName) {
         return;
       }
 
       const location = shortLocation(sourceName, targetName);
-      if (!allowedLocations.has(location)) {
+      if (allowedLocations && !allowedLocations.has(location)) {
         return;
       }
 

@@ -437,8 +437,14 @@ try {
     singleLocation.location_count = 1;
     singleLocation.source_snapshot.rollup = {
       generation: { type: 'manual', prepared_by_label: 'System Generated' },
-      hub_node: { available: true, snapshot: { name: 'Barangay Guadalupe, Cebu City, Cebu', deployment: 'barangay', hub_id: '12' } },
+      hub_node: { available: true, snapshot: { name: 'Barangay Apas, Cebu City, Cebu', deployment: 'barangay', hub_id: '13' } },
     };
+    singleLocation.population.rollup.population_groups = singleLocation.population.rollup.population_groups
+      .map((group) => ({
+        ...group,
+        source_values: group.source_values?.filter((source) => source.source_hub_name === 'Barangay Apas, Cebu City, Cebu') ?? [],
+      }))
+      .filter((group) => group.source_values.length);
     singleLocation.gaps.rollup.items = [{
       category: 'Data Confidence',
       title: 'Population figures require verification',
@@ -554,7 +560,9 @@ try {
   assert.ok(canonicalResult.locationPopulationEvidenceCards.some((card) => card.title === 'Guadalupe' && card.rows[1]?.join('|') === 'Patient or injured person|3|3|serious; guarded; stable'));
   assert.ok(canonicalResult.locationPopulationEvidenceCards.some((card) => card.title === 'Apas' && card.rows[1]?.join('|') === 'Affected family|1|10|2 families; 1 displacement signal; Overall declared breakdown: 6 Children, 2 Pregnant'));
   assert.equal(canonicalResult.singlePopulationEvidenceCards, 0);
-  assert.ok(canonicalResult.singlePopulationEvidenceRows.some((row) => row.join('|') === 'Population/life-safety records|6|6|People injured, Patient or injured person, Estimated people involved, Evacuation Needed.'));
+  assert.ok(canonicalResult.singlePopulationEvidenceRows.some((row) => row.join('|') === 'People injured|2|2|Details reported; verification required.'));
+  assert.ok(canonicalResult.singlePopulationEvidenceRows.some((row) => row.join('|') === 'Affected family|1|10|2 families; 1 displacement signal; Overall declared breakdown: 6 Children, 2 Pregnant'));
+  assert.ok(!canonicalResult.singlePopulationEvidenceRows.some((row) => row.join('|').includes('Population/life-safety records')));
   assert.doesNotMatch(canonicalResult.singleGapsText, /Evidence 6 current population\/life-safety records reported/);
   assert.ok(canonicalResult.directResourceEvidenceRows.some((row) => row.join('|') === 'Rescue and Extraction|17|Body Harness, Rescue Boat'));
   assert.ok(canonicalResult.locationResourceEvidenceCards.some((card) => card.title === 'Guadalupe' && card.rows[0]?.join('|') === 'Rescue and Extraction|7|Body Harness'));

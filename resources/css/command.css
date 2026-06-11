@@ -38,13 +38,6 @@
     min-width: 10.5rem;
 }
 
-.command-alert-clock .ui-clock--neutral {
-    --ui-clock-accent: rgba(194, 141, 45, 0.72);
-    --ui-clock-bg: linear-gradient(180deg, rgba(92, 62, 9, 0.92), rgba(76, 49, 8, 0.9));
-    --ui-clock-text: #fffaf0;
-    --ui-clock-muted: rgba(246, 231, 201, 0.84);
-}
-
 .command-alert-clock .ui-clock--warn {
     --ui-clock-accent: rgba(214, 170, 63, 0.8);
     --ui-clock-bg: radial-gradient(circle at 50% 18%, rgba(255, 232, 166, 0.12), transparent 56%),

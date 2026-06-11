@@ -371,10 +371,6 @@ body.sitrep-pdf-body {
 }
 
 .sitrep-document {
-    background: rgba(5, 16, 24, 0.88);
-    border: 1px solid rgba(88, 142, 185, 0.34);
-    border-radius: 1.35rem;
-    box-shadow: 0 2rem 6rem rgba(0, 0, 0, 0.32);
     margin: 0 auto;
     max-width: 1180px;
     overflow: hidden;
