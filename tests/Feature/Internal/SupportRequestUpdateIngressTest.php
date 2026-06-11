@@ -181,6 +181,153 @@ class SupportRequestUpdateIngressTest extends TestCase
         ]);
     }
 
+    public function test_inbound_support_request_newer_update_advances_current_status(): void
+    {
+        app(SettingsService::class)->set('support_request_relay_handler_token', 'handler-secret');
+        $supportRequest = $this->supportRequest();
+
+        $this->postJson('/api/internal/relay/support-request-updates', $this->envelope([
+            'message_type' => 'support.request.accepted',
+            'message_id' => 'relay_msg_order_accepted',
+            'payload' => [
+                'schema_version' => 1,
+                'local_request_id' => $supportRequest->local_request_id,
+                'correlation_id' => $supportRequest->correlation_id,
+                'status' => SupportRequest::STATUS_ACCEPTED,
+                'updated_at' => '2026-06-11T09:55:00+08:00',
+                'update_id' => 'upd_order_accepted',
+            ],
+        ]), $this->headers())
+            ->assertStatus(202)
+            ->assertJsonPath('status', 'accepted')
+            ->assertJsonPath('support_request.status', SupportRequest::STATUS_ACCEPTED);
+
+        $this->postJson('/api/internal/relay/support-request-updates', $this->envelope([
+            'message_type' => 'support.request.assigned',
+            'message_id' => 'relay_msg_order_assigned',
+            'payload' => [
+                'schema_version' => 1,
+                'local_request_id' => $supportRequest->local_request_id,
+                'correlation_id' => $supportRequest->correlation_id,
+                'status' => SupportRequest::STATUS_ASSIGNED,
+                'updated_at' => '2026-06-11T10:00:00+08:00',
+                'update_id' => 'upd_order_assigned',
+            ],
+        ]), $this->headers())
+            ->assertStatus(202)
+            ->assertJsonPath('status', 'accepted')
+            ->assertJsonPath('support_request.status', SupportRequest::STATUS_ASSIGNED);
+
+        $this->assertDatabaseHas('support_requests', [
+            'id' => $supportRequest->id,
+            'status' => SupportRequest::STATUS_ASSIGNED,
+        ]);
+        $this->assertDatabaseCount('support_request_histories', 2);
+    }
+
+    public function test_inbound_support_request_older_non_duplicate_update_appends_history_without_regressing_current_status(): void
+    {
+        app(SettingsService::class)->set('support_request_relay_handler_token', 'handler-secret');
+        $supportRequest = $this->supportRequest();
+
+        $this->postJson('/api/internal/relay/support-request-updates', $this->envelope([
+            'message_type' => 'support.request.assigned',
+            'message_id' => 'relay_msg_newer_assigned',
+            'payload' => [
+                'schema_version' => 1,
+                'local_request_id' => $supportRequest->local_request_id,
+                'correlation_id' => $supportRequest->correlation_id,
+                'status' => SupportRequest::STATUS_ASSIGNED,
+                'updated_at' => '2026-06-11T10:00:00+08:00',
+                'update_id' => 'upd_newer_assigned',
+            ],
+        ]), $this->headers())
+            ->assertStatus(202)
+            ->assertJsonPath('status', 'accepted');
+
+        $this->postJson('/api/internal/relay/support-request-updates', $this->envelope([
+            'message_type' => 'support.request.accepted',
+            'message_id' => 'relay_msg_stale_accepted',
+            'payload' => [
+                'schema_version' => 1,
+                'local_request_id' => $supportRequest->local_request_id,
+                'correlation_id' => $supportRequest->correlation_id,
+                'status' => SupportRequest::STATUS_ACCEPTED,
+                'updated_at' => '2026-06-11T09:55:00+08:00',
+                'update_id' => 'upd_stale_accepted',
+            ],
+        ]), $this->headers())
+            ->assertStatus(202)
+            ->assertJsonPath('status', 'stale')
+            ->assertJsonPath('support_request.status', SupportRequest::STATUS_ASSIGNED);
+
+        $this->assertDatabaseHas('support_requests', [
+            'id' => $supportRequest->id,
+            'status' => SupportRequest::STATUS_ASSIGNED,
+        ]);
+        $this->assertDatabaseHas('support_request_histories', [
+            'support_request_id' => $supportRequest->id,
+            'event_type' => 'support.request.assigned',
+            'status' => SupportRequest::STATUS_ASSIGNED,
+            'update_id' => 'upd_newer_assigned',
+        ]);
+        $this->assertDatabaseHas('support_request_histories', [
+            'support_request_id' => $supportRequest->id,
+            'event_type' => 'support.request.accepted',
+            'status' => SupportRequest::STATUS_ACCEPTED,
+            'update_id' => 'upd_stale_accepted',
+        ]);
+        $this->assertDatabaseCount('support_request_histories', 2);
+    }
+
+    public function test_inbound_support_request_duplicate_older_update_remains_idempotent(): void
+    {
+        app(SettingsService::class)->set('support_request_relay_handler_token', 'handler-secret');
+        $supportRequest = $this->supportRequest();
+
+        $this->postJson('/api/internal/relay/support-request-updates', $this->envelope([
+            'message_type' => 'support.request.assigned',
+            'message_id' => 'relay_msg_duplicate_order_assigned',
+            'payload' => [
+                'schema_version' => 1,
+                'local_request_id' => $supportRequest->local_request_id,
+                'correlation_id' => $supportRequest->correlation_id,
+                'status' => SupportRequest::STATUS_ASSIGNED,
+                'updated_at' => '2026-06-11T10:00:00+08:00',
+                'update_id' => 'upd_duplicate_order_assigned',
+            ],
+        ]), $this->headers())
+            ->assertStatus(202)
+            ->assertJsonPath('status', 'accepted');
+
+        $stalePayload = [
+            'message_type' => 'support.request.accepted',
+            'message_id' => 'relay_msg_duplicate_order_accepted',
+            'payload' => [
+                'schema_version' => 1,
+                'local_request_id' => $supportRequest->local_request_id,
+                'correlation_id' => $supportRequest->correlation_id,
+                'status' => SupportRequest::STATUS_ACCEPTED,
+                'updated_at' => '2026-06-11T09:55:00+08:00',
+                'update_id' => 'upd_duplicate_order_accepted',
+            ],
+        ];
+
+        $this->postJson('/api/internal/relay/support-request-updates', $this->envelope($stalePayload), $this->headers())
+            ->assertStatus(202)
+            ->assertJsonPath('status', 'stale');
+
+        $this->postJson('/api/internal/relay/support-request-updates', $this->envelope($stalePayload), $this->headers())
+            ->assertOk()
+            ->assertJsonPath('status', 'duplicate');
+
+        $this->assertDatabaseHas('support_requests', [
+            'id' => $supportRequest->id,
+            'status' => SupportRequest::STATUS_ASSIGNED,
+        ]);
+        $this->assertDatabaseCount('support_request_histories', 2);
+    }
+
     public function test_inbound_support_request_update_can_find_request_by_correlation_id(): void
     {
         app(SettingsService::class)->set('support_request_relay_handler_token', 'handler-secret');

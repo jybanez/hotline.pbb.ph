@@ -65,12 +65,15 @@ class SupportRequestLifecycleUpdateService
         $occurredAt = Carbon::parse((string) $update['updated_at']);
         $status = (string) $update['status'];
         $payload = is_array($update['payload'] ?? null) ? $update['payload'] : [];
+        $isStale = $this->isStale($supportRequest, $occurredAt);
 
-        $supportRequest = DB::transaction(function () use ($supportRequest, $update, $payload, $occurredAt, $status): SupportRequest {
-            $supportRequest->forceFill([
-                'status' => $status,
-                'support_request_id' => $this->scalarOrNull($update['support_request_id'] ?? null) ?? $supportRequest->support_request_id,
-            ])->save();
+        $supportRequest = DB::transaction(function () use ($supportRequest, $update, $payload, $occurredAt, $status, $isStale): SupportRequest {
+            if (! $isStale) {
+                $supportRequest->forceFill([
+                    'status' => $status,
+                    'support_request_id' => $this->scalarOrNull($update['support_request_id'] ?? null) ?? $supportRequest->support_request_id,
+                ])->save();
+            }
 
             $supportRequest->histories()->create([
                 'event_type' => (string) $update['message_type'],
@@ -91,6 +94,16 @@ class SupportRequestLifecycleUpdateService
 
             return $supportRequest->fresh(['histories']) ?? $supportRequest;
         });
+
+        if ($isStale) {
+            return [
+                'ok' => true,
+                'status' => 'stale',
+                'message' => 'Support Request lifecycle update was recorded, but current status was not changed because a newer update is already processed.',
+                'http_status' => 202,
+                'support_request' => $supportRequest,
+            ];
+        }
 
         return [
             'ok' => true,
@@ -141,6 +154,21 @@ class SupportRequestLifecycleUpdateService
                 }
             })
             ->exists();
+    }
+
+    private function isStale(SupportRequest $supportRequest, Carbon $occurredAt): bool
+    {
+        $latest = SupportRequestHistory::query()
+            ->where('support_request_id', $supportRequest->id)
+            ->whereIn('event_type', array_map(
+                static fn (string $status): string => 'support.request.'.$status,
+                $this->supportOwnedStatuses(),
+            ))
+            ->whereNotNull('occurred_at')
+            ->orderByDesc('occurred_at')
+            ->first();
+
+        return $latest?->occurred_at !== null && $occurredAt->lt($latest->occurred_at);
     }
 
     /**
