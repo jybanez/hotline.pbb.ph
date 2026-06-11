@@ -27,6 +27,7 @@ const SITREP_INDEX_URL = '/api/command/sitreps';
 const COMMAND_INCIDENTS_URL = '/api/command/incidents';
 const COMMAND_BROADCASTS_URL = '/api/command/broadcasts';
 const COMMAND_ALERT_LEVEL_URL = '/api/command/alert-level';
+const COMMAND_SUPPORT_REQUESTS_URL = '/api/command/support-requests';
 const CALL_DISCOVERY_ROOM = 'presence.global.hotline';
 const INCIDENT_UPDATE_EVENT = 'hotline.incident.updated';
 const COMMAND_REALTIME_RECONNECT_MIN_MS = 1000;
@@ -1541,28 +1542,21 @@ async function openCommandSupportRequestModal(context) {
     const category = String(gap.category ?? '').trim();
     const evidenceSummary = commandEvidenceRowSummary(row);
     const requester = commandRequesterIdentity();
-    const initialPayload = buildCommandSupportRequestPayload(context, {
-        requested_assistance: commandDefaultRequestedAssistance(context),
-        quantity: commandDefaultSupportQuantity(row),
-        urgency: normalizeCommandAlertLevel(appState.bootstrap?.alert_level) === 'Critical' ? 'urgent' : 'normal',
-        staging_notes: '',
-        command_notes: '',
-    });
     const modal = appState.helper.createFormModal({
-        title: 'Request Support (Backend Not Wired)',
-        submitLabel: 'Preview Only',
-        busyMessage: 'Preparing request preview...',
+        title: 'Request Support',
+        submitLabel: 'Submit Request',
+        busyMessage: 'Submitting support request...',
         initialValues: {
             sitrep_ref: sitrep?.sequence_number ? `${formatSitrepNumber(sitrep.sequence_number)} / record ${formatSitrepRecordNumber(sitrep.id)}` : `Record ${sitrep?.id ?? 'unknown'}`,
             gap_ref: category ? `${title} / ${category}` : title,
             evidence_row: evidenceSummary,
             requested_assistance: commandDefaultRequestedAssistance(context),
             quantity: commandDefaultSupportQuantity(row),
+            quantity_unit: commandDefaultSupportQuantityUnit(row),
             priority: normalizeCommandAlertLevel(appState.bootstrap?.alert_level) === 'Critical' ? 'urgent' : 'normal',
             staging_notes: '',
             command_notes: '',
             requested_by: requester.name ? `${requester.name}${requester.id ? ` (#${requester.id})` : ''}` : 'Current command user',
-            future_payload: JSON.stringify(initialPayload, null, 2),
         },
         rows: [
             [
@@ -1605,6 +1599,13 @@ async function openCommandSupportRequestModal(context) {
                     placeholder: 'Optional',
                     maxlength: 40,
                 },
+                {
+                    type: 'input',
+                    name: 'quantity_unit',
+                    label: 'Unit',
+                    placeholder: 'teams, units, packs',
+                    maxlength: 40,
+                },
             ],
             [
                 {
@@ -1642,15 +1643,6 @@ async function openCommandSupportRequestModal(context) {
                     readOnly: true,
                 },
             ],
-            [
-                {
-                    type: 'textarea',
-                    name: 'future_payload',
-                    label: 'Future Backend Payload Preview',
-                    readOnly: true,
-                    rows: 8,
-                },
-            ],
         ],
         async onSubmit(values, modalContext) {
             if (!String(values?.requested_assistance ?? '').trim()) {
@@ -1663,17 +1655,32 @@ async function openCommandSupportRequestModal(context) {
             const payload = buildCommandSupportRequestPayload(context, {
                 requested_assistance: values.requested_assistance,
                 quantity: values.quantity,
+                quantity_unit: values.quantity_unit,
                 urgency: values.priority,
                 staging_notes: values.staging_notes,
                 command_notes: values.command_notes,
             });
 
-            console.info('[hotline.command] support request backend is not wired yet.', payload);
-            modalContext?.setErrors?.({
-                command_notes: 'Backend submission is not wired yet. Review the payload preview and keep this request in command handoff notes for now.',
-            });
-            showToast('Support request backend is not wired yet.', 'warn');
-            return false;
+            try {
+                const response = await fetchJson(COMMAND_SUPPORT_REQUESTS_URL, {
+                    method: 'post',
+                    data: payload,
+                });
+                const supportRequest = response?.support_request ?? {};
+                const requestLabel = supportRequest?.local_request_id ?? 'Support request';
+
+                if (supportRequest?.relay_delivery_status === 'failed') {
+                    showToast(`${requestLabel} saved, but Relay handoff failed.`, 'warn');
+                } else {
+                    showToast(`${requestLabel} submitted to Relay.`, 'success');
+                }
+
+                return true;
+            } catch (error) {
+                modalContext?.applyApiErrors?.(error?.response?.data ?? {});
+                showToast(error.response?.data?.message ?? 'Unable to submit support request.', 'error');
+                return false;
+            }
         },
     });
 
@@ -1748,6 +1755,16 @@ function commandDefaultSupportQuantity(row) {
     return quantity === null || quantity === undefined ? '' : String(quantity);
 }
 
+function commandDefaultSupportQuantityUnit(row) {
+    const quantity = row?.quantity_requested ?? row?.quantity ?? null;
+
+    if (quantity === null || quantity === undefined || String(quantity).trim() === '') {
+        return '';
+    }
+
+    return row?.quantity_unit ? String(row.quantity_unit) : 'units';
+}
+
 function commandRequesterIdentity() {
     const user = appState.bootstrap?.user ?? {};
 
@@ -1763,21 +1780,46 @@ function buildCommandSupportRequestPayload(context, values = {}) {
     const row = context?.row ?? {};
 
     return {
-        sitrep_id: sitrep?.id ?? null,
-        sitrep_sequence: sitrep?.sequence_number ? String(sitrep.sequence_number).padStart(4, '0') : null,
-        gap: {
-            title: gap?.title ?? null,
-            category: gap?.category ?? null,
-            evidence_ref: context?.evidenceRef ?? null,
-        },
+        sitrep_report_id: sitrep?.id ?? null,
+        sitrep_section: context?.section ?? 'gaps',
+        sitrep_evidence_ref: context?.evidenceRef ?? null,
+        gap,
         evidence_row: row,
         requested_assistance: String(values.requested_assistance ?? '').trim(),
-        quantity: String(values.quantity ?? '').trim() || null,
+        requested_capability: commandRequestedCapability(context),
+        quantity: commandSupportQuantityValue(values.quantity),
+        quantity_unit: String(values.quantity_unit ?? '').trim() || null,
         urgency: String(values.urgency ?? 'normal').trim() || 'normal',
         staging_notes: String(values.staging_notes ?? '').trim(),
         command_notes: String(values.command_notes ?? '').trim(),
-        requested_by: commandRequesterIdentity(),
+        incident_refs: commandIncidentRefs(row),
     };
+}
+
+function commandRequestedCapability(context) {
+    const row = context?.row ?? {};
+    const gap = context?.gap ?? {};
+    const value = row?.category ?? row?.resource ?? gap?.title ?? null;
+
+    return String(value ?? '').trim().slice(0, 120) || null;
+}
+
+function commandSupportQuantityValue(value) {
+    const text = String(value ?? '').trim();
+
+    if (!text) {
+        return null;
+    }
+
+    const numeric = Number.parseInt(text, 10);
+
+    return Number.isFinite(numeric) && numeric >= 0 ? numeric : text;
+}
+
+function commandIncidentRefs(row) {
+    const refs = row?.incident_refs ?? row?.incidentRefs ?? [];
+
+    return Array.isArray(refs) ? refs : [];
 }
 
 function renderCurrentCard(label, value, detail) {
