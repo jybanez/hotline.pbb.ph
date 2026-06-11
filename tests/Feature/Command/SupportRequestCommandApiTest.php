@@ -135,6 +135,70 @@ class SupportRequestCommandApiTest extends TestCase
         ]);
     }
 
+    public function test_command_support_request_rejects_data_confidence_population_gap(): void
+    {
+        $this->configureRelay();
+        $command = User::factory()->create(['role' => UserRole::Command]);
+        $sitrep = $this->createSitrep();
+
+        Http::fake();
+
+        $this->actingAs($command)
+            ->postJson('/api/command/support-requests', [
+                ...$this->payload($sitrep),
+                'requested_assistance' => 'Validate population figures',
+                'requested_capability' => 'Population verification',
+                'gap' => [
+                    'title' => 'Population figures require verification',
+                    'category' => 'Data Confidence',
+                    'type' => 'population_verification',
+                ],
+                'evidence_row' => [
+                    'population_signal' => 'Patient or injured person',
+                    'reports' => 14,
+                    'people' => 14,
+                    'notes' => 'Population fields may overlap.',
+                ],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('support_context');
+
+        Http::assertNothingSent();
+        $this->assertDatabaseCount('support_requests', 0);
+        $this->assertDatabaseCount('support_request_histories', 0);
+    }
+
+    public function test_command_support_request_rejects_counting_and_resolved_context(): void
+    {
+        $this->configureRelay();
+        $command = User::factory()->create(['role' => UserRole::Command]);
+        $sitrep = $this->createSitrep();
+
+        Http::fake();
+
+        $this->actingAs($command)
+            ->postJson('/api/command/support-requests', [
+                ...$this->payload($sitrep),
+                'requested_assistance' => 'Review resolved incident accounting',
+                'requested_capability' => 'Counting review',
+                'gap' => [
+                    'title' => 'Closed and discarded reports are not current pressure',
+                    'category' => 'Counting Rule',
+                    'type' => 'counting_scope',
+                ],
+                'evidence_row' => [
+                    'location' => 'Guadalupe',
+                    'evidence' => '5 resolved reports were treated as addressed history; 2 discarded reports were excluded.',
+                ],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('support_context');
+
+        Http::assertNothingSent();
+        $this->assertDatabaseCount('support_requests', 0);
+        $this->assertDatabaseCount('support_request_histories', 0);
+    }
+
     public function test_command_support_request_endpoint_requires_command_role(): void
     {
         $this->postJson('/api/command/support-requests', [])

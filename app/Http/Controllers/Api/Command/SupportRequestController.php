@@ -9,6 +9,7 @@ use App\Support\SupportRequests\SupportRequestRelaySubmissionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class SupportRequestController extends Controller
 {
@@ -47,6 +48,8 @@ class SupportRequestController extends Controller
             'incident_refs' => ['nullable', 'array'],
         ]);
 
+        $this->ensureRequestableContext($validated);
+
         $supportRequest = $this->requests->create($validated, $request->user());
         $supportRequest = $this->relay->submit($supportRequest);
 
@@ -54,6 +57,123 @@ class SupportRequestController extends Controller
             'ok' => $supportRequest->relay_delivery_status !== SupportRequest::RELAY_FAILED,
             'support_request' => $this->serialize($supportRequest->refresh()),
         ], 201);
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     *
+     * @throws ValidationException
+     */
+    private function ensureRequestableContext(array $validated): void
+    {
+        $gap = is_array($validated['gap'] ?? null) ? $validated['gap'] : [];
+        $row = is_array($validated['evidence_row'] ?? null) ? $validated['evidence_row'] : [];
+
+        if ($this->isExplicitlyNonRequestable($gap, $row)) {
+            throw ValidationException::withMessages([
+                'support_context' => 'This SITREP item is informational and cannot be submitted as a Support Request.',
+            ]);
+        }
+
+        if (! $this->isRequestableResourceContext($gap, $row) && ! $this->isRequestableAccessContext($gap, $row)) {
+            throw ValidationException::withMessages([
+                'support_context' => 'Support Requests can only be created from current operational resource, logistics, rescue, staging, route, or access constraints.',
+            ]);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $gap
+     * @param  array<string, mixed>  $row
+     */
+    private function isExplicitlyNonRequestable(array $gap, array $row): bool
+    {
+        $category = $this->text($gap['category'] ?? '');
+        $type = $this->text($gap['type'] ?? '');
+        $title = $this->text($gap['title'] ?? '');
+        $rowText = $this->combinedText($row);
+
+        if (str_contains($category, 'data confidence') || str_contains($category, 'data quality')) {
+            return true;
+        }
+
+        if (in_array($type, ['counting_scope', 'counting_note', 'counting_notes', 'data_quality'], true)) {
+            return true;
+        }
+
+        if (isset($row['population_signal']) || str_contains($title, 'population figures require verification')) {
+            return true;
+        }
+
+        foreach (['closed', 'resolved', 'discarded', 'historical', 'not current pressure'] as $blocked) {
+            if (str_contains($title, $blocked) || str_contains($rowText, $blocked)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  array<string, mixed>  $gap
+     * @param  array<string, mixed>  $row
+     */
+    private function isRequestableResourceContext(array $gap, array $row): bool
+    {
+        $type = $this->text($gap['type'] ?? '');
+        $title = $this->text($gap['title'] ?? '');
+        $category = $this->text($row['category'] ?? '');
+        $resource = $this->text($row['resource'] ?? '');
+        $combined = $this->combinedText([$gap, $row]);
+
+        return $type === 'open_needs'
+            || str_contains($title, 'resource supply')
+            || str_contains($combined, 'rescue')
+            || str_contains($combined, 'logistics')
+            || str_contains($combined, 'staging')
+            || $resource !== ''
+            || (is_array($row['resources'] ?? null) && $row['resources'] !== [])
+            || $category !== ''
+            || isset($row['quantity_requested'])
+            || isset($row['quantity']);
+    }
+
+    /**
+     * @param  array<string, mixed>  $gap
+     * @param  array<string, mixed>  $row
+     */
+    private function isRequestableAccessContext(array $gap, array $row): bool
+    {
+        $title = $this->text($gap['title'] ?? '');
+        $category = $this->text($gap['category'] ?? '');
+
+        return isset($row['route_location'])
+            || isset($row['obstruction_type'])
+            || str_contains($title, 'route')
+            || str_contains($title, 'road')
+            || str_contains($title, 'access')
+            || str_contains($category, 'access');
+    }
+
+    private function text(mixed $value): string
+    {
+        return strtolower(trim(is_scalar($value) ? (string) $value : ''));
+    }
+
+    /**
+     * @param  array<mixed>  $values
+     */
+    private function combinedText(array $values): string
+    {
+        $parts = [];
+
+        array_walk_recursive($values, function (mixed $value) use (&$parts): void {
+            if (is_scalar($value)) {
+                $parts[] = strtolower((string) $value);
+            }
+        });
+
+        return implode(' ', $parts);
     }
 
     /**
