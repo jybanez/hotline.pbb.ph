@@ -190,15 +190,19 @@ class SitrepConsolidatorSdkTest extends TestCase
         $consolidator = new SitrepConsolidator();
 
         $first = $this->sitrep(12, 'barangay', sequence: 1);
+        $first['id'] = 1012;
         $first['period_started_at'] = '2026-05-29T16:45:00+08:00';
         $first['period_ended_at'] = '2026-05-29T17:00:00+08:00';
+        $first['source_snapshot']['incident_ids'] = [101, ['id' => 102, 'ref' => '#000102']];
         $first['source_snapshot']['incident_coordinates'] = [
             ['id' => 101, 'lat' => 10.33049, 'lng' => 123.88257],
         ];
 
         $second = $this->sitrep(13, 'barangay', sequence: 2);
+        $second['id'] = 1013;
         $second['period_started_at'] = '2026-05-29T17:00:00+08:00';
         $second['period_ended_at'] = '2026-05-29T17:30:00+08:00';
+        $second['source_snapshot']['incident_ids'] = [101];
         $second['source_snapshot']['incident_coordinates'] = [
             ['id' => 101, 'lat' => 10.33111, 'lng' => 123.88333],
         ];
@@ -216,6 +220,47 @@ class SitrepConsolidatorSdkTest extends TestCase
             ['id' => 101, 'lat' => 10.33049, 'lng' => 123.88257, 'source_hub_id' => '12'],
             ['id' => 101, 'lat' => 10.33111, 'lng' => 123.88333, 'source_hub_id' => '13'],
         ], $result->sitrep['source_snapshot']['rollup']['incident_coordinates']);
+        $this->assertSame(['12:101', '12:102', '13:101'], array_column($result->sitrep['source_snapshot']['rollup']['incident_index'], 'key'));
+        $this->assertSame('#000102', $result->sitrep['source_snapshot']['rollup']['incident_index'][1]['incident_ref']);
+        $this->assertTrue($result->sitrep['source_snapshot']['rollup']['incident_index'][0]['has_coordinates']);
+        $this->assertFalse($result->sitrep['source_snapshot']['rollup']['incident_index'][1]['has_coordinates']);
+        $this->assertSame(10.33049, $result->sitrep['source_snapshot']['rollup']['incident_index'][0]['lat']);
+        $this->assertSame(1012, $result->sitrep['source_snapshot']['rollup']['incident_index'][0]['sitrep_record_id']);
+    }
+
+    public function test_multi_hop_consolidation_preserves_incident_index_keys(): void
+    {
+        $consolidator = new SitrepConsolidator();
+
+        $first = $this->sitrep(12, 'barangay', sequence: 1);
+        $first['source_snapshot']['incident_ids'] = [101, 102];
+        $first['source_snapshot']['incident_coordinates'] = [
+            ['id' => 101, 'lat' => 10.33049, 'lng' => 123.88257],
+        ];
+
+        $second = $this->sitrep(13, 'barangay', sequence: 2);
+        $second['source_snapshot']['incident_ids'] = [201];
+
+        $city = $consolidator->consolidate([$first, $second], [
+            'target_level' => 'city',
+            'target_hub_id' => '21',
+            'target_hub_name' => 'Cebu City, Cebu',
+        ]);
+
+        $this->assertTrue($city->ok);
+        $directKeys = array_column($city->sitrep['source_snapshot']['rollup']['incident_index'], 'key');
+        $this->assertSame(['12:101', '12:102', '13:201'], $directKeys);
+
+        $province = $consolidator->consolidate([$city->sitrep], [
+            'target_level' => 'province',
+            'target_hub_id' => '72',
+            'target_hub_name' => 'Cebu Province',
+        ]);
+
+        $this->assertTrue($province->ok);
+        $this->assertSame($directKeys, array_column($province->sitrep['source_snapshot']['rollup']['incident_index'], 'key'));
+        $this->assertTrue($province->sitrep['source_snapshot']['rollup']['incident_index'][0]['has_coordinates']);
+        $this->assertSame(10.33049, $province->sitrep['source_snapshot']['rollup']['incident_index'][0]['lat']);
     }
 
     public function test_consolidated_period_bounds_compare_instants_across_timezone_offsets(): void
