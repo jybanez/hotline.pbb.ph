@@ -1622,6 +1622,7 @@ async function openCommandSupportRequestModal(context) {
 
     const row = context?.row ?? {};
     const requestedAssistance = commandDefaultRequestedAssistance(context);
+    const requestedAssistanceCategory = commandDefaultRequestedAssistanceCategory(row);
     const requester = commandRequesterIdentity();
     const incidentContexts = commandSupportIncidentContexts(context);
     const justificationInitialValues = Object.fromEntries(
@@ -1650,7 +1651,7 @@ async function openCommandSupportRequestModal(context) {
             [
                 {
                     type: 'text',
-                    content: requestedAssistance || 'Selected support request',
+                    content: commandSupportRequestTitleText(requestedAssistance, requestedAssistanceCategory),
                     rowClassName: 'command-support-request-title',
                 },
             ],
@@ -1836,6 +1837,13 @@ function commandBuildSupportRequestColumn({ title, help, className, fields }) {
     return column;
 }
 
+function commandSupportRequestTitleText(resourceName, categoryName) {
+    const resource = String(resourceName || 'Selected support request').trim();
+    const category = String(categoryName || '').trim();
+
+    return category ? `${resource}\n${category}` : resource;
+}
+
 function commandSupportIncidentRows(incidentContexts = []) {
     if (!incidentContexts.length) {
         return [];
@@ -1927,6 +1935,10 @@ function commandDefaultRequestedAssistance(context) {
     ];
 
     return options.map((value) => String(value ?? '').trim()).find(Boolean) ?? '';
+}
+
+function commandDefaultRequestedAssistanceCategory(row) {
+    return String(row?.resource_type_category_name ?? row?.category ?? '').trim();
 }
 
 function commandDefaultSupportQuantity(row) {

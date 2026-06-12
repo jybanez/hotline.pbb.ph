@@ -1048,6 +1048,18 @@
     line-height: 1.25;
     margin: 0 0 0.15rem;
     padding: 0 0 0.85rem;
+    white-space: pre-line;
+}
+
+.command-support-request-modal .command-support-request-title::first-line {
+    color: #f3f8ff;
+    font-size: 1.35rem;
+    font-weight: 800;
+}
+
+.command-support-request-modal .command-support-request-title {
+    font-size: 0.86rem;
+    color: var(--surface-muted);
 }
 
 .command-support-request-modal .command-support-request-note {
@@ -1068,16 +1080,22 @@
 .command-support-request-modal .command-support-request-scope-grid {
     border-top: 1px solid rgba(135, 169, 214, 0.18);
     display: grid;
-    gap: 1rem;
+    gap: 1.25rem;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     margin-top: 0.15rem;
     padding-top: 1rem;
 }
 
 .command-support-request-modal .command-support-request-scope-column {
+    align-content: start;
     display: grid;
     gap: 0.55rem;
     min-width: 0;
+}
+
+.command-support-request-modal .command-support-request-scope-column.is-incidents {
+    border-left: 1px solid rgba(135, 169, 214, 0.18);
+    padding-left: 1.25rem;
 }
 
 .command-support-request-modal .command-support-request-scope-heading {
@@ -1139,6 +1157,13 @@
 
     .command-support-request-modal .command-support-request-scope-grid {
         grid-template-columns: minmax(0, 1fr);
+    }
+
+    .command-support-request-modal .command-support-request-scope-column.is-incidents {
+        border-left: 0;
+        border-top: 1px solid rgba(135, 169, 214, 0.18);
+        padding-left: 0;
+        padding-top: 1rem;
     }
 
     .command-support-request-modal .command-support-request-scope-list {
