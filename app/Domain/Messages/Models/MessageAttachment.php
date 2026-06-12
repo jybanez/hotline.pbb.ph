@@ -4,6 +4,7 @@ namespace App\Domain\Messages\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MessageAttachment extends Model
 {
@@ -28,5 +29,10 @@ class MessageAttachment extends Model
         return [
             'created_at' => 'datetime',
         ];
+    }
+
+    public function message(): BelongsTo
+    {
+        return $this->belongsTo(IncidentMessage::class, 'message_id');
     }
 }

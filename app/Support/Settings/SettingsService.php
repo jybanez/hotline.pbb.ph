@@ -36,6 +36,7 @@ class SettingsService
             'support_request_relay_source_system' => 'hotline.command',
             'support_request_relay_target_systems' => 'support.dispatch',
             'support_request_relay_handler_token' => '',
+            'sitrep_media_access_token' => '',
             'map_server_url' => 'https://mapserver.pbb.ph',
             'sitrep_periodic_generation_enabled' => true,
             'sitrep_periodic_normal_interval_minutes' => 240,
