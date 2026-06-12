@@ -1,240 +1,4116 @@
 {
-  "id": 57,
-  "sequence_number": 53,
-  "title": "PBB Hotline Guadalupe SITREP - 2026-05-30",
-  "period_started_at": "2026-05-30T00:00:00+08:00",
-  "period_ended_at": "2026-05-30T23:59:59+08:00",
-  "generated_at": "2026-05-30T09:15:00+08:00",
-  "status": "published",
-  "visibility": "public",
-  "alert_level": "Elevated",
-  "summary": {
-    "headline": "Rescue and assistance reports remain concentrated in Guadalupe.",
-    "gap_cards": [
-      {
-        "label": "People at Risk",
-        "value": "18 open reports",
-        "note": "Active and deferred reports remain in the current picture."
-      },
-      {
-        "label": "Access to Help",
-        "value": "23 assignments",
-        "note": "Field teams are assigned across current reports."
-      },
-      {
-        "label": "Response Progress",
-        "value": "183 resource units",
-        "note": "Current requested resource demand only."
-      }
-    ],
-    "accomplishment_cards": [
-      {
-        "label": "People Helped",
-        "value": "62 people",
-        "note": "Resolved reports from the period."
-      },
-      {
-        "label": "Handled Incidents",
-        "value": "9 resolved",
-        "note": "Resolved reports are treated as addressed history."
-      },
-      {
-        "label": "Teams / Resources Deployed",
-        "value": "13 completed",
-        "note": "Completed team assignments from the period."
-      }
-    ]
-  },
-  "situation": {
-    "executive_assessment": "Current reports indicate continued life-safety and resource support needs in Guadalupe, with several reports still awaiting full closure.",
-    "narrative": "The current picture is based on active and deferred incident reports only.",
-    "decision_points": [
-      {
-        "title": "Life safety",
-        "body": "Open rescue and medical reports may require continued command attention."
-      },
-      {
-        "title": "Resource posture",
-        "body": "Current requested resource units remain high enough to monitor supply availability."
-      }
-    ],
-    "current_operating_picture": {
-      "open_reports": 18,
-      "active_reports": 17,
-      "deferred_reports": 1,
-      "current_assignments": 23,
-      "current_resource_units": 183
-    },
-    "concern_groups": [
-      {
-        "concern": "Flood, Rescue, and Displacement",
-        "open_reports": 12,
-        "areas": ["Guadalupe"],
-        "main_signals": "Rescue, food, and evacuation support",
-        "current_assignments": 18,
-        "resource_units": 144
-      }
-    ],
-    "locations": [
-      {
-        "area": "Guadalupe",
-        "count": 18
-      }
-    ],
-    "incident_types": [
-      {
-        "type": "Rescue",
-        "count": 8
-      },
-      {
-        "type": "Food Assistance",
-        "count": 6
-      }
-    ],
-    "period_activity": {
-      "total_reports": 28,
-      "open_at_close": 18,
-      "resolved_during_period": 9,
-      "discarded_excluded": 1,
-      "note": "Discarded reports are excluded from operational posture."
-    },
-    "verification_notes": [
-      "Population figures may overlap across reports and should be treated as declared signals."
-    ]
-  },
-  "damage": {
-    "damage_groups": [
-      {
-        "damage_type": "Residential / access impact",
-        "reports": 4,
-        "severity_signal": "Reported",
-        "affected_assets": "Homes and access roads"
-      }
-    ],
-    "confidence_note": "Damage entries are reported and may require field verification."
-  },
-  "population": {
-    "citizens_assisted": 62,
-    "record_count": 13,
-    "population_groups": [
-      {
-        "population_signal": "Families assisted",
-        "reports": 9,
-        "people_families": "13 families / 62 people",
-        "notes": "Resolved reports from this period.",
-        "breakdowns": [
-          {
-            "breakdown": "Children",
-            "count": 24
-          },
-          {
-            "breakdown": "Senior citizens",
-            "count": 3
-          }
-        ]
-      }
-    ],
-    "confidence_note": "Population numbers are declared by reports and not deduplicated across households."
-  },
-  "actions": {
-    "deployment_groups": [
-      {
-        "category": "Rescue",
-        "team": "Barangay Rescue Team",
-        "status_counts": {
-          "requested": 2,
-          "assigned": 3,
-          "accepted": 2,
-          "en_route": 2,
-          "on_scene": 1,
-          "completed": 9,
-          "cancelled": 0
-        }
-      }
-    ],
-    "timing_rows": [
-      {
-        "incident_id": 234,
-        "team": "Barangay Rescue Team",
-        "current_status": "on_scene",
-        "assigned_to_accepted": "5m",
-        "accepted_to_en_route": "8m",
-        "en_route_to_on_scene": "12m",
-        "on_scene_to_completed": "",
-        "assigned_to_cancelled": "",
-        "elapsed_time": "25m"
-      }
-    ]
-  },
-  "needs": {
-    "category_groups": [
-      {
-        "category": "Food and Relief",
-        "quantity_requested": 80,
-        "resources": ["Food packs", "Water"]
-      }
-    ],
-    "items": [
-      {
-        "resource": "Food packs",
-        "category": "Food and Relief",
-        "quantity_requested": 50,
-        "incident_count": 5
-      },
-      {
-        "resource": "Water",
-        "category": "Food and Relief",
-        "quantity_requested": 30,
-        "incident_count": 4
-      }
-    ],
-    "confidence_note": "Current resource posture counts active and deferred reports only."
-  },
-  "gaps": {
-    "title": "Response Constraints and Confidence Gaps",
-    "items": [
-      {
-        "category": "Information",
-        "title": "Population overlap risk",
-        "decision_relevance": "Declared people and family counts may overlap when multiple reports describe the same household.",
-        "evidence": "Population fields are report-level declarations.",
-        "confidence_note": "Treat as planning signal, not census count."
-      }
-    ]
-  },
-  "source_snapshot": {
-    "hotline": {
-      "display_version": "v1-5.6.1",
-      "build": {
-        "id": "source-template"
-      }
-    },
-    "hub_node": {
-      "available": true,
-      "snapshot": {
-        "hub_id": 12,
-        "relay_hub_id": "072217029",
-        "deployment": "barangay",
-        "name": "Guadalupe, CEBU CITY, CEBU",
-        "uplinks": [
-          {
-            "is_primary": true,
-            "hub": {
-              "name": "CEBU CITY, CEBU"
+    "schema_version": 2,
+    "id": 121,
+    "sequence_number": 1,
+    "title": "Barangay Apas Simulation SITREP",
+    "coverage_area": "Apas, Cebu City, Cebu",
+    "location_count": 1,
+    "period_started_at": "2026-06-05T00:00:00+08:00",
+    "period_ended_at": "2026-06-05T23:59:59+08:00",
+    "generated_at": "2026-06-05T21:18:00+08:00",
+    "published_at": null,
+    "status": "draft",
+    "visibility": "private",
+    "alert_level": "Critical",
+    "summary": {
+        "rollup": {
+            "posture": "strained",
+            "headline": "Multi-incident response posture remains open across Apas",
+            "gap_cards": [
+                {
+                    "note": "8 critical/high-priority reports; 2 injury/patient signals; 1 rescue/stranded signal",
+                    "label": "People at Risk",
+                    "value": "20 people"
+                },
+                {
+                    "note": "Main Road and Barangay Hall Vicinity are blocked; Barangay Hall Vicinity has one limited approach.",
+                    "label": "Access to Help",
+                    "value": "2 blocked routes; 1 limited route"
+                },
+                {
+                    "note": "8 in-progress assignments; 5 resolved reports treated as addressed history.",
+                    "label": "Response Progress",
+                    "value": "8 open / 5 addressed"
+                }
+            ],
+            "hotspot_area": "Apas",
+            "hotspot_note": "Current area is identified from active/deferred incident concentration.",
+            "period_label": "Fri, Jun 5, 2026 12:00 AM to Fri, Jun 5, 2026 11:59 PM",
+            "posture_label": "Strained",
+            "status_counts": {
+                "Active": 3,
+                "Deferred": 5,
+                "Resolved": 5,
+                "Discarded": 2
+            },
+            "posture_reason": "3 active, 5 deferred, 8 open assignments, and 58 requested resource units require attention.",
+            "confidence_note": "Summary is based on available incident, assignment, resource, and call-session records.",
+            "executive_cards": [
+                {
+                    "note": "8 critical/high-priority reports; 2 injury/patient signals; 1 rescue/stranded signal",
+                    "label": "People at Risk",
+                    "value": "20 people"
+                },
+                {
+                    "note": "Main Road and Barangay Hall Vicinity are blocked; Barangay Hall Vicinity has one limited approach.",
+                    "label": "Access to Help",
+                    "value": "2 blocked routes; 1 limited route"
+                },
+                {
+                    "note": "8 in-progress assignments; 5 resolved reports treated as addressed history.",
+                    "label": "Response Progress",
+                    "value": "8 open / 5 addressed"
+                },
+                {
+                    "note": "2 patient records addressed",
+                    "label": "People Helped",
+                    "value": "2 patient records addressed"
+                },
+                {
+                    "note": "Handled: Road Accident, Infrastructure Damage, Flood; Resolved reports are addressed history and excluded from current pressure.",
+                    "label": "Handled Incidents",
+                    "value": "5 resolved reports"
+                },
+                {
+                    "note": "Completed team assignments and resource units tied to resolved reports are no longer counted as current demand.",
+                    "label": "Teams / Resources Deployed",
+                    "value": "5 completed team assignments; 18 resource units"
+                }
+            ],
+            "primary_concern": "Life-safety signals remain in the current operating picture.",
+            "resolved_progress": {
+                "note": "Handled: Road Accident, Infrastructure Damage, Flood; 2 patient records; 5 completed team assignments; 18 resource units no longer counted as current demand",
+                "title": "People Helped and Accomplishments",
+                "value": "5 resolved reports",
+                "visible": true,
+                "handled_note": "Handled: Road Accident, Infrastructure Damage, Flood; Resolved reports are addressed history and excluded from current pressure.",
+                "highlight_note": "2 patient records addressed",
+                "deployment_note": "Completed team assignments and resource units tied to resolved reports are no longer counted as current demand.",
+                "highlight_value": "2 patient records addressed",
+                "deployment_value": "5 completed team assignments; 18 resource units"
+            },
+            "supporting_metrics": {
+                "carried_over": 0,
+                "active_at_close": 8,
+                "new_this_period": 15,
+                "total_incidents": 15,
+                "team_assignments": 8,
+                "closed_this_period": 5,
+                "discarded_excluded": 2,
+                "resource_need_units": 58,
+                "total_call_sessions": 0,
+                "multi_call_incidents": 0,
+                "incident_type_mentions": 8
+            },
+            "accomplishment_cards": [
+                {
+                    "note": "2 patient records addressed",
+                    "label": "People Helped",
+                    "value": "2 patient records addressed"
+                },
+                {
+                    "note": "Handled: Road Accident, Infrastructure Damage, Flood; Resolved reports are addressed history and excluded from current pressure.",
+                    "label": "Handled Incidents",
+                    "value": "5 resolved reports"
+                },
+                {
+                    "note": "Completed team assignments and resource units tied to resolved reports are no longer counted as current demand.",
+                    "label": "Teams / Resources Deployed",
+                    "value": "5 completed team assignments; 18 resource units"
+                }
+            ],
+            "priority_watch_items": [
+                "Life-safety signals remain in the current operating picture.",
+                "8 assignments still open.",
+                "58 requested resource units still need review."
+            ],
+            "dominant_incident_type": "Rescue",
+            "key_change_since_previous": "No previous SITREP comparison is available in this first pass."
+        },
+        "items": [
+            {
+                "data": {
+                    "posture": "strained",
+                    "headline": "Multi-incident response posture remains open across Apas",
+                    "gap_cards": [
+                        {
+                            "note": "8 critical/high-priority reports; 2 injury/patient signals; 1 rescue/stranded signal",
+                            "label": "People at Risk",
+                            "value": "20 people"
+                        },
+                        {
+                            "note": "Main Road and Barangay Hall Vicinity are blocked; Barangay Hall Vicinity has one limited approach.",
+                            "label": "Access to Help",
+                            "value": "2 blocked routes; 1 limited route"
+                        },
+                        {
+                            "note": "8 in-progress assignments; 5 resolved reports treated as addressed history.",
+                            "label": "Response Progress",
+                            "value": "8 open / 5 addressed"
+                        }
+                    ],
+                    "hotspot_area": "Apas",
+                    "hotspot_note": "Current area is identified from active/deferred incident concentration.",
+                    "period_label": "Fri, Jun 5, 2026 12:00 AM to Fri, Jun 5, 2026 11:59 PM",
+                    "posture_label": "Strained",
+                    "status_counts": {
+                        "Active": 3,
+                        "Deferred": 5,
+                        "Resolved": 5,
+                        "Discarded": 2
+                    },
+                    "posture_reason": "3 active, 5 deferred, 8 open assignments, and 58 requested resource units require attention.",
+                    "confidence_note": "Summary is based on available incident, assignment, resource, and call-session records.",
+                    "executive_cards": [
+                        {
+                            "note": "8 critical/high-priority reports; 2 injury/patient signals; 1 rescue/stranded signal",
+                            "label": "People at Risk",
+                            "value": "20 people"
+                        },
+                        {
+                            "note": "Main Road and Barangay Hall Vicinity are blocked; Barangay Hall Vicinity has one limited approach.",
+                            "label": "Access to Help",
+                            "value": "2 blocked routes; 1 limited route"
+                        },
+                        {
+                            "note": "8 in-progress assignments; 5 resolved reports treated as addressed history.",
+                            "label": "Response Progress",
+                            "value": "8 open / 5 addressed"
+                        },
+                        {
+                            "note": "2 patient records addressed",
+                            "label": "People Helped",
+                            "value": "2 patient records addressed"
+                        },
+                        {
+                            "note": "Handled: Road Accident, Infrastructure Damage, Flood; Resolved reports are addressed history and excluded from current pressure.",
+                            "label": "Handled Incidents",
+                            "value": "5 resolved reports"
+                        },
+                        {
+                            "note": "Completed team assignments and resource units tied to resolved reports are no longer counted as current demand.",
+                            "label": "Teams / Resources Deployed",
+                            "value": "5 completed team assignments; 18 resource units"
+                        }
+                    ],
+                    "primary_concern": "Life-safety signals remain in the current operating picture.",
+                    "resolved_progress": {
+                        "note": "Handled: Road Accident, Infrastructure Damage, Flood; 2 patient records; 5 completed team assignments; 18 resource units no longer counted as current demand",
+                        "title": "People Helped and Accomplishments",
+                        "value": "5 resolved reports",
+                        "visible": true,
+                        "handled_note": "Handled: Road Accident, Infrastructure Damage, Flood; Resolved reports are addressed history and excluded from current pressure.",
+                        "highlight_note": "2 patient records addressed",
+                        "deployment_note": "Completed team assignments and resource units tied to resolved reports are no longer counted as current demand.",
+                        "highlight_value": "2 patient records addressed",
+                        "deployment_value": "5 completed team assignments; 18 resource units"
+                    },
+                    "supporting_metrics": {
+                        "carried_over": 0,
+                        "active_at_close": 8,
+                        "new_this_period": 15,
+                        "total_incidents": 15,
+                        "team_assignments": 8,
+                        "closed_this_period": 5,
+                        "discarded_excluded": 2,
+                        "resource_need_units": 58,
+                        "total_call_sessions": 0,
+                        "multi_call_incidents": 0,
+                        "incident_type_mentions": 8
+                    },
+                    "accomplishment_cards": [
+                        {
+                            "note": "2 patient records addressed",
+                            "label": "People Helped",
+                            "value": "2 patient records addressed"
+                        },
+                        {
+                            "note": "Handled: Road Accident, Infrastructure Damage, Flood; Resolved reports are addressed history and excluded from current pressure.",
+                            "label": "Handled Incidents",
+                            "value": "5 resolved reports"
+                        },
+                        {
+                            "note": "Completed team assignments and resource units tied to resolved reports are no longer counted as current demand.",
+                            "label": "Teams / Resources Deployed",
+                            "value": "5 completed team assignments; 18 resource units"
+                        }
+                    ],
+                    "priority_watch_items": [
+                        "Life-safety signals remain in the current operating picture.",
+                        "8 assignments still open.",
+                        "58 requested resource units still need review."
+                    ],
+                    "dominant_incident_type": "Rescue",
+                    "key_change_since_previous": "No previous SITREP comparison is available in this first pass."
+                },
+                "location": {
+                    "id": "13",
+                    "name": "Apas, Cebu City, Cebu",
+                    "deployment": "barangay",
+                    "relay_hub_id": "13",
+                    "country_code": "PH",
+                    "reg_code": "07",
+                    "prov_code": "0722",
+                    "citymun_code": "072217",
+                    "brgy_code": "072217003"
+                }
             }
-          }
         ]
-      }
     },
-    "generation": {
-      "prepared_by_label": "System Generated"
+    "situation": {
+        "rollup": {
+            "locations": [
+                {
+                    "area": "Apas",
+                    "count": 8
+                }
+            ],
+            "narrative": "8 active/deferred incidents remain in the current operating picture. The leading current classification is Rescue, with current concerns associated with Apas.",
+            "concern_groups": [
+                {
+                    "areas": [
+                        "Apas"
+                    ],
+                    "concern": "Flood, Rescue, and Displacement",
+                    "main_signals": "1 blocked access point; Types: Rescue, Flood; Key needs: Assessment Team, Body Harness, Hydraulic Power Pack",
+                    "open_reports": 3,
+                    "incident_types": [
+                        "Rescue",
+                        "Flood"
+                    ],
+                    "resource_units": 19,
+                    "source_incidents": [
+                        535,
+                        537,
+                        542
+                    ],
+                    "current_assignments": 3
+                },
+                {
+                    "areas": [
+                        "Apas"
+                    ],
+                    "concern": "Infrastructure, Access, and Utilities",
+                    "main_signals": "1 blocked access point, 1 limited access point; Types: Infrastructure Damage; Key needs: Hydraulic Power Pack, Structural Assessment Team, Social Welfare Team",
+                    "open_reports": 2,
+                    "incident_types": [
+                        "Infrastructure Damage"
+                    ],
+                    "resource_units": 20,
+                    "source_incidents": [
+                        538,
+                        543
+                    ],
+                    "current_assignments": 2
+                },
+                {
+                    "areas": [
+                        "Apas"
+                    ],
+                    "concern": "Fire and Shelter Damage",
+                    "main_signals": "Types: Building/House Fire; Key needs: Satellite Phone, Night Vision, Bulldozer",
+                    "open_reports": 2,
+                    "incident_types": [
+                        "Building/House Fire"
+                    ],
+                    "resource_units": 13,
+                    "source_incidents": [
+                        539,
+                        541
+                    ],
+                    "current_assignments": 2
+                },
+                {
+                    "areas": [
+                        "Apas"
+                    ],
+                    "concern": "Public Safety and Protection",
+                    "main_signals": "Types: Public Disturbance / Riot; Key needs: Mobile Toilets, Rope",
+                    "open_reports": 1,
+                    "incident_types": [
+                        "Public Disturbance / Riot"
+                    ],
+                    "resource_units": 6,
+                    "source_incidents": [
+                        536
+                    ],
+                    "current_assignments": 1
+                }
+            ],
+            "incident_types": [
+                {
+                    "type": "Rescue",
+                    "count": 2
+                },
+                {
+                    "type": "Infrastructure Damage",
+                    "count": 2
+                },
+                {
+                    "type": "Building/House Fire",
+                    "count": 2
+                },
+                {
+                    "type": "Public Disturbance / Riot",
+                    "count": 1
+                },
+                {
+                    "type": "Flood",
+                    "count": 1
+                }
+            ],
+            "notable_events": [
+                {
+                    "label": "Incident #000540 opened",
+                    "incident_id": 540,
+                    "occurred_at": "2026-06-05T01:19:00+08:00"
+                },
+                {
+                    "label": "Incident #000539 opened",
+                    "incident_id": 539,
+                    "occurred_at": "2026-06-05T02:14:00+08:00"
+                },
+                {
+                    "label": "Incident #000538 opened",
+                    "incident_id": 538,
+                    "occurred_at": "2026-06-05T02:36:00+08:00"
+                },
+                {
+                    "label": "Incident #000537 opened",
+                    "incident_id": 537,
+                    "occurred_at": "2026-06-05T04:20:00+08:00"
+                },
+                {
+                    "label": "Incident #000546 opened",
+                    "incident_id": 546,
+                    "occurred_at": "2026-06-05T06:01:00+08:00"
+                },
+                {
+                    "label": "Incident #000534 opened",
+                    "incident_id": 534,
+                    "occurred_at": "2026-06-05T06:09:00+08:00"
+                },
+                {
+                    "label": "Incident #000540 closed as Resolved",
+                    "incident_id": 540,
+                    "occurred_at": "2026-06-05T07:05:00+08:00"
+                },
+                {
+                    "label": "Incident #000535 opened",
+                    "incident_id": 535,
+                    "occurred_at": "2026-06-05T07:12:00+08:00"
+                },
+                {
+                    "label": "Incident #000532 opened",
+                    "incident_id": 532,
+                    "occurred_at": "2026-06-05T07:55:00+08:00"
+                },
+                {
+                    "label": "Incident #000533 opened",
+                    "incident_id": 533,
+                    "occurred_at": "2026-06-05T08:02:00+08:00"
+                },
+                {
+                    "label": "Incident #000541 opened",
+                    "incident_id": 541,
+                    "occurred_at": "2026-06-05T08:48:00+08:00"
+                },
+                {
+                    "label": "Incident #000534 closed as Resolved",
+                    "incident_id": 534,
+                    "occurred_at": "2026-06-05T09:31:00+08:00"
+                }
+            ],
+            "confidence_note": "Incident type buckets are type mentions; totals can exceed total incidents when an incident has multiple types.",
+            "decision_points": [
+                {
+                    "body": "8 critical/high-priority reports; 2 injury/patient signals; 1 rescue/stranded signal remain in the current picture; leadership may need to prioritize rescue, EMS, welfare, shelter, and protection coordination before ordinary logistics.",
+                    "title": "Life safety"
+                },
+                {
+                    "body": "Current requested demand totals 58 units across active/deferred reports. Leadership may need to consider whether existing response capacity is enough for open life-safety, welfare, public safety, infrastructure, and water-support needs.",
+                    "title": "Resource posture"
+                }
+            ],
+            "period_activity": {
+                "note": "Resolved reports are treated as addressed history. Discarded reports are excluded from operational posture and demand.",
+                "open_at_close": 8,
+                "total_reports": 15,
+                "discarded_excluded": 2,
+                "resolved_during_period": 5
+            },
+            "areas_of_concern": [
+                {
+                    "area": "Apas",
+                    "types": [
+                        "Rescue"
+                    ],
+                    "status": "Deferred",
+                    "summary": "Deferred report involving Rescue. 1 assignment and 3 requested resource units are associated with this open report.",
+                    "incident_id": 535
+                },
+                {
+                    "area": "Apas",
+                    "types": [
+                        "Public Disturbance / Riot"
+                    ],
+                    "status": "Active",
+                    "summary": "Active report involving Public Disturbance / Riot. 1 assignment and 6 requested resource units are associated with this open report.",
+                    "incident_id": 536
+                },
+                {
+                    "area": "Apas",
+                    "types": [
+                        "Flood"
+                    ],
+                    "status": "Deferred",
+                    "summary": "Deferred report involving Flood. 1 assignment and 12 requested resource units are associated with this open report.",
+                    "incident_id": 537
+                },
+                {
+                    "area": "Apas",
+                    "types": [
+                        "Infrastructure Damage"
+                    ],
+                    "status": "Active",
+                    "summary": "Active report involving Infrastructure Damage. 1 assignment and 10 requested resource units are associated with this open report.",
+                    "incident_id": 538
+                },
+                {
+                    "area": "Apas",
+                    "types": [
+                        "Building/House Fire"
+                    ],
+                    "status": "Deferred",
+                    "summary": "Deferred report involving Building/House Fire. 1 assignment and 5 requested resource units are associated with this open report.",
+                    "incident_id": 539
+                },
+                {
+                    "area": "Apas",
+                    "types": [
+                        "Building/House Fire"
+                    ],
+                    "status": "Active",
+                    "summary": "Active report involving Building/House Fire. 1 assignment and 8 requested resource units are associated with this open report.",
+                    "incident_id": 541
+                },
+                {
+                    "area": "Apas",
+                    "types": [
+                        "Rescue"
+                    ],
+                    "status": "Deferred",
+                    "summary": "Deferred report involving Rescue. 1 assignment and 4 requested resource units are associated with this open report.",
+                    "incident_id": 542
+                },
+                {
+                    "area": "Apas",
+                    "types": [
+                        "Infrastructure Damage"
+                    ],
+                    "status": "Deferred",
+                    "summary": "Deferred report involving Infrastructure Damage. 1 assignment and 10 requested resource units are associated with this open report.",
+                    "incident_id": 543
+                }
+            ],
+            "period_locations": [
+                {
+                    "area": "Apas",
+                    "count": 15
+                }
+            ],
+            "verification_notes": [
+                "Resource figures represent requested needs from active/deferred incident records; they do not confirm actual supply, dispatch, delivery, or consumption.",
+                "Population fields may overlap across shelter, family, patient, and crowd records; consolidated totals should be verified before external use.",
+                "Road and access constraints are based on incident report fields and should be verified before public routing advisories.",
+                "2 discarded reports were excluded from current posture, demand, and severity."
+            ],
+            "executive_assessment": "8 active/deferred incident reports remain open across Apas. Life-safety signals include 8 critical/high-priority reports; 2 injury/patient signals; 1 rescue/stranded signal. No blocked or limited access report is present. Current pressure is driven by Rescue, Infrastructure Damage, Building/House Fire, Public Disturbance / Riot, with 8 in-progress assignments and 58 current requested resource units associated with open reports.",
+            "period_incident_types": [
+                {
+                    "type": "Infrastructure Damage",
+                    "count": 3
+                },
+                {
+                    "type": "Flood",
+                    "count": 3
+                },
+                {
+                    "type": "Rescue",
+                    "count": 2
+                },
+                {
+                    "type": "Public Disturbance / Riot",
+                    "count": 2
+                },
+                {
+                    "type": "Building/House Fire",
+                    "count": 2
+                },
+                {
+                    "type": "Road Accident",
+                    "count": 1
+                },
+                {
+                    "type": "Vehicle Fire",
+                    "count": 1
+                },
+                {
+                    "type": "Medical Emergency",
+                    "count": 1
+                }
+            ],
+            "current_operating_picture": {
+                "status_note": "Deferred reports remain open. They indicate response or coordination is underway and the citizen/operator interaction may resume when field response arrives or more information is available.",
+                "open_reports": 8,
+                "active_reports": 3,
+                "deferred_reports": 5,
+                "current_assignments": 8,
+                "current_resource_units": 58
+            },
+            "multi_type_incident_count": 0
+        },
+        "items": [
+            {
+                "data": {
+                    "locations": [
+                        {
+                            "area": "Apas",
+                            "count": 8
+                        }
+                    ],
+                    "narrative": "8 active/deferred incidents remain in the current operating picture. The leading current classification is Rescue, with current concerns associated with Apas.",
+                    "concern_groups": [
+                        {
+                            "areas": [
+                                "Apas"
+                            ],
+                            "concern": "Flood, Rescue, and Displacement",
+                            "main_signals": "1 blocked access point; Types: Rescue, Flood; Key needs: Assessment Team, Body Harness, Hydraulic Power Pack",
+                            "open_reports": 3,
+                            "incident_types": [
+                                "Rescue",
+                                "Flood"
+                            ],
+                            "resource_units": 19,
+                            "source_incidents": [
+                                535,
+                                537,
+                                542
+                            ],
+                            "current_assignments": 3
+                        },
+                        {
+                            "areas": [
+                                "Apas"
+                            ],
+                            "concern": "Infrastructure, Access, and Utilities",
+                            "main_signals": "1 blocked access point, 1 limited access point; Types: Infrastructure Damage; Key needs: Hydraulic Power Pack, Structural Assessment Team, Social Welfare Team",
+                            "open_reports": 2,
+                            "incident_types": [
+                                "Infrastructure Damage"
+                            ],
+                            "resource_units": 20,
+                            "source_incidents": [
+                                538,
+                                543
+                            ],
+                            "current_assignments": 2
+                        },
+                        {
+                            "areas": [
+                                "Apas"
+                            ],
+                            "concern": "Fire and Shelter Damage",
+                            "main_signals": "Types: Building/House Fire; Key needs: Satellite Phone, Night Vision, Bulldozer",
+                            "open_reports": 2,
+                            "incident_types": [
+                                "Building/House Fire"
+                            ],
+                            "resource_units": 13,
+                            "source_incidents": [
+                                539,
+                                541
+                            ],
+                            "current_assignments": 2
+                        },
+                        {
+                            "areas": [
+                                "Apas"
+                            ],
+                            "concern": "Public Safety and Protection",
+                            "main_signals": "Types: Public Disturbance / Riot; Key needs: Mobile Toilets, Rope",
+                            "open_reports": 1,
+                            "incident_types": [
+                                "Public Disturbance / Riot"
+                            ],
+                            "resource_units": 6,
+                            "source_incidents": [
+                                536
+                            ],
+                            "current_assignments": 1
+                        }
+                    ],
+                    "incident_types": [
+                        {
+                            "type": "Rescue",
+                            "count": 2
+                        },
+                        {
+                            "type": "Infrastructure Damage",
+                            "count": 2
+                        },
+                        {
+                            "type": "Building/House Fire",
+                            "count": 2
+                        },
+                        {
+                            "type": "Public Disturbance / Riot",
+                            "count": 1
+                        },
+                        {
+                            "type": "Flood",
+                            "count": 1
+                        }
+                    ],
+                    "notable_events": [
+                        {
+                            "label": "Incident #000540 opened",
+                            "incident_id": 540,
+                            "occurred_at": "2026-06-05T01:19:00+08:00"
+                        },
+                        {
+                            "label": "Incident #000539 opened",
+                            "incident_id": 539,
+                            "occurred_at": "2026-06-05T02:14:00+08:00"
+                        },
+                        {
+                            "label": "Incident #000538 opened",
+                            "incident_id": 538,
+                            "occurred_at": "2026-06-05T02:36:00+08:00"
+                        },
+                        {
+                            "label": "Incident #000537 opened",
+                            "incident_id": 537,
+                            "occurred_at": "2026-06-05T04:20:00+08:00"
+                        },
+                        {
+                            "label": "Incident #000546 opened",
+                            "incident_id": 546,
+                            "occurred_at": "2026-06-05T06:01:00+08:00"
+                        },
+                        {
+                            "label": "Incident #000534 opened",
+                            "incident_id": 534,
+                            "occurred_at": "2026-06-05T06:09:00+08:00"
+                        },
+                        {
+                            "label": "Incident #000540 closed as Resolved",
+                            "incident_id": 540,
+                            "occurred_at": "2026-06-05T07:05:00+08:00"
+                        },
+                        {
+                            "label": "Incident #000535 opened",
+                            "incident_id": 535,
+                            "occurred_at": "2026-06-05T07:12:00+08:00"
+                        },
+                        {
+                            "label": "Incident #000532 opened",
+                            "incident_id": 532,
+                            "occurred_at": "2026-06-05T07:55:00+08:00"
+                        },
+                        {
+                            "label": "Incident #000533 opened",
+                            "incident_id": 533,
+                            "occurred_at": "2026-06-05T08:02:00+08:00"
+                        },
+                        {
+                            "label": "Incident #000541 opened",
+                            "incident_id": 541,
+                            "occurred_at": "2026-06-05T08:48:00+08:00"
+                        },
+                        {
+                            "label": "Incident #000534 closed as Resolved",
+                            "incident_id": 534,
+                            "occurred_at": "2026-06-05T09:31:00+08:00"
+                        }
+                    ],
+                    "confidence_note": "Incident type buckets are type mentions; totals can exceed total incidents when an incident has multiple types.",
+                    "decision_points": [
+                        {
+                            "body": "8 critical/high-priority reports; 2 injury/patient signals; 1 rescue/stranded signal remain in the current picture; leadership may need to prioritize rescue, EMS, welfare, shelter, and protection coordination before ordinary logistics.",
+                            "title": "Life safety"
+                        },
+                        {
+                            "body": "Current requested demand totals 58 units across active/deferred reports. Leadership may need to consider whether existing response capacity is enough for open life-safety, welfare, public safety, infrastructure, and water-support needs.",
+                            "title": "Resource posture"
+                        }
+                    ],
+                    "period_activity": {
+                        "note": "Resolved reports are treated as addressed history. Discarded reports are excluded from operational posture and demand.",
+                        "open_at_close": 8,
+                        "total_reports": 15,
+                        "discarded_excluded": 2,
+                        "resolved_during_period": 5
+                    },
+                    "areas_of_concern": [
+                        {
+                            "area": "Apas",
+                            "types": [
+                                "Rescue"
+                            ],
+                            "status": "Deferred",
+                            "summary": "Deferred report involving Rescue. 1 assignment and 3 requested resource units are associated with this open report.",
+                            "incident_id": 535
+                        },
+                        {
+                            "area": "Apas",
+                            "types": [
+                                "Public Disturbance / Riot"
+                            ],
+                            "status": "Active",
+                            "summary": "Active report involving Public Disturbance / Riot. 1 assignment and 6 requested resource units are associated with this open report.",
+                            "incident_id": 536
+                        },
+                        {
+                            "area": "Apas",
+                            "types": [
+                                "Flood"
+                            ],
+                            "status": "Deferred",
+                            "summary": "Deferred report involving Flood. 1 assignment and 12 requested resource units are associated with this open report.",
+                            "incident_id": 537
+                        },
+                        {
+                            "area": "Apas",
+                            "types": [
+                                "Infrastructure Damage"
+                            ],
+                            "status": "Active",
+                            "summary": "Active report involving Infrastructure Damage. 1 assignment and 10 requested resource units are associated with this open report.",
+                            "incident_id": 538
+                        },
+                        {
+                            "area": "Apas",
+                            "types": [
+                                "Building/House Fire"
+                            ],
+                            "status": "Deferred",
+                            "summary": "Deferred report involving Building/House Fire. 1 assignment and 5 requested resource units are associated with this open report.",
+                            "incident_id": 539
+                        },
+                        {
+                            "area": "Apas",
+                            "types": [
+                                "Building/House Fire"
+                            ],
+                            "status": "Active",
+                            "summary": "Active report involving Building/House Fire. 1 assignment and 8 requested resource units are associated with this open report.",
+                            "incident_id": 541
+                        },
+                        {
+                            "area": "Apas",
+                            "types": [
+                                "Rescue"
+                            ],
+                            "status": "Deferred",
+                            "summary": "Deferred report involving Rescue. 1 assignment and 4 requested resource units are associated with this open report.",
+                            "incident_id": 542
+                        },
+                        {
+                            "area": "Apas",
+                            "types": [
+                                "Infrastructure Damage"
+                            ],
+                            "status": "Deferred",
+                            "summary": "Deferred report involving Infrastructure Damage. 1 assignment and 10 requested resource units are associated with this open report.",
+                            "incident_id": 543
+                        }
+                    ],
+                    "period_locations": [
+                        {
+                            "area": "Apas",
+                            "count": 15
+                        }
+                    ],
+                    "verification_notes": [
+                        "Resource figures represent requested needs from active/deferred incident records; they do not confirm actual supply, dispatch, delivery, or consumption.",
+                        "Population fields may overlap across shelter, family, patient, and crowd records; consolidated totals should be verified before external use.",
+                        "Road and access constraints are based on incident report fields and should be verified before public routing advisories.",
+                        "2 discarded reports were excluded from current posture, demand, and severity."
+                    ],
+                    "executive_assessment": "8 active/deferred incident reports remain open across Apas. Life-safety signals include 8 critical/high-priority reports; 2 injury/patient signals; 1 rescue/stranded signal. No blocked or limited access report is present. Current pressure is driven by Rescue, Infrastructure Damage, Building/House Fire, Public Disturbance / Riot, with 8 in-progress assignments and 58 current requested resource units associated with open reports.",
+                    "period_incident_types": [
+                        {
+                            "type": "Infrastructure Damage",
+                            "count": 3
+                        },
+                        {
+                            "type": "Flood",
+                            "count": 3
+                        },
+                        {
+                            "type": "Rescue",
+                            "count": 2
+                        },
+                        {
+                            "type": "Public Disturbance / Riot",
+                            "count": 2
+                        },
+                        {
+                            "type": "Building/House Fire",
+                            "count": 2
+                        },
+                        {
+                            "type": "Road Accident",
+                            "count": 1
+                        },
+                        {
+                            "type": "Vehicle Fire",
+                            "count": 1
+                        },
+                        {
+                            "type": "Medical Emergency",
+                            "count": 1
+                        }
+                    ],
+                    "current_operating_picture": {
+                        "status_note": "Deferred reports remain open. They indicate response or coordination is underway and the citizen/operator interaction may resume when field response arrives or more information is available.",
+                        "open_reports": 8,
+                        "active_reports": 3,
+                        "deferred_reports": 5,
+                        "current_assignments": 8,
+                        "current_resource_units": 58
+                    },
+                    "multi_type_incident_count": 0
+                },
+                "location": {
+                    "id": "13",
+                    "name": "Apas, Cebu City, Cebu",
+                    "deployment": "barangay",
+                    "relay_hub_id": "13",
+                    "country_code": "PH",
+                    "reg_code": "07",
+                    "prov_code": "0722",
+                    "citymun_code": "072217",
+                    "brgy_code": "072217003"
+                }
+            }
+        ]
+    },
+    "damage": {
+        "rollup": {
+            "items": [
+                {
+                    "key": "infrastructure_damage_details",
+                    "unit": null,
+                    "label": "Infrastructure damage",
+                    "value": "minor damage; public building; surface damage; operational status: closed; 57 estimated affected users; public safety risk: medium; Infrastructure item generated for simulation.",
+                    "source": {
+                        "notes": "Infrastructure item generated for simulation.",
+                        "damage": "surface damage",
+                        "asset_type": "public building",
+                        "damage_level": "minor",
+                        "operational_status": "closed",
+                        "public_safety_risk": "medium",
+                        "estimated_affected_users": 57
+                    },
+                    "confidence": "reported",
+                    "incident_id": 538,
+                    "incident_type_id": 8
+                },
+                {
+                    "key": "infrastructure_damage_details",
+                    "unit": null,
+                    "label": "Infrastructure damage",
+                    "value": "moderate damage; road; structural concern; operational status: usable with caution; 121 estimated affected users; public safety risk: high; Infrastructure item generated for simulation.",
+                    "source": {
+                        "notes": "Infrastructure item generated for simulation.",
+                        "damage": "structural concern",
+                        "asset_type": "road",
+                        "damage_level": "moderate",
+                        "operational_status": "usable with caution",
+                        "public_safety_risk": "high",
+                        "estimated_affected_users": 121
+                    },
+                    "confidence": "reported",
+                    "incident_id": 543,
+                    "incident_type_id": 8
+                }
+            ],
+            "empty_state": null,
+            "damage_groups": [
+                {
+                    "reports": 2,
+                    "damage_type": "Infrastructure damage",
+                    "affected_assets": "public building, road",
+                    "severity_signal": "minor, moderate reported severity",
+                    "source_incidents": [
+                        538,
+                        543
+                    ]
+                }
+            ],
+            "reported_count": 2,
+            "confidence_note": "Current damage entries are reported from active/deferred incident type fields and should be verified before external release.",
+            "confirmed_count": 0,
+            "historical_items": [
+                {
+                    "key": "vehicles_involved",
+                    "unit": null,
+                    "label": "Vehicle involved",
+                    "value": "public utility vehicle; plate: REDACTED; moderate damage; Vehicle involvement recorded for simulation.; drivable: Yes",
+                    "source": {
+                        "drivable": true,
+                        "description": "Vehicle involvement recorded for simulation.",
+                        "damage_level": "moderate",
+                        "plate_number": "REDACTED",
+                        "vehicle_type": "public utility vehicle"
+                    },
+                    "confidence": "reported",
+                    "incident_id": 532,
+                    "incident_type_id": 7
+                },
+                {
+                    "key": "infrastructure_damage_details",
+                    "unit": null,
+                    "label": "Infrastructure damage",
+                    "value": "major damage; drainage; partial obstruction; operational status: usable with caution; 157 estimated affected users; public safety risk: high; Infrastructure item generated for simulation.",
+                    "source": {
+                        "notes": "Infrastructure item generated for simulation.",
+                        "damage": "partial obstruction",
+                        "asset_type": "drainage",
+                        "damage_level": "major",
+                        "operational_status": "usable with caution",
+                        "public_safety_risk": "high",
+                        "estimated_affected_users": 157
+                    },
+                    "confidence": "reported",
+                    "incident_id": 533,
+                    "incident_type_id": 8
+                },
+                {
+                    "key": "infrastructure_damage_details",
+                    "unit": null,
+                    "label": "Infrastructure damage",
+                    "value": "minor damage; public building; surface damage; operational status: closed; 57 estimated affected users; public safety risk: medium; Infrastructure item generated for simulation.",
+                    "source": {
+                        "notes": "Infrastructure item generated for simulation.",
+                        "damage": "surface damage",
+                        "asset_type": "public building",
+                        "damage_level": "minor",
+                        "operational_status": "closed",
+                        "public_safety_risk": "medium",
+                        "estimated_affected_users": 57
+                    },
+                    "confidence": "reported",
+                    "incident_id": 538,
+                    "incident_type_id": 8
+                },
+                {
+                    "key": "vehicles_involved",
+                    "unit": null,
+                    "label": "Vehicle involved",
+                    "value": "truck; plate: REDACTED; minor damage; Vehicle involvement recorded for simulation.; drivable: Yes",
+                    "source": {
+                        "drivable": true,
+                        "description": "Vehicle involvement recorded for simulation.",
+                        "damage_level": "minor",
+                        "plate_number": "REDACTED",
+                        "vehicle_type": "truck"
+                    },
+                    "confidence": "reported",
+                    "incident_id": 540,
+                    "incident_type_id": 12
+                },
+                {
+                    "key": "infrastructure_damage_details",
+                    "unit": null,
+                    "label": "Infrastructure damage",
+                    "value": "moderate damage; road; structural concern; operational status: usable with caution; 121 estimated affected users; public safety risk: high; Infrastructure item generated for simulation.",
+                    "source": {
+                        "notes": "Infrastructure item generated for simulation.",
+                        "damage": "structural concern",
+                        "asset_type": "road",
+                        "damage_level": "moderate",
+                        "operational_status": "usable with caution",
+                        "public_safety_risk": "high",
+                        "estimated_affected_users": 121
+                    },
+                    "confidence": "reported",
+                    "incident_id": 543,
+                    "incident_type_id": 8
+                }
+            ],
+            "unverified_count": 2
+        },
+        "items": [
+            {
+                "data": {
+                    "items": [
+                        {
+                            "key": "infrastructure_damage_details",
+                            "unit": null,
+                            "label": "Infrastructure damage",
+                            "value": "minor damage; public building; surface damage; operational status: closed; 57 estimated affected users; public safety risk: medium; Infrastructure item generated for simulation.",
+                            "source": {
+                                "notes": "Infrastructure item generated for simulation.",
+                                "damage": "surface damage",
+                                "asset_type": "public building",
+                                "damage_level": "minor",
+                                "operational_status": "closed",
+                                "public_safety_risk": "medium",
+                                "estimated_affected_users": 57
+                            },
+                            "confidence": "reported",
+                            "incident_id": 538,
+                            "incident_type_id": 8
+                        },
+                        {
+                            "key": "infrastructure_damage_details",
+                            "unit": null,
+                            "label": "Infrastructure damage",
+                            "value": "moderate damage; road; structural concern; operational status: usable with caution; 121 estimated affected users; public safety risk: high; Infrastructure item generated for simulation.",
+                            "source": {
+                                "notes": "Infrastructure item generated for simulation.",
+                                "damage": "structural concern",
+                                "asset_type": "road",
+                                "damage_level": "moderate",
+                                "operational_status": "usable with caution",
+                                "public_safety_risk": "high",
+                                "estimated_affected_users": 121
+                            },
+                            "confidence": "reported",
+                            "incident_id": 543,
+                            "incident_type_id": 8
+                        }
+                    ],
+                    "empty_state": null,
+                    "damage_groups": [
+                        {
+                            "reports": 2,
+                            "damage_type": "Infrastructure damage",
+                            "affected_assets": "public building, road",
+                            "severity_signal": "minor, moderate reported severity",
+                            "source_incidents": [
+                                538,
+                                543
+                            ]
+                        }
+                    ],
+                    "reported_count": 2,
+                    "confidence_note": "Current damage entries are reported from active/deferred incident type fields and should be verified before external release.",
+                    "confirmed_count": 0,
+                    "historical_items": [
+                        {
+                            "key": "vehicles_involved",
+                            "unit": null,
+                            "label": "Vehicle involved",
+                            "value": "public utility vehicle; plate: REDACTED; moderate damage; Vehicle involvement recorded for simulation.; drivable: Yes",
+                            "source": {
+                                "drivable": true,
+                                "description": "Vehicle involvement recorded for simulation.",
+                                "damage_level": "moderate",
+                                "plate_number": "REDACTED",
+                                "vehicle_type": "public utility vehicle"
+                            },
+                            "confidence": "reported",
+                            "incident_id": 532,
+                            "incident_type_id": 7
+                        },
+                        {
+                            "key": "infrastructure_damage_details",
+                            "unit": null,
+                            "label": "Infrastructure damage",
+                            "value": "major damage; drainage; partial obstruction; operational status: usable with caution; 157 estimated affected users; public safety risk: high; Infrastructure item generated for simulation.",
+                            "source": {
+                                "notes": "Infrastructure item generated for simulation.",
+                                "damage": "partial obstruction",
+                                "asset_type": "drainage",
+                                "damage_level": "major",
+                                "operational_status": "usable with caution",
+                                "public_safety_risk": "high",
+                                "estimated_affected_users": 157
+                            },
+                            "confidence": "reported",
+                            "incident_id": 533,
+                            "incident_type_id": 8
+                        },
+                        {
+                            "key": "infrastructure_damage_details",
+                            "unit": null,
+                            "label": "Infrastructure damage",
+                            "value": "minor damage; public building; surface damage; operational status: closed; 57 estimated affected users; public safety risk: medium; Infrastructure item generated for simulation.",
+                            "source": {
+                                "notes": "Infrastructure item generated for simulation.",
+                                "damage": "surface damage",
+                                "asset_type": "public building",
+                                "damage_level": "minor",
+                                "operational_status": "closed",
+                                "public_safety_risk": "medium",
+                                "estimated_affected_users": 57
+                            },
+                            "confidence": "reported",
+                            "incident_id": 538,
+                            "incident_type_id": 8
+                        },
+                        {
+                            "key": "vehicles_involved",
+                            "unit": null,
+                            "label": "Vehicle involved",
+                            "value": "truck; plate: REDACTED; minor damage; Vehicle involvement recorded for simulation.; drivable: Yes",
+                            "source": {
+                                "drivable": true,
+                                "description": "Vehicle involvement recorded for simulation.",
+                                "damage_level": "minor",
+                                "plate_number": "REDACTED",
+                                "vehicle_type": "truck"
+                            },
+                            "confidence": "reported",
+                            "incident_id": 540,
+                            "incident_type_id": 12
+                        },
+                        {
+                            "key": "infrastructure_damage_details",
+                            "unit": null,
+                            "label": "Infrastructure damage",
+                            "value": "moderate damage; road; structural concern; operational status: usable with caution; 121 estimated affected users; public safety risk: high; Infrastructure item generated for simulation.",
+                            "source": {
+                                "notes": "Infrastructure item generated for simulation.",
+                                "damage": "structural concern",
+                                "asset_type": "road",
+                                "damage_level": "moderate",
+                                "operational_status": "usable with caution",
+                                "public_safety_risk": "high",
+                                "estimated_affected_users": 121
+                            },
+                            "confidence": "reported",
+                            "incident_id": 543,
+                            "incident_type_id": 8
+                        }
+                    ],
+                    "unverified_count": 2
+                },
+                "location": {
+                    "id": "13",
+                    "name": "Apas, Cebu City, Cebu",
+                    "deployment": "barangay",
+                    "relay_hub_id": "13",
+                    "country_code": "PH",
+                    "reg_code": "07",
+                    "prov_code": "0722",
+                    "citymun_code": "072217",
+                    "brgy_code": "072217003"
+                }
+            }
+        ]
+    },
+    "population": {
+        "rollup": {
+            "items": [
+                {
+                    "key": "injured",
+                    "unit": "Person",
+                    "label": "People injured",
+                    "value": "6",
+                    "source": null,
+                    "confidence": "reported",
+                    "incident_id": 535,
+                    "incident_type_id": 2
+                },
+                {
+                    "key": "patient_details",
+                    "unit": null,
+                    "label": "Patient or injured person",
+                    "value": "Redacted patient; age 47; stable condition; triage: red; transported: No",
+                    "source": {
+                        "age": 47,
+                        "name": "Redacted patient",
+                        "condition": "stable",
+                        "transported": false,
+                        "triage_category": "red"
+                    },
+                    "confidence": "reported",
+                    "incident_id": 535,
+                    "incident_type_id": 2
+                },
+                {
+                    "key": "individuals",
+                    "unit": null,
+                    "label": "Estimated people involved",
+                    "value": "7",
+                    "source": null,
+                    "confidence": "reported",
+                    "incident_id": 536,
+                    "incident_type_id": 13
+                },
+                {
+                    "key": "evac_required",
+                    "unit": null,
+                    "label": "Evacuation Needed",
+                    "value": "Yes",
+                    "source": null,
+                    "confidence": "reported",
+                    "incident_id": 537,
+                    "incident_type_id": 4
+                },
+                {
+                    "key": "injured",
+                    "unit": "Person",
+                    "label": "People injured",
+                    "value": "7",
+                    "source": null,
+                    "confidence": "reported",
+                    "incident_id": 542,
+                    "incident_type_id": 2
+                },
+                {
+                    "key": "patient_details",
+                    "unit": null,
+                    "label": "Patient or injured person",
+                    "value": "Redacted patient; age 7; guarded condition; triage: green; transported: No",
+                    "source": {
+                        "age": 7,
+                        "name": "Redacted patient",
+                        "condition": "guarded",
+                        "transported": false,
+                        "triage_category": "green"
+                    },
+                    "confidence": "reported",
+                    "incident_id": 542,
+                    "incident_type_id": 2
+                },
+                {
+                    "label": "Affected family",
+                    "value": "2 families; 9 people; 4 children; 2 seniors; 1 pregnant; 2 PWD; displaced: Yes",
+                    "incident_id": 564,
+                    "source": {
+                        "families": 2,
+                        "member_count": 9,
+                        "adult_count": 5,
+                        "adult_male_count": 2,
+                        "adult_female_count": 3,
+                        "adult_senior_count": 2,
+                        "adult_pwd_count": 1,
+                        "adult_pregnant_count": 1,
+                        "children_count": 4,
+                        "child_male_count": 2,
+                        "child_female_count": 2,
+                        "children_pwd_count": 1,
+                        "displaced": true,
+                        "household_head": "Ramon Dela Cruz"
+                    }
+                }
+            ],
+            "empty_state": null,
+            "record_count": 7,
+            "numeric_total": 29,
+            "confidence_note": "Current population and life-safety values are sourced from active/deferred incident type fields. Category counts may overlap.",
+            "historical_items": [
+                {
+                    "key": "patient_details",
+                    "unit": null,
+                    "label": "Patient or injured person",
+                    "value": "Redacted patient; age 22; stable condition; triage: yellow; transported: Yes",
+                    "source": {
+                        "age": 22,
+                        "name": "Redacted patient",
+                        "condition": "stable",
+                        "transported": true,
+                        "triage_category": "yellow"
+                    },
+                    "confidence": "reported",
+                    "incident_id": 532,
+                    "incident_type_id": 7
+                },
+                {
+                    "key": "evac_required",
+                    "unit": null,
+                    "label": "Evacuation Needed",
+                    "value": "Yes",
+                    "source": null,
+                    "confidence": "reported",
+                    "incident_id": 534,
+                    "incident_type_id": 4
+                },
+                {
+                    "key": "injured",
+                    "unit": "Person",
+                    "label": "People injured",
+                    "value": "6",
+                    "source": null,
+                    "confidence": "reported",
+                    "incident_id": 535,
+                    "incident_type_id": 2
+                },
+                {
+                    "key": "patient_details",
+                    "unit": null,
+                    "label": "Patient or injured person",
+                    "value": "Redacted patient; age 47; stable condition; triage: red; transported: No",
+                    "source": {
+                        "age": 47,
+                        "name": "Redacted patient",
+                        "condition": "stable",
+                        "transported": false,
+                        "triage_category": "red"
+                    },
+                    "confidence": "reported",
+                    "incident_id": 535,
+                    "incident_type_id": 2
+                },
+                {
+                    "key": "individuals",
+                    "unit": null,
+                    "label": "Estimated people involved",
+                    "value": "7",
+                    "source": null,
+                    "confidence": "reported",
+                    "incident_id": 536,
+                    "incident_type_id": 13
+                },
+                {
+                    "key": "evac_required",
+                    "unit": null,
+                    "label": "Evacuation Needed",
+                    "value": "Yes",
+                    "source": null,
+                    "confidence": "reported",
+                    "incident_id": 537,
+                    "incident_type_id": 4
+                },
+                {
+                    "key": "patient_details",
+                    "unit": null,
+                    "label": "Patient or injured person",
+                    "value": "Redacted patient; age 51; serious condition; triage: red; transported: No",
+                    "source": {
+                        "age": 51,
+                        "name": "Redacted patient",
+                        "condition": "serious",
+                        "transported": false,
+                        "triage_category": "red"
+                    },
+                    "confidence": "reported",
+                    "incident_id": 540,
+                    "incident_type_id": 12
+                },
+                {
+                    "key": "injured",
+                    "unit": "Person",
+                    "label": "People injured",
+                    "value": "7",
+                    "source": null,
+                    "confidence": "reported",
+                    "incident_id": 542,
+                    "incident_type_id": 2
+                },
+                {
+                    "key": "patient_details",
+                    "unit": null,
+                    "label": "Patient or injured person",
+                    "value": "Redacted patient; age 7; guarded condition; triage: green; transported: No",
+                    "source": {
+                        "age": 7,
+                        "name": "Redacted patient",
+                        "condition": "guarded",
+                        "transported": false,
+                        "triage_category": "green"
+                    },
+                    "confidence": "reported",
+                    "incident_id": 542,
+                    "incident_type_id": 2
+                },
+                {
+                    "key": "individuals",
+                    "unit": null,
+                    "label": "Estimated people involved",
+                    "value": "1",
+                    "source": null,
+                    "confidence": "reported",
+                    "incident_id": 544,
+                    "incident_type_id": 13
+                },
+                {
+                    "key": "patients",
+                    "unit": "people",
+                    "label": "Patients",
+                    "value": "2",
+                    "source": null,
+                    "confidence": "reported",
+                    "incident_id": 545,
+                    "incident_type_id": 1
+                },
+                {
+                    "key": "patient_details",
+                    "unit": null,
+                    "label": "Patient or injured person",
+                    "value": "Redacted patient; age 37; guarded condition; triage: green; transported: Yes",
+                    "source": {
+                        "age": 37,
+                        "name": "Redacted patient",
+                        "condition": "guarded",
+                        "transported": true,
+                        "triage_category": "green"
+                    },
+                    "confidence": "reported",
+                    "incident_id": 545,
+                    "incident_type_id": 1
+                },
+                {
+                    "key": "evac_required",
+                    "unit": null,
+                    "label": "Evacuation Needed",
+                    "value": "No",
+                    "source": null,
+                    "confidence": "reported",
+                    "incident_id": 546,
+                    "incident_type_id": 4
+                }
+            ],
+            "citizens_assisted": 1,
+            "population_groups": [
+                {
+                    "population_signal": "People injured",
+                    "reports": 2,
+                    "people_families": "",
+                    "notes": "",
+                    "breakdowns": [],
+                    "source_incidents": [
+                        535,
+                        542
+                    ]
+                },
+                {
+                    "population_signal": "Patient or injured person",
+                    "reports": 2,
+                    "people_families": "",
+                    "notes": "",
+                    "breakdowns": [],
+                    "source_incidents": [
+                        535,
+                        542
+                    ]
+                },
+                {
+                    "population_signal": "Estimated people involved",
+                    "reports": 1,
+                    "people_families": "",
+                    "notes": "",
+                    "breakdowns": [],
+                    "source_incidents": [
+                        536
+                    ]
+                },
+                {
+                    "population_signal": "Evacuation Needed",
+                    "reports": 1,
+                    "people_families": "",
+                    "notes": "",
+                    "breakdowns": [],
+                    "source_incidents": [
+                        537
+                    ]
+                },
+                {
+                    "population_signal": "Affected family",
+                    "reports": 1,
+                    "people_families": "2 families / 9 people",
+                    "notes": "1 displacement signal",
+                    "breakdowns": [
+                        {
+                            "breakdown": "Children",
+                            "count": 4
+                        },
+                        {
+                            "breakdown": "Senior citizens",
+                            "count": 2
+                        },
+                        {
+                            "breakdown": "PWD",
+                            "count": 2
+                        },
+                        {
+                            "breakdown": "Pregnant",
+                            "count": 1
+                        }
+                    ],
+                    "source_incidents": [
+                        564
+                    ]
+                }
+            ],
+            "numeric_total_note": "Numeric population fields may overlap across categories and should not be treated as a consolidated total unless verified."
+        },
+        "items": [
+            {
+                "data": {
+                    "items": [
+                        {
+                            "key": "injured",
+                            "unit": "Person",
+                            "label": "People injured",
+                            "value": "6",
+                            "source": null,
+                            "confidence": "reported",
+                            "incident_id": 535,
+                            "incident_type_id": 2
+                        },
+                        {
+                            "key": "patient_details",
+                            "unit": null,
+                            "label": "Patient or injured person",
+                            "value": "Redacted patient; age 47; stable condition; triage: red; transported: No",
+                            "source": {
+                                "age": 47,
+                                "name": "Redacted patient",
+                                "condition": "stable",
+                                "transported": false,
+                                "triage_category": "red"
+                            },
+                            "confidence": "reported",
+                            "incident_id": 535,
+                            "incident_type_id": 2
+                        },
+                        {
+                            "key": "individuals",
+                            "unit": null,
+                            "label": "Estimated people involved",
+                            "value": "7",
+                            "source": null,
+                            "confidence": "reported",
+                            "incident_id": 536,
+                            "incident_type_id": 13
+                        },
+                        {
+                            "key": "evac_required",
+                            "unit": null,
+                            "label": "Evacuation Needed",
+                            "value": "Yes",
+                            "source": null,
+                            "confidence": "reported",
+                            "incident_id": 537,
+                            "incident_type_id": 4
+                        },
+                        {
+                            "key": "injured",
+                            "unit": "Person",
+                            "label": "People injured",
+                            "value": "7",
+                            "source": null,
+                            "confidence": "reported",
+                            "incident_id": 542,
+                            "incident_type_id": 2
+                        },
+                        {
+                            "key": "patient_details",
+                            "unit": null,
+                            "label": "Patient or injured person",
+                            "value": "Redacted patient; age 7; guarded condition; triage: green; transported: No",
+                            "source": {
+                                "age": 7,
+                                "name": "Redacted patient",
+                                "condition": "guarded",
+                                "transported": false,
+                                "triage_category": "green"
+                            },
+                            "confidence": "reported",
+                            "incident_id": 542,
+                            "incident_type_id": 2
+                        }
+                    ],
+                    "empty_state": null,
+                    "record_count": 6,
+                    "numeric_total": 20,
+                    "confidence_note": "Current population and life-safety values are sourced from active/deferred incident type fields. Category counts may overlap.",
+                    "historical_items": [
+                        {
+                            "key": "patient_details",
+                            "unit": null,
+                            "label": "Patient or injured person",
+                            "value": "Redacted patient; age 22; stable condition; triage: yellow; transported: Yes",
+                            "source": {
+                                "age": 22,
+                                "name": "Redacted patient",
+                                "condition": "stable",
+                                "transported": true,
+                                "triage_category": "yellow"
+                            },
+                            "confidence": "reported",
+                            "incident_id": 532,
+                            "incident_type_id": 7
+                        },
+                        {
+                            "key": "evac_required",
+                            "unit": null,
+                            "label": "Evacuation Needed",
+                            "value": "Yes",
+                            "source": null,
+                            "confidence": "reported",
+                            "incident_id": 534,
+                            "incident_type_id": 4
+                        },
+                        {
+                            "key": "injured",
+                            "unit": "Person",
+                            "label": "People injured",
+                            "value": "6",
+                            "source": null,
+                            "confidence": "reported",
+                            "incident_id": 535,
+                            "incident_type_id": 2
+                        },
+                        {
+                            "key": "patient_details",
+                            "unit": null,
+                            "label": "Patient or injured person",
+                            "value": "Redacted patient; age 47; stable condition; triage: red; transported: No",
+                            "source": {
+                                "age": 47,
+                                "name": "Redacted patient",
+                                "condition": "stable",
+                                "transported": false,
+                                "triage_category": "red"
+                            },
+                            "confidence": "reported",
+                            "incident_id": 535,
+                            "incident_type_id": 2
+                        },
+                        {
+                            "key": "individuals",
+                            "unit": null,
+                            "label": "Estimated people involved",
+                            "value": "7",
+                            "source": null,
+                            "confidence": "reported",
+                            "incident_id": 536,
+                            "incident_type_id": 13
+                        },
+                        {
+                            "key": "evac_required",
+                            "unit": null,
+                            "label": "Evacuation Needed",
+                            "value": "Yes",
+                            "source": null,
+                            "confidence": "reported",
+                            "incident_id": 537,
+                            "incident_type_id": 4
+                        },
+                        {
+                            "key": "patient_details",
+                            "unit": null,
+                            "label": "Patient or injured person",
+                            "value": "Redacted patient; age 51; serious condition; triage: red; transported: No",
+                            "source": {
+                                "age": 51,
+                                "name": "Redacted patient",
+                                "condition": "serious",
+                                "transported": false,
+                                "triage_category": "red"
+                            },
+                            "confidence": "reported",
+                            "incident_id": 540,
+                            "incident_type_id": 12
+                        },
+                        {
+                            "key": "injured",
+                            "unit": "Person",
+                            "label": "People injured",
+                            "value": "7",
+                            "source": null,
+                            "confidence": "reported",
+                            "incident_id": 542,
+                            "incident_type_id": 2
+                        },
+                        {
+                            "key": "patient_details",
+                            "unit": null,
+                            "label": "Patient or injured person",
+                            "value": "Redacted patient; age 7; guarded condition; triage: green; transported: No",
+                            "source": {
+                                "age": 7,
+                                "name": "Redacted patient",
+                                "condition": "guarded",
+                                "transported": false,
+                                "triage_category": "green"
+                            },
+                            "confidence": "reported",
+                            "incident_id": 542,
+                            "incident_type_id": 2
+                        },
+                        {
+                            "key": "individuals",
+                            "unit": null,
+                            "label": "Estimated people involved",
+                            "value": "1",
+                            "source": null,
+                            "confidence": "reported",
+                            "incident_id": 544,
+                            "incident_type_id": 13
+                        },
+                        {
+                            "key": "patients",
+                            "unit": "people",
+                            "label": "Patients",
+                            "value": "2",
+                            "source": null,
+                            "confidence": "reported",
+                            "incident_id": 545,
+                            "incident_type_id": 1
+                        },
+                        {
+                            "key": "patient_details",
+                            "unit": null,
+                            "label": "Patient or injured person",
+                            "value": "Redacted patient; age 37; guarded condition; triage: green; transported: Yes",
+                            "source": {
+                                "age": 37,
+                                "name": "Redacted patient",
+                                "condition": "guarded",
+                                "transported": true,
+                                "triage_category": "green"
+                            },
+                            "confidence": "reported",
+                            "incident_id": 545,
+                            "incident_type_id": 1
+                        },
+                        {
+                            "key": "evac_required",
+                            "unit": null,
+                            "label": "Evacuation Needed",
+                            "value": "No",
+                            "source": null,
+                            "confidence": "reported",
+                            "incident_id": 546,
+                            "incident_type_id": 4
+                        }
+                    ],
+                    "citizens_assisted": 1,
+                    "population_groups": [
+                        {
+                            "notes": "Details reported; verification required.",
+                            "reports": 2,
+                            "breakdowns": [],
+                            "people_families": "2 records",
+                            "source_incidents": [
+                                535,
+                                542
+                            ],
+                            "population_signal": "People injured"
+                        },
+                        {
+                            "notes": "stable; guarded",
+                            "reports": 2,
+                            "breakdowns": [],
+                            "people_families": "2 records",
+                            "source_incidents": [
+                                535,
+                                542
+                            ],
+                            "population_signal": "Patient or injured person"
+                        },
+                        {
+                            "notes": "Details reported; verification required.",
+                            "reports": 1,
+                            "breakdowns": [],
+                            "people_families": "1 record",
+                            "source_incidents": [
+                                536
+                            ],
+                            "population_signal": "Estimated people involved"
+                        },
+                        {
+                            "notes": "Details reported; verification required.",
+                            "reports": 1,
+                            "breakdowns": [],
+                            "people_families": "1 record",
+                            "source_incidents": [
+                                537
+                            ],
+                            "population_signal": "Evacuation Needed"
+                        }
+                    ],
+                    "numeric_total_note": "Numeric population fields may overlap across categories and should not be treated as a consolidated total unless verified."
+                },
+                "location": {
+                    "id": "13",
+                    "name": "Apas, Cebu City, Cebu",
+                    "deployment": "barangay",
+                    "relay_hub_id": "13",
+                    "country_code": "PH",
+                    "reg_code": "07",
+                    "prov_code": "0722",
+                    "citymun_code": "072217",
+                    "brgy_code": "072217003"
+                }
+            }
+        ]
+    },
+    "actions": {
+        "rollup": {
+            "assignments": [
+                {
+                    "team": "Engineering Team",
+                    "status": "requested",
+                    "category": "Infrastructure",
+                    "assigned_at": "2026-06-05T07:33:00+08:00",
+                    "incident_id": 535,
+                    "completed_at": null,
+                    "status_label": "Requested"
+                },
+                {
+                    "team": "V.E.C.O.",
+                    "status": "on_scene",
+                    "category": "Infrastructure Support",
+                    "assigned_at": "2026-06-05T20:37:00+08:00",
+                    "incident_id": 536,
+                    "completed_at": null,
+                    "status_label": "On Scene"
+                },
+                {
+                    "team": "Rescue Team",
+                    "status": "requested",
+                    "category": "Rescue and Medical",
+                    "assigned_at": "2026-06-05T04:33:00+08:00",
+                    "incident_id": 537,
+                    "completed_at": null,
+                    "status_label": "Requested"
+                },
+                {
+                    "team": "Rescue Team",
+                    "status": "en_route",
+                    "category": "Rescue and Medical",
+                    "assigned_at": "2026-06-05T02:49:00+08:00",
+                    "incident_id": 538,
+                    "completed_at": null,
+                    "status_label": "En Route"
+                },
+                {
+                    "team": "N.B.I.",
+                    "status": "requested",
+                    "category": "Law Enforcement",
+                    "assigned_at": "2026-06-05T02:35:00+08:00",
+                    "incident_id": 539,
+                    "completed_at": null,
+                    "status_label": "Requested"
+                },
+                {
+                    "team": "Welfare Team",
+                    "status": "on_scene",
+                    "category": "Relief and Welfare",
+                    "assigned_at": "2026-06-05T09:08:00+08:00",
+                    "incident_id": 541,
+                    "completed_at": null,
+                    "status_label": "On Scene"
+                },
+                {
+                    "team": "DPWH",
+                    "status": "requested",
+                    "category": "Infrastructure Support",
+                    "assigned_at": "2026-06-05T11:16:00+08:00",
+                    "incident_id": 542,
+                    "completed_at": null,
+                    "status_label": "Requested"
+                },
+                {
+                    "team": "Utilities Response Team",
+                    "status": "assigned",
+                    "category": "Infrastructure",
+                    "assigned_at": "2026-06-05T20:48:00+08:00",
+                    "incident_id": 543,
+                    "completed_at": null,
+                    "status_label": "Assigned"
+                }
+            ],
+            "timing_rows": [
+                {
+                    "team": "Engineering Team",
+                    "incident_id": 535,
+                    "elapsed_time": "",
+                    "current_status": "Requested",
+                    "accepted_to_en_route": "",
+                    "assigned_to_accepted": "",
+                    "en_route_to_on_scene": "",
+                    "assigned_to_cancelled": "",
+                    "on_scene_to_completed": ""
+                },
+                {
+                    "team": "V.E.C.O.",
+                    "incident_id": 536,
+                    "elapsed_time": "",
+                    "current_status": "On Scene",
+                    "accepted_to_en_route": "23m",
+                    "assigned_to_accepted": "6m",
+                    "en_route_to_on_scene": "33m",
+                    "assigned_to_cancelled": "",
+                    "on_scene_to_completed": ""
+                },
+                {
+                    "team": "Rescue Team",
+                    "incident_id": 537,
+                    "elapsed_time": "",
+                    "current_status": "Requested",
+                    "accepted_to_en_route": "",
+                    "assigned_to_accepted": "",
+                    "en_route_to_on_scene": "",
+                    "assigned_to_cancelled": "",
+                    "on_scene_to_completed": ""
+                },
+                {
+                    "team": "Rescue Team",
+                    "incident_id": 538,
+                    "elapsed_time": "",
+                    "current_status": "En Route",
+                    "accepted_to_en_route": "19m",
+                    "assigned_to_accepted": "23m",
+                    "en_route_to_on_scene": "",
+                    "assigned_to_cancelled": "",
+                    "on_scene_to_completed": ""
+                },
+                {
+                    "team": "N.B.I.",
+                    "incident_id": 539,
+                    "elapsed_time": "",
+                    "current_status": "Requested",
+                    "accepted_to_en_route": "",
+                    "assigned_to_accepted": "",
+                    "en_route_to_on_scene": "",
+                    "assigned_to_cancelled": "",
+                    "on_scene_to_completed": ""
+                },
+                {
+                    "team": "Welfare Team",
+                    "incident_id": 541,
+                    "elapsed_time": "",
+                    "current_status": "On Scene",
+                    "accepted_to_en_route": "28m",
+                    "assigned_to_accepted": "12m",
+                    "en_route_to_on_scene": "27m",
+                    "assigned_to_cancelled": "",
+                    "on_scene_to_completed": ""
+                },
+                {
+                    "team": "DPWH",
+                    "incident_id": 542,
+                    "elapsed_time": "",
+                    "current_status": "Requested",
+                    "accepted_to_en_route": "",
+                    "assigned_to_accepted": "",
+                    "en_route_to_on_scene": "",
+                    "assigned_to_cancelled": "",
+                    "on_scene_to_completed": ""
+                },
+                {
+                    "team": "Utilities Response Team",
+                    "incident_id": 543,
+                    "elapsed_time": "",
+                    "current_status": "Assigned",
+                    "accepted_to_en_route": "",
+                    "assigned_to_accepted": "",
+                    "en_route_to_on_scene": "",
+                    "assigned_to_cancelled": "",
+                    "on_scene_to_completed": ""
+                }
+            ],
+            "status_decisions": {
+                "Active": 3,
+                "Deferred": 5,
+                "Resolved": 5,
+                "Discarded": 2
+            },
+            "deployment_groups": [
+                {
+                    "team": "Engineering Team",
+                    "category": "Infrastructure",
+                    "incident_ids": [
+                        535
+                    ],
+                    "status_counts": {
+                        "other": 0,
+                        "accepted": 0,
+                        "assigned": 0,
+                        "en_route": 0,
+                        "on_scene": 0,
+                        "cancelled": 0,
+                        "completed": 0,
+                        "requested": 1
+                    },
+                    "reports_covered": 1,
+                    "total_assignments": 1
+                },
+                {
+                    "team": "Utilities Response Team",
+                    "category": "Infrastructure",
+                    "incident_ids": [
+                        543
+                    ],
+                    "status_counts": {
+                        "other": 0,
+                        "accepted": 0,
+                        "assigned": 1,
+                        "en_route": 0,
+                        "on_scene": 0,
+                        "cancelled": 0,
+                        "completed": 0,
+                        "requested": 0
+                    },
+                    "reports_covered": 1,
+                    "total_assignments": 1
+                },
+                {
+                    "team": "DPWH",
+                    "category": "Infrastructure Support",
+                    "incident_ids": [
+                        542
+                    ],
+                    "status_counts": {
+                        "other": 0,
+                        "accepted": 0,
+                        "assigned": 0,
+                        "en_route": 0,
+                        "on_scene": 0,
+                        "cancelled": 0,
+                        "completed": 0,
+                        "requested": 1
+                    },
+                    "reports_covered": 1,
+                    "total_assignments": 1
+                },
+                {
+                    "team": "V.E.C.O.",
+                    "category": "Infrastructure Support",
+                    "incident_ids": [
+                        536
+                    ],
+                    "status_counts": {
+                        "other": 0,
+                        "accepted": 0,
+                        "assigned": 0,
+                        "en_route": 0,
+                        "on_scene": 1,
+                        "cancelled": 0,
+                        "completed": 0,
+                        "requested": 0
+                    },
+                    "reports_covered": 1,
+                    "total_assignments": 1
+                },
+                {
+                    "team": "N.B.I.",
+                    "category": "Law Enforcement",
+                    "incident_ids": [
+                        539
+                    ],
+                    "status_counts": {
+                        "other": 0,
+                        "accepted": 0,
+                        "assigned": 0,
+                        "en_route": 0,
+                        "on_scene": 0,
+                        "cancelled": 0,
+                        "completed": 0,
+                        "requested": 1
+                    },
+                    "reports_covered": 1,
+                    "total_assignments": 1
+                },
+                {
+                    "team": "Welfare Team",
+                    "category": "Relief and Welfare",
+                    "incident_ids": [
+                        541
+                    ],
+                    "status_counts": {
+                        "other": 0,
+                        "accepted": 0,
+                        "assigned": 0,
+                        "en_route": 0,
+                        "on_scene": 1,
+                        "cancelled": 0,
+                        "completed": 0,
+                        "requested": 0
+                    },
+                    "reports_covered": 1,
+                    "total_assignments": 1
+                },
+                {
+                    "team": "Rescue Team",
+                    "category": "Rescue and Medical",
+                    "incident_ids": [
+                        537,
+                        538
+                    ],
+                    "status_counts": {
+                        "other": 0,
+                        "accepted": 0,
+                        "assigned": 0,
+                        "en_route": 1,
+                        "on_scene": 0,
+                        "cancelled": 0,
+                        "completed": 0,
+                        "requested": 1
+                    },
+                    "reports_covered": 2,
+                    "total_assignments": 2
+                }
+            ],
+            "transfer_activity": {
+                "count": 0
+            },
+            "call_session_count": 0,
+            "assignment_status_counts": {
+                "assigned": 1,
+                "en_route": 1,
+                "on_scene": 2,
+                "requested": 4
+            }
+        },
+        "items": [
+            {
+                "data": {
+                    "assignments": [
+                        {
+                            "team": "Engineering Team",
+                            "status": "requested",
+                            "category": "Infrastructure",
+                            "assigned_at": "2026-06-05T07:33:00+08:00",
+                            "incident_id": 535,
+                            "completed_at": null,
+                            "status_label": "Requested"
+                        },
+                        {
+                            "team": "V.E.C.O.",
+                            "status": "on_scene",
+                            "category": "Infrastructure Support",
+                            "assigned_at": "2026-06-05T20:37:00+08:00",
+                            "incident_id": 536,
+                            "completed_at": null,
+                            "status_label": "On Scene"
+                        },
+                        {
+                            "team": "Rescue Team",
+                            "status": "requested",
+                            "category": "Rescue and Medical",
+                            "assigned_at": "2026-06-05T04:33:00+08:00",
+                            "incident_id": 537,
+                            "completed_at": null,
+                            "status_label": "Requested"
+                        },
+                        {
+                            "team": "Rescue Team",
+                            "status": "en_route",
+                            "category": "Rescue and Medical",
+                            "assigned_at": "2026-06-05T02:49:00+08:00",
+                            "incident_id": 538,
+                            "completed_at": null,
+                            "status_label": "En Route"
+                        },
+                        {
+                            "team": "N.B.I.",
+                            "status": "requested",
+                            "category": "Law Enforcement",
+                            "assigned_at": "2026-06-05T02:35:00+08:00",
+                            "incident_id": 539,
+                            "completed_at": null,
+                            "status_label": "Requested"
+                        },
+                        {
+                            "team": "Welfare Team",
+                            "status": "on_scene",
+                            "category": "Relief and Welfare",
+                            "assigned_at": "2026-06-05T09:08:00+08:00",
+                            "incident_id": 541,
+                            "completed_at": null,
+                            "status_label": "On Scene"
+                        },
+                        {
+                            "team": "DPWH",
+                            "status": "requested",
+                            "category": "Infrastructure Support",
+                            "assigned_at": "2026-06-05T11:16:00+08:00",
+                            "incident_id": 542,
+                            "completed_at": null,
+                            "status_label": "Requested"
+                        },
+                        {
+                            "team": "Utilities Response Team",
+                            "status": "assigned",
+                            "category": "Infrastructure",
+                            "assigned_at": "2026-06-05T20:48:00+08:00",
+                            "incident_id": 543,
+                            "completed_at": null,
+                            "status_label": "Assigned"
+                        }
+                    ],
+                    "timing_rows": [
+                        {
+                            "team": "Engineering Team",
+                            "incident_id": 535,
+                            "elapsed_time": "",
+                            "current_status": "Requested",
+                            "accepted_to_en_route": "",
+                            "assigned_to_accepted": "",
+                            "en_route_to_on_scene": "",
+                            "assigned_to_cancelled": "",
+                            "on_scene_to_completed": ""
+                        },
+                        {
+                            "team": "V.E.C.O.",
+                            "incident_id": 536,
+                            "elapsed_time": "",
+                            "current_status": "On Scene",
+                            "accepted_to_en_route": "23m",
+                            "assigned_to_accepted": "6m",
+                            "en_route_to_on_scene": "33m",
+                            "assigned_to_cancelled": "",
+                            "on_scene_to_completed": ""
+                        },
+                        {
+                            "team": "Rescue Team",
+                            "incident_id": 537,
+                            "elapsed_time": "",
+                            "current_status": "Requested",
+                            "accepted_to_en_route": "",
+                            "assigned_to_accepted": "",
+                            "en_route_to_on_scene": "",
+                            "assigned_to_cancelled": "",
+                            "on_scene_to_completed": ""
+                        },
+                        {
+                            "team": "Rescue Team",
+                            "incident_id": 538,
+                            "elapsed_time": "",
+                            "current_status": "En Route",
+                            "accepted_to_en_route": "19m",
+                            "assigned_to_accepted": "23m",
+                            "en_route_to_on_scene": "",
+                            "assigned_to_cancelled": "",
+                            "on_scene_to_completed": ""
+                        },
+                        {
+                            "team": "N.B.I.",
+                            "incident_id": 539,
+                            "elapsed_time": "",
+                            "current_status": "Requested",
+                            "accepted_to_en_route": "",
+                            "assigned_to_accepted": "",
+                            "en_route_to_on_scene": "",
+                            "assigned_to_cancelled": "",
+                            "on_scene_to_completed": ""
+                        },
+                        {
+                            "team": "Welfare Team",
+                            "incident_id": 541,
+                            "elapsed_time": "",
+                            "current_status": "On Scene",
+                            "accepted_to_en_route": "28m",
+                            "assigned_to_accepted": "12m",
+                            "en_route_to_on_scene": "27m",
+                            "assigned_to_cancelled": "",
+                            "on_scene_to_completed": ""
+                        },
+                        {
+                            "team": "DPWH",
+                            "incident_id": 542,
+                            "elapsed_time": "",
+                            "current_status": "Requested",
+                            "accepted_to_en_route": "",
+                            "assigned_to_accepted": "",
+                            "en_route_to_on_scene": "",
+                            "assigned_to_cancelled": "",
+                            "on_scene_to_completed": ""
+                        },
+                        {
+                            "team": "Utilities Response Team",
+                            "incident_id": 543,
+                            "elapsed_time": "",
+                            "current_status": "Assigned",
+                            "accepted_to_en_route": "",
+                            "assigned_to_accepted": "",
+                            "en_route_to_on_scene": "",
+                            "assigned_to_cancelled": "",
+                            "on_scene_to_completed": ""
+                        }
+                    ],
+                    "status_decisions": {
+                        "Active": 3,
+                        "Deferred": 5,
+                        "Resolved": 5,
+                        "Discarded": 2
+                    },
+                    "deployment_groups": [
+                        {
+                            "team": "Engineering Team",
+                            "category": "Infrastructure",
+                            "incident_ids": [
+                                535
+                            ],
+                            "status_counts": {
+                                "other": 0,
+                                "accepted": 0,
+                                "assigned": 0,
+                                "en_route": 0,
+                                "on_scene": 0,
+                                "cancelled": 0,
+                                "completed": 0,
+                                "requested": 1
+                            },
+                            "reports_covered": 1,
+                            "total_assignments": 1
+                        },
+                        {
+                            "team": "Utilities Response Team",
+                            "category": "Infrastructure",
+                            "incident_ids": [
+                                543
+                            ],
+                            "status_counts": {
+                                "other": 0,
+                                "accepted": 0,
+                                "assigned": 1,
+                                "en_route": 0,
+                                "on_scene": 0,
+                                "cancelled": 0,
+                                "completed": 0,
+                                "requested": 0
+                            },
+                            "reports_covered": 1,
+                            "total_assignments": 1
+                        },
+                        {
+                            "team": "DPWH",
+                            "category": "Infrastructure Support",
+                            "incident_ids": [
+                                542
+                            ],
+                            "status_counts": {
+                                "other": 0,
+                                "accepted": 0,
+                                "assigned": 0,
+                                "en_route": 0,
+                                "on_scene": 0,
+                                "cancelled": 0,
+                                "completed": 0,
+                                "requested": 1
+                            },
+                            "reports_covered": 1,
+                            "total_assignments": 1
+                        },
+                        {
+                            "team": "V.E.C.O.",
+                            "category": "Infrastructure Support",
+                            "incident_ids": [
+                                536
+                            ],
+                            "status_counts": {
+                                "other": 0,
+                                "accepted": 0,
+                                "assigned": 0,
+                                "en_route": 0,
+                                "on_scene": 1,
+                                "cancelled": 0,
+                                "completed": 0,
+                                "requested": 0
+                            },
+                            "reports_covered": 1,
+                            "total_assignments": 1
+                        },
+                        {
+                            "team": "N.B.I.",
+                            "category": "Law Enforcement",
+                            "incident_ids": [
+                                539
+                            ],
+                            "status_counts": {
+                                "other": 0,
+                                "accepted": 0,
+                                "assigned": 0,
+                                "en_route": 0,
+                                "on_scene": 0,
+                                "cancelled": 0,
+                                "completed": 0,
+                                "requested": 1
+                            },
+                            "reports_covered": 1,
+                            "total_assignments": 1
+                        },
+                        {
+                            "team": "Welfare Team",
+                            "category": "Relief and Welfare",
+                            "incident_ids": [
+                                541
+                            ],
+                            "status_counts": {
+                                "other": 0,
+                                "accepted": 0,
+                                "assigned": 0,
+                                "en_route": 0,
+                                "on_scene": 1,
+                                "cancelled": 0,
+                                "completed": 0,
+                                "requested": 0
+                            },
+                            "reports_covered": 1,
+                            "total_assignments": 1
+                        },
+                        {
+                            "team": "Rescue Team",
+                            "category": "Rescue and Medical",
+                            "incident_ids": [
+                                537,
+                                538
+                            ],
+                            "status_counts": {
+                                "other": 0,
+                                "accepted": 0,
+                                "assigned": 0,
+                                "en_route": 1,
+                                "on_scene": 0,
+                                "cancelled": 0,
+                                "completed": 0,
+                                "requested": 1
+                            },
+                            "reports_covered": 2,
+                            "total_assignments": 2
+                        }
+                    ],
+                    "transfer_activity": {
+                        "count": 0
+                    },
+                    "call_session_count": 0,
+                    "assignment_status_counts": {
+                        "assigned": 1,
+                        "en_route": 1,
+                        "on_scene": 2,
+                        "requested": 4
+                    }
+                },
+                "location": {
+                    "id": "13",
+                    "name": "Apas, Cebu City, Cebu",
+                    "deployment": "barangay",
+                    "relay_hub_id": "13",
+                    "country_code": "PH",
+                    "reg_code": "07",
+                    "prov_code": "0722",
+                    "citymun_code": "072217",
+                    "brgy_code": "072217003"
+                }
+            }
+        ]
+    },
+    "needs": {
+        "rollup": {
+            "items": [
+                {
+                    "unit": null,
+                    "status": "open",
+                    "category": "Specialized Rescue Equipment",
+                    "resource": "Hydraulic Power Pack",
+                    "incident_count": 3,
+                    "quantity_requested": 11
+                },
+                {
+                    "unit": null,
+                    "status": "open",
+                    "category": "Water and Sanitation",
+                    "resource": "Mobile Toilets",
+                    "incident_count": 1,
+                    "quantity_requested": 4
+                },
+                {
+                    "unit": null,
+                    "status": "open",
+                    "category": "Rescue and Extraction",
+                    "resource": "Rope",
+                    "incident_count": 1,
+                    "quantity_requested": 2
+                },
+                {
+                    "unit": "team",
+                    "status": "open",
+                    "category": "Search and Damage Assessment",
+                    "resource": "Assessment Team",
+                    "incident_count": 2,
+                    "quantity_requested": 8
+                },
+                {
+                    "unit": null,
+                    "status": "open",
+                    "category": "Rescue and Extraction",
+                    "resource": "Body Harness",
+                    "incident_count": 1,
+                    "quantity_requested": 6
+                },
+                {
+                    "unit": "team",
+                    "status": "open",
+                    "category": "Search and Damage Assessment",
+                    "resource": "Structural Assessment Team",
+                    "incident_count": 1,
+                    "quantity_requested": 5
+                },
+                {
+                    "unit": null,
+                    "status": "open",
+                    "category": "Heavy Equipment / Clearing",
+                    "resource": "Bulldozer",
+                    "incident_count": 1,
+                    "quantity_requested": 3
+                },
+                {
+                    "unit": null,
+                    "status": "open",
+                    "category": "Specialized Rescue Equipment",
+                    "resource": "Satellite Phone",
+                    "incident_count": 1,
+                    "quantity_requested": 4
+                },
+                {
+                    "unit": null,
+                    "status": "open",
+                    "category": "Specialized Rescue Equipment",
+                    "resource": "Night Vision",
+                    "incident_count": 1,
+                    "quantity_requested": 4
+                },
+                {
+                    "unit": "person",
+                    "status": "open",
+                    "category": "Public Safety / Traffic Control",
+                    "resource": "Negotiator",
+                    "incident_count": 1,
+                    "quantity_requested": 1
+                },
+                {
+                    "unit": "team",
+                    "status": "open",
+                    "category": "Welfare / Social Services",
+                    "resource": "Social Welfare Team",
+                    "incident_count": 1,
+                    "quantity_requested": 5
+                },
+                {
+                    "unit": null,
+                    "status": "open",
+                    "category": "Medical Response",
+                    "resource": "Medical Supplies",
+                    "incident_count": 1,
+                    "quantity_requested": 5
+                }
+            ],
+            "empty_state": null,
+            "category_groups": [
+                {
+                    "category": "Specialized Rescue Equipment",
+                    "resources": [
+                        "Hydraulic Power Pack",
+                        "Satellite Phone",
+                        "Night Vision"
+                    ],
+                    "quantity_requested": 19
+                },
+                {
+                    "category": "Water and Sanitation",
+                    "resources": [
+                        "Mobile Toilets"
+                    ],
+                    "quantity_requested": 4
+                },
+                {
+                    "category": "Rescue and Extraction",
+                    "resources": [
+                        "Rope",
+                        "Body Harness"
+                    ],
+                    "quantity_requested": 8
+                },
+                {
+                    "category": "Search and Damage Assessment",
+                    "resources": [
+                        "Assessment Team",
+                        "Structural Assessment Team"
+                    ],
+                    "quantity_requested": 13
+                },
+                {
+                    "category": "Heavy Equipment / Clearing",
+                    "resources": [
+                        "Bulldozer"
+                    ],
+                    "quantity_requested": 3
+                },
+                {
+                    "category": "Public Safety / Traffic Control",
+                    "resources": [
+                        "Negotiator"
+                    ],
+                    "quantity_requested": 1
+                },
+                {
+                    "category": "Welfare / Social Services",
+                    "resources": [
+                        "Social Welfare Team"
+                    ],
+                    "quantity_requested": 5
+                },
+                {
+                    "category": "Medical Response",
+                    "resources": [
+                        "Medical Supplies"
+                    ],
+                    "quantity_requested": 5
+                }
+            ],
+            "confidence_note": "Current needs are derived from structured resource requests on active/deferred incidents. They represent requested needs, not confirmed supply, dispatch, delivery, or consumption.",
+            "total_quantity_requested": 58
+        },
+        "items": [
+            {
+                "data": {
+                    "items": [
+                        {
+                            "unit": null,
+                            "status": "open",
+                            "category": "Specialized Rescue Equipment",
+                            "resource": "Hydraulic Power Pack",
+                            "incident_count": 3,
+                            "quantity_requested": 11
+                        },
+                        {
+                            "unit": null,
+                            "status": "open",
+                            "category": "Water and Sanitation",
+                            "resource": "Mobile Toilets",
+                            "incident_count": 1,
+                            "quantity_requested": 4
+                        },
+                        {
+                            "unit": null,
+                            "status": "open",
+                            "category": "Rescue and Extraction",
+                            "resource": "Rope",
+                            "incident_count": 1,
+                            "quantity_requested": 2
+                        },
+                        {
+                            "unit": "team",
+                            "status": "open",
+                            "category": "Search and Damage Assessment",
+                            "resource": "Assessment Team",
+                            "incident_count": 2,
+                            "quantity_requested": 8
+                        },
+                        {
+                            "unit": null,
+                            "status": "open",
+                            "category": "Rescue and Extraction",
+                            "resource": "Body Harness",
+                            "incident_count": 1,
+                            "quantity_requested": 6
+                        },
+                        {
+                            "unit": "team",
+                            "status": "open",
+                            "category": "Search and Damage Assessment",
+                            "resource": "Structural Assessment Team",
+                            "incident_count": 1,
+                            "quantity_requested": 5
+                        },
+                        {
+                            "unit": null,
+                            "status": "open",
+                            "category": "Heavy Equipment / Clearing",
+                            "resource": "Bulldozer",
+                            "incident_count": 1,
+                            "quantity_requested": 3
+                        },
+                        {
+                            "unit": null,
+                            "status": "open",
+                            "category": "Specialized Rescue Equipment",
+                            "resource": "Satellite Phone",
+                            "incident_count": 1,
+                            "quantity_requested": 4
+                        },
+                        {
+                            "unit": null,
+                            "status": "open",
+                            "category": "Specialized Rescue Equipment",
+                            "resource": "Night Vision",
+                            "incident_count": 1,
+                            "quantity_requested": 4
+                        },
+                        {
+                            "unit": "person",
+                            "status": "open",
+                            "category": "Public Safety / Traffic Control",
+                            "resource": "Negotiator",
+                            "incident_count": 1,
+                            "quantity_requested": 1
+                        },
+                        {
+                            "unit": "team",
+                            "status": "open",
+                            "category": "Welfare / Social Services",
+                            "resource": "Social Welfare Team",
+                            "incident_count": 1,
+                            "quantity_requested": 5
+                        },
+                        {
+                            "unit": null,
+                            "status": "open",
+                            "category": "Medical Response",
+                            "resource": "Medical Supplies",
+                            "incident_count": 1,
+                            "quantity_requested": 5
+                        }
+                    ],
+                    "empty_state": null,
+                    "category_groups": [
+                        {
+                            "category": "Specialized Rescue Equipment",
+                            "resources": [
+                                "Hydraulic Power Pack",
+                                "Satellite Phone",
+                                "Night Vision"
+                            ],
+                            "quantity_requested": 19
+                        },
+                        {
+                            "category": "Water and Sanitation",
+                            "resources": [
+                                "Mobile Toilets"
+                            ],
+                            "quantity_requested": 4
+                        },
+                        {
+                            "category": "Rescue and Extraction",
+                            "resources": [
+                                "Rope",
+                                "Body Harness"
+                            ],
+                            "quantity_requested": 8
+                        },
+                        {
+                            "category": "Search and Damage Assessment",
+                            "resources": [
+                                "Assessment Team",
+                                "Structural Assessment Team"
+                            ],
+                            "quantity_requested": 13
+                        },
+                        {
+                            "category": "Heavy Equipment / Clearing",
+                            "resources": [
+                                "Bulldozer"
+                            ],
+                            "quantity_requested": 3
+                        },
+                        {
+                            "category": "Public Safety / Traffic Control",
+                            "resources": [
+                                "Negotiator"
+                            ],
+                            "quantity_requested": 1
+                        },
+                        {
+                            "category": "Welfare / Social Services",
+                            "resources": [
+                                "Social Welfare Team"
+                            ],
+                            "quantity_requested": 5
+                        },
+                        {
+                            "category": "Medical Response",
+                            "resources": [
+                                "Medical Supplies"
+                            ],
+                            "quantity_requested": 5
+                        }
+                    ],
+                    "confidence_note": "Current needs are derived from structured resource requests on active/deferred incidents. They represent requested needs, not confirmed supply, dispatch, delivery, or consumption.",
+                    "total_quantity_requested": 58
+                },
+                "location": {
+                    "id": "13",
+                    "name": "Apas, Cebu City, Cebu",
+                    "deployment": "barangay",
+                    "relay_hub_id": "13",
+                    "country_code": "PH",
+                    "reg_code": "07",
+                    "prov_code": "0722",
+                    "citymun_code": "072217",
+                    "brgy_code": "072217003"
+                }
+            }
+        ]
+    },
+    "gaps": {
+        "rollup": {
+            "intro": "This section separates operational constraints from information limits so leaders can judge what might block a clean decision.",
+            "items": [
+                {
+                    "type": "open_needs",
+                    "title": "Resource supply not confirmed",
+                    "category": "Operational constraint",
+                    "evidence": "12 requested resource rows remain tied to active/deferred incidents. Resource evidence uses canonical Hotline resource_types records.",
+                    "public_visible": true,
+                    "confidence_note": "Hotline records the request; dispatch, arrival, delivery, consumption, and sufficiency are not confirmed by this SITREP.",
+                    "decision_relevance": "Leadership can see current demand, but should not treat the requested units as confirmed supply or completed delivery.",
+                    "resource_needs": [
+                        {
+                            "kind": "resource_need",
+                            "resource_type_id": 41,
+                            "resource_type_name": "Assessment Team",
+                            "resource_type_category_id": 12,
+                            "resource_type_category_name": "Search and Damage Assessment",
+                            "resource": "Assessment Team",
+                            "category": "Search and Damage Assessment",
+                            "quantity": 8,
+                            "unit_label": "team",
+                            "location_name": "Apas, Cebu City, Cebu",
+                            "incident_ids": [
+                                535,
+                                537,
+                                538,
+                                542,
+                                543
+                            ],
+                            "incident_refs": [
+                                "#000535",
+                                "#000537",
+                                "#000538",
+                                "#000542",
+                                "#000543"
+                            ],
+                            "routes": [
+                                {
+                                    "route_location": "Main Road, Barangay Apas",
+                                    "status": "blocked",
+                                    "obstruction_type": "floodwater",
+                                    "cleared": false,
+                                    "incident_ids": [
+                                        537
+                                    ]
+                                },
+                                {
+                                    "route_location": "Barangay Hall Vicinity, Barangay Apas",
+                                    "status": "limited",
+                                    "obstruction_type": "stalled vehicle",
+                                    "cleared": false,
+                                    "incident_ids": [
+                                        538
+                                    ]
+                                },
+                                {
+                                    "route_location": "Barangay Hall Vicinity, Barangay Apas",
+                                    "status": "blocked",
+                                    "obstruction_type": "debris",
+                                    "cleared": false,
+                                    "incident_ids": [
+                                        543
+                                    ]
+                                }
+                            ],
+                            "population": [
+                                {
+                                    "signal": "People injured",
+                                    "reports": 2,
+                                    "people": null,
+                                    "people_families": "",
+                                    "notes": [],
+                                    "incident_ids": [
+                                        535,
+                                        542
+                                    ]
+                                },
+                                {
+                                    "signal": "Patient or injured person",
+                                    "reports": 2,
+                                    "people": null,
+                                    "people_families": "",
+                                    "notes": [],
+                                    "incident_ids": [
+                                        535,
+                                        542
+                                    ]
+                                },
+                                {
+                                    "signal": "Evacuation Needed",
+                                    "reports": 1,
+                                    "people": null,
+                                    "people_families": "",
+                                    "notes": [],
+                                    "incident_ids": [
+                                        537
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "resource_need",
+                            "resource_type_id": 12,
+                            "resource_type_name": "Body Harness",
+                            "resource_type_category_id": 5,
+                            "resource_type_category_name": "Rescue and Extraction",
+                            "resource": "Body Harness",
+                            "category": "Rescue and Extraction",
+                            "quantity": 6,
+                            "unit_label": null,
+                            "location_name": "Apas, Cebu City, Cebu",
+                            "incident_ids": [
+                                535,
+                                537,
+                                542
+                            ],
+                            "incident_refs": [
+                                "#000535",
+                                "#000537",
+                                "#000542"
+                            ],
+                            "routes": [
+                                {
+                                    "route_location": "Main Road, Barangay Apas",
+                                    "status": "blocked",
+                                    "obstruction_type": "floodwater",
+                                    "cleared": false,
+                                    "incident_ids": [
+                                        537
+                                    ]
+                                }
+                            ],
+                            "population": [
+                                {
+                                    "signal": "People injured",
+                                    "reports": 2,
+                                    "people": null,
+                                    "people_families": "",
+                                    "notes": [],
+                                    "incident_ids": [
+                                        535,
+                                        542
+                                    ]
+                                },
+                                {
+                                    "signal": "Patient or injured person",
+                                    "reports": 2,
+                                    "people": null,
+                                    "people_families": "",
+                                    "notes": [],
+                                    "incident_ids": [
+                                        535,
+                                        542
+                                    ]
+                                },
+                                {
+                                    "signal": "Evacuation Needed",
+                                    "reports": 1,
+                                    "people": null,
+                                    "people_families": "",
+                                    "notes": [],
+                                    "incident_ids": [
+                                        537
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "resource_need",
+                            "resource_type_id": 33,
+                            "resource_type_name": "Bulldozer",
+                            "resource_type_category_id": 10,
+                            "resource_type_category_name": "Heavy Equipment / Clearing",
+                            "resource": "Bulldozer",
+                            "category": "Heavy Equipment / Clearing",
+                            "quantity": 3,
+                            "unit_label": null,
+                            "location_name": "Apas, Cebu City, Cebu",
+                            "incident_ids": [
+                                539,
+                                541
+                            ],
+                            "incident_refs": [
+                                "#000539",
+                                "#000541"
+                            ],
+                            "routes": [],
+                            "population": []
+                        },
+                        {
+                            "kind": "resource_need",
+                            "resource_type_id": 23,
+                            "resource_type_name": "Hydraulic Power Pack",
+                            "resource_type_category_id": 9,
+                            "resource_type_category_name": "Specialized Rescue Equipment",
+                            "resource": "Hydraulic Power Pack",
+                            "category": "Specialized Rescue Equipment",
+                            "quantity": 11,
+                            "unit_label": null,
+                            "location_name": "Apas, Cebu City, Cebu",
+                            "incident_ids": [
+                                535,
+                                537,
+                                538,
+                                542,
+                                543
+                            ],
+                            "incident_refs": [
+                                "#000535",
+                                "#000537",
+                                "#000538",
+                                "#000542",
+                                "#000543"
+                            ],
+                            "routes": [
+                                {
+                                    "route_location": "Main Road, Barangay Apas",
+                                    "status": "blocked",
+                                    "obstruction_type": "floodwater",
+                                    "cleared": false,
+                                    "incident_ids": [
+                                        537
+                                    ]
+                                },
+                                {
+                                    "route_location": "Barangay Hall Vicinity, Barangay Apas",
+                                    "status": "limited",
+                                    "obstruction_type": "stalled vehicle",
+                                    "cleared": false,
+                                    "incident_ids": [
+                                        538
+                                    ]
+                                },
+                                {
+                                    "route_location": "Barangay Hall Vicinity, Barangay Apas",
+                                    "status": "blocked",
+                                    "obstruction_type": "debris",
+                                    "cleared": false,
+                                    "incident_ids": [
+                                        543
+                                    ]
+                                }
+                            ],
+                            "population": [
+                                {
+                                    "signal": "People injured",
+                                    "reports": 2,
+                                    "people": null,
+                                    "people_families": "",
+                                    "notes": [],
+                                    "incident_ids": [
+                                        535,
+                                        542
+                                    ]
+                                },
+                                {
+                                    "signal": "Patient or injured person",
+                                    "reports": 2,
+                                    "people": null,
+                                    "people_families": "",
+                                    "notes": [],
+                                    "incident_ids": [
+                                        535,
+                                        542
+                                    ]
+                                },
+                                {
+                                    "signal": "Evacuation Needed",
+                                    "reports": 1,
+                                    "people": null,
+                                    "people_families": "",
+                                    "notes": [],
+                                    "incident_ids": [
+                                        537
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "resource_need",
+                            "resource_type_id": 3,
+                            "resource_type_name": "Medical Supplies",
+                            "resource_type_category_id": 1,
+                            "resource_type_category_name": "Medical Response",
+                            "resource": "Medical Supplies",
+                            "category": "Medical Response",
+                            "quantity": 5,
+                            "unit_label": null,
+                            "location_name": "Apas, Cebu City, Cebu",
+                            "incident_ids": [],
+                            "incident_refs": [],
+                            "routes": [],
+                            "population": []
+                        },
+                        {
+                            "kind": "resource_need",
+                            "resource_type_id": 5,
+                            "resource_type_name": "Mobile Toilets",
+                            "resource_type_category_id": 3,
+                            "resource_type_category_name": "Water and Sanitation",
+                            "resource": "Mobile Toilets",
+                            "category": "Water and Sanitation",
+                            "quantity": 4,
+                            "unit_label": null,
+                            "location_name": "Apas, Cebu City, Cebu",
+                            "incident_ids": [
+                                536
+                            ],
+                            "incident_refs": [
+                                "#000536"
+                            ],
+                            "routes": [],
+                            "population": [
+                                {
+                                    "signal": "Estimated people involved",
+                                    "reports": 1,
+                                    "people": null,
+                                    "people_families": "",
+                                    "notes": [],
+                                    "incident_ids": [
+                                        536
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "resource_need",
+                            "resource_type_id": 48,
+                            "resource_type_name": "Negotiator",
+                            "resource_type_category_id": 13,
+                            "resource_type_category_name": "Public Safety / Traffic Control",
+                            "resource": "Negotiator",
+                            "category": "Public Safety / Traffic Control",
+                            "quantity": 1,
+                            "unit_label": "person",
+                            "location_name": "Apas, Cebu City, Cebu",
+                            "incident_ids": [],
+                            "incident_refs": [],
+                            "routes": [],
+                            "population": []
+                        },
+                        {
+                            "kind": "resource_need",
+                            "resource_type_id": 34,
+                            "resource_type_name": "Night Vision",
+                            "resource_type_category_id": 9,
+                            "resource_type_category_name": "Specialized Rescue Equipment",
+                            "resource": "Night Vision",
+                            "category": "Specialized Rescue Equipment",
+                            "quantity": 4,
+                            "unit_label": null,
+                            "location_name": "Apas, Cebu City, Cebu",
+                            "incident_ids": [
+                                539,
+                                541
+                            ],
+                            "incident_refs": [
+                                "#000539",
+                                "#000541"
+                            ],
+                            "routes": [],
+                            "population": []
+                        },
+                        {
+                            "kind": "resource_need",
+                            "resource_type_id": 10,
+                            "resource_type_name": "Rope",
+                            "resource_type_category_id": 5,
+                            "resource_type_category_name": "Rescue and Extraction",
+                            "resource": "Rope",
+                            "category": "Rescue and Extraction",
+                            "quantity": 2,
+                            "unit_label": null,
+                            "location_name": "Apas, Cebu City, Cebu",
+                            "incident_ids": [
+                                536
+                            ],
+                            "incident_refs": [
+                                "#000536"
+                            ],
+                            "routes": [],
+                            "population": [
+                                {
+                                    "signal": "Estimated people involved",
+                                    "reports": 1,
+                                    "people": null,
+                                    "people_families": "",
+                                    "notes": [],
+                                    "incident_ids": [
+                                        536
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "resource_need",
+                            "resource_type_id": 36,
+                            "resource_type_name": "Satellite Phone",
+                            "resource_type_category_id": 9,
+                            "resource_type_category_name": "Specialized Rescue Equipment",
+                            "resource": "Satellite Phone",
+                            "category": "Specialized Rescue Equipment",
+                            "quantity": 4,
+                            "unit_label": null,
+                            "location_name": "Apas, Cebu City, Cebu",
+                            "incident_ids": [
+                                539,
+                                541
+                            ],
+                            "incident_refs": [
+                                "#000539",
+                                "#000541"
+                            ],
+                            "routes": [],
+                            "population": []
+                        },
+                        {
+                            "kind": "resource_need",
+                            "resource_type_id": 39,
+                            "resource_type_name": "Social Welfare Team",
+                            "resource_type_category_id": 11,
+                            "resource_type_category_name": "Welfare / Social Services",
+                            "resource": "Social Welfare Team",
+                            "category": "Welfare / Social Services",
+                            "quantity": 5,
+                            "unit_label": "team",
+                            "location_name": "Apas, Cebu City, Cebu",
+                            "incident_ids": [
+                                538,
+                                543
+                            ],
+                            "incident_refs": [
+                                "#000538",
+                                "#000543"
+                            ],
+                            "routes": [
+                                {
+                                    "route_location": "Barangay Hall Vicinity, Barangay Apas",
+                                    "status": "limited",
+                                    "obstruction_type": "stalled vehicle",
+                                    "cleared": false,
+                                    "incident_ids": [
+                                        538
+                                    ]
+                                },
+                                {
+                                    "route_location": "Barangay Hall Vicinity, Barangay Apas",
+                                    "status": "blocked",
+                                    "obstruction_type": "debris",
+                                    "cleared": false,
+                                    "incident_ids": [
+                                        543
+                                    ]
+                                }
+                            ],
+                            "population": []
+                        },
+                        {
+                            "kind": "resource_need",
+                            "resource_type_id": 42,
+                            "resource_type_name": "Structural Assessment Team",
+                            "resource_type_category_id": 12,
+                            "resource_type_category_name": "Search and Damage Assessment",
+                            "resource": "Structural Assessment Team",
+                            "category": "Search and Damage Assessment",
+                            "quantity": 5,
+                            "unit_label": "team",
+                            "location_name": "Apas, Cebu City, Cebu",
+                            "incident_ids": [
+                                538,
+                                543
+                            ],
+                            "incident_refs": [
+                                "#000538",
+                                "#000543"
+                            ],
+                            "routes": [
+                                {
+                                    "route_location": "Barangay Hall Vicinity, Barangay Apas",
+                                    "status": "limited",
+                                    "obstruction_type": "stalled vehicle",
+                                    "cleared": false,
+                                    "incident_ids": [
+                                        538
+                                    ]
+                                },
+                                {
+                                    "route_location": "Barangay Hall Vicinity, Barangay Apas",
+                                    "status": "blocked",
+                                    "obstruction_type": "debris",
+                                    "cleared": false,
+                                    "incident_ids": [
+                                        543
+                                    ]
+                                }
+                            ],
+                            "population": []
+                        }
+                    ]
+                },
+                {
+                    "type": "road_access",
+                    "items": [
+                        {
+                            "status": "blocked",
+                            "cleared": "No",
+                            "incident_id": 537,
+                            "route_location": "Main Road, Barangay Apas",
+                            "obstruction_type": "floodwater"
+                        },
+                        {
+                            "status": "limited",
+                            "cleared": "No",
+                            "incident_id": 538,
+                            "route_location": "Barangay Hall Vicinity, Barangay Apas",
+                            "obstruction_type": "stalled vehicle"
+                        },
+                        {
+                            "status": "blocked",
+                            "cleared": "No",
+                            "incident_id": 543,
+                            "route_location": "Barangay Hall Vicinity, Barangay Apas",
+                            "obstruction_type": "debris"
+                        }
+                    ],
+                    "title": "Road/access constraints may affect field movement",
+                    "category": "Operational constraint",
+                    "evidence": "3 current route constraints reported: 2 blocked, 1 limited.",
+                    "public_visible": true,
+                    "confidence_note": "Road/access conditions are reported by incident records and should be verified before public routing guidance or major deployment assumptions.",
+                    "decision_relevance": "Route constraints can affect response timing, staging decisions, and whether public routing advisories should be issued."
+                },
+                {
+                    "type": "population_verification",
+                    "title": "Population figures require verification",
+                    "category": "Data confidence",
+                    "evidence": "6 current population/life-safety records reported: People injured, Patient or injured person, Estimated people involved, Evacuation Needed.",
+                    "public_visible": true,
+                    "confidence_note": "Family, shelter, evacuation, patient, missing-person, and affected-person fields may overlap.",
+                    "decision_relevance": "Population fields should guide life-safety awareness, but should not be used as one consolidated affected-person total without validation."
+                },
+                {
+                    "type": "counting_scope",
+                    "title": "Closed and discarded reports are not current pressure",
+                    "category": "Counting rule",
+                    "evidence": "5 resolved reports were treated as addressed history; 2 discarded reports were excluded from posture, demand, and severity.",
+                    "public_visible": true,
+                    "confidence_note": "A resolved report cannot carry pending entries under current Hotline rules; discarded reports are neglected for current posture.",
+                    "decision_relevance": "This keeps the operating picture focused on reports that still need leadership visibility or downstream coordination."
+                }
+            ],
+            "title": "Response Constraints and Confidence Gaps",
+            "empty_state": null
+        },
+        "items": [
+            {
+                "data": {
+                    "intro": "This section separates operational constraints from information limits so leaders can judge what might block a clean decision.",
+                    "items": [
+                        {
+                            "type": "open_needs",
+                            "title": "Resource supply not confirmed",
+                            "category": "Operational constraint",
+                            "evidence": "58 requested resource units remain tied to active/deferred incidents. Category detail is shown in Current Resource Posture.",
+                            "public_visible": true,
+                            "confidence_note": "Hotline records the request; dispatch, arrival, delivery, consumption, and sufficiency are not confirmed by this SITREP.",
+                            "decision_relevance": "Leadership can see current demand, but should not treat the requested units as confirmed supply or completed delivery.",
+                            "resource_categories": [
+                                {
+                                    "category": "Specialized Rescue Equipment",
+                                    "resources": [
+                                        "Hydraulic Power Pack",
+                                        "Satellite Phone",
+                                        "Night Vision"
+                                    ],
+                                    "quantity_requested": 19
+                                },
+                                {
+                                    "category": "Water and Sanitation",
+                                    "resources": [
+                                        "Mobile Toilets"
+                                    ],
+                                    "quantity_requested": 4
+                                },
+                                {
+                                    "category": "Rescue and Extraction",
+                                    "resources": [
+                                        "Rope",
+                                        "Body Harness"
+                                    ],
+                                    "quantity_requested": 8
+                                },
+                                {
+                                    "category": "Search and Damage Assessment",
+                                    "resources": [
+                                        "Assessment Team",
+                                        "Structural Assessment Team"
+                                    ],
+                                    "quantity_requested": 13
+                                },
+                                {
+                                    "category": "Heavy Equipment / Clearing",
+                                    "resources": [
+                                        "Bulldozer"
+                                    ],
+                                    "quantity_requested": 3
+                                },
+                                {
+                                    "category": "Public Safety / Traffic Control",
+                                    "resources": [
+                                        "Negotiator"
+                                    ],
+                                    "quantity_requested": 1
+                                },
+                                {
+                                    "category": "Welfare / Social Services",
+                                    "resources": [
+                                        "Social Welfare Team"
+                                    ],
+                                    "quantity_requested": 5
+                                },
+                                {
+                                    "category": "Medical Response",
+                                    "resources": [
+                                        "Medical Supplies"
+                                    ],
+                                    "quantity_requested": 5
+                                }
+                            ]
+                        },
+                        {
+                            "type": "road_access",
+                            "items": [
+                                {
+                                    "status": "blocked",
+                                    "cleared": "No",
+                                    "incident_id": 537,
+                                    "route_location": "Main Road, Barangay Apas",
+                                    "obstruction_type": "floodwater"
+                                },
+                                {
+                                    "status": "limited",
+                                    "cleared": "No",
+                                    "incident_id": 538,
+                                    "route_location": "Barangay Hall Vicinity, Barangay Apas",
+                                    "obstruction_type": "stalled vehicle"
+                                },
+                                {
+                                    "status": "blocked",
+                                    "cleared": "No",
+                                    "incident_id": 543,
+                                    "route_location": "Barangay Hall Vicinity, Barangay Apas",
+                                    "obstruction_type": "debris"
+                                }
+                            ],
+                            "title": "Road/access constraints may affect field movement",
+                            "category": "Operational constraint",
+                            "evidence": "3 current route constraints reported: 2 blocked, 1 limited.",
+                            "public_visible": true,
+                            "confidence_note": "Road/access conditions are reported by incident records and should be verified before public routing guidance or major deployment assumptions.",
+                            "decision_relevance": "Route constraints can affect response timing, staging decisions, and whether public routing advisories should be issued."
+                        },
+                        {
+                            "type": "population_verification",
+                            "title": "Population figures require verification",
+                            "category": "Data confidence",
+                            "evidence": "6 current population/life-safety records reported: People injured, Patient or injured person, Estimated people involved, Evacuation Needed.",
+                            "public_visible": true,
+                            "confidence_note": "Family, shelter, evacuation, patient, missing-person, and affected-person fields may overlap.",
+                            "decision_relevance": "Population fields should guide life-safety awareness, but should not be used as one consolidated affected-person total without validation."
+                        },
+                        {
+                            "type": "counting_scope",
+                            "title": "Closed and discarded reports are not current pressure",
+                            "category": "Counting rule",
+                            "evidence": "5 resolved reports were treated as addressed history; 2 discarded reports were excluded from posture, demand, and severity.",
+                            "public_visible": true,
+                            "confidence_note": "A resolved report cannot carry pending entries under current Hotline rules; discarded reports are neglected for current posture.",
+                            "decision_relevance": "This keeps the operating picture focused on reports that still need leadership visibility or downstream coordination."
+                        }
+                    ],
+                    "title": "Response Constraints and Confidence Gaps",
+                    "empty_state": null
+                },
+                "location": {
+                    "id": "13",
+                    "name": "Apas, Cebu City, Cebu",
+                    "deployment": "barangay",
+                    "relay_hub_id": "13",
+                    "country_code": "PH",
+                    "reg_code": "07",
+                    "prov_code": "0722",
+                    "citymun_code": "072217",
+                    "brgy_code": "072217003"
+                }
+            }
+        ]
+    },
+    "source_snapshot": {
+        "rollup": {
+            "hotline": {
+                "app": "pbb-hotline",
+                "name": "PBB Hotline",
+                "build": {
+                    "id": "source-template",
+                    "built_at": null,
+                    "git_commit": null
+                },
+                "version": "1-5.6.1",
+                "release_date": "2026-05-12",
+                "release_name": "Citizen Live Call Readiness",
+                "display_version": "v1-5.6.1"
+            },
+            "hub_node": {
+                "url": "https://relay.pbb.ph/hub.json",
+                "source": "relay_hub_json",
+                "snapshot": {
+                    "code": "apas-cebu-cebu",
+                    "name": "Apas, Cebu City, Cebu",
+                    "hub_id": "13",
+                    "uplink": {
+                        "hub": {
+                            "id": "11",
+                            "name": "Cebu City, Cebu",
+                            "deployment": "city"
+                        }
+                    },
+                    "uplinks": [
+                        {
+                            "hub": {
+                                "id": "11",
+                                "name": "CEBU CITY, CEBU",
+                                "deployment": "city",
+                                "hub_id": 11,
+                                "relay_hub_id": "072217",
+                                "code": "cebu-cebu",
+                                "domain": "cebu-cebu-relay.pbb.ph",
+                                "country_code": "PH",
+                                "reg_code": "07",
+                                "prov_code": "0722",
+                                "citymun_code": "072217"
+                            },
+                            "active": true,
+                            "primary": true
+                        }
+                    ],
+                    "deployment": "barangay",
+                    "snapshot_at": "2026-06-05T01:59:09+08:00",
+                    "relay_hub_id": "13",
+                    "deployment_label": "Barangay",
+                    "id": 13,
+                    "domain": "apas-cebu-cebu-relay.pbb.ph",
+                    "country_code": "PH",
+                    "reg_code": "07",
+                    "prov_code": "0722",
+                    "citymun_code": "072217",
+                    "brgy_code": "072217003"
+                },
+                "available": true
+            },
+            "hub_nodes": [],
+            "generation": {
+                "type": "system",
+                "prepared_by_label": "System Generated",
+                "generated_at": "2026-06-05T21:18:00+08:00"
+            },
+            "incident_ids": [
+                532,
+                533,
+                534,
+                535,
+                536,
+                537,
+                538,
+                539,
+                540,
+                541,
+                542,
+                543,
+                544,
+                545,
+                546
+            ],
+            "adapter_version": 1,
+            "period_ended_at": "2026-06-05T23:59:59+08:00",
+            "call_session_ids": [],
+            "period_started_at": "2026-06-05T00:00:00+08:00",
+            "resource_need_ids": [
+                777,
+                778,
+                779,
+                780,
+                781,
+                782,
+                783,
+                784,
+                785,
+                786,
+                787,
+                788,
+                789,
+                790,
+                791,
+                792,
+                793,
+                794,
+                795,
+                796,
+                797,
+                798,
+                799
+            ],
+            "team_assignment_ids": [
+                339,
+                340,
+                341,
+                342,
+                343,
+                344,
+                345,
+                346,
+                347,
+                348,
+                349,
+                350,
+                351
+            ],
+            "incident_coordinates": [
+                {
+                    "id": 532,
+                    "lat": 10.34183,
+                    "lng": 123.90055
+                },
+                {
+                    "id": 533,
+                    "lat": 10.33977,
+                    "lng": 123.90702
+                },
+                {
+                    "id": 534,
+                    "lat": 10.33863,
+                    "lng": 123.91123
+                },
+                {
+                    "id": 535,
+                    "lat": 10.34028,
+                    "lng": 123.90404
+                },
+                {
+                    "id": 536,
+                    "lat": 10.34406,
+                    "lng": 123.90631
+                },
+                {
+                    "id": 537,
+                    "lat": 10.34531,
+                    "lng": 123.90052
+                },
+                {
+                    "id": 538,
+                    "lat": 10.3404,
+                    "lng": 123.90731
+                },
+                {
+                    "id": 539,
+                    "lat": 10.33915,
+                    "lng": 123.90188
+                },
+                {
+                    "id": 540,
+                    "lat": 10.33864,
+                    "lng": 123.91088
+                },
+                {
+                    "id": 541,
+                    "lat": 10.33815,
+                    "lng": 123.90688
+                },
+                {
+                    "id": 542,
+                    "lat": 10.34261,
+                    "lng": 123.90236
+                },
+                {
+                    "id": 543,
+                    "lat": 10.34017,
+                    "lng": 123.9033
+                },
+                {
+                    "id": 544,
+                    "lat": 10.33712,
+                    "lng": 123.90833
+                },
+                {
+                    "id": 545,
+                    "lat": 10.34297,
+                    "lng": 123.9069
+                },
+                {
+                    "id": 546,
+                    "lat": 10.33356,
+                    "lng": 123.91053
+                }
+            ],
+            "counting_rule_version": 2,
+            "incident_type_detail_ids": [
+                334,
+                335,
+                336,
+                337,
+                338,
+                339,
+                340,
+                341,
+                342,
+                343,
+                344,
+                345,
+                346,
+                347,
+                348,
+                349,
+                350,
+                351,
+                352,
+                353,
+                354,
+                355,
+                356,
+                357,
+                358,
+                359,
+                360,
+                361,
+                362,
+                363,
+                364,
+                365,
+                366,
+                367,
+                368,
+                369,
+                370,
+                371,
+                372,
+                373,
+                374,
+                375,
+                376,
+                377,
+                378
+            ],
+            "schema_refresh": {
+                "refreshed_at": "2026-06-12T12:27:46+08:00",
+                "reason": "sample-resource-gap-linked-evidence-regeneration",
+                "resource_source": "resource_types"
+            }
+        },
+        "items": [
+            {
+                "location": {
+                    "id": "13",
+                    "name": "Apas, Cebu City, Cebu",
+                    "deployment": "barangay",
+                    "relay_hub_id": "13",
+                    "country_code": "PH",
+                    "reg_code": "07",
+                    "prov_code": "0722",
+                    "citymun_code": "072217",
+                    "brgy_code": "072217003"
+                },
+                "data": {
+                    "hotline": {
+                        "app": "pbb-hotline",
+                        "name": "PBB Hotline",
+                        "build": {
+                            "id": "source-template",
+                            "built_at": null,
+                            "git_commit": null
+                        },
+                        "version": "1-5.6.1",
+                        "release_date": "2026-05-12",
+                        "release_name": "Citizen Live Call Readiness",
+                        "display_version": "v1-5.6.1"
+                    },
+                    "hub_node": {
+                        "url": "https://relay.pbb.ph/hub.json",
+                        "source": "relay_hub_json",
+                        "snapshot": {
+                            "code": "apas-cebu-cebu",
+                            "name": "Barangay Apas, Cebu City, Cebu",
+                            "hub_id": "13",
+                            "uplink": {
+                                "hub": {
+                                    "id": "11",
+                                    "name": "Cebu City, Cebu",
+                                    "deployment": "city"
+                                }
+                            },
+                            "uplinks": [
+                                {
+                                    "hub": {
+                                        "id": "11",
+                                        "name": "CEBU CITY, CEBU",
+                                        "deployment": "city",
+                                        "hub_id": 11,
+                                        "relay_hub_id": "072217",
+                                        "code": "cebu-cebu",
+                                        "domain": "cebu-cebu-relay.pbb.ph",
+                                        "country_code": "PH",
+                                        "reg_code": "07",
+                                        "prov_code": "0722",
+                                        "citymun_code": "072217"
+                                    },
+                                    "active": true,
+                                    "primary": true
+                                }
+                            ],
+                            "deployment": "barangay",
+                            "snapshot_at": "2026-06-05T01:59:09+08:00",
+                            "relay_hub_id": "13",
+                            "deployment_label": "Barangay",
+                            "id": 13,
+                            "domain": "apas-cebu-cebu-relay.pbb.ph",
+                            "country_code": "PH",
+                            "reg_code": "07",
+                            "prov_code": "0722",
+                            "citymun_code": "072217",
+                            "brgy_code": "072217003"
+                        },
+                        "available": true
+                    },
+                    "hub_nodes": [],
+                    "generation": {
+                        "type": "system",
+                        "prepared_by_label": "System Generated"
+                    },
+                    "incident_ids": [
+                        532,
+                        533,
+                        534,
+                        535,
+                        536,
+                        537,
+                        538,
+                        539,
+                        540,
+                        541,
+                        542,
+                        543,
+                        544,
+                        545,
+                        546
+                    ],
+                    "adapter_version": 1,
+                    "period_ended_at": "2026-06-05T23:59:59+08:00",
+                    "call_session_ids": [],
+                    "period_started_at": "2026-06-05T00:00:00+08:00",
+                    "resource_need_ids": [
+                        777,
+                        778,
+                        779,
+                        780,
+                        781,
+                        782,
+                        783,
+                        784,
+                        785,
+                        786,
+                        787,
+                        788,
+                        789,
+                        790,
+                        791,
+                        792,
+                        793,
+                        794,
+                        795,
+                        796,
+                        797,
+                        798,
+                        799
+                    ],
+                    "team_assignment_ids": [
+                        339,
+                        340,
+                        341,
+                        342,
+                        343,
+                        344,
+                        345,
+                        346,
+                        347,
+                        348,
+                        349,
+                        350,
+                        351
+                    ],
+                    "incident_coordinates": [
+                        {
+                            "id": 532,
+                            "lat": 10.34183,
+                            "lng": 123.90055
+                        },
+                        {
+                            "id": 533,
+                            "lat": 10.33977,
+                            "lng": 123.90702
+                        },
+                        {
+                            "id": 534,
+                            "lat": 10.33863,
+                            "lng": 123.91123
+                        },
+                        {
+                            "id": 535,
+                            "lat": 10.34028,
+                            "lng": 123.90404
+                        },
+                        {
+                            "id": 536,
+                            "lat": 10.34406,
+                            "lng": 123.90631
+                        },
+                        {
+                            "id": 537,
+                            "lat": 10.34531,
+                            "lng": 123.90052
+                        },
+                        {
+                            "id": 538,
+                            "lat": 10.3404,
+                            "lng": 123.90731
+                        },
+                        {
+                            "id": 539,
+                            "lat": 10.33915,
+                            "lng": 123.90188
+                        },
+                        {
+                            "id": 540,
+                            "lat": 10.33864,
+                            "lng": 123.91088
+                        },
+                        {
+                            "id": 541,
+                            "lat": 10.33815,
+                            "lng": 123.90688
+                        },
+                        {
+                            "id": 542,
+                            "lat": 10.34261,
+                            "lng": 123.90236
+                        },
+                        {
+                            "id": 543,
+                            "lat": 10.34017,
+                            "lng": 123.9033
+                        },
+                        {
+                            "id": 544,
+                            "lat": 10.33712,
+                            "lng": 123.90833
+                        },
+                        {
+                            "id": 545,
+                            "lat": 10.34297,
+                            "lng": 123.9069
+                        },
+                        {
+                            "id": 546,
+                            "lat": 10.33356,
+                            "lng": 123.91053
+                        }
+                    ],
+                    "counting_rule_version": 2,
+                    "incident_type_detail_ids": [
+                        334,
+                        335,
+                        336,
+                        337,
+                        338,
+                        339,
+                        340,
+                        341,
+                        342,
+                        343,
+                        344,
+                        345,
+                        346,
+                        347,
+                        348,
+                        349,
+                        350,
+                        351,
+                        352,
+                        353,
+                        354,
+                        355,
+                        356,
+                        357,
+                        358,
+                        359,
+                        360,
+                        361,
+                        362,
+                        363,
+                        364,
+                        365,
+                        366,
+                        367,
+                        368,
+                        369,
+                        370,
+                        371,
+                        372,
+                        373,
+                        374,
+                        375,
+                        376,
+                        377,
+                        378
+                    ]
+                }
+            }
+        ]
+    },
+    "privacy_redactions": {
+        "media_links": "omitted unless approved",
+        "exact_coordinates": "omitted from public report",
+        "raw_chat_transcript": "omitted",
+        "citizen_phone_numbers": "redacted",
+        "internal_operator_notes": "omitted"
+    },
+    "data_quality": {
+        "rollup": {
+            "global_note": "Generated from Hotline incident data using current-picture rules: active/deferred reports drive current posture, resolved reports are addressed history, and discarded reports are excluded.",
+            "unmapped_field_count": 10,
+            "incidents_without_type_count": 0,
+            "missing_citizen_location_count": 0,
+            "incidents_without_assignment_count": 0
+        },
+        "items": [
+            {
+                "data": {
+                    "global_note": "Generated from Hotline incident data using current-picture rules: active/deferred reports drive current posture, resolved reports are addressed history, and discarded reports are excluded.",
+                    "unmapped_field_count": 10,
+                    "incidents_without_type_count": 0,
+                    "missing_citizen_location_count": 0,
+                    "incidents_without_assignment_count": 0
+                },
+                "location": {
+                    "id": "13",
+                    "name": "Apas, Cebu City, Cebu",
+                    "deployment": "barangay",
+                    "relay_hub_id": "13",
+                    "country_code": "PH",
+                    "reg_code": "07",
+                    "prov_code": "0722",
+                    "citymun_code": "072217",
+                    "brgy_code": "072217003"
+                }
+            }
+        ]
     }
-  },
-  "privacy_redactions": {
-    "citizen_phone_numbers": "redacted",
-    "exact_coordinates": "redacted"
-  },
-  "data_quality": {
-    "global_note": "Generated from current Hotline data."
-  }
 }

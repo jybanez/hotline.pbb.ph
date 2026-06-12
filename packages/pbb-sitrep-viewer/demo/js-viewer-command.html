@@ -345,90 +345,17 @@
             return {
                 ...sample,
                 title: `${sample.title ?? 'PBB SITREP'} - Command Row Actions Demo`,
-                gaps: {
-                    title: 'Response Constraints and Confidence Gaps',
-                    items: [
-                        {
-                            type: 'open_needs',
-                            category: 'Operational constraint',
-                            title: 'Resource supply not confirmed',
-                            decision_relevance: 'Command can request outside support for unresolved operational supply needs.',
-                            source_hubs: ['Guadalupe, CEBU CITY, CEBU'],
-                            resource_categories: [
-                                {
-                                    category: 'Rescue and Extraction',
-                                    quantity_requested: 4,
-                                    resources: ['Rescue boat', 'Swiftwater team'],
-                                },
-                                {
-                                    category: 'Food and Relief',
-                                    quantity_requested: 120,
-                                    resources: ['Ready-to-eat meals', 'Water containers'],
-                                },
-                            ],
-                        },
-                        {
-                            category: 'Access constraint',
-                            title: 'Road access constrained near evacuation route',
-                            decision_relevance: 'Command can request route clearing or transport support.',
-                            items: [
-                                {
-                                    source_hub_id: 12,
-                                    source_relay_hub_id: '072217029',
-                                    source_hub_name: 'Guadalupe, CEBU CITY, CEBU',
-                                    route_location: 'V. Rama access road',
-                                    status: 'Constrained',
-                                    obstruction_type: 'Flooded lane',
-                                    cleared: 'No',
-                                },
-                            ],
-                        },
-                        {
-                            category: 'Data Confidence',
-                            title: 'Population verification still incomplete',
-                            decision_relevance: 'This row is intentionally blocked by the host action rule.',
-                            evidence: 'Population fields are report-level declarations.',
-                            source_hubs: ['Guadalupe, CEBU CITY, CEBU'],
-                            confidence_note: 'Treat as planning signal, not census count.',
-                        },
-                    ],
-                },
             };
         }
 
         function supportActionApplies(context) {
             const gap = context.gap ?? {};
             const row = context.row ?? {};
-            const category = String(gap.category ?? '').trim().toLowerCase();
-
-            if (category === 'data confidence') {
-                return false;
-            }
-
-            return isResourceContext(gap, row) || isAccessContext(gap, row);
-        }
-
-        function isResourceContext(gap, row) {
             const type = String(gap.type ?? '').trim().toLowerCase();
-            const title = String(gap.title ?? '').trim().toLowerCase();
 
             return type === 'open_needs'
-                || title.includes('resource supply')
-                || row.quantity_requested != null
-                || row.quantity != null
-                || Array.isArray(row.resources);
-        }
-
-        function isAccessContext(gap, row) {
-            const title = String(gap.title ?? '').trim().toLowerCase();
-            const category = String(gap.category ?? '').trim().toLowerCase();
-
-            return Boolean(row.route_location)
-                || Boolean(row.obstruction_type)
-                || title.includes('route')
-                || title.includes('road')
-                || title.includes('access')
-                || category.includes('access');
+                && row.kind === 'resource_need'
+                && Number.parseInt(row.resource_type_id, 10) > 0;
         }
 
         function openSupportDialog(context) {
@@ -449,10 +376,12 @@
 
         function evidenceSummary(row) {
             return [
-                row.location ?? row.source_hub_name,
-                row.category ?? row.route_location ?? row.population_signal,
-                row.quantity_requested != null ? `${row.quantity_requested} units` : null,
-                Array.isArray(row.resources) ? row.resources.filter(Boolean).join(', ') : null,
+                row.location_name ?? row.location ?? row.source_hub_name,
+                row.resource_type_name ?? row.resource,
+                row.resource_type_category_name ?? row.category,
+                row.quantity_requested != null || row.quantity != null
+                    ? `${row.quantity_requested ?? row.quantity} ${row.unit_label ?? 'units'}`
+                    : null,
                 row.status,
                 row.obstruction_type,
                 row.notes ?? row.note,
@@ -462,16 +391,17 @@
         function defaultRequestedAssistance(context) {
             const row = context.row ?? {};
             return [
+                row.resource_type_name,
                 row.resource,
                 Array.isArray(row.resources) ? row.resources.filter(Boolean).join(', ') : '',
                 row.category,
-                row.route_location,
             ].map((value) => String(value ?? '').trim()).find(Boolean) ?? '';
         }
 
         function supportPayload(context, values) {
             const sitrep = context.sitrep ?? {};
             const gap = context.gap ?? {};
+            const row = context.row ?? {};
             return {
                 sitrep_id: sitrep.id ?? null,
                 sitrep_sequence: sitrep.sequence_number ? String(sitrep.sequence_number).padStart(4, '0') : null,
@@ -480,7 +410,16 @@
                     category: gap.category ?? null,
                     evidence_ref: context.evidenceRef ?? null,
                 },
-                evidence_row: context.row ?? {},
+                resource: {
+                    resource_type_id: row.resource_type_id ?? null,
+                    resource_type_name: row.resource_type_name ?? null,
+                    resource_type_category_id: row.resource_type_category_id ?? null,
+                    resource_type_category_name: row.resource_type_category_name ?? null,
+                    quantity: row.quantity_requested ?? row.quantity ?? null,
+                    unit_label: row.unit_label ?? null,
+                    incident_ids: Array.isArray(row.incident_ids) ? row.incident_ids : [],
+                },
+                evidence_row: row,
                 requested_assistance: values.requested_assistance.trim(),
                 quantity: values.quantity.trim() || null,
                 urgency: values.urgency || 'normal',

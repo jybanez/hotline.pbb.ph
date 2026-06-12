@@ -198,16 +198,42 @@ final class SitrepConsolidator
         $items = [];
 
         foreach ($normalized as $source) {
-            $items[] = [
-                'location' => $this->sourceLocation($source),
-                'data' => $this->sourceSection($source, $section),
-            ];
+            $items = array_merge($items, $this->sourceSectionItems($source, $section));
         }
 
         return [
             'rollup' => count($normalized) === 1 ? ($items[0]['data'] ?? $mergedRollup) : $mergedRollup,
             'items' => $items,
         ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function sourceSectionItems(array $source, string $section): array
+    {
+        $data = $source['payload'][$section] ?? [];
+        $location = $this->sourceLocation($source);
+
+        if (is_array($data) && isset($data['items']) && is_array($data['items']) && $data['items'] !== []) {
+            return array_values(array_map(function (array $item) use ($source, $location): array {
+                $item['location'] = is_array($item['location'] ?? null) ? $item['location'] : $location;
+                $item['parent_source'] ??= [
+                    'source_hub_id' => $source['source_hub_id'],
+                    'source_hub_name' => $source['source_hub_name'],
+                    'source_deployment' => $source['source_deployment'],
+                    'sequence_number' => $source['sequence_number'],
+                    'title' => $source['title'],
+                ];
+
+                return $item;
+            }, array_filter($data['items'], 'is_array')));
+        }
+
+        return [[
+            'location' => $location,
+            'data' => $this->sourceSection($source, $section),
+        ]];
     }
 
     /**
@@ -228,6 +254,8 @@ final class SitrepConsolidator
             ];
         }
 
+        $incidentCoordinates = $this->mergeIncidentCoordinates($normalized);
+
         return [
             'rollup' => [
                 'generation' => [
@@ -246,7 +274,8 @@ final class SitrepConsolidator
                 'source_deployment' => $deployment,
                 'hub_nodes' => $this->sourceHubNodes($normalized),
                 'source_sitreps' => $sourceIndex,
-                'incident_coordinates' => $this->mergeIncidentCoordinates($normalized),
+                'incident_coordinates' => $incidentCoordinates,
+                'incident_index' => $this->mergeIncidentIndex($normalized, $items, $incidentCoordinates),
             ],
             'items' => $items,
         ];
@@ -1069,6 +1098,7 @@ final class SitrepConsolidator
                 $category = $this->text($gap['category'] ?? null, 'Reported Gap');
                 $key = strtolower($category.'|'.$title);
                 $groups[$key] ??= [
+                    'type' => $this->text($gap['type'] ?? null, ''),
                     'category' => $category,
                     'title' => $title,
                     'body' => $gap['body'] ?? '',
@@ -1077,11 +1107,27 @@ final class SitrepConsolidator
                     'confidence_note' => $gap['confidence_note'] ?? '',
                     'source_hubs' => [],
                     'items' => [],
+                    'resource_needs' => [],
                 ];
                 $groups[$key]['source_hubs'][] = $source['source_hub_name'];
 
                 if (($gap['evidence'] ?? '') !== '') {
                     $groups[$key]['evidence'] = trim($groups[$key]['evidence'].' '.$source['source_hub_name'].': '.$gap['evidence']);
+                }
+
+                if ($this->text($gap['type'] ?? null, '') === 'open_needs') {
+                    foreach (($gap['resource_needs'] ?? []) as $row) {
+                        if (! is_array($row)) {
+                            continue;
+                        }
+
+                        $row['source_hub_id'] = $source['source_hub_id'];
+                        $row['source_hub_name'] = $source['source_hub_name'];
+                        $row['source_deployment'] = $source['source_deployment'];
+                        $row['source_sequence_number'] = $source['sequence_number'];
+                        $row['location_name'] = $this->text($row['location_name'] ?? null, (string) $source['source_hub_name']);
+                        $groups[$key]['resource_needs'][] = $row;
+                    }
                 }
 
                 foreach (($gap['items'] ?? []) as $item) {
@@ -1099,6 +1145,12 @@ final class SitrepConsolidator
             'intro' => sprintf('This consolidated gap rollup groups repeated constraints across %d source hub%s while preserving route and source evidence.', count($normalized), count($normalized) === 1 ? '' : 's'),
             'items' => $this->sortedRows(array_values(array_map(function (array $group): array {
                 $group['source_hubs'] = array_values(array_unique($group['source_hubs']));
+                if (($group['type'] ?? '') === '') {
+                    unset($group['type']);
+                }
+                if ($group['resource_needs'] === []) {
+                    unset($group['resource_needs']);
+                }
                 if ($group['evidence'] === '') {
                     $group['evidence'] = sprintf('Reported by %d source hub%s.', count($group['source_hubs']), count($group['source_hubs']) === 1 ? '' : 's');
                 }
@@ -1214,7 +1266,8 @@ final class SitrepConsolidator
                     continue;
                 }
 
-                $key = $source['source_hub_id'].'|'.$item['id'];
+                $sourceHubId = (string) ($item['source_hub_id'] ?? $source['source_hub_id']);
+                $key = $sourceHubId.'|'.$item['id'];
                 if (isset($seen[$key])) {
                     continue;
                 }
@@ -1224,12 +1277,142 @@ final class SitrepConsolidator
                     'id' => $item['id'],
                     'lat' => $item['lat'],
                     'lng' => $item['lng'],
-                    'source_hub_id' => (string) $source['source_hub_id'],
+                    'source_hub_id' => $sourceHubId,
                 ];
             }
         }
 
         return $coordinates;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $normalized
+     * @param array<int, array<string, mixed>> $sourceItems
+     * @param array<int, array<string, mixed>> $incidentCoordinates
+     * @return array<int, array<string, mixed>>
+     */
+    private function mergeIncidentIndex(array $normalized, array $sourceItems, array $incidentCoordinates): array
+    {
+        $coordinatesByKey = [];
+        foreach ($incidentCoordinates as $coordinate) {
+            if (! is_array($coordinate) || ! array_key_exists('id', $coordinate)) {
+                continue;
+            }
+
+            $hubId = (string) ($coordinate['source_hub_id'] ?? '');
+            if ($hubId === '') {
+                continue;
+            }
+
+            $coordinatesByKey[$hubId.':'.(string) $coordinate['id']] = $coordinate;
+        }
+
+        $sourceByHub = [];
+        foreach ($normalized as $source) {
+            $sourceByHub[(string) $source['source_hub_id']] = $source;
+        }
+
+        $index = [];
+
+        foreach ($sourceItems as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $location = is_array($item['location'] ?? null) ? $item['location'] : [];
+            $data = is_array($item['data'] ?? null) ? $item['data'] : [];
+            $hubId = (string) ($location['id'] ?? '');
+            if ($hubId === '') {
+                continue;
+            }
+
+            $source = $sourceByHub[$hubId] ?? [];
+
+            foreach (($data['incident_index'] ?? []) as $row) {
+                if (is_array($row)) {
+                    $this->addIncidentIndexRow($index, $row, $source, $location, $coordinatesByKey);
+                }
+            }
+
+            foreach (($data['incident_ids'] ?? []) as $incident) {
+                $this->addIncidentIndexRow(
+                    $index,
+                    $this->incidentIndexRowFromSourceIncident($incident),
+                    $source,
+                    $location,
+                    $coordinatesByKey,
+                );
+            }
+        }
+
+        ksort($index);
+
+        return array_values($index);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function incidentIndexRowFromSourceIncident(mixed $incident): array
+    {
+        if (is_array($incident)) {
+            return [
+                'incident_id' => $incident['id'] ?? $incident['incident_id'] ?? null,
+                'incident_ref' => $incident['ref'] ?? $incident['incident_ref'] ?? $incident['public_code'] ?? $incident['code'] ?? null,
+            ];
+        }
+
+        return [
+            'incident_id' => $incident,
+        ];
+    }
+
+    /**
+     * @param array<string, array<string, mixed>> $index
+     * @param array<string, mixed> $row
+     * @param array<string, mixed> $source
+     * @param array<string, mixed> $location
+     * @param array<string, array<string, mixed>> $coordinatesByKey
+     */
+    private function addIncidentIndexRow(array &$index, array $row, array $source, array $location, array $coordinatesByKey): void
+    {
+        $hubId = (string) ($row['source_hub_id'] ?? $location['id'] ?? $source['source_hub_id'] ?? '');
+        $incidentId = $row['incident_id'] ?? null;
+
+        if ($hubId === '' || $incidentId === null || $incidentId === '') {
+            return;
+        }
+
+        $incidentId = is_numeric($incidentId) ? (int) $incidentId : (string) $incidentId;
+        $key = $hubId.':'.(string) $incidentId;
+        if (isset($index[$key])) {
+            return;
+        }
+
+        $coordinate = $coordinatesByKey[$key] ?? null;
+        $hasCoordinates = is_array($coordinate);
+        $indexRow = [
+            'key' => $key,
+            'source_hub_id' => $hubId,
+            'source_hub_name' => $this->text($row['source_hub_name'] ?? $location['name'] ?? $source['source_hub_name'] ?? null, ''),
+            'deployment' => $this->text($row['deployment'] ?? $location['deployment'] ?? $source['source_deployment'] ?? null, ''),
+            'sitrep_sequence_number' => $row['sitrep_sequence_number'] ?? $source['sequence_number'] ?? null,
+            'sitrep_record_id' => $row['sitrep_record_id'] ?? $source['id'] ?? $source['payload']['id'] ?? null,
+            'incident_id' => $incidentId,
+            'incident_ref' => $row['incident_ref'] ?? null,
+            'has_coordinates' => $hasCoordinates,
+        ];
+
+        if ($hasCoordinates) {
+            if (array_key_exists('lat', $coordinate)) {
+                $indexRow['lat'] = $coordinate['lat'];
+            }
+            if (array_key_exists('lng', $coordinate)) {
+                $indexRow['lng'] = $coordinate['lng'];
+            }
+        }
+
+        $index[$key] = $indexRow;
     }
 
     /**

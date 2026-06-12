@@ -1402,6 +1402,11 @@ function isResourceSupplyGap(gap) {
 }
 
 function resourceEvidenceGroups(gap, needs, targetName) {
+  const canonicalGroups = canonicalResourceEvidenceGroups(gap, targetName);
+  if (canonicalGroups.length) {
+    return canonicalGroups;
+  }
+
   const sourceHubs = array(gap.source_hubs).map((source) => text(source)).filter(Boolean);
   if (sourceHubs.length) {
     const sourceGroups = resourceEvidenceGroupsFromNeeds(needs, targetName, sourceHubs);
@@ -1427,6 +1432,43 @@ function resourceEvidenceGroups(gap, needs, targetName) {
   }
 
   return [];
+}
+
+function canonicalResourceEvidenceGroups(gap, targetName) {
+  const groups = new Map();
+  array(gap.resource_needs).filter(isObject).forEach((row) => {
+    if (row.kind !== 'resource_need' || !row.resource_type_id) {
+      return;
+    }
+
+    const location = shortLocation(text(row.location_name ?? row.source_hub_name, 'Current Location'), targetName);
+    if (!groups.has(location)) {
+      groups.set(location, {
+        location,
+        headers: ['Resource', 'Category', 'Quantity'],
+        rows: [],
+        rowPayloads: [],
+      });
+    }
+
+    const quantity = text(row.quantity ?? row.quantity_requested ?? 0);
+    const unit = text(row.unit_label);
+    const group = groups.get(location);
+    group.rows.push([
+      text(row.resource_type_name ?? row.resource, 'Resource'),
+      text(row.resource_type_category_name ?? row.category, 'Uncategorized'),
+      [quantity, unit].filter(Boolean).join(' '),
+    ]);
+    group.rowPayloads.push({
+      ...row,
+      location,
+      category: text(row.resource_type_category_name ?? row.category, 'Uncategorized'),
+      resource: text(row.resource_type_name ?? row.resource, 'Resource'),
+      quantity_requested: row.quantity_requested ?? row.quantity ?? 0,
+    });
+  });
+
+  return [...groups.values()].filter((group) => group.rows.length);
 }
 
 function resourceEvidenceGroupsFromNeeds(needs, targetName, sourceHubs) {

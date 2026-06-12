@@ -8,6 +8,7 @@ use App\Support\SupportRequests\SupportRequestCreationService;
 use App\Support\SupportRequests\SupportRequestRelaySubmissionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -44,7 +45,7 @@ class SupportRequestController extends Controller
             'staging_notes' => ['nullable', 'string', 'max:2000'],
             'command_notes' => ['nullable', 'string', 'max:2000'],
             'gap' => ['nullable', 'array'],
-            'evidence_row' => ['nullable', 'array'],
+            'evidence_row' => ['required', 'array'],
             'incident_refs' => ['nullable', 'array'],
         ]);
 
@@ -75,11 +76,28 @@ class SupportRequestController extends Controller
             ]);
         }
 
-        if (! $this->isRequestableResourceContext($gap, $row) && ! $this->isRequestableAccessContext($gap, $row)) {
+        if (! $this->isResourceSupplyGap($gap)) {
             throw ValidationException::withMessages([
-                'support_context' => 'Support Requests can only be created from current operational resource, logistics, rescue, staging, route, or access constraints.',
+                'support_context' => 'Support Requests can only be created from the SITREP Resource supply gap.',
             ]);
         }
+
+        $resourceTypeId = (int) ($row['resource_type_id'] ?? 0);
+        if (($row['kind'] ?? null) !== 'resource_need'
+            || $resourceTypeId <= 0
+            || ! DB::table('resource_types')->where('id', $resourceTypeId)->exists()) {
+            throw ValidationException::withMessages([
+                'support_context' => 'Support Requests can only be created from canonical SITREP resource evidence tied to a configured resource type.',
+            ]);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $gap
+     */
+    private function isResourceSupplyGap(array $gap): bool
+    {
+        return $this->text($gap['type'] ?? '') === 'open_needs';
     }
 
     /**
@@ -112,47 +130,6 @@ class SupportRequestController extends Controller
         }
 
         return false;
-    }
-
-    /**
-     * @param  array<string, mixed>  $gap
-     * @param  array<string, mixed>  $row
-     */
-    private function isRequestableResourceContext(array $gap, array $row): bool
-    {
-        $type = $this->text($gap['type'] ?? '');
-        $title = $this->text($gap['title'] ?? '');
-        $category = $this->text($row['category'] ?? '');
-        $resource = $this->text($row['resource'] ?? '');
-        $combined = $this->combinedText([$gap, $row]);
-
-        return $type === 'open_needs'
-            || str_contains($title, 'resource supply')
-            || str_contains($combined, 'rescue')
-            || str_contains($combined, 'logistics')
-            || str_contains($combined, 'staging')
-            || $resource !== ''
-            || (is_array($row['resources'] ?? null) && $row['resources'] !== [])
-            || $category !== ''
-            || isset($row['quantity_requested'])
-            || isset($row['quantity']);
-    }
-
-    /**
-     * @param  array<string, mixed>  $gap
-     * @param  array<string, mixed>  $row
-     */
-    private function isRequestableAccessContext(array $gap, array $row): bool
-    {
-        $title = $this->text($gap['title'] ?? '');
-        $category = $this->text($gap['category'] ?? '');
-
-        return isset($row['route_location'])
-            || isset($row['obstruction_type'])
-            || str_contains($title, 'route')
-            || str_contains($title, 'road')
-            || str_contains($title, 'access')
-            || str_contains($category, 'access');
     }
 
     private function text(mixed $value): string

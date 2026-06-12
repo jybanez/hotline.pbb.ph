@@ -190,15 +190,19 @@ class SitrepConsolidatorSdkTest extends TestCase
         $consolidator = new SitrepConsolidator();
 
         $first = $this->sitrep(12, 'barangay', sequence: 1);
+        $first['id'] = 1012;
         $first['period_started_at'] = '2026-05-29T16:45:00+08:00';
         $first['period_ended_at'] = '2026-05-29T17:00:00+08:00';
+        $first['source_snapshot']['incident_ids'] = [101, ['id' => 102, 'ref' => '#000102']];
         $first['source_snapshot']['incident_coordinates'] = [
             ['id' => 101, 'lat' => 10.33049, 'lng' => 123.88257],
         ];
 
         $second = $this->sitrep(13, 'barangay', sequence: 2);
+        $second['id'] = 1013;
         $second['period_started_at'] = '2026-05-29T17:00:00+08:00';
         $second['period_ended_at'] = '2026-05-29T17:30:00+08:00';
+        $second['source_snapshot']['incident_ids'] = [101];
         $second['source_snapshot']['incident_coordinates'] = [
             ['id' => 101, 'lat' => 10.33111, 'lng' => 123.88333],
         ];
@@ -216,6 +220,101 @@ class SitrepConsolidatorSdkTest extends TestCase
             ['id' => 101, 'lat' => 10.33049, 'lng' => 123.88257, 'source_hub_id' => '12'],
             ['id' => 101, 'lat' => 10.33111, 'lng' => 123.88333, 'source_hub_id' => '13'],
         ], $result->sitrep['source_snapshot']['rollup']['incident_coordinates']);
+        $this->assertSame(['12:101', '12:102', '13:101'], array_column($result->sitrep['source_snapshot']['rollup']['incident_index'], 'key'));
+        $this->assertSame('#000102', $result->sitrep['source_snapshot']['rollup']['incident_index'][1]['incident_ref']);
+        $this->assertTrue($result->sitrep['source_snapshot']['rollup']['incident_index'][0]['has_coordinates']);
+        $this->assertFalse($result->sitrep['source_snapshot']['rollup']['incident_index'][1]['has_coordinates']);
+        $this->assertSame(10.33049, $result->sitrep['source_snapshot']['rollup']['incident_index'][0]['lat']);
+        $this->assertSame(1012, $result->sitrep['source_snapshot']['rollup']['incident_index'][0]['sitrep_record_id']);
+    }
+
+    public function test_multi_hop_consolidation_preserves_incident_index_keys(): void
+    {
+        $consolidator = new SitrepConsolidator();
+
+        $first = $this->sitrep(12, 'barangay', sequence: 1);
+        $first['source_snapshot']['incident_ids'] = [101, 102];
+        $first['source_snapshot']['incident_coordinates'] = [
+            ['id' => 101, 'lat' => 10.33049, 'lng' => 123.88257],
+        ];
+
+        $second = $this->sitrep(13, 'barangay', sequence: 2);
+        $second['source_snapshot']['incident_ids'] = [201];
+
+        $city = $consolidator->consolidate([$first, $second], [
+            'target_level' => 'city',
+            'target_hub_id' => '21',
+            'target_hub_name' => 'Cebu City, Cebu',
+        ]);
+
+        $this->assertTrue($city->ok);
+        $directKeys = array_column($city->sitrep['source_snapshot']['rollup']['incident_index'], 'key');
+        $this->assertSame(['12:101', '12:102', '13:201'], $directKeys);
+
+        $province = $consolidator->consolidate([$city->sitrep], [
+            'target_level' => 'province',
+            'target_hub_id' => '72',
+            'target_hub_name' => 'Cebu Province',
+        ]);
+
+        $this->assertTrue($province->ok);
+        $this->assertSame($directKeys, array_column($province->sitrep['source_snapshot']['rollup']['incident_index'], 'key'));
+        $this->assertTrue($province->sitrep['source_snapshot']['rollup']['incident_index'][0]['has_coordinates']);
+        $this->assertSame(10.33049, $province->sitrep['source_snapshot']['rollup']['incident_index'][0]['lat']);
+    }
+
+    public function test_multi_hop_consolidation_preserves_section_drilldown_items(): void
+    {
+        $consolidator = new SitrepConsolidator();
+        $sources = [
+            $this->canonicalResourceNeedSitrep(12, 'Apas', 41, 'Assessment Team', 12, 'Search and Damage Assessment', 8, [501, 502]),
+            $this->canonicalResourceNeedSitrep(13, 'Guadalupe', 7, 'Ambulance', 3, 'Medical Response', 3, [601]),
+            $this->canonicalResourceNeedSitrep(14, 'Capitol Site', 41, 'Assessment Team', 12, 'Search and Damage Assessment', 5, [701]),
+            $this->canonicalResourceNeedSitrep(15, 'Labangon', 9, 'Rescue Boat', 4, 'Rescue and Extraction', 2, [801]),
+            $this->canonicalResourceNeedSitrep(16, 'Lahug', 7, 'Ambulance', 3, 'Medical Response', 4, [901]),
+        ];
+
+        $direct = $consolidator->consolidate($sources, [
+            'target_level' => 'province',
+            'target_hub_id' => '72',
+            'target_hub_name' => 'Cebu Province',
+        ]);
+        $cityA = $consolidator->consolidate(array_slice($sources, 0, 2), [
+            'target_level' => 'city',
+            'target_hub_id' => '21',
+            'target_hub_name' => 'City A',
+        ]);
+        $cityB = $consolidator->consolidate(array_slice($sources, 2), [
+            'target_level' => 'city',
+            'target_hub_id' => '22',
+            'target_hub_name' => 'City B',
+        ]);
+
+        $this->assertTrue($direct->ok);
+        $this->assertTrue($cityA->ok);
+        $this->assertTrue($cityB->ok);
+
+        $multiHop = $consolidator->consolidate([$cityA->sitrep, $cityB->sitrep], [
+            'target_level' => 'province',
+            'target_hub_id' => '72',
+            'target_hub_name' => 'Cebu Province',
+        ]);
+
+        $this->assertTrue($multiHop->ok);
+
+        $this->assertSame(
+            $this->resourceNeedTotalsByTypeAndLocation($direct->sitrep),
+            $this->resourceNeedTotalsByTypeAndLocation($multiHop->sitrep),
+        );
+        $this->assertSame(
+            array_column($direct->sitrep['source_snapshot']['rollup']['incident_index'], 'key'),
+            array_column($multiHop->sitrep['source_snapshot']['rollup']['incident_index'], 'key'),
+        );
+        $expectedLocations = ['Apas', 'Guadalupe', 'Capitol Site', 'Labangon', 'Lahug'];
+        $this->assertSame($expectedLocations, $this->sectionItemLocations($direct->sitrep, 'needs'));
+        $this->assertSame($expectedLocations, $this->sectionItemLocations($multiHop->sitrep, 'needs'));
+        $this->assertSame($expectedLocations, $this->sectionItemLocations($direct->sitrep, 'gaps'));
+        $this->assertSame($expectedLocations, $this->sectionItemLocations($multiHop->sitrep, 'gaps'));
     }
 
     public function test_consolidated_period_bounds_compare_instants_across_timezone_offsets(): void
@@ -344,6 +443,64 @@ class SitrepConsolidatorSdkTest extends TestCase
         $this->assertNotContains('counting_scope', $gapTypes);
         $this->assertSame('counting_scope', $result->sitrep['data_quality']['rollup']['counting_notes'][0]['type']);
         $this->assertSame('Guadalupe', $result->sitrep['data_quality']['rollup']['counting_notes'][0]['source_hub_name']);
+    }
+
+    public function test_consolidated_resource_gap_preserves_canonical_resource_need_rows(): void
+    {
+        $consolidator = new SitrepConsolidator();
+
+        $first = $this->canonicalResourceNeedSitrep(
+            hubId: 12,
+            area: 'Guadalupe',
+            resourceTypeId: 41,
+            resourceTypeName: 'Assessment Team',
+            categoryId: 12,
+            categoryName: 'Search and Damage Assessment',
+            quantity: 8,
+            incidentIds: [501, 504],
+        );
+        $second = $this->canonicalResourceNeedSitrep(
+            hubId: 13,
+            area: 'Apas',
+            resourceTypeId: 7,
+            resourceTypeName: 'Ambulance',
+            categoryId: 3,
+            categoryName: 'Medical Response',
+            quantity: 3,
+            incidentIds: [601],
+        );
+
+        $result = $consolidator->consolidate([$first, $second], [
+            'target_level' => 'city',
+            'target_hub_id' => '11',
+            'target_hub_name' => 'CEBU CITY, CEBU',
+        ]);
+
+        $this->assertTrue($result->ok);
+        $resourceGap = collect($result->sitrep['gaps']['rollup']['items'])
+            ->firstWhere('type', 'open_needs');
+
+        $this->assertIsArray($resourceGap);
+        $this->assertSame('Resource supply not confirmed', $resourceGap['title']);
+        $this->assertCount(2, $resourceGap['resource_needs']);
+
+        $firstNeed = collect($resourceGap['resource_needs'])
+            ->firstWhere('resource_type_id', 41);
+        $this->assertIsArray($firstNeed);
+        $this->assertSame('resource_need', $firstNeed['kind']);
+        $this->assertSame('Assessment Team', $firstNeed['resource_type_name']);
+        $this->assertSame(12, $firstNeed['resource_type_category_id']);
+        $this->assertSame('Search and Damage Assessment', $firstNeed['resource_type_category_name']);
+        $this->assertSame(8, $firstNeed['quantity']);
+        $this->assertSame('units', $firstNeed['unit_label']);
+        $this->assertSame('12', $firstNeed['source_hub_id']);
+        $this->assertSame('Guadalupe', $firstNeed['source_hub_name']);
+        $this->assertSame('Guadalupe', $firstNeed['location_name']);
+        $this->assertSame([501, 504], $firstNeed['incident_ids']);
+        $this->assertSame('Main Road, Barangay Guadalupe', $firstNeed['routes'][0]['route_location']);
+        $this->assertSame([501], $firstNeed['routes'][0]['incident_ids']);
+        $this->assertSame('Patient or injured person', $firstNeed['population'][0]['signal']);
+        $this->assertSame([504], $firstNeed['population'][0]['incident_ids']);
     }
 
     public function test_rejects_mixed_source_deployment_consolidation(): void
@@ -640,6 +797,134 @@ class SitrepConsolidatorSdkTest extends TestCase
                     ],
                 ],
             ],
+        ];
+
+        foreach (['summary', 'situation', 'damage', 'population', 'actions', 'needs', 'gaps', 'data_quality'] as $section) {
+            $sitrep[$section] = [
+                'rollup' => $sitrep[$section],
+                'items' => [[
+                    'location' => $location,
+                    'data' => $sitrep[$section],
+                ]],
+            ];
+        }
+
+        $sitrep['source_snapshot'] = [
+            'rollup' => $sitrep['source_snapshot'],
+            'items' => [[
+                'location' => $location,
+                'data' => $sitrep['source_snapshot'],
+            ]],
+        ];
+
+        return $sitrep;
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private function resourceNeedTotalsByTypeAndLocation(array $sitrep): array
+    {
+        $totals = [];
+        foreach (($sitrep['gaps']['rollup']['items'] ?? []) as $gap) {
+            if (! is_array($gap) || ($gap['type'] ?? null) !== 'open_needs') {
+                continue;
+            }
+
+            foreach (($gap['resource_needs'] ?? []) as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+
+                $key = ($row['resource_type_id'] ?? '').'|'.($row['location_name'] ?? $row['source_hub_name'] ?? '');
+                $totals[$key] = ($totals[$key] ?? 0) + (int) ($row['quantity'] ?? 0);
+            }
+        }
+
+        ksort($totals);
+
+        return $totals;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function sectionItemLocations(array $sitrep, string $section): array
+    {
+        return array_values(array_map(
+            static fn (array $item): string => (string) ($item['location']['name'] ?? ''),
+            array_filter($sitrep[$section]['items'] ?? [], 'is_array'),
+        ));
+    }
+
+    /**
+     * @param array<int, int> $incidentIds
+     */
+    private function canonicalResourceNeedSitrep(
+        int $hubId,
+        string $area,
+        int $resourceTypeId,
+        string $resourceTypeName,
+        int $categoryId,
+        string $categoryName,
+        int $quantity,
+        array $incidentIds,
+    ): array {
+        $sitrep = $this->sitrep($hubId, 'barangay', 'Elevated', sequence: $hubId, totalIncidents: count($incidentIds), resourceUnits: $quantity, population: count($incidentIds));
+        $location = [
+            'id' => (string) $hubId,
+            'name' => $area,
+            'deployment' => 'barangay',
+            'relay_hub_id' => null,
+        ];
+        $sitrep['source_snapshot']['hub_node']['snapshot']['name'] = $area;
+        $sitrep['needs'] = [
+            'items' => [[
+                'resource_type_id' => $resourceTypeId,
+                'resource_type_name' => $resourceTypeName,
+                'resource_type_category_id' => $categoryId,
+                'resource_type_category_name' => $categoryName,
+                'quantity_requested' => $quantity,
+                'unit_label' => 'units',
+                'incident_ids' => $incidentIds,
+            ]],
+        ];
+        $sitrep['gaps'] = [
+            'items' => [[
+                'type' => 'open_needs',
+                'category' => 'Operational constraint',
+                'title' => 'Resource supply not confirmed',
+                'body' => 'Requested resources are not confirmed as supplied.',
+                'evidence' => sprintf('%d requested resource units remain tied to active/deferred incidents.', $quantity),
+                'confidence_note' => 'Dispatch, arrival, delivery, consumption, and sufficiency are not confirmed by this SITREP.',
+                'resource_needs' => [[
+                    'kind' => 'resource_need',
+                    'resource_type_id' => $resourceTypeId,
+                    'resource_type_name' => $resourceTypeName,
+                    'resource_type_category_id' => $categoryId,
+                    'resource_type_category_name' => $categoryName,
+                    'resource' => $resourceTypeName,
+                    'category' => $categoryName,
+                    'quantity' => $quantity,
+                    'unit_label' => 'units',
+                    'location_name' => $area,
+                    'incident_ids' => $incidentIds,
+                    'routes' => [[
+                        'route_location' => 'Main Road, Barangay '.$area,
+                        'status' => 'limited',
+                        'obstruction_type' => 'floodwater',
+                        'cleared' => false,
+                        'incident_ids' => [$incidentIds[0]],
+                    ]],
+                    'population' => [[
+                        'signal' => 'Patient or injured person',
+                        'reports' => 1,
+                        'people' => 1,
+                        'notes' => ['stable'],
+                        'incident_ids' => [$incidentIds[count($incidentIds) - 1]],
+                    ]],
+                ]],
+            ]],
         ];
 
         foreach (['summary', 'situation', 'damage', 'population', 'actions', 'needs', 'gaps', 'data_quality'] as $section) {

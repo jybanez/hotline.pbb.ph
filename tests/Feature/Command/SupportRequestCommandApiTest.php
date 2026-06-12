@@ -10,6 +10,7 @@ use App\Support\Settings\SettingsService;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -102,6 +103,13 @@ class SupportRequestCommandApiTest extends TestCase
                 && $request['payload']['request']['requested_assistance'] === 'Rescue and extraction support'
                 && $request['payload']['sitrep']['evidence_ref'] === 'gaps.open_needs.1'
                 && $request['payload']['gap']['title'] === 'Resource supply not confirmed'
+                && $request['payload']['resource']['resource_type_id'] > 0
+                && $request['payload']['resource']['resource_type_name'] === 'Rescue Team'
+                && $request['payload']['resource']['resource_type_category_id'] > 0
+                && $request['payload']['resource']['resource_type_category_name'] === 'Rescue and Extraction'
+                && $request['payload']['resource']['quantity'] === 2
+                && $request['payload']['resource']['unit_label'] === 'teams'
+                && $request['payload']['resource']['incident_ids'] === [234]
                 && $request['payload']['evidence_row']['category'] === 'Rescue and Extraction';
         });
     }
@@ -158,6 +166,112 @@ class SupportRequestCommandApiTest extends TestCase
                     'reports' => 14,
                     'people' => 14,
                     'notes' => 'Population fields may overlap.',
+                ],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('support_context');
+
+        Http::assertNothingSent();
+        $this->assertDatabaseCount('support_requests', 0);
+        $this->assertDatabaseCount('support_request_histories', 0);
+    }
+
+    public function test_command_support_request_rejects_route_only_gap_evidence(): void
+    {
+        $this->configureRelay();
+        $command = User::factory()->create(['role' => UserRole::Command]);
+        $sitrep = $this->createSitrep();
+
+        Http::fake();
+
+        $this->actingAs($command)
+            ->postJson('/api/command/support-requests', [
+                ...$this->payload($sitrep),
+                'requested_assistance' => 'Clear road access',
+                'requested_capability' => 'Road clearing',
+                'gap' => [
+                    'title' => 'Road/access constraints may affect field movement',
+                    'category' => 'Operational constraint',
+                    'type' => 'road_access',
+                ],
+                'evidence_row' => [
+                    'route_location' => 'Main Road',
+                    'status' => 'limited',
+                    'obstruction_type' => 'floodwater',
+                    'cleared' => false,
+                ],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('support_context');
+
+        Http::assertNothingSent();
+        $this->assertDatabaseCount('support_requests', 0);
+        $this->assertDatabaseCount('support_request_histories', 0);
+    }
+
+    public function test_command_support_request_rejects_route_gap_with_crafted_resource_row(): void
+    {
+        $this->configureRelay();
+        $command = User::factory()->create(['role' => UserRole::Command]);
+        $sitrep = $this->createSitrep();
+        $payload = $this->payload($sitrep);
+        $payload['gap'] = [
+            'title' => 'Road/access constraints may affect field movement',
+            'category' => 'Operational constraint',
+            'type' => 'road_access',
+        ];
+
+        Http::fake();
+
+        $this->actingAs($command)
+            ->postJson('/api/command/support-requests', $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('support_context');
+
+        Http::assertNothingSent();
+        $this->assertDatabaseCount('support_requests', 0);
+        $this->assertDatabaseCount('support_request_histories', 0);
+    }
+
+    public function test_command_support_request_rejects_population_gap_with_crafted_resource_row(): void
+    {
+        $this->configureRelay();
+        $command = User::factory()->create(['role' => UserRole::Command]);
+        $sitrep = $this->createSitrep();
+        $payload = $this->payload($sitrep);
+        $payload['gap'] = [
+            'title' => 'Population figures require verification',
+            'category' => 'Data Confidence',
+            'type' => 'population_verification',
+        ];
+
+        Http::fake();
+
+        $this->actingAs($command)
+            ->postJson('/api/command/support-requests', $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('support_context');
+
+        Http::assertNothingSent();
+        $this->assertDatabaseCount('support_requests', 0);
+        $this->assertDatabaseCount('support_request_histories', 0);
+    }
+
+    public function test_command_support_request_rejects_free_text_resource_context_without_resource_type(): void
+    {
+        $this->configureRelay();
+        $command = User::factory()->create(['role' => UserRole::Command]);
+        $sitrep = $this->createSitrep();
+
+        Http::fake();
+
+        $this->actingAs($command)
+            ->postJson('/api/command/support-requests', [
+                ...$this->payload($sitrep),
+                'evidence_row' => [
+                    'category' => 'Rescue and Extraction',
+                    'resource' => 'Rescue Team',
+                    'quantity' => 2,
                 ],
             ])
             ->assertUnprocessable()
@@ -273,6 +387,20 @@ class SupportRequestCommandApiTest extends TestCase
      */
     private function payload(SitrepReport $sitrep): array
     {
+        $categoryId = DB::table('resource_type_categories')->insertGetId([
+            'name' => 'Rescue and Extraction',
+            'sort_order' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $resourceTypeId = DB::table('resource_types')->insertGetId([
+            'category_id' => $categoryId,
+            'name' => 'Rescue Team',
+            'unit_label' => 'teams',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
         return [
             'sitrep_report_id' => $sitrep->id,
             'sitrep_section' => 'gaps',
@@ -290,9 +418,30 @@ class SupportRequestCommandApiTest extends TestCase
                 'type' => 'open_needs',
             ],
             'evidence_row' => [
+                'kind' => 'resource_need',
+                'resource_type_id' => $resourceTypeId,
+                'resource_type_name' => 'Rescue Team',
+                'resource_type_category_id' => $categoryId,
+                'resource_type_category_name' => 'Rescue and Extraction',
                 'category' => 'Rescue and Extraction',
+                'resource' => 'Rescue Team',
                 'quantity' => 2,
-                'resources' => ['Rescue Team'],
+                'unit_label' => 'teams',
+                'incident_ids' => [234],
+                'routes' => [[
+                    'route_location' => 'Main Road',
+                    'status' => 'limited',
+                    'obstruction_type' => 'floodwater',
+                    'cleared' => false,
+                    'incident_ids' => [234],
+                ]],
+                'population' => [[
+                    'signal' => 'Patient or injured person',
+                    'reports' => 1,
+                    'people' => 1,
+                    'notes' => ['stable'],
+                    'incident_ids' => [234],
+                ]],
             ],
             'incident_refs' => [[
                 'id' => 234,

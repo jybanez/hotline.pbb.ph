@@ -384,6 +384,16 @@ class SitrepViewerSdkTest extends TestCase
                 'quantity_requested' => 17,
                 'resources' => ['Body Harness', 'Rescue Boat'],
             ]],
+            'resource_needs' => [[
+                'kind' => 'resource_need',
+                'resource_type_id' => 12,
+                'resource_type_name' => 'Rescue Boat',
+                'resource_type_category_id' => 3,
+                'resource_type_category_name' => 'Rescue and Extraction',
+                'quantity' => 17,
+                'unit_label' => 'units',
+                'incident_ids' => [501, 504],
+            ]],
         ]];
 
         $html = $viewer->renderSection($payload, 'gaps');
@@ -391,8 +401,8 @@ class SitrepViewerSdkTest extends TestCase
         $this->assertStringContainsString('sitrep-evidence-table', $html);
         $this->assertStringNotContainsString('sitrep-resource-evidence-card', $html);
         $this->assertStringNotContainsString('<h4>Current Location</h4>', $html);
-        $this->assertStringContainsString('<th>Category</th><th>Quantity</th><th>Resources</th>', $html);
-        $this->assertStringContainsString('<td>Rescue and Extraction</td><td>17</td><td>Body Harness, Rescue Boat</td>', $html);
+        $this->assertStringContainsString('<th>Resource</th><th>Category</th><th>Quantity</th>', $html);
+        $this->assertStringContainsString('<td>Rescue Boat</td><td>Rescue and Extraction</td><td>17 units</td>', $html);
         $this->assertStringNotContainsString('<h3>Resource Evidence</h3>', $html);
     }
 
@@ -411,6 +421,27 @@ class SitrepViewerSdkTest extends TestCase
                 'Barangay Guadalupe, Cebu City, Cebu',
                 'Barangay Apas, Cebu City, Cebu',
             ],
+            'resource_needs' => [[
+                'kind' => 'resource_need',
+                'resource_type_id' => 12,
+                'resource_type_name' => 'Body Harness',
+                'resource_type_category_id' => 3,
+                'resource_type_category_name' => 'Rescue and Extraction',
+                'quantity' => 7,
+                'unit_label' => 'units',
+                'location_name' => 'Barangay Guadalupe, Cebu City, Cebu',
+                'incident_ids' => [501],
+            ], [
+                'kind' => 'resource_need',
+                'resource_type_id' => 13,
+                'resource_type_name' => 'Structural Assessment Team',
+                'resource_type_category_id' => 4,
+                'resource_type_category_name' => 'Search and Damage Assessment',
+                'quantity' => 8,
+                'unit_label' => 'units',
+                'location_name' => 'Barangay Apas, Cebu City, Cebu',
+                'incident_ids' => [504],
+            ]],
         ]];
         $payload['needs']['items'] = [[
             'resource' => 'Body Harness',
@@ -441,9 +472,9 @@ class SitrepViewerSdkTest extends TestCase
         $this->assertStringContainsString('sitrep-resource-evidence-card', $html);
         $this->assertStringContainsString('<h4>Guadalupe</h4>', $html);
         $this->assertStringContainsString('<h4>Apas</h4>', $html);
-        $this->assertStringContainsString('<th>Category</th><th>Quantity</th><th>Resources</th>', $html);
-        $this->assertStringContainsString('<td>Rescue and Extraction</td><td>7</td><td>Body Harness</td>', $html);
-        $this->assertStringContainsString('<td>Search and Damage Assessment</td><td>8</td><td>Structural Assessment Team</td>', $html);
+        $this->assertStringContainsString('<th>Resource</th><th>Category</th><th>Quantity</th>', $html);
+        $this->assertStringContainsString('<td>Body Harness</td><td>Rescue and Extraction</td><td>7 units</td>', $html);
+        $this->assertStringContainsString('<td>Structural Assessment Team</td><td>Search and Damage Assessment</td><td>8 units</td>', $html);
         $this->assertStringNotContainsString('<th>Units</th><th>Note</th>', $html);
         $this->assertStringNotContainsString('<h3>Resource Evidence</h3>', $html);
         $this->assertStringNotContainsString('sitrep-property-group', $html);

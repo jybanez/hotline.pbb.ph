@@ -615,6 +615,8 @@ class SitrepGenerationTest extends TestCase
     public function test_sitrep_formats_structured_detail_rows_for_executive_review(): void
     {
         [$command, $activeIncidentId, , $incidentTypeId] = $this->seedSitrepScenario();
+        $resourceTypeId = (int) DB::table('resource_types')->where('name', 'Rescue Boat')->value('id');
+        $resourceCategoryId = (int) DB::table('resource_type_categories')->where('name', 'Transport')->value('id');
 
         $shelterFieldId = DB::table('incident_type_fields')->insertGetId([
             'incident_type_id' => $incidentTypeId,
@@ -726,6 +728,11 @@ class SitrepGenerationTest extends TestCase
             ->assertJsonPath('sitrep.damage.items.1.label', 'Shelter damage')
             ->assertJsonPath('sitrep.population.record_count', 2)
             ->assertJsonPath('sitrep.population.items.1.label', 'Affected family')
+            ->assertJsonPath('sitrep.needs.items.0.resource_type_id', $resourceTypeId)
+            ->assertJsonPath('sitrep.needs.items.0.resource_type_name', 'Rescue Boat')
+            ->assertJsonPath('sitrep.needs.items.0.resource_type_category_id', $resourceCategoryId)
+            ->assertJsonPath('sitrep.needs.items.0.resource_type_category_name', 'Transport')
+            ->assertJsonPath('sitrep.needs.items.0.incident_ids.0', $activeIncidentId)
             ->assertJsonPath('sitrep.gaps.title', 'Response Constraints and Confidence Gaps');
 
         $affectedFamilyGroup = collect($response->json('sitrep.population.population_groups'))
@@ -766,6 +773,18 @@ class SitrepGenerationTest extends TestCase
         $this->assertStringNotContainsString('Transport: 3', $resourceGap['evidence']);
         $this->assertSame('Transport', $resourceGap['resource_categories'][0]['category']);
         $this->assertSame(3, $resourceGap['resource_categories'][0]['quantity_requested']);
+        $this->assertSame('resource_need', $resourceGap['resource_needs'][0]['kind']);
+        $this->assertSame($resourceTypeId, $resourceGap['resource_needs'][0]['resource_type_id']);
+        $this->assertSame('Rescue Boat', $resourceGap['resource_needs'][0]['resource_type_name']);
+        $this->assertSame('Transport', $resourceGap['resource_needs'][0]['resource_type_category_name']);
+        $this->assertSame(3, $resourceGap['resource_needs'][0]['quantity']);
+        $this->assertSame([$activeIncidentId], $resourceGap['resource_needs'][0]['incident_ids']);
+        $this->assertSame('Riverside bridge approach', $resourceGap['resource_needs'][0]['routes'][0]['route_location']);
+        $this->assertSame([$activeIncidentId], $resourceGap['resource_needs'][0]['routes'][0]['incident_ids']);
+        $linkedPopulation = collect($resourceGap['resource_needs'][0]['population']);
+        $affectedFamilyEvidence = $linkedPopulation->firstWhere('signal', 'Affected family');
+        $this->assertNotNull($affectedFamilyEvidence);
+        $this->assertSame([$activeIncidentId], $affectedFamilyEvidence['incident_ids']);
         $this->assertNull(collect($response->json('sitrep.gaps.items'))->firstWhere('type', 'counting_scope'));
     }
 

@@ -157,18 +157,34 @@ class SitrepGenerationService
             $incident->id => $this->statusValue($incident->status),
         ]);
 
+        $incidentById = $incidents->keyBy('id');
+
         $resourceRows = $resourceNeeds
-            ->map(fn ($need) => [
-                'incident_id' => $need->incident_id,
-                'resource_type_id' => $need->resource_type_id,
-                'name' => $need->resourceType?->name ?? 'Resource',
-                'category_id' => $need->resourceType?->category_id,
-                'category' => $need->resourceType?->category?->name ?? 'Uncategorized',
-                'unit' => $need->resourceType?->unit_label,
-                'quantity' => (int) $need->quantity_required,
-                'notes' => $need->notes,
-                'status' => (string) ($incidentStatuses[$need->incident_id] ?? ''),
-            ])
+            ->map(function ($need) use ($incidentStatuses, $incidentById): array {
+                /** @var Incident|null $incident */
+                $incident = $incidentById->get($need->incident_id);
+                $resourceName = $need->resourceType?->name ?? 'Resource';
+                $categoryName = $need->resourceType?->category?->name ?? 'Uncategorized';
+
+                return [
+                    'incident_id' => $need->incident_id,
+                    'resource_type_id' => $need->resource_type_id,
+                    'resource_type_name' => $resourceName,
+                    'resource_type_category_id' => $need->resourceType?->category_id,
+                    'resource_type_category_name' => $categoryName,
+                    'name' => $resourceName,
+                    'category_id' => $need->resourceType?->category_id,
+                    'category' => $categoryName,
+                    'unit' => $need->resourceType?->unit_label,
+                    'unit_label' => $need->resourceType?->unit_label,
+                    'quantity' => (int) $need->quantity_required,
+                    'quantity_requested' => (int) $need->quantity_required,
+                    'notes' => $need->notes,
+                    'status' => (string) ($incidentStatuses[$need->incident_id] ?? ''),
+                    'location_name' => $incident ? $this->areaLabel($incident) : null,
+                    'source_hub_name' => $incident ? $this->areaLabel($incident) : null,
+                ];
+            })
             ->values();
 
         return [
@@ -734,16 +750,32 @@ class SitrepGenerationService
     private function buildNeeds(array $context): array
     {
         $rows = $context['current_resource_needs']
-            ->groupBy(fn (array $item) => ($item['category'] ?? 'Uncategorized').'|'.$item['name'])
+            ->groupBy(fn (array $item) => ($item['resource_type_id'] ?? 0).'|'.($item['category'] ?? 'Uncategorized').'|'.$item['name'])
             ->map(fn (Collection $items) => [
                 'category' => $items->first()['category'] ?? 'Uncategorized',
+                'resource_type_category_id' => $items->first()['resource_type_category_id'] ?? null,
+                'resource_type_category_name' => $items->first()['resource_type_category_name'] ?? ($items->first()['category'] ?? 'Uncategorized'),
                 'resource' => $items->first()['name'] ?? 'Resource',
+                'resource_type_id' => $items->first()['resource_type_id'] ?? null,
+                'resource_type_name' => $items->first()['resource_type_name'] ?? ($items->first()['name'] ?? 'Resource'),
                 'quantity_requested' => $items->sum('quantity'),
                 'incident_count' => $items->pluck('incident_id')->unique()->count(),
+                'incident_ids' => $items->pluck('incident_id')->unique()->values()->all(),
                 'unit' => $items->first()['unit'] ?? null,
+                'unit_label' => $items->first()['unit_label'] ?? ($items->first()['unit'] ?? null),
                 'status' => $items->contains(fn (array $item) => in_array($item['status'], [IncidentStatus::Active->value, IncidentStatus::Deferred->value], true))
                     ? 'open'
                     : 'closed',
+                'sources' => $items
+                    ->groupBy(fn (array $item) => (string) ($item['location_name'] ?? $item['source_hub_name'] ?? 'Current Location'))
+                    ->map(fn (Collection $sourceItems, string $location): array => [
+                        'source_hub_name' => $location,
+                        'location_name' => $location,
+                        'quantity_requested' => $sourceItems->sum('quantity'),
+                        'incident_ids' => $sourceItems->pluck('incident_id')->unique()->values()->all(),
+                    ])
+                    ->values()
+                    ->all(),
             ])
             ->values()
             ->all();
@@ -791,6 +823,7 @@ class SitrepGenerationService
                 'confidence_note' => 'Hotline records the request; dispatch, arrival, delivery, consumption, and sufficiency are not confirmed by this SITREP.',
                 'public_visible' => true,
                 'resource_categories' => $resourceCategories,
+                'resource_needs' => $this->resourceGapEvidenceRows($context),
             ];
         }
 
@@ -2057,6 +2090,145 @@ class SitrepGenerationService
 
             return $group;
         }, $groups));
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function resourceGapEvidenceRows(array $context): array
+    {
+        $routeRows = $this->roadAccessRows($context['current_field_details'])
+            ->groupBy('incident_id');
+        $populationItems = collect($this->detailsForSection($context['current_field_details'], 'population'))
+            ->groupBy('incident_id');
+
+        return $context['current_resource_needs']
+            ->groupBy(fn (array $item): string => implode('|', [
+                (string) ($item['location_name'] ?? $item['source_hub_name'] ?? 'Current Location'),
+                (string) ($item['resource_type_id'] ?? 0),
+            ]))
+            ->map(function (Collection $items) use ($routeRows, $populationItems): array {
+                $first = $items->first();
+                $incidentIds = $items
+                    ->pluck('incident_id')
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->all();
+
+                return [
+                    'kind' => 'resource_need',
+                    'resource_type_id' => $first['resource_type_id'] ?? null,
+                    'resource_type_name' => $first['resource_type_name'] ?? ($first['name'] ?? 'Resource'),
+                    'resource_type_category_id' => $first['resource_type_category_id'] ?? ($first['category_id'] ?? null),
+                    'resource_type_category_name' => $first['resource_type_category_name'] ?? ($first['category'] ?? 'Uncategorized'),
+                    'quantity' => $items->sum('quantity'),
+                    'quantity_requested' => $items->sum('quantity'),
+                    'unit_label' => $first['unit_label'] ?? ($first['unit'] ?? 'units'),
+                    'location_name' => $first['location_name'] ?? ($first['source_hub_name'] ?? null),
+                    'source_hub_name' => $first['source_hub_name'] ?? ($first['location_name'] ?? null),
+                    'incident_ids' => $incidentIds,
+                    'incident_refs' => array_map(fn (int|string $id): array => ['id' => $id], $incidentIds),
+                    'routes' => $this->linkedRouteEvidence($incidentIds, $routeRows),
+                    'population' => $this->linkedPopulationEvidence($incidentIds, $populationItems),
+                ];
+            })
+            ->sortBy([
+                ['location_name', 'asc'],
+                ['resource_type_category_name', 'asc'],
+                ['resource_type_name', 'asc'],
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, int|string>  $incidentIds
+     * @param  Collection<int|string, Collection<int, array<string, mixed>>>  $routeRows
+     * @return array<int, array<string, mixed>>
+     */
+    private function linkedRouteEvidence(array $incidentIds, Collection $routeRows): array
+    {
+        return collect($incidentIds)
+            ->flatMap(fn (int|string $id): Collection => $routeRows->get($id, collect()))
+            ->filter(fn (array $row): bool => trim((string) ($row['route_location'] ?? '')) !== '')
+            ->map(fn (array $row): array => [
+                'route_location' => $row['route_location'] ?? '',
+                'status' => $row['status'] ?? '',
+                'obstruction_type' => $row['obstruction_type'] ?? '',
+                'cleared' => $row['cleared'] ?? '',
+                'incident_ids' => array_values(array_filter([(int) ($row['incident_id'] ?? 0)])),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, int|string>  $incidentIds
+     * @param  Collection<int|string, Collection<int, array<string, mixed>>>  $populationItems
+     * @return array<int, array<string, mixed>>
+     */
+    private function linkedPopulationEvidence(array $incidentIds, Collection $populationItems): array
+    {
+        return collect($incidentIds)
+            ->flatMap(fn (int|string $id): Collection => $populationItems->get($id, collect()))
+            ->groupBy(fn (array $item): string => (string) ($item['label'] ?? 'Population/life-safety records'))
+            ->map(function (Collection $group, string $signal): array {
+                return [
+                    'signal' => $signal,
+                    'reports' => $group->pluck('incident_id')->unique()->count(),
+                    'people' => $this->populationPeopleCount($group),
+                    'notes' => $this->populationEvidenceNotes($group),
+                    'incident_ids' => $group->pluck('incident_id')->unique()->values()->all(),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    private function populationPeopleCount(Collection $group): int
+    {
+        $declaredPeople = $group->sum(fn (array $item): int => (int) data_get($item, 'source.member_count', 0));
+
+        return $declaredPeople > 0 ? $declaredPeople : $group->count();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function populationEvidenceNotes(Collection $group): array
+    {
+        $parts = [];
+
+        $conditions = $group
+            ->pluck('source.condition')
+            ->filter()
+            ->map(fn (mixed $condition): string => trim((string) $condition))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+        array_push($parts, ...$conditions);
+
+        $families = $group->sum(fn (array $item): int => (int) data_get($item, 'source.families', 0));
+        if ($families > 0) {
+            $parts[] = sprintf('%d %s', $families, $families === 1 ? 'family' : 'families');
+        }
+
+        $displaced = $group->filter(fn (array $item): bool => $this->yesNo(data_get($item, 'source.displaced', false)) === 'Yes')->count();
+        if ($displaced > 0) {
+            $parts[] = sprintf('%d displacement signal%s', $displaced, $displaced === 1 ? '' : 's');
+        }
+
+        foreach ($this->populationBreakdowns($group) as $breakdown) {
+            $parts[] = sprintf('%d %s', $breakdown['count'], strtolower((string) $breakdown['breakdown']));
+        }
+
+        return collect($parts)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
     }
 
     private function roadAccessRows(Collection $details): Collection
