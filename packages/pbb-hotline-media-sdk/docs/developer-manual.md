@@ -59,6 +59,25 @@ $client = new HotlineMediaClient([
 $results = $client->resolveAndCache($refs);
 ```
 
+## Demo
+
+The package includes a source-only CLI demo under `packages/pbb-hotline-media-sdk/demo`.
+
+Dry-run mode parses a SITREP payload, extracts media refs, resolves source Hotline hubs, and prints the manifest calls that would be made:
+
+```powershell
+C:\wamp64\bin\php\php8.2.29\php.exe packages\pbb-hotline-media-sdk\demo\resolve.php --dry-run
+```
+
+Live mode requires a media access token configured on the source Hotline hub:
+
+```powershell
+$env:HOTLINE_MEDIA_ACCESS_TOKEN="paste-token-here"
+C:\wamp64\bin\php\php8.2.29\php.exe packages\pbb-hotline-media-sdk\demo\resolve.php --sitrep=Z:\tmp\sitreps\new\consolidated.sitrep.json
+```
+
+See `packages/pbb-hotline-media-sdk/demo/README.md` for the full command options.
+
 ## Cache Ownership
 
 The SDK supports cache hit and cache miss flows through `MediaCacheInterface`. Caller apps own local user authorization, cache paths, retention, purge policy, and UI presentation.
