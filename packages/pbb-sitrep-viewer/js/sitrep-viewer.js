@@ -1381,18 +1381,92 @@ function populationEvidenceCards(groups, options = {}) {
   return groupsWrap;
 }
 
-function resourceEvidenceRows(gap) {
+function resourceEvidenceRows(gap, needs = {}) {
+  const needRows = resourceNeedRows(array(needs.items));
+  if (needRows.length) {
+    return {
+      headers: ['Resource', 'Category', 'Quantity'],
+      rows: needRows.map((row) => [row.resource, row.category, row.quantity_requested]),
+      rowPayloads: needRows,
+    };
+  }
+
   return resourceCategoryRows(array(gap.resource_categories));
 }
 
 function resourceCategoryRows(categories) {
-  return categories
-    .filter(isObject)
-    .map((row) => [
-      text(row.category, 'Uncategorized'),
-      row.quantity_requested ?? row.quantity ?? 0,
-      listText(row.resources),
-    ]);
+  const rowPayloads = [];
+
+  categories.filter(isObject).forEach((row) => {
+    const category = text(row.category, 'Uncategorized');
+    const resources = array(row.resources).map((resource) => text(resource)).filter(Boolean);
+    const quantity = row.quantity_requested ?? row.quantity ?? '';
+
+    if (!resources.length) {
+      rowPayloads.push({
+        ...row,
+        resource: 'Resource unspecified',
+        category,
+        quantity_requested: quantity,
+        resources: [],
+      });
+      return;
+    }
+
+    resources.forEach((resource) => {
+      rowPayloads.push({
+        ...row,
+        resource,
+        category,
+        quantity_requested: resources.length === 1 ? quantity : null,
+        resources: [resource],
+      });
+    });
+  });
+
+  const sortedPayloads = sortResourceEvidencePayloads(rowPayloads);
+
+  return {
+    headers: ['Resource', 'Category', 'Quantity'],
+    rows: sortedPayloads.map((row) => [row.resource, row.category, row.quantity_requested ?? '']),
+    rowPayloads: sortedPayloads,
+  };
+}
+
+function resourceNeedRows(items) {
+  const grouped = new Map();
+
+  items.filter(isObject).forEach((item) => {
+    const resource = text(item.resource);
+    if (!resource) {
+      return;
+    }
+
+    const category = text(item.category, 'Uncategorized');
+    const key = `${resource}\u0000${category}`;
+    const quantity = Number(item.quantity_requested ?? item.quantity ?? 0) || 0;
+
+    if (!grouped.has(key)) {
+      grouped.set(key, {
+        ...item,
+        resource,
+        category,
+        quantity_requested: 0,
+        resources: [resource],
+      });
+    }
+
+    grouped.get(key).quantity_requested += quantity;
+  });
+
+  return sortResourceEvidencePayloads([...grouped.values()]);
+}
+
+function sortResourceEvidencePayloads(rows) {
+  return rows.sort((a, b) => (
+    text(a.resource).localeCompare(text(b.resource), undefined, { sensitivity: 'base' })
+    || text(a.category).localeCompare(text(b.category), undefined, { sensitivity: 'base' })
+  ));
 }
 
 function isResourceSupplyGap(gap) {
@@ -1415,18 +1489,15 @@ function resourceEvidenceGroups(gap, needs, targetName) {
     }
   }
 
-  const rows = resourceEvidenceRows(gap);
-  if (rows.length) {
+  const evidence = resourceEvidenceRows(gap, needs);
+  if (evidence.rows.length) {
     return [{
       location: resourceEvidenceLocation(gap, targetName),
-      headers: ['Category', 'Quantity', 'Resources'],
-      rows,
-      rowPayloads: array(gap.resource_categories).filter(isObject).map((row) => ({
+      headers: evidence.headers,
+      rows: evidence.rows,
+      rowPayloads: evidence.rowPayloads.map((row) => ({
         ...row,
         location: resourceEvidenceLocation(gap, targetName),
-        category: text(row.category, 'Uncategorized'),
-        quantity_requested: row.quantity_requested ?? row.quantity ?? 0,
-        resources: array(row.resources),
       })),
     }];
   }
@@ -1476,6 +1547,10 @@ function resourceEvidenceGroupsFromNeeds(needs, targetName, sourceHubs) {
   const allowedLocations = new Set(sourceHubs.map((source) => shortLocation(source, targetName)));
   array(needs.items).filter(isObject).forEach((item) => {
     const resource = text(item.resource);
+    if (!resource) {
+      return;
+    }
+
     const category = text(item.category, 'Uncategorized');
     array(item.sources).filter(isObject).forEach((source) => {
       const sourceName = text(source.source_hub_name);
@@ -1491,37 +1566,37 @@ function resourceEvidenceGroupsFromNeeds(needs, targetName, sourceHubs) {
       if (!locations.has(location)) {
         locations.set(location, new Map());
       }
-      const categories = locations.get(location);
-      if (!categories.has(category)) {
-        categories.set(category, {
+      const resources = locations.get(location);
+      const key = `${resource}\u0000${category}`;
+      if (!resources.has(key)) {
+        resources.set(key, {
+          resource,
+          category,
           quantity: 0,
-          resources: new Set(),
           source,
           source_hub_name: sourceName,
           location,
         });
       }
-      const row = categories.get(category);
+      const row = resources.get(key);
       row.quantity += quantity;
-      if (resource) {
-        row.resources.add(resource);
-      }
     });
   });
 
-  return [...locations.entries()].map(([location, categories]) => ({
+  return [...locations.entries()].map(([location, resources]) => ({
     location,
-    headers: ['Category', 'Quantity', 'Resources'],
-    rows: [...categories.entries()].map(([category, row]) => [
-      category,
+    headers: ['Resource', 'Category', 'Quantity'],
+    rows: sortResourceEvidencePayloads([...resources.values()]).map((row) => [
+      row.resource,
+      row.category,
       row.quantity,
-      [...row.resources].join(', '),
     ]),
-    rowPayloads: [...categories.entries()].map(([category, row]) => ({
+    rowPayloads: sortResourceEvidencePayloads([...resources.values()]).map((row) => ({
       ...object(row.source),
-      category,
+      resource: row.resource,
+      category: row.category,
       quantity_requested: row.quantity,
-      resources: [...row.resources],
+      resources: [row.resource],
       source_hub_name: row.source_hub_name,
       location: row.location,
     })),

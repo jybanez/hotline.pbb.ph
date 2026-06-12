@@ -30,3 +30,27 @@ assert.match(
   /gap\?\.type[\s\S]*open_needs/,
   'Command Support Request row action must require the open_needs gap type.',
 );
+
+assert.match(
+  source,
+  /function\s+commandSupportIncidentRows\s*\(/,
+  'Command Support Request modal must expose incident-selection rows from the selected resource evidence.',
+);
+
+assert.match(
+  source,
+  /selected_incident_ids:\s*selectedIncidentIds/,
+  'Command Support Request payload must include the selected incident scope.',
+);
+
+assert.match(
+  source,
+  /support_context:\s*buildCommandSupportContext\(context,\s*selectedIncidentIds\)/,
+  'Command Support Request payload must include compact resource/evidence/request scope context.',
+);
+
+assert.match(
+  source,
+  /Quantity remains a Command decision and will not auto-change\./,
+  'Command Support Request modal must not auto-compute quantity from selected incidents.',
+);

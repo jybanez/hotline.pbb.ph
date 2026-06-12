@@ -14,6 +14,17 @@ use Illuminate\Validation\ValidationException;
 
 class SupportRequestController extends Controller
 {
+    private const JUSTIFICATION_OPTIONS = [
+        'local_resources_unavailable' => 'Local resources unavailable',
+        'local_resources_insufficient' => 'Local resources insufficient',
+        'specialized_capability_required' => 'Specialized capability required',
+        'urgent_life_safety_need' => 'Urgent life-safety need',
+        'access_or_route_support_required' => 'Access or route support required',
+        'inter_agency_coordination_needed' => 'Inter-agency coordination needed',
+        'sustained_operation_relief_rotation_needed' => 'Sustained operation / relief rotation needed',
+        'verification_or_assessment_support_needed' => 'Verification or assessment support needed',
+    ];
+
     public function __construct(
         private readonly SupportRequestCreationService $requests,
         private readonly SupportRequestRelaySubmissionService $relay,
@@ -42,14 +53,26 @@ class SupportRequestController extends Controller
             'requested_capability' => ['nullable', 'string', 'max:120'],
             'quantity' => ['nullable', 'integer', 'min:0'],
             'quantity_unit' => ['nullable', 'string', 'max:40'],
+            'justification_codes' => ['required', 'array', 'min:1'],
+            'justification_codes.*' => ['required', 'string', Rule::in(array_keys(self::JUSTIFICATION_OPTIONS))],
             'staging_notes' => ['nullable', 'string', 'max:2000'],
             'command_notes' => ['nullable', 'string', 'max:2000'],
             'gap' => ['nullable', 'array'],
             'evidence_row' => ['required', 'array'],
             'incident_refs' => ['nullable', 'array'],
+            'selected_incident_ids' => ['nullable', 'array'],
+            'selected_incident_ids.*' => ['integer'],
+            'support_context' => ['nullable', 'array'],
         ]);
 
         $this->ensureRequestableContext($validated);
+        $validated['selected_incident_ids'] = $this->selectedIncidentIds($validated);
+        $validated['support_context'] = $this->supportContext($validated);
+        $validated['justification_codes'] = array_values(array_unique($validated['justification_codes']));
+        $validated['justification_labels'] = array_values(array_map(
+            fn (string $code): string => self::JUSTIFICATION_OPTIONS[$code],
+            $validated['justification_codes'],
+        ));
 
         $supportRequest = $this->requests->create($validated, $request->user());
         $supportRequest = $this->relay->submit($supportRequest);
@@ -98,6 +121,59 @@ class SupportRequestController extends Controller
     private function isResourceSupplyGap(array $gap): bool
     {
         return $this->text($gap['type'] ?? '') === 'open_needs';
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     * @return array<int, int>
+     *
+     * @throws ValidationException
+     */
+    private function selectedIncidentIds(array $validated): array
+    {
+        $row = is_array($validated['evidence_row'] ?? null) ? $validated['evidence_row'] : [];
+        $evidenceIncidentIds = $this->intList($row['incident_ids'] ?? []);
+        $selectedIncidentIds = $this->intList($validated['selected_incident_ids'] ?? []);
+
+        if ($selectedIncidentIds === []) {
+            return $evidenceIncidentIds;
+        }
+
+        $outsideEvidence = array_values(array_diff($selectedIncidentIds, $evidenceIncidentIds));
+
+        if ($outsideEvidence !== []) {
+            throw ValidationException::withMessages([
+                'selected_incident_ids' => 'Selected incidents must come from the selected SITREP resource evidence row.',
+            ]);
+        }
+
+        return $selectedIncidentIds;
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     * @return array<string, mixed>
+     */
+    private function supportContext(array $validated): array
+    {
+        $context = is_array($validated['support_context'] ?? null) ? $validated['support_context'] : [];
+        $row = is_array($validated['evidence_row'] ?? null) ? $validated['evidence_row'] : [];
+        $selectedIncidentIds = $validated['selected_incident_ids'] ?? [];
+
+        $context['resource'] = [
+            'resource_type_id' => is_numeric($row['resource_type_id'] ?? null) ? (int) $row['resource_type_id'] : null,
+            'resource_type_name' => is_scalar($row['resource_type_name'] ?? null) ? (string) $row['resource_type_name'] : null,
+            'resource_type_category_id' => is_numeric($row['resource_type_category_id'] ?? null) ? (int) $row['resource_type_category_id'] : null,
+            'resource_type_category_name' => is_scalar($row['resource_type_category_name'] ?? null) ? (string) $row['resource_type_category_name'] : null,
+            'evidence_quantity' => is_numeric($row['quantity'] ?? $row['quantity_requested'] ?? null) ? (int) ($row['quantity'] ?? $row['quantity_requested']) : null,
+            'requested_quantity' => is_numeric($validated['quantity'] ?? null) ? (int) $validated['quantity'] : null,
+            'unit_label' => is_scalar($row['unit_label'] ?? null) ? (string) $row['unit_label'] : null,
+        ];
+        $context['evidence_scope']['incident_ids'] = $this->intList($row['incident_ids'] ?? []);
+        $context['request_scope']['selected_incident_ids'] = $this->intList($selectedIncidentIds);
+        $context['request_scope']['quantity_note'] = 'Quantity is manually set by Command and may not equal selected incident count.';
+
+        return $context;
     }
 
     /**
@@ -154,6 +230,21 @@ class SupportRequestController extends Controller
     }
 
     /**
+     * @return array<int, int>
+     */
+    private function intList(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        return array_values(array_unique(array_filter(array_map(
+            fn (mixed $item): ?int => is_numeric($item) ? (int) $item : null,
+            $value,
+        ), fn (?int $item): bool => $item !== null)));
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function serialize(SupportRequest $supportRequest): array
@@ -170,6 +261,10 @@ class SupportRequestController extends Controller
             'relay_deliveries_count' => $supportRequest->relay_deliveries_count,
             'relay_last_error' => $supportRequest->relay_last_error,
             'requested_assistance' => $supportRequest->requested_assistance,
+            'justification_codes' => $supportRequest->justification_codes ?? [],
+            'justification_labels' => $supportRequest->justification_labels ?? [],
+            'selected_incident_ids' => $supportRequest->selected_incident_ids_json ?? [],
+            'support_context' => $supportRequest->support_context_json ?? [],
             'urgency' => $supportRequest->urgency,
             'requested_at' => $supportRequest->requested_at?->toIso8601String(),
         ];

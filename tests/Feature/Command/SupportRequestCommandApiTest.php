@@ -35,6 +35,7 @@ class SupportRequestCommandApiTest extends TestCase
                 'urgency' => 'severe',
                 'requested_assistance' => '',
                 'quantity' => 'many',
+                'justification_codes' => [],
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors([
@@ -42,6 +43,7 @@ class SupportRequestCommandApiTest extends TestCase
                 'urgency',
                 'requested_assistance',
                 'quantity',
+                'justification_codes',
             ]);
     }
 
@@ -54,6 +56,7 @@ class SupportRequestCommandApiTest extends TestCase
             'role' => UserRole::Command,
         ]);
         $sitrep = $this->createSitrep();
+        $this->seedResourceType('Rescue and Extraction', 'Rescue Team');
 
         Http::fake([
             'https://relay.pbb.ph/api/v1/messages' => Http::response([
@@ -73,6 +76,8 @@ class SupportRequestCommandApiTest extends TestCase
             ->assertJsonPath('support_request.relay_delivery_status', SupportRequest::RELAY_ACCEPTED)
             ->assertJsonPath('support_request.relay_id', '01JCOMMANDSUPPORT0000000001')
             ->assertJsonPath('support_request.relay_message_id', '01JCOMMANDMESSAGE00000001')
+            ->assertJsonPath('support_request.justification_codes', ['local_resources_insufficient', 'specialized_capability_required'])
+            ->assertJsonPath('support_request.selected_incident_ids', [234])
             ->assertJsonPath('support_request.relay_last_error', null);
 
         $localRequestId = $response->json('support_request.local_request_id');
@@ -90,6 +95,12 @@ class SupportRequestCommandApiTest extends TestCase
             'sitrep_section' => 'gaps',
             'sitrep_evidence_ref' => 'gaps.open_needs.1',
         ]);
+        $stored = SupportRequest::query()->where('local_request_id', $localRequestId)->firstOrFail();
+        $this->assertSame(['local_resources_insufficient', 'specialized_capability_required'], $stored->justification_codes);
+        $this->assertSame(['Local resources insufficient', 'Specialized capability required'], $stored->justification_labels);
+        $this->assertSame([234], $stored->selected_incident_ids_json);
+        $this->assertSame([234, 235], $stored->support_context_json['evidence_scope']['incident_ids']);
+        $this->assertSame([234], $stored->support_context_json['request_scope']['selected_incident_ids']);
 
         Http::assertSent(function ($request) use ($localRequestId): bool {
             return $request->url() === 'https://relay.pbb.ph/api/v1/messages'
@@ -101,6 +112,7 @@ class SupportRequestCommandApiTest extends TestCase
                     'systems' => ['support.dispatch'],
                 ]]
                 && $request['payload']['request']['requested_assistance'] === 'Rescue and extraction support'
+                && $request['payload']['request']['justification_codes'] === ['local_resources_insufficient', 'specialized_capability_required']
                 && $request['payload']['sitrep']['evidence_ref'] === 'gaps.open_needs.1'
                 && $request['payload']['gap']['title'] === 'Resource supply not confirmed'
                 && $request['payload']['resource']['resource_type_id'] > 0
@@ -109,9 +121,33 @@ class SupportRequestCommandApiTest extends TestCase
                 && $request['payload']['resource']['resource_type_category_name'] === 'Rescue and Extraction'
                 && $request['payload']['resource']['quantity'] === 2
                 && $request['payload']['resource']['unit_label'] === 'teams'
-                && $request['payload']['resource']['incident_ids'] === [234]
+                && $request['payload']['resource']['incident_ids'] === [234, 235]
+                && $request['payload']['evidence_scope']['incident_ids'] === [234, 235]
+                && $request['payload']['request_scope']['selected_incident_ids'] === [234]
+                && $request['payload']['support_context']['request_scope']['selected_incident_ids'] === [234]
                 && $request['payload']['evidence_row']['category'] === 'Rescue and Extraction';
         });
+    }
+
+    public function test_command_support_request_rejects_selected_incident_outside_evidence_scope(): void
+    {
+        $this->configureRelay();
+        $command = User::factory()->create(['role' => UserRole::Command]);
+        $sitrep = $this->createSitrep();
+
+        Http::fake();
+
+        $this->actingAs($command)
+            ->postJson('/api/command/support-requests', [
+                ...$this->payload($sitrep),
+                'selected_incident_ids' => [999],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('selected_incident_ids');
+
+        Http::assertNothingSent();
+        $this->assertDatabaseCount('support_requests', 0);
+        $this->assertDatabaseCount('support_request_histories', 0);
     }
 
     public function test_command_support_request_returns_failed_relay_status_when_handoff_fails(): void
@@ -148,6 +184,7 @@ class SupportRequestCommandApiTest extends TestCase
         $this->configureRelay();
         $command = User::factory()->create(['role' => UserRole::Command]);
         $sitrep = $this->createSitrep();
+        $this->seedResourceType('Rescue and Extraction', 'Rescue Team');
 
         Http::fake();
 
@@ -387,19 +424,24 @@ class SupportRequestCommandApiTest extends TestCase
      */
     private function payload(SitrepReport $sitrep): array
     {
-        $categoryId = DB::table('resource_type_categories')->insertGetId([
-            'name' => 'Rescue and Extraction',
-            'sort_order' => 1,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-        $resourceTypeId = DB::table('resource_types')->insertGetId([
-            'category_id' => $categoryId,
-            'name' => 'Rescue Team',
-            'unit_label' => 'teams',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $categoryId = (int) (DB::table('resource_type_categories')
+            ->where('name', 'Rescue and Extraction')
+            ->value('id') ?? DB::table('resource_type_categories')->insertGetId([
+                'name' => 'Rescue and Extraction',
+                'sort_order' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]));
+        $resourceTypeId = (int) (DB::table('resource_types')
+            ->where('category_id', $categoryId)
+            ->where('name', 'Rescue Team')
+            ->value('id') ?? DB::table('resource_types')->insertGetId([
+                'category_id' => $categoryId,
+                'name' => 'Rescue Team',
+                'unit_label' => 'teams',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]));
 
         return [
             'sitrep_report_id' => $sitrep->id,
@@ -410,7 +452,10 @@ class SupportRequestCommandApiTest extends TestCase
             'requested_capability' => 'Rescue and Extraction',
             'quantity' => 2,
             'quantity_unit' => 'teams',
-            'staging_notes' => 'Stage near Barangay Hall.',
+            'justification_codes' => [
+                'local_resources_insufficient',
+                'specialized_capability_required',
+            ],
             'command_notes' => 'Request approved by command.',
             'gap' => [
                 'title' => 'Resource supply not confirmed',
@@ -427,7 +472,18 @@ class SupportRequestCommandApiTest extends TestCase
                 'resource' => 'Rescue Team',
                 'quantity' => 2,
                 'unit_label' => 'teams',
-                'incident_ids' => [234],
+                'incident_ids' => [234, 235],
+                'incidents' => [[
+                    'incident_id' => 234,
+                    'incident_ref' => '#000234',
+                    'incident_types' => ['Medical Emergency'],
+                    'location' => 'Main Road',
+                ], [
+                    'incident_id' => 235,
+                    'incident_ref' => '#000235',
+                    'incident_types' => ['Animal Attack'],
+                    'location' => 'Creekside',
+                ]],
                 'routes' => [[
                     'route_location' => 'Main Road',
                     'status' => 'limited',
@@ -441,12 +497,58 @@ class SupportRequestCommandApiTest extends TestCase
                     'people' => 1,
                     'notes' => ['stable'],
                     'incident_ids' => [234],
+                ], [
+                    'signal' => 'Patient or injured person',
+                    'reports' => 1,
+                    'people' => 1,
+                    'notes' => ['animal bite'],
+                    'incident_ids' => [235],
                 ]],
             ],
             'incident_refs' => [[
                 'id' => 234,
                 'public_code' => 'A000234',
+            ], [
+                'id' => 235,
+                'public_code' => 'A000235',
             ]],
+            'selected_incident_ids' => [234],
+            'support_context' => [
+                'evidence_scope' => [
+                    'incident_ids' => [234, 235],
+                ],
+                'request_scope' => [
+                    'selected_incident_ids' => [234],
+                    'incidents' => [[
+                        'incident_id' => 234,
+                        'incident_ref' => '#000234',
+                        'incident_types' => ['Medical Emergency'],
+                    ]],
+                ],
+            ],
         ];
+    }
+
+    private function seedResourceType(string $category, string $resource): void
+    {
+        $categoryId = (int) (DB::table('resource_type_categories')
+            ->where('name', $category)
+            ->value('id') ?? DB::table('resource_type_categories')->insertGetId([
+                'name' => $category,
+                'description' => null,
+                'sort_order' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]));
+
+        if (! DB::table('resource_types')->where('category_id', $categoryId)->where('name', $resource)->exists()) {
+            DB::table('resource_types')->insert([
+                'category_id' => $categoryId,
+                'name' => $resource,
+                'unit_label' => 'teams',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
     }
 }

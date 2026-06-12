@@ -805,11 +805,26 @@ final class SitrepDocumentRenderer
      * @param array<string, mixed> $gap
      * @return array<int, array<int, mixed>>
      */
-    private function resourceEvidenceRows(array $gap): array
+    private function resourceEvidenceRows(array $gap, array $needs = []): array
     {
+        $needRows = $this->resourceNeedRows($needs);
+        if ($needRows !== []) {
+            return [
+                'headers' => ['Resource', 'Category', 'Quantity'],
+                'rows' => array_map(fn (array $row): array => [
+                    $row['resource'],
+                    $row['category'],
+                    $row['quantity_requested'],
+                ], $needRows),
+            ];
+        }
+
         $categories = array_values(array_filter($gap['resource_categories'] ?? [], 'is_array'));
         if ($categories === []) {
-            return [];
+            return [
+                'headers' => ['Resource', 'Category', 'Quantity'],
+                'rows' => [],
+            ];
         }
 
         return $this->resourceCategoryRows($categories);
@@ -817,19 +832,91 @@ final class SitrepDocumentRenderer
 
     /**
      * @param array<int, array<string, mixed>> $categories
-     * @return array<int, array<int, mixed>>
+     * @return array{headers: array<int, string>, rows: array<int, array<int, mixed>>}
      */
     private function resourceCategoryRows(array $categories): array
     {
-        return array_map(function (array $row): array {
-            $resources = $row['resources'] ?? [];
+        $rows = [];
 
-            return [
-                $row['category'] ?? 'Uncategorized',
-                $row['quantity_requested'] ?? $row['quantity'] ?? 0,
-                is_array($resources) ? implode(', ', array_filter($resources, 'is_scalar')) : $resources,
+        foreach ($categories as $row) {
+            $category = trim((string) ($row['category'] ?? 'Uncategorized')) ?: 'Uncategorized';
+            $resources = array_values(array_filter((array) ($row['resources'] ?? []), 'is_scalar'));
+            $quantity = $row['quantity_requested'] ?? $row['quantity'] ?? '';
+
+            if ($resources === []) {
+                $rows[] = ['Resource unspecified', $category, $quantity];
+                continue;
+            }
+
+            foreach ($resources as $resource) {
+                $rows[] = [
+                    trim((string) $resource) ?: 'Resource unspecified',
+                    $category,
+                    count($resources) === 1 ? $quantity : '',
+                ];
+            }
+        }
+
+        return [
+            'headers' => ['Resource', 'Category', 'Quantity'],
+            'rows' => $this->sortResourceEvidenceTableRows($rows),
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $needs
+     * @return array<int, array{resource: string, category: string, quantity_requested: int}>
+     */
+    private function resourceNeedRows(array $needs): array
+    {
+        $items = array_values(array_filter($needs['items'] ?? [], 'is_array'));
+        $grouped = [];
+
+        foreach ($items as $item) {
+            $resource = trim((string) ($item['resource'] ?? ''));
+            if ($resource === '') {
+                continue;
+            }
+
+            $category = trim((string) ($item['category'] ?? 'Uncategorized')) ?: 'Uncategorized';
+            $key = $resource."\0".$category;
+            $grouped[$key] ??= [
+                'resource' => $resource,
+                'category' => $category,
+                'quantity_requested' => 0,
             ];
-        }, $categories);
+            $grouped[$key]['quantity_requested'] += (int) ($item['quantity_requested'] ?? $item['quantity'] ?? 0);
+        }
+
+        return $this->sortResourceEvidenceRows(array_values($grouped));
+    }
+
+    /**
+     * @param array<int, array{resource: string, category: string, quantity_requested: mixed}> $rows
+     * @return array<int, array{resource: string, category: string, quantity_requested: mixed}>
+     */
+    private function sortResourceEvidenceRows(array $rows): array
+    {
+        usort($rows, static function (array $left, array $right): int {
+            return strcasecmp((string) ($left['resource'] ?? ''), (string) ($right['resource'] ?? ''))
+                ?: strcasecmp((string) ($left['category'] ?? ''), (string) ($right['category'] ?? ''));
+        });
+
+        return $rows;
+    }
+
+    /**
+     * @param array<int, array<int, mixed>> $rows
+     * @return array<int, array<int, mixed>>
+     */
+    private function sortResourceEvidenceTableRows(array $rows): array
+    {
+        usort($rows, static function (array $left, array $right): int {
+            return strcasecmp((string) ($left[0] ?? ''), (string) ($right[0] ?? ''))
+                ?: strcasecmp((string) ($left[1] ?? ''), (string) ($right[1] ?? ''));
+        });
+
+        return $rows;
     }
 
     /**
@@ -847,12 +934,12 @@ final class SitrepDocumentRenderer
             }
         }
 
-        $rows = $this->resourceEvidenceRows($gap);
-        if ($rows !== []) {
+        $evidence = $this->resourceEvidenceRows($gap, $needs);
+        if ($evidence['rows'] !== []) {
             return [[
                 'location' => $this->resourceEvidenceLocation($gap, $targetName),
-                'headers' => ['Category', 'Quantity', 'Resources'],
-                'rows' => $rows,
+                'headers' => $evidence['headers'],
+                'rows' => $evidence['rows'],
             ]];
         }
 
@@ -874,6 +961,10 @@ final class SitrepDocumentRenderer
         $allowedLocations = array_fill_keys(array_map(fn (mixed $source): string => $this->shortLocation((string) $source, $targetName), $sourceHubs), true);
         foreach ($items as $item) {
             $resource = trim((string) ($item['resource'] ?? ''));
+            if ($resource === '') {
+                continue;
+            }
+
             $category = trim((string) ($item['category'] ?? 'Uncategorized'));
             foreach (array_filter($item['sources'] ?? [], 'is_array') as $source) {
                 $sourceName = trim((string) ($source['source_hub_name'] ?? ''));
@@ -887,35 +978,31 @@ final class SitrepDocumentRenderer
                 }
                 $quantity = (int) ($source['quantity_requested'] ?? 0);
                 $locations[$location] ??= [];
-                $locations[$location][$category] ??= [
+                $key = $resource."\0".$category;
+                $locations[$location][$key] ??= [
+                    'resource' => $resource,
                     'category' => $category,
                     'quantity_requested' => 0,
-                    'resources' => [],
                 ];
-                $locations[$location][$category]['quantity_requested'] += $quantity;
-                if ($resource !== '') {
-                    $locations[$location][$category]['resources'][$resource] = $resource;
-                }
+                $locations[$location][$key]['quantity_requested'] += $quantity;
             }
         }
 
         $groups = [];
-        foreach ($locations as $location => $categories) {
-            $categoryRows = array_map(function (array $row): array {
-                $resources = array_values($row['resources'] ?? []);
-
+        foreach ($locations as $location => $resources) {
+            $resourceRows = array_map(function (array $row): array {
                 return [
+                    $row['resource'],
                     $row['category'],
                     $row['quantity_requested'],
-                    implode(', ', $resources),
                 ];
-            }, array_values($categories));
+            }, $this->sortResourceEvidenceRows(array_values($resources)));
 
-            if ($categoryRows !== []) {
+            if ($resourceRows !== []) {
                 $groups[] = [
                     'location' => $location,
-                    'headers' => ['Category', 'Quantity', 'Resources'],
-                    'rows' => $categoryRows,
+                    'headers' => ['Resource', 'Category', 'Quantity'],
+                    'rows' => $resourceRows,
                 ];
             }
         }

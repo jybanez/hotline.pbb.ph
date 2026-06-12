@@ -395,6 +395,15 @@ class SitrepViewerSdkTest extends TestCase
                 'incident_ids' => [501, 504],
             ]],
         ]];
+        $payload['needs']['items'] = [[
+            'resource' => 'Body Harness',
+            'category' => 'Rescue and Extraction',
+            'quantity_requested' => 7,
+        ], [
+            'resource' => 'Rescue Boat',
+            'category' => 'Rescue and Extraction',
+            'quantity_requested' => 10,
+        ]];
 
         $html = $viewer->renderSection($payload, 'gaps');
 

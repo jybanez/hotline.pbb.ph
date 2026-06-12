@@ -2101,13 +2101,17 @@ class SitrepGenerationService
             ->groupBy('incident_id');
         $populationItems = collect($this->detailsForSection($context['current_field_details'], 'population'))
             ->groupBy('incident_id');
+        $incidentSummaries = $context['current_incidents']
+            ->keyBy('id')
+            ->map(fn (Incident $incident): array => $this->supportRequestIncidentSummary($incident))
+            ->all();
 
         return $context['current_resource_needs']
             ->groupBy(fn (array $item): string => implode('|', [
                 (string) ($item['location_name'] ?? $item['source_hub_name'] ?? 'Current Location'),
                 (string) ($item['resource_type_id'] ?? 0),
             ]))
-            ->map(function (Collection $items) use ($routeRows, $populationItems): array {
+            ->map(function (Collection $items) use ($routeRows, $populationItems, $incidentSummaries): array {
                 $first = $items->first();
                 $incidentIds = $items
                     ->pluck('incident_id')
@@ -2129,6 +2133,11 @@ class SitrepGenerationService
                     'source_hub_name' => $first['source_hub_name'] ?? ($first['location_name'] ?? null),
                     'incident_ids' => $incidentIds,
                     'incident_refs' => array_map(fn (int|string $id): array => ['id' => $id], $incidentIds),
+                    'incidents' => collect($incidentIds)
+                        ->map(fn (int|string $id): ?array => $incidentSummaries[$id] ?? null)
+                        ->filter()
+                        ->values()
+                        ->all(),
                     'routes' => $this->linkedRouteEvidence($incidentIds, $routeRows),
                     'population' => $this->linkedPopulationEvidence($incidentIds, $populationItems),
                 ];
@@ -2140,6 +2149,40 @@ class SitrepGenerationService
             ])
             ->values()
             ->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function supportRequestIncidentSummary(Incident $incident): array
+    {
+        $incidentTypes = $incident->incidentTypes
+            ->pluck('name')
+            ->filter()
+            ->values()
+            ->all();
+
+        return [
+            'incident_id' => $incident->id,
+            'incident_ref' => sprintf('#%06d', $incident->id),
+            'incident_types' => $incidentTypes,
+            'status' => $this->statusValue($incident->status),
+            'alert_level' => $this->statusValue($incident->alert_level),
+            'location' => $this->incidentLocationLabel($incident),
+        ];
+    }
+
+    private function incidentLocationLabel(Incident $incident): ?string
+    {
+        $parts = array_values(array_filter([
+            $incident->location,
+            $incident->location_road,
+            $incident->location_suburb,
+            $incident->location_barangay,
+            $incident->location_citymunicipality,
+        ], fn (mixed $value): bool => trim((string) $value) !== ''));
+
+        return $parts !== [] ? implode(', ', array_unique($parts)) : null;
     }
 
     /**

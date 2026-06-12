@@ -1040,6 +1040,100 @@
     padding: 0.85rem;
 }
 
+.command-support-request-modal .command-support-request-title {
+    border-bottom: 1px solid rgba(135, 169, 214, 0.22);
+    color: #f3f8ff;
+    font-size: 1.35rem;
+    font-weight: 800;
+    line-height: 1.25;
+    margin: 0 0 0.15rem;
+    padding: 0 0 0.85rem;
+    white-space: pre-line;
+}
+
+.command-support-request-modal .command-support-request-title::first-line {
+    color: #f3f8ff;
+    font-size: 1.35rem;
+    font-weight: 800;
+}
+
+.command-support-request-modal .command-support-request-title {
+    font-size: 0.86rem;
+    color: var(--surface-muted);
+}
+
+.command-support-request-modal .command-support-request-note {
+    color: var(--surface-muted);
+    font-size: 0.82rem;
+    line-height: 1.45;
+    margin-top: -0.25rem;
+}
+
+.command-support-request-modal .ui-modal {
+    width: min(54rem, calc(100vw - 2rem));
+}
+
+.command-support-request-modal .command-support-request-scope-row {
+    display: block;
+}
+
+.command-support-request-modal .command-support-request-scope-grid {
+    border-top: 1px solid rgba(135, 169, 214, 0.18);
+    display: grid;
+    gap: 1.25rem;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    margin-top: 0.15rem;
+    padding-top: 1rem;
+}
+
+.command-support-request-modal .command-support-request-scope-column {
+    align-content: start;
+    display: grid;
+    gap: 0.55rem;
+    min-width: 0;
+}
+
+.command-support-request-modal .command-support-request-scope-column.is-incidents {
+    border-left: 1px solid rgba(135, 169, 214, 0.18);
+    padding-left: 1.25rem;
+}
+
+.command-support-request-modal .command-support-request-scope-heading {
+    color: #dbe9ff;
+    font-size: 0.84rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    line-height: 1.2;
+    margin: 0;
+    text-transform: uppercase;
+}
+
+.command-support-request-modal .command-support-request-scope-help {
+    color: var(--surface-muted);
+    font-size: 0.78rem;
+    line-height: 1.4;
+    margin: 0;
+}
+
+.command-support-request-modal .command-support-request-scope-list {
+    align-content: start;
+    display: grid;
+    gap: 0.55rem;
+    max-height: min(18rem, 36vh);
+    min-height: 0;
+    overflow: auto;
+    padding-right: 0.35rem;
+}
+
+.command-support-request-modal .command-support-request-scope-list .ui-form-modal-field {
+    min-width: 0;
+}
+
+.command-support-request-modal .command-support-request-scope-list .ui-form-modal-checkbox {
+    align-items: flex-start;
+    line-height: 1.35;
+}
+
 @media (max-width: 760px) {
     .command-main {
         padding: 0.75rem;
@@ -1055,6 +1149,25 @@
         gap: 0.75rem;
         grid-template-columns: minmax(0, 1fr) !important;
         grid-template-rows: minmax(16rem, 38vh) 0 minmax(24rem, 1fr) !important;
+    }
+
+    .command-support-request-modal .ui-modal {
+        width: min(100vw - 1rem, 34rem);
+    }
+
+    .command-support-request-modal .command-support-request-scope-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .command-support-request-modal .command-support-request-scope-column.is-incidents {
+        border-left: 0;
+        border-top: 1px solid rgba(135, 169, 214, 0.18);
+        padding-left: 0;
+        padding-top: 1rem;
+    }
+
+    .command-support-request-modal .command-support-request-scope-list {
+        max-height: 14rem;
     }
 
     .command-sitrep-header {

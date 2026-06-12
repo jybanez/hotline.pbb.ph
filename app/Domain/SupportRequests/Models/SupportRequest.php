@@ -45,6 +45,8 @@ class SupportRequest extends Model
         'requested_capability',
         'quantity',
         'quantity_unit',
+        'justification_codes',
+        'justification_labels',
         'staging_notes',
         'command_notes',
         'requester_user_id',
@@ -63,6 +65,8 @@ class SupportRequest extends Model
         'gap_json',
         'evidence_row_json',
         'incident_refs_json',
+        'selected_incident_ids_json',
+        'support_context_json',
         'requested_at',
     ];
 
@@ -75,12 +79,16 @@ class SupportRequest extends Model
             'relay_submitted_at' => 'datetime',
             'relay_response_json' => 'array',
             'quantity' => 'integer',
+            'justification_codes' => 'array',
+            'justification_labels' => 'array',
             'source_snapshot_json' => 'array',
             'sitrep_sequence_number' => 'integer',
             'sitrep_generated_at' => 'datetime',
             'gap_json' => 'array',
             'evidence_row_json' => 'array',
             'incident_refs_json' => 'array',
+            'selected_incident_ids_json' => 'array',
+            'support_context_json' => 'array',
             'requested_at' => 'datetime',
         ];
     }

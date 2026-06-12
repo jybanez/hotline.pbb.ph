@@ -230,6 +230,8 @@ class SupportRequestRelaySubmissionService
                 'requested_capability' => $supportRequest->requested_capability,
                 'quantity' => $supportRequest->quantity,
                 'quantity_unit' => $supportRequest->quantity_unit,
+                'justification_codes' => $supportRequest->justification_codes ?? [],
+                'justification_labels' => $supportRequest->justification_labels ?? [],
                 'staging_notes' => $supportRequest->staging_notes,
                 'command_notes' => $supportRequest->command_notes,
                 'requested_at' => $supportRequest->requested_at?->toIso8601String(),
@@ -258,6 +260,14 @@ class SupportRequestRelaySubmissionService
             'resource' => $this->resource($supportRequest),
             'evidence_row' => $supportRequest->evidence_row_json,
             'incident_refs' => $supportRequest->incident_refs_json ?? [],
+            'evidence_scope' => [
+                'incident_ids' => $this->evidenceIncidentIds($supportRequest),
+            ],
+            'request_scope' => [
+                'selected_incident_ids' => $supportRequest->selected_incident_ids_json ?? [],
+                'note' => 'Quantity is manually set by Command and may not equal selected incident count.',
+            ],
+            'support_context' => $supportRequest->support_context_json ?? [],
         ];
     }
 
@@ -288,6 +298,22 @@ class SupportRequestRelaySubmissionService
                 fn (?int $id): bool => $id !== null
             )),
         ];
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function evidenceIncidentIds(SupportRequest $supportRequest): array
+    {
+        $row = is_array($supportRequest->evidence_row_json) ? $supportRequest->evidence_row_json : [];
+
+        return array_values(array_filter(
+            array_map(
+                fn (mixed $id): ?int => is_numeric($id) ? (int) $id : null,
+                is_array($row['incident_ids'] ?? null) ? $row['incident_ids'] : []
+            ),
+            fn (?int $id): bool => $id !== null
+        ));
     }
 
     private function priority(SupportRequest $supportRequest): string

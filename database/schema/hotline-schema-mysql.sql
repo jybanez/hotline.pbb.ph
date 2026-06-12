@@ -671,6 +671,8 @@ CREATE TABLE `support_requests` (
   `requested_capability` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `quantity` int(10) unsigned DEFAULT NULL,
   `quantity_unit` varchar(40) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `justification_codes` json DEFAULT NULL,
+  `justification_labels` json DEFAULT NULL,
   `staging_notes` text COLLATE utf8mb4_unicode_ci,
   `command_notes` text COLLATE utf8mb4_unicode_ci,
   `requester_user_id` bigint(20) unsigned DEFAULT NULL,
@@ -689,6 +691,8 @@ CREATE TABLE `support_requests` (
   `gap_json` json DEFAULT NULL,
   `evidence_row_json` json DEFAULT NULL,
   `incident_refs_json` json DEFAULT NULL,
+  `selected_incident_ids_json` json DEFAULT NULL,
+  `support_context_json` json DEFAULT NULL,
   `requested_at` timestamp NULL DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
@@ -940,4 +944,6 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES
   ('2026_05_30_000001_create_sitrep_relay_deliveries_table', 1),
   ('2026_05_31_034100_change_sitrep_relay_message_id_to_string', 1),
   ('2026_06_11_000001_create_support_requests_table', 1),
-  ('2026_06_11_000002_create_support_request_histories_table', 1);
+  ('2026_06_11_000002_create_support_request_histories_table', 1),
+  ('2026_06_12_000001_add_justifications_to_support_requests_table', 1),
+  ('2026_06_12_000002_add_scope_context_to_support_requests_table', 1);
