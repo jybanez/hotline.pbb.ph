@@ -2883,6 +2883,16 @@ function formatSitrepNumber(value) {
     return `SITREP #${String(numeric).padStart(4, '0')}`;
 }
 
+function formatSitrepRecordNumber(value) {
+    const numeric = Number(value);
+
+    if (!Number.isFinite(numeric)) {
+        return `#${value ?? 'unknown'}`;
+    }
+
+    return `#${String(numeric).padStart(6, '0')}`;
+}
+
 function formatAlertTone(value) {
     const normalized = String(value ?? '').trim();
 

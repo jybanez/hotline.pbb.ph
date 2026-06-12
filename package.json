@@ -5,6 +5,7 @@
     "scripts": {
         "build": "vite build",
         "dev": "vite",
+        "test:command-surface-contracts": "node tests/js/commandSurfaceContracts.test.mjs",
         "test:sitrep-viewer-js": "node tests/js/sitrepViewerJsSdk.test.mjs"
     },
     "dependencies": {
