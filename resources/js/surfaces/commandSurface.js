@@ -1632,6 +1632,7 @@ async function openCommandSupportRequestModal(context) {
     );
     const modal = appState.helper.createFormModal({
         title: 'Request Support',
+        size: 'lg',
         className: 'command-support-request-modal',
         submitLabel: 'Submit Request',
         busyMessage: 'Submitting support request...',
@@ -1685,6 +1686,7 @@ async function openCommandSupportRequestModal(context) {
                 {
                     type: 'divider',
                     label: 'Justification',
+                    className: 'command-support-request-section-marker is-justification',
                 },
             ],
             ...commandSupportJustificationRows(),
@@ -1750,8 +1752,88 @@ async function openCommandSupportRequestModal(context) {
         },
     });
 
+    commandArrangeSupportRequestModal(modal);
     trackSurfaceInstance(modal);
     await modal.open();
+}
+
+function commandArrangeSupportRequestModal(modal) {
+    const rowsHost = modal?.refs?.rows;
+    if (!rowsHost) {
+        return;
+    }
+
+    const justificationFields = Array.from(rowsHost.querySelectorAll('.command-support-request-justification-field'));
+    const incidentFields = Array.from(rowsHost.querySelectorAll('.command-support-request-incident-field'));
+    if (!justificationFields.length || !incidentFields.length) {
+        return;
+    }
+
+    const sourceRows = new Set();
+    const collectRow = (element) => {
+        const row = element?.closest?.('.ui-form-modal-row');
+        if (row) {
+            sourceRows.add(row);
+        }
+    };
+
+    justificationFields.forEach(collectRow);
+    incidentFields.forEach(collectRow);
+    rowsHost.querySelectorAll(
+        '.command-support-request-section-marker, .command-support-request-note',
+    ).forEach(collectRow);
+
+    const firstRow = Array.from(sourceRows)
+        .sort((a, b) => Array.from(rowsHost.children).indexOf(a) - Array.from(rowsHost.children).indexOf(b))[0];
+    if (!firstRow) {
+        return;
+    }
+
+    const layoutRow = document.createElement('div');
+    layoutRow.className = 'ui-form-modal-row is-items-1 command-support-request-scope-row';
+
+    const layout = document.createElement('section');
+    layout.className = 'command-support-request-scope-grid';
+    layout.setAttribute('aria-label', 'Support request scope and justification');
+
+    layout.append(
+        commandBuildSupportRequestColumn({
+            title: 'Justification',
+            help: 'Select why this support request should be escalated.',
+            className: 'is-justification',
+            fields: justificationFields,
+        }),
+        commandBuildSupportRequestColumn({
+            title: 'Incidents to Address',
+            help: 'Select the incidents this request should cover. Quantity remains a Command decision and will not auto-change.',
+            className: 'is-incidents',
+            fields: incidentFields,
+        }),
+    );
+    layoutRow.append(layout);
+
+    rowsHost.insertBefore(layoutRow, firstRow);
+    sourceRows.forEach((row) => row.remove());
+}
+
+function commandBuildSupportRequestColumn({ title, help, className, fields }) {
+    const column = document.createElement('div');
+    column.className = `command-support-request-scope-column ${className || ''}`.trim();
+
+    const heading = document.createElement('h3');
+    heading.className = 'command-support-request-scope-heading';
+    heading.textContent = title;
+
+    const helpEl = document.createElement('p');
+    helpEl.className = 'command-support-request-scope-help';
+    helpEl.textContent = help;
+
+    const list = document.createElement('div');
+    list.className = 'command-support-request-scope-list';
+    fields.forEach((field) => list.append(field));
+
+    column.append(heading, helpEl, list);
+    return column;
 }
 
 function commandSupportIncidentRows(incidentContexts = []) {
@@ -1764,13 +1846,14 @@ function commandSupportIncidentRows(incidentContexts = []) {
             {
                 type: 'divider',
                 label: 'Incidents to Address',
+                className: 'command-support-request-section-marker is-incidents',
             },
         ],
         [
             {
                 type: 'text',
                 content: 'Select the incidents this request should cover. Quantity remains a Command decision and will not auto-change.',
-                rowClassName: 'command-support-request-note',
+                className: 'command-support-request-note is-incidents',
             },
         ],
         ...incidentContexts.map((incident) => [
@@ -1778,6 +1861,7 @@ function commandSupportIncidentRows(incidentContexts = []) {
                 type: 'checkbox',
                 name: `incident_${incident.id}`,
                 label: commandSupportIncidentLabel(incident),
+                className: 'command-support-request-incident-field',
             },
         ]),
     ];
@@ -1795,6 +1879,7 @@ function commandSupportJustificationRows() {
             type: 'checkbox',
             name: `justification_${option.code}`,
             label: option.label,
+            className: 'command-support-request-justification-field',
         },
     ]);
 }
