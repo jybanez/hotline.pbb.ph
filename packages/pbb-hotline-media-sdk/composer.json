@@ -1,0 +1,15 @@
+{
+    "name": "pbb/hotline-media-sdk",
+    "description": "Backend-oriented PHP SDK for resolving and caching Hotline-owned SITREP media references.",
+    "type": "library",
+    "license": "proprietary",
+    "require": {
+        "php": "^8.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "Pbb\\Hotline\\Media\\": "src/"
+        }
+    },
+    "minimum-stability": "stable"
+}
