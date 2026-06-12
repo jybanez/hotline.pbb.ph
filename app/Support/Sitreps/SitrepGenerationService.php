@@ -93,6 +93,8 @@ class SitrepGenerationService
             ->with([
                 'caller',
                 'callSessions',
+                'mediaItems',
+                'messages.attachments',
                 'incidentTypes.category',
                 'incidentTypeDetails.incidentType',
                 'incidentResourcesNeeded.resourceType.category',
@@ -935,6 +937,7 @@ class SitrepGenerationService
             ],
             'incident_ids' => $context['incidents']->pluck('id')->values()->all(),
             'incident_coordinates' => $this->incidentCoordinates($context['incidents']),
+            'media_refs' => $this->mediaReferences($context['current_incidents'], $hubNodeSnapshot),
             'call_session_ids' => $context['call_sessions']->pluck('id')->values()->all(),
             'team_assignment_ids' => $context['team_assignments']->pluck('id')->values()->all(),
             'resource_need_ids' => $context['incidents']->flatMap(fn (Incident $incident) => $incident->incidentResourcesNeeded)->pluck('id')->values()->all(),
@@ -958,6 +961,93 @@ class SitrepGenerationService
             ])
             ->values()
             ->all();
+    }
+
+    private function mediaReferences(Collection $incidents, array $hubNodeSnapshot): array
+    {
+        $sourceHubId = $this->sourceHubIdFromSnapshot($hubNodeSnapshot);
+        $refs = [];
+
+        foreach ($incidents as $incident) {
+            foreach ($incident->mediaItems as $media) {
+                $metadata = is_array($media->metadata_json) ? $media->metadata_json : [];
+
+                $refs[] = [
+                    'kind' => 'incident_media',
+                    'source_hub_id' => $sourceHubId,
+                    'incident_id' => (int) $incident->id,
+                    'incident_ref' => $this->incidentReference($incident),
+                    'media_id' => (int) $media->id,
+                    'type' => (string) $media->type,
+                    'mime_type' => $this->nullableText($metadata['mime_type'] ?? null),
+                    'original_filename' => $this->safeOriginalFilename($metadata['original_filename'] ?? $metadata['filename'] ?? null),
+                    'created_at' => $media->created_at?->toIso8601String(),
+                    'peer_role' => $this->nullableText($media->peer_role),
+                    'available_at' => $media->available_at?->toIso8601String(),
+                ];
+            }
+
+            foreach ($incident->messages as $message) {
+                foreach ($message->attachments as $attachment) {
+                    $refs[] = [
+                        'kind' => 'message_attachment',
+                        'source_hub_id' => $sourceHubId,
+                        'incident_id' => (int) $incident->id,
+                        'incident_ref' => $this->incidentReference($incident),
+                        'attachment_id' => (int) $attachment->id,
+                        'message_id' => (int) $message->id,
+                        'type' => (string) $attachment->type,
+                        'mime_type' => (string) $attachment->mime_type,
+                        'original_filename' => $this->safeOriginalFilename($attachment->original_filename),
+                        'created_at' => $attachment->created_at?->toIso8601String(),
+                        'uploader_role' => $this->nullableText($message->sender_role),
+                    ];
+                }
+            }
+        }
+
+        usort($refs, static fn (array $a, array $b): int => [
+            $a['incident_id'] ?? 0,
+            $a['kind'] ?? '',
+            $a['media_id'] ?? $a['attachment_id'] ?? 0,
+        ] <=> [
+            $b['incident_id'] ?? 0,
+            $b['kind'] ?? '',
+            $b['media_id'] ?? $b['attachment_id'] ?? 0,
+        ]);
+
+        return $refs;
+    }
+
+    private function sourceHubIdFromSnapshot(array $hubNodeSnapshot): ?string
+    {
+        $snapshot = is_array($hubNodeSnapshot['snapshot'] ?? null) ? $hubNodeSnapshot['snapshot'] : [];
+        $hubId = trim((string) ($snapshot['hub_id'] ?? $snapshot['id'] ?? $snapshot['relay_hub_id'] ?? ''));
+
+        return $hubId !== '' ? $hubId : null;
+    }
+
+    private function incidentReference(Incident $incident): string
+    {
+        return sprintf('#%06d', (int) $incident->id);
+    }
+
+    private function nullableText(mixed $value): ?string
+    {
+        $text = trim((string) $value);
+
+        return $text !== '' ? $text : null;
+    }
+
+    private function safeOriginalFilename(mixed $value): ?string
+    {
+        $filename = trim((string) $value);
+
+        if ($filename === '' || preg_match('/[\/\\\\\x00-\x1F\x7F]/', $filename) === 1) {
+            return null;
+        }
+
+        return substr($filename, 0, 180);
     }
 
     private function preparedByLabel(bool $systemGenerated, ?User $preparedBy): string

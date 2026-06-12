@@ -205,6 +205,11 @@ from `target_hub_id`, `target_hub_name`, and `target_level`.
 source hub. If sources contain `source_snapshot.incident_coordinates`, the SDK
 rolls them up into `source_snapshot.rollup.incident_coordinates` and adds
 `source_hub_id` to each coordinate entry.
+If sources contain `source_snapshot.media_refs[]`, the SDK flattens those refs
+into `source_snapshot.rollup.media_refs[]` and preserves the original
+`source_hub_id` so downstream apps can resolve media from the correct source
+hub. Media refs are metadata only and must not contain public storage URLs or
+filesystem paths.
 
 `source_snapshot.items[]` preserves each accepted source's original source
 snapshot for drill-down and audit use.

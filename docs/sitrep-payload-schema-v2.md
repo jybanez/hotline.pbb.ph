@@ -81,6 +81,36 @@ Each accepted source hub contributes one `hub_nodes[]` entry. Consumers should u
 
 Hub snapshots preserve Relay `/hub.json` administrative geography codes when present. These fields are deployment-scoped: `country_code` may be present for all hubs, `reg_code` for region and below, `prov_code` for province and below, `citymun_code` for city/municipality and barangay hubs, and `brgy_code` only for barangay hubs. The same rule applies to nested `hub_node.snapshot.uplinks[].hub` and `hub_node.snapshot.sources[].hub` entries when Relay/HQ provides them.
 
+## Media References
+
+`source_snapshot.rollup.media_refs[]` lists Hotline-owned media and attachment references for incidents included in the current SITREP picture. Direct Hotline generation includes refs only for active/deferred incidents. Resolved and discarded incident media is not included in current SITREPs.
+
+Media refs are identifiers and metadata only. They must not include public `/storage/...` URLs, stored paths, thumbnail paths, or other direct filesystem paths. Upstream apps should resolve access later through an authenticated source-hub media API. The source hub domain/base URL is available from `source_snapshot.rollup.hub_node`; it is not duplicated on each media ref.
+
+Supported ref kinds:
+
+```text
+incident_media
+message_attachment
+```
+
+Common fields include:
+
+```text
+kind
+source_hub_id
+incident_id
+incident_ref
+type
+mime_type
+original_filename
+created_at
+```
+
+`incident_media` refs include `media_id` and may include `peer_role` and `available_at`. `message_attachment` refs include `attachment_id`, `message_id`, and may include `uploader_role`.
+
+The consolidator SDK emits `source_snapshot.rollup.media_refs[]` by flattening source refs. During multi-hop consolidation, refs remain attributed to their original `source_hub_id`.
+
 This document is the source of truth for Support and other PHP apps consuming SITREP JSON from Hotline or from the consolidator SDK.
 
 ## Installer And Update Metadata

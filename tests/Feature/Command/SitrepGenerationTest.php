@@ -209,6 +209,108 @@ class SitrepGenerationTest extends TestCase
         ]);
     }
 
+    public function test_sitrep_source_snapshot_includes_only_current_incident_media_references(): void
+    {
+        [$command, $activeIncidentId] = $this->seedSitrepScenario();
+        $resolvedIncidentId = $this->createIncidentWithStatus(IncidentStatus::Resolved->value);
+        $discardedIncidentId = $this->createIncidentWithStatus(IncidentStatus::Discarded->value);
+        $callSessionId = (int) DB::table('call_sessions')->where('incident_id', $activeIncidentId)->value('id');
+
+        $mediaId = DB::table('media')->insertGetId([
+            'incident_id' => $activeIncidentId,
+            'call_session_id' => $callSessionId,
+            'type' => 'citizen_video',
+            'peer_user_id' => null,
+            'peer_role' => 'citizen',
+            'peer_label' => 'Citizen camera',
+            'path' => 'incidents/'.$activeIncidentId.'/media/video.webm',
+            'duration_seconds' => 12,
+            'metadata_json' => json_encode([
+                'mime_type' => 'video/webm',
+                'original_filename' => 'flood-scene.webm',
+            ]),
+            'created_at' => now()->subMinutes(20),
+            'available_at' => now()->subMinutes(19),
+        ]);
+        DB::table('media')->insert([
+            'incident_id' => $resolvedIncidentId,
+            'call_session_id' => $callSessionId,
+            'type' => 'citizen_video',
+            'peer_user_id' => null,
+            'peer_role' => 'citizen',
+            'peer_label' => 'Resolved camera',
+            'path' => 'incidents/'.$resolvedIncidentId.'/media/resolved.webm',
+            'duration_seconds' => 9,
+            'metadata_json' => json_encode(['mime_type' => 'video/webm']),
+            'created_at' => now()->subMinutes(15),
+            'available_at' => now()->subMinutes(14),
+        ]);
+        DB::table('media')->insert([
+            'incident_id' => $discardedIncidentId,
+            'call_session_id' => $callSessionId,
+            'type' => 'citizen_video',
+            'peer_user_id' => null,
+            'peer_role' => 'citizen',
+            'peer_label' => 'Discarded camera',
+            'path' => 'incidents/'.$discardedIncidentId.'/media/discarded.webm',
+            'duration_seconds' => 9,
+            'metadata_json' => json_encode(['mime_type' => 'video/webm']),
+            'created_at' => now()->subMinutes(15),
+            'available_at' => now()->subMinutes(14),
+        ]);
+
+        $messageId = DB::table('incident_messages')->insertGetId([
+            'incident_id' => $activeIncidentId,
+            'sender_id' => $command->id,
+            'sender_role' => 'command',
+            'body' => 'Attached field photo.',
+            'type' => 'message',
+            'created_at' => now()->subMinutes(18),
+        ]);
+        $attachmentId = DB::table('message_attachments')->insertGetId([
+            'message_id' => $messageId,
+            'type' => 'image',
+            'mime_type' => 'image/jpeg',
+            'original_filename' => 'field-photo.jpg',
+            'stored_path' => 'incident-media/field-photo.jpg',
+            'file_size' => 12345,
+            'thumbnail_path' => 'incident-media/thumb-field-photo.jpg',
+            'uploaded_by' => $command->id,
+            'created_at' => now()->subMinutes(17),
+        ]);
+
+        $this->actingAs($command)->postJson('/api/command/sitreps', [
+            'title' => 'Media SITREP',
+            'coverage_area' => 'Cebu City',
+            'period_started_at' => now()->subHours(6)->toIso8601String(),
+            'period_ended_at' => now()->toIso8601String(),
+            'status' => 'draft',
+            'visibility' => 'private',
+        ])->assertCreated();
+
+        $report = SitrepReport::query()->where('title', 'Media SITREP')->firstOrFail();
+        $sourceSnapshot = $report->source_snapshot_json['rollup'] ?? $report->source_snapshot_json;
+        $refs = $sourceSnapshot['media_refs'];
+
+        $this->assertCount(2, $refs);
+        $this->assertSame(['incident_media', 'message_attachment'], array_column($refs, 'kind'));
+        $this->assertSame([$activeIncidentId, $activeIncidentId], array_column($refs, 'incident_id'));
+        $this->assertSame('12', $refs[0]['source_hub_id']);
+        $this->assertSame($mediaId, $refs[0]['media_id']);
+        $this->assertSame('video/webm', $refs[0]['mime_type']);
+        $this->assertSame('flood-scene.webm', $refs[0]['original_filename']);
+        $this->assertSame($attachmentId, $refs[1]['attachment_id']);
+        $this->assertSame($messageId, $refs[1]['message_id']);
+        $this->assertSame('image/jpeg', $refs[1]['mime_type']);
+        $this->assertSame('field-photo.jpg', $refs[1]['original_filename']);
+
+        foreach ($refs as $ref) {
+            $this->assertArrayNotHasKey('path', $ref);
+            $this->assertArrayNotHasKey('stored_path', $ref);
+            $this->assertArrayNotHasKey('thumbnail_path', $ref);
+        }
+    }
+
     public function test_public_sitrep_route_only_exposes_published_public_reports(): void
     {
         [$command] = $this->seedSitrepScenario();
@@ -1169,6 +1271,31 @@ class SitrepGenerationTest extends TestCase
         ]);
 
         return [$command, $incidentId, $resourceTypeId, $incidentTypeId];
+    }
+
+    private function createIncidentWithStatus(string $status): int
+    {
+        $citizen = User::factory()->create([
+            'role' => UserRole::Citizen,
+        ]);
+        $operator = User::factory()->create([
+            'role' => UserRole::Operator,
+        ]);
+
+        return DB::table('incidents')->insertGetId([
+            'citizen_id' => $citizen->id,
+            'actual_citizen_name' => 'Test Citizen',
+            'actual_citizen_relationship' => 'self',
+            'operator_id' => $operator->id,
+            'status' => $status,
+            'alert_level' => 'Normal',
+            'location_barangay' => 'Guadalupe',
+            'location_citymunicipality' => 'Cebu City',
+            'called_at' => now()->subHours(2),
+            'resolved_at' => $status === IncidentStatus::Resolved->value ? now()->subMinutes(10) : null,
+            'created_at' => now()->subHours(2),
+            'updated_at' => now()->subMinutes(10),
+        ]);
     }
 
     private function createSitrepReport(array $attributes = []): SitrepReport

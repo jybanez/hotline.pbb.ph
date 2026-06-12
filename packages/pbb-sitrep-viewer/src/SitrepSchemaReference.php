@@ -119,6 +119,7 @@ final class SitrepSchemaReference
                 'source_sitreps[]',
                 'incident_ids[]',
                 'incident_coordinates[]',
+                'media_refs[]',
                 'team_assignment_ids[]',
                 'resource_need_ids[]',
                 'incident_type_detail_ids[]',

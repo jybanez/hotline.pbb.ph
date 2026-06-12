@@ -276,6 +276,7 @@ final class SitrepConsolidator
                 'source_sitreps' => $sourceIndex,
                 'incident_coordinates' => $incidentCoordinates,
                 'incident_index' => $this->mergeIncidentIndex($normalized, $items, $incidentCoordinates),
+                'media_refs' => $this->mergeMediaReferences($normalized),
             ],
             'items' => $items,
         ];
@@ -1283,6 +1284,66 @@ final class SitrepConsolidator
         }
 
         return $coordinates;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $normalized
+     * @return array<int, array<string, mixed>>
+     */
+    private function mergeMediaReferences(array $normalized): array
+    {
+        $refs = [];
+        $seen = [];
+
+        foreach ($normalized as $source) {
+            $sourceSnapshot = $this->sourceSection($source, 'source_snapshot');
+            $items = $sourceSnapshot['media_refs'] ?? [];
+            if (! is_array($items)) {
+                continue;
+            }
+
+            foreach ($items as $item) {
+                if (! is_array($item)) {
+                    continue;
+                }
+
+                $kind = $this->text($item['kind'] ?? null, '');
+                $sourceHubId = $this->text($item['source_hub_id'] ?? $source['source_hub_id'] ?? null, '');
+                $mediaId = $item['media_id'] ?? null;
+                $attachmentId = $item['attachment_id'] ?? null;
+                $recordId = $kind === 'message_attachment' ? $attachmentId : $mediaId;
+
+                if ($kind === '' || $sourceHubId === '' || $recordId === null || $recordId === '') {
+                    continue;
+                }
+
+                $key = implode(':', [$sourceHubId, $kind, (string) $recordId]);
+                if (isset($seen[$key])) {
+                    continue;
+                }
+
+                $seen[$key] = true;
+                $item['source_hub_id'] = $sourceHubId;
+                $item['source_hub_name'] ??= $source['source_hub_name'] ?? null;
+                $item['deployment'] ??= $source['source_deployment'] ?? null;
+
+                $refs[] = $item;
+            }
+        }
+
+        usort($refs, static fn (array $a, array $b): int => [
+            (string) ($a['source_hub_id'] ?? ''),
+            (int) ($a['incident_id'] ?? 0),
+            (string) ($a['kind'] ?? ''),
+            (int) ($a['media_id'] ?? $a['attachment_id'] ?? 0),
+        ] <=> [
+            (string) ($b['source_hub_id'] ?? ''),
+            (int) ($b['incident_id'] ?? 0),
+            (string) ($b['kind'] ?? ''),
+            (int) ($b['media_id'] ?? $b['attachment_id'] ?? 0),
+        ]);
+
+        return $refs;
     }
 
     /**
