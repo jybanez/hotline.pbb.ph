@@ -255,8 +255,38 @@ class SupportRequestRelaySubmissionService
                 'section' => $supportRequest->sitrep_section,
             ],
             'gap' => $supportRequest->gap_json,
+            'resource' => $this->resource($supportRequest),
             'evidence_row' => $supportRequest->evidence_row_json,
             'incident_refs' => $supportRequest->incident_refs_json ?? [],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function resource(SupportRequest $supportRequest): ?array
+    {
+        $row = is_array($supportRequest->evidence_row_json) ? $supportRequest->evidence_row_json : [];
+        $resourceTypeId = (int) ($row['resource_type_id'] ?? 0);
+
+        if ($resourceTypeId <= 0) {
+            return null;
+        }
+
+        return [
+            'resource_type_id' => $resourceTypeId,
+            'resource_type_name' => is_scalar($row['resource_type_name'] ?? null) ? (string) $row['resource_type_name'] : null,
+            'resource_type_category_id' => is_numeric($row['resource_type_category_id'] ?? null) ? (int) $row['resource_type_category_id'] : null,
+            'resource_type_category_name' => is_scalar($row['resource_type_category_name'] ?? null) ? (string) $row['resource_type_category_name'] : null,
+            'quantity' => is_numeric($row['quantity'] ?? null) ? (int) $row['quantity'] : null,
+            'unit_label' => is_scalar($row['unit_label'] ?? null) ? (string) $row['unit_label'] : null,
+            'incident_ids' => array_values(array_filter(
+                array_map(
+                    fn (mixed $id): ?int => is_numeric($id) ? (int) $id : null,
+                    is_array($row['incident_ids'] ?? null) ? $row['incident_ids'] : []
+                ),
+                fn (?int $id): bool => $id !== null
+            )),
         ];
     }
 

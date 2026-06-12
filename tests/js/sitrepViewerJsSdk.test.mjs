@@ -162,6 +162,15 @@ try {
           type: 'road_access',
           category: 'Operational constraint',
           title: 'Road/access constraints may affect field movement',
+          resource_needs: [{
+            kind: 'resource_need',
+            resource_type_id: 12,
+            resource_type_name: 'Rescue Boat',
+            resource_type_category_id: 3,
+            resource_type_category_name: 'Rescue and Extraction',
+            quantity: 1,
+            unit_label: 'boat',
+          }],
           items: [{
             route_location: 'Main Road',
             status: 'limited',
@@ -172,6 +181,15 @@ try {
           type: 'population_verification',
           category: 'Data Confidence',
           title: 'Population figures require verification',
+          resource_needs: [{
+            kind: 'resource_need',
+            resource_type_id: 12,
+            resource_type_name: 'Rescue Boat',
+            resource_type_category_id: 3,
+            resource_type_category_name: 'Rescue and Extraction',
+            quantity: 1,
+            unit_label: 'boat',
+          }],
           evidence: '6 current population/life-safety records reported: People injured, Patient or injured person.',
         }],
       },
@@ -206,9 +224,13 @@ try {
         hasGap: Boolean(gap),
         sameRow: gap === row,
         evidenceRef,
+        gapType: gap?.type ?? null,
         resourceTypeId: row?.resource_type_id ?? null,
       });
-      return section === 'gaps' && row?.kind === 'resource_need' && Boolean(row?.resource_type_id);
+      return section === 'gaps'
+        && gap?.type === 'open_needs'
+        && row?.kind === 'resource_need'
+        && Boolean(row?.resource_type_id);
     };
     const noActionNode = api.renderSitrepSection(noActionSitrep, 'gaps', {
       layout: 'compact',

@@ -76,6 +76,12 @@ class SupportRequestController extends Controller
             ]);
         }
 
+        if (! $this->isResourceSupplyGap($gap)) {
+            throw ValidationException::withMessages([
+                'support_context' => 'Support Requests can only be created from the SITREP Resource supply gap.',
+            ]);
+        }
+
         $resourceTypeId = (int) ($row['resource_type_id'] ?? 0);
         if (($row['kind'] ?? null) !== 'resource_need'
             || $resourceTypeId <= 0
@@ -84,6 +90,14 @@ class SupportRequestController extends Controller
                 'support_context' => 'Support Requests can only be created from canonical SITREP resource evidence tied to a configured resource type.',
             ]);
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $gap
+     */
+    private function isResourceSupplyGap(array $gap): bool
+    {
+        return $this->text($gap['type'] ?? '') === 'open_needs';
     }
 
     /**

@@ -1764,9 +1764,16 @@ async function openCommandSupportRequestModal(context) {
 }
 
 function commandSupportActionApplies(context) {
+    const gap = context?.gap ?? {};
     const row = context?.row ?? {};
 
-    return row?.kind === 'resource_need' && Number.parseInt(row?.resource_type_id, 10) > 0;
+    return commandIsResourceSupplyGap(gap)
+        && row?.kind === 'resource_need'
+        && Number.parseInt(row?.resource_type_id, 10) > 0;
+}
+
+function commandIsResourceSupplyGap(gap) {
+    return String(gap?.type ?? '').trim().toLowerCase() === 'open_needs';
 }
 
 function commandEvidenceRowSummary(row) {

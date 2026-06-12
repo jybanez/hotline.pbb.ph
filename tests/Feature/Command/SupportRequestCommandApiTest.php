@@ -103,6 +103,13 @@ class SupportRequestCommandApiTest extends TestCase
                 && $request['payload']['request']['requested_assistance'] === 'Rescue and extraction support'
                 && $request['payload']['sitrep']['evidence_ref'] === 'gaps.open_needs.1'
                 && $request['payload']['gap']['title'] === 'Resource supply not confirmed'
+                && $request['payload']['resource']['resource_type_id'] > 0
+                && $request['payload']['resource']['resource_type_name'] === 'Rescue Team'
+                && $request['payload']['resource']['resource_type_category_id'] > 0
+                && $request['payload']['resource']['resource_type_category_name'] === 'Rescue and Extraction'
+                && $request['payload']['resource']['quantity'] === 2
+                && $request['payload']['resource']['unit_label'] === 'teams'
+                && $request['payload']['resource']['incident_ids'] === [234]
                 && $request['payload']['evidence_row']['category'] === 'Rescue and Extraction';
         });
     }
@@ -194,6 +201,54 @@ class SupportRequestCommandApiTest extends TestCase
                     'cleared' => false,
                 ],
             ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('support_context');
+
+        Http::assertNothingSent();
+        $this->assertDatabaseCount('support_requests', 0);
+        $this->assertDatabaseCount('support_request_histories', 0);
+    }
+
+    public function test_command_support_request_rejects_route_gap_with_crafted_resource_row(): void
+    {
+        $this->configureRelay();
+        $command = User::factory()->create(['role' => UserRole::Command]);
+        $sitrep = $this->createSitrep();
+        $payload = $this->payload($sitrep);
+        $payload['gap'] = [
+            'title' => 'Road/access constraints may affect field movement',
+            'category' => 'Operational constraint',
+            'type' => 'road_access',
+        ];
+
+        Http::fake();
+
+        $this->actingAs($command)
+            ->postJson('/api/command/support-requests', $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('support_context');
+
+        Http::assertNothingSent();
+        $this->assertDatabaseCount('support_requests', 0);
+        $this->assertDatabaseCount('support_request_histories', 0);
+    }
+
+    public function test_command_support_request_rejects_population_gap_with_crafted_resource_row(): void
+    {
+        $this->configureRelay();
+        $command = User::factory()->create(['role' => UserRole::Command]);
+        $sitrep = $this->createSitrep();
+        $payload = $this->payload($sitrep);
+        $payload['gap'] = [
+            'title' => 'Population figures require verification',
+            'category' => 'Data Confidence',
+            'type' => 'population_verification',
+        ];
+
+        Http::fake();
+
+        $this->actingAs($command)
+            ->postJson('/api/command/support-requests', $payload)
             ->assertUnprocessable()
             ->assertJsonValidationErrors('support_context');
 
