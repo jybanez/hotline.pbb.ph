@@ -263,6 +263,64 @@ class SitrepConsolidatorSdkTest extends TestCase
         $this->assertSame(10.33049, $province->sitrep['source_snapshot']['rollup']['incident_index'][0]['lat']);
     }
 
+    public function test_direct_and_multi_hop_consolidation_preserves_media_references(): void
+    {
+        $consolidator = new SitrepConsolidator();
+
+        $first = $this->sitrep(12, 'barangay', sequence: 1);
+        $first['source_snapshot']['media_refs'] = [[
+            'kind' => 'incident_media',
+            'source_hub_id' => '12',
+            'incident_id' => 101,
+            'incident_ref' => '#000101',
+            'media_id' => 501,
+            'type' => 'citizen_video',
+            'mime_type' => 'video/webm',
+            'original_filename' => 'flood.webm',
+            'created_at' => '2026-05-29T09:15:00+08:00',
+            'peer_role' => 'citizen',
+        ]];
+
+        $second = $this->sitrep(13, 'barangay', sequence: 2);
+        $second['source_snapshot']['media_refs'] = [[
+            'kind' => 'message_attachment',
+            'source_hub_id' => '13',
+            'incident_id' => 201,
+            'incident_ref' => '#000201',
+            'attachment_id' => 601,
+            'message_id' => 701,
+            'type' => 'image',
+            'mime_type' => 'image/jpeg',
+            'original_filename' => 'road.jpg',
+            'created_at' => '2026-05-29T09:20:00+08:00',
+            'uploader_role' => 'operator',
+        ]];
+
+        $direct = $consolidator->consolidate([$first, $second], [
+            'target_level' => 'city',
+            'target_hub_id' => '21',
+            'target_hub_name' => 'Cebu City, Cebu',
+        ]);
+
+        $this->assertTrue($direct->ok);
+        $directRefs = $direct->sitrep['source_snapshot']['rollup']['media_refs'];
+        $this->assertSame(['12:incident_media:501', '13:message_attachment:601'], $this->mediaRefKeys($direct->sitrep));
+        $this->assertSame('flood.webm', $directRefs[0]['original_filename']);
+        $this->assertSame('road.jpg', $directRefs[1]['original_filename']);
+        $this->assertSame('Hub 12', $directRefs[0]['source_hub_name']);
+        $this->assertSame('barangay', $directRefs[0]['deployment']);
+
+        $province = $consolidator->consolidate([$direct->sitrep], [
+            'target_level' => 'province',
+            'target_hub_id' => '72',
+            'target_hub_name' => 'Cebu Province',
+        ]);
+
+        $this->assertTrue($province->ok);
+        $this->assertSame($this->mediaRefKeys($direct->sitrep), $this->mediaRefKeys($province->sitrep));
+        $this->assertSame($directRefs, $province->sitrep['source_snapshot']['rollup']['media_refs']);
+    }
+
     public function test_multi_hop_consolidation_preserves_section_drilldown_items(): void
     {
         $consolidator = new SitrepConsolidator();
@@ -854,6 +912,21 @@ class SitrepConsolidatorSdkTest extends TestCase
         return array_values(array_map(
             static fn (array $item): string => (string) ($item['location']['name'] ?? ''),
             array_filter($sitrep[$section]['items'] ?? [], 'is_array'),
+        ));
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function mediaRefKeys(array $sitrep): array
+    {
+        return array_values(array_map(
+            static fn (array $row): string => implode(':', [
+                (string) ($row['source_hub_id'] ?? ''),
+                (string) ($row['kind'] ?? ''),
+                (string) ($row['media_id'] ?? $row['attachment_id'] ?? ''),
+            ]),
+            array_filter($sitrep['source_snapshot']['rollup']['media_refs'] ?? [], 'is_array'),
         ));
     }
 
