@@ -146,7 +146,18 @@ POST /api/internal/relay/support-request-updates
   - `closed`
 - Display Relay submission failure as delivery state, not Support rejection.
 
-## 7. Tests And Browser Smoke
+## 7. Media Evidence Integration
+
+- Keep media files out of `support.request` Relay payloads.
+- Use linked SITREP context and selected incident IDs to identify related media refs.
+- Treat `source_snapshot.rollup.media_refs[]` as the media discovery list.
+- Do not expose public `/storage/...` URLs as the integration contract.
+- Use the Hotline-owned media SDK/API for upstream media access once available.
+- Validate access with hub-to-hub / HQ token trust through the source Hotline hub.
+- Let upstream apps cache authorized media locally; Hotline should not dictate their cache path, retention, or UI.
+- Support Request UI may show media availability later, but media drill-down remains optional evidence context and must not block request submission.
+
+## 8. Tests And Browser Smoke
 
 - Feature/unit tests for request creation and validation.
 - Tests for explicit requestability rules.
