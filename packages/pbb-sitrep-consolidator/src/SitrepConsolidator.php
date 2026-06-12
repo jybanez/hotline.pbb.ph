@@ -1069,6 +1069,7 @@ final class SitrepConsolidator
                 $category = $this->text($gap['category'] ?? null, 'Reported Gap');
                 $key = strtolower($category.'|'.$title);
                 $groups[$key] ??= [
+                    'type' => $this->text($gap['type'] ?? null, ''),
                     'category' => $category,
                     'title' => $title,
                     'body' => $gap['body'] ?? '',
@@ -1077,11 +1078,27 @@ final class SitrepConsolidator
                     'confidence_note' => $gap['confidence_note'] ?? '',
                     'source_hubs' => [],
                     'items' => [],
+                    'resource_needs' => [],
                 ];
                 $groups[$key]['source_hubs'][] = $source['source_hub_name'];
 
                 if (($gap['evidence'] ?? '') !== '') {
                     $groups[$key]['evidence'] = trim($groups[$key]['evidence'].' '.$source['source_hub_name'].': '.$gap['evidence']);
+                }
+
+                if ($this->text($gap['type'] ?? null, '') === 'open_needs') {
+                    foreach (($gap['resource_needs'] ?? []) as $row) {
+                        if (! is_array($row)) {
+                            continue;
+                        }
+
+                        $row['source_hub_id'] = $source['source_hub_id'];
+                        $row['source_hub_name'] = $source['source_hub_name'];
+                        $row['source_deployment'] = $source['source_deployment'];
+                        $row['source_sequence_number'] = $source['sequence_number'];
+                        $row['location_name'] = $this->text($row['location_name'] ?? null, (string) $source['source_hub_name']);
+                        $groups[$key]['resource_needs'][] = $row;
+                    }
                 }
 
                 foreach (($gap['items'] ?? []) as $item) {
@@ -1099,6 +1116,12 @@ final class SitrepConsolidator
             'intro' => sprintf('This consolidated gap rollup groups repeated constraints across %d source hub%s while preserving route and source evidence.', count($normalized), count($normalized) === 1 ? '' : 's'),
             'items' => $this->sortedRows(array_values(array_map(function (array $group): array {
                 $group['source_hubs'] = array_values(array_unique($group['source_hubs']));
+                if (($group['type'] ?? '') === '') {
+                    unset($group['type']);
+                }
+                if ($group['resource_needs'] === []) {
+                    unset($group['resource_needs']);
+                }
                 if ($group['evidence'] === '') {
                     $group['evidence'] = sprintf('Reported by %d source hub%s.', count($group['source_hubs']), count($group['source_hubs']) === 1 ? '' : 's');
                 }
