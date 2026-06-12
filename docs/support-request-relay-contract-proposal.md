@@ -256,6 +256,29 @@ Resource support requests carry both an evidence scope and a request scope:
 
 The Support Request may include a compact SITREP reference and selected evidence row, but should not embed the full SITREP JSON. Support can drill down through the source Hotline or use separately relayed SITREP records when needed.
 
+## Media Evidence
+
+Support Requests should not embed photos, videos, message attachments, public `/storage/...` URLs, or full media payloads. Media remains owned by the source Hotline hub.
+
+SITREPs expose media discovery through `source_snapshot.rollup.media_refs[]`. Those refs are metadata only and identify related incident media or message attachments without exposing storage paths. A Support Request should rely on its linked SITREP, `evidence_scope.incident_ids`, and `request_scope.selected_incident_ids` to determine which media refs are relevant.
+
+First-pass behavior:
+
+- Hotline includes media refs in SITREP records for current active/deferred incidents.
+- Support receives the SITREP and Support Request as separate Relay messages.
+- Support uses the Hotline-owned media SDK/API to resolve and fetch media from the source Hotline hub.
+- Relay does not transport media files.
+- Support does not fetch public storage URLs directly.
+- Support may cache fetched media locally after authorization.
+
+Ownership boundary:
+
+- Hotline owns the media reference contract, source media API, hub-to-hub validation, and media SDK.
+- Support owns Support-side user authorization, cache storage location, retention/purge policy, and media gallery or planning UI.
+- Relay owns message transport only; it does not authorize individual media views and does not store media binaries for this flow.
+
+When Support displays request evidence, it should treat media as optional drill-down context. A missing or unavailable media ref should not invalidate the Support Request itself.
+
 ## Support Update Payload
 
 Support lifecycle update payload:
