@@ -1,0 +1,46 @@
+{
+  "schema_version": 2,
+  "sitrep": {
+    "id": 127,
+    "sequence_number": "0007",
+    "generated_at": "2026-06-13T04:00:00+08:00"
+  },
+  "source_snapshot": {
+    "rollup": {
+      "hub_node": {
+        "snapshot": {
+          "hub_id": "13",
+          "name": "Barangay Apas",
+          "domain": "hotline.pbb.ph",
+          "hotline_url": "https://hotline.pbb.ph"
+        }
+      },
+      "media_refs": [
+        {
+          "kind": "incident_media",
+          "source_hub_id": "13",
+          "incident_id": 593,
+          "incident_ref": "#000593",
+          "media_id": 501,
+          "type": "citizen_video",
+          "mime_type": "video/webm",
+          "original_filename": "flood-scene.webm",
+          "created_at": "2026-06-13T03:41:00+08:00"
+        },
+        {
+          "kind": "message_attachment",
+          "source_hub_id": "13",
+          "incident_id": 605,
+          "incident_ref": "#000605",
+          "message_id": 701,
+          "attachment_id": 601,
+          "type": "image",
+          "mime_type": "image/jpeg",
+          "original_filename": "road-access.jpg",
+          "created_at": "2026-06-13T03:45:00+08:00"
+        }
+      ]
+    }
+  }
+}
+

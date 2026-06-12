@@ -39,4 +39,10 @@ The PHP SDK lives in `packages/pbb-hotline-media-sdk` and is framework-light. It
 
 The resolver extracts media refs from direct, consolidated, and multi-hop SITREP payloads and maps source hub ids to Hotline base URLs where hub metadata is present. The client requests a manifest, downloads available items, and reports cache hit, download, and failure states with structured metadata.
 
+The SDK includes a source-only CLI demo at `packages/pbb-hotline-media-sdk/demo`. Start with dry-run mode to inspect a SITREP payload without requiring a token:
+
+```powershell
+C:\wamp64\bin\php\php8.2.29\php.exe packages\pbb-hotline-media-sdk\demo\resolve.php --dry-run
+```
+
 Upstream apps own local user authorization, cache location, retention policy, purge behavior, and UI presentation. Relay does not transport media bytes.
