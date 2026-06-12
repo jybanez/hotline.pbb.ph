@@ -145,8 +145,8 @@ try {
     document.body.append(actionHost);
     window.rowActionClicks = [];
     window.rowActionAppliesTo = [];
-    const actionSitrep = {
-      title: 'Action SITREP',
+    const noActionSitrep = {
+      title: 'Legacy Action SITREP',
       gaps: {
         items: [{
           type: 'open_needs',
@@ -158,11 +158,67 @@ try {
             quantity_requested: 4,
             resources: ['Rescue Boat'],
           }],
+        }, {
+          type: 'road_access',
+          category: 'Operational constraint',
+          title: 'Road/access constraints may affect field movement',
+          items: [{
+            route_location: 'Main Road',
+            status: 'limited',
+            obstruction_type: 'floodwater',
+            cleared: 'No',
+          }],
+        }, {
+          type: 'population_verification',
+          category: 'Data Confidence',
+          title: 'Population figures require verification',
+          evidence: '6 current population/life-safety records reported: People injured, Patient or injured person.',
         }],
       },
       needs: {},
     };
-    const noActionNode = api.renderSitrepSection(actionSitrep, 'gaps', { layout: 'compact' });
+    const actionSitrep = {
+      title: 'Action SITREP',
+      gaps: {
+        items: [{
+          type: 'open_needs',
+          category: 'Operational constraint',
+          title: 'Resource supply not confirmed',
+          decision_relevance: 'Leadership should request external support.',
+          resource_needs: [{
+            kind: 'resource_need',
+            resource_type_id: 12,
+            resource_type_name: 'Rescue Boat',
+            resource_type_category_id: 3,
+            resource_type_category_name: 'Rescue and Extraction',
+            quantity: 4,
+            unit_label: 'boats',
+            location_name: 'Barangay Guadalupe, Cebu City, Cebu',
+            incident_ids: [501, 504],
+          }],
+        }],
+      },
+      needs: {},
+    };
+    const actionPredicate = ({ section, gap, row, evidenceRef }) => {
+      window.rowActionAppliesTo.push({
+        section,
+        hasGap: Boolean(gap),
+        sameRow: gap === row,
+        evidenceRef,
+        resourceTypeId: row?.resource_type_id ?? null,
+      });
+      return section === 'gaps' && row?.kind === 'resource_need' && Boolean(row?.resource_type_id);
+    };
+    const noActionNode = api.renderSitrepSection(noActionSitrep, 'gaps', {
+      layout: 'compact',
+      rowActions: [{
+        id: 'request-support',
+        label: 'Request Support',
+        appliesTo: actionPredicate,
+        onClick: () => {},
+      }],
+    });
     const rowActionViewer = api.createSitrepViewer(actionHost, {
       sitrep: actionSitrep,
       section: 'gaps',
@@ -171,20 +227,13 @@ try {
         id: 'request-support',
         label: 'Request Support',
         title: 'Request outside support for this item',
-        appliesTo: ({ section, gap, row, evidenceRef }) => {
-          window.rowActionAppliesTo.push({
-            section,
-            hasGap: Boolean(gap),
-            sameRow: gap === row,
-            evidenceRef,
-          });
-          return section === 'gaps' && Boolean(gap);
-        },
+        appliesTo: actionPredicate,
         onClick: ({ section, gap, row, rowIndex, evidenceRef, sourceHubId, sourceRelayHubId, locationName, event }) => {
           window.rowActionClicks.push({
             section,
             gapTitle: gap?.title ?? null,
             rowCategory: row?.category ?? null,
+            resourceTypeId: row?.resource_type_id ?? null,
             rowIndex,
             sameRow: gap === row,
             evidenceRef,
@@ -391,6 +440,16 @@ try {
               quantity_requested: 17,
               resources: ['Body Harness', 'Rescue Boat'],
             }],
+            resource_needs: [{
+              kind: 'resource_need',
+              resource_type_id: 12,
+              resource_type_name: 'Rescue Boat',
+              resource_type_category_id: 3,
+              resource_type_category_name: 'Rescue and Extraction',
+              quantity: 17,
+              unit_label: 'units',
+              incident_ids: [501, 504],
+            }],
           }, {
             type: 'open_needs',
             category: 'Operational constraint',
@@ -401,6 +460,27 @@ try {
               'Barangay Guadalupe, Cebu City, Cebu',
               'Barangay Apas, Cebu City, Cebu',
             ],
+            resource_needs: [{
+              kind: 'resource_need',
+              resource_type_id: 12,
+              resource_type_name: 'Body Harness',
+              resource_type_category_id: 3,
+              resource_type_category_name: 'Rescue and Extraction',
+              quantity: 7,
+              unit_label: 'units',
+              location_name: 'Barangay Guadalupe, Cebu City, Cebu',
+              incident_ids: [501],
+            }, {
+              kind: 'resource_need',
+              resource_type_id: 13,
+              resource_type_name: 'Structural Assessment Team',
+              resource_type_category_id: 4,
+              resource_type_category_name: 'Search and Damage Assessment',
+              quantity: 8,
+              unit_label: 'units',
+              location_name: 'Barangay Apas, Cebu City, Cebu',
+              incident_ids: [504],
+            }],
           }],
         },
       },
@@ -525,16 +605,17 @@ try {
   assert.equal(result.rowActionResult.buttonCount > 0, true);
   assert.equal(result.rowActionResult.label, 'Request Support');
   assert.equal(result.rowActionResult.title, 'Request outside support for this item');
-  assert.equal(result.rowActionResult.appliesTo.some((item) => item.section === 'gaps' && item.hasGap && !item.sameRow && item.evidenceRef), true);
+  assert.equal(result.rowActionResult.appliesTo.some((item) => item.section === 'gaps' && item.hasGap && !item.sameRow && item.evidenceRef && item.resourceTypeId === 12), true);
   assert.equal(result.rowActionResult.clicks.length, 1);
   assert.equal(result.rowActionResult.clicks[0].section, 'gaps');
   assert.equal(result.rowActionResult.clicks[0].gapTitle, 'Resource supply not confirmed');
   assert.equal(result.rowActionResult.clicks[0].rowCategory, 'Rescue and Extraction');
+  assert.equal(result.rowActionResult.clicks[0].resourceTypeId, 12);
   assert.equal(result.rowActionResult.clicks[0].rowIndex, 0);
   assert.equal(result.rowActionResult.clicks[0].evidenceRef, 'gaps.evidence.1');
   assert.equal(result.rowActionResult.clicks[0].sourceHubId, null);
   assert.equal(result.rowActionResult.clicks[0].sourceRelayHubId, null);
-  assert.equal(result.rowActionResult.clicks[0].locationName, 'Current Location');
+  assert.equal(result.rowActionResult.clicks[0].locationName, 'Guadalupe, Cebu City, Cebu');
   assert.equal(result.rowActionResult.clicks[0].eventType, 'click');
   assert.equal(result.rowActionResult.hasActionsHeader, true);
   assert.equal(result.rowActionResult.noActionButtonCount, 0);
@@ -564,9 +645,9 @@ try {
   assert.ok(canonicalResult.singlePopulationEvidenceRows.some((row) => row.join('|') === 'Affected family|1|10|2 families; 1 displacement signal; Overall declared breakdown: 6 Children, 2 Pregnant'));
   assert.ok(!canonicalResult.singlePopulationEvidenceRows.some((row) => row.join('|').includes('Population/life-safety records')));
   assert.doesNotMatch(canonicalResult.singleGapsText, /Evidence 6 current population\/life-safety records reported/);
-  assert.ok(canonicalResult.directResourceEvidenceRows.some((row) => row.join('|') === 'Rescue and Extraction|17|Body Harness, Rescue Boat'));
-  assert.ok(canonicalResult.locationResourceEvidenceCards.some((card) => card.title === 'Guadalupe' && card.rows[0]?.join('|') === 'Rescue and Extraction|7|Body Harness'));
-  assert.ok(canonicalResult.locationResourceEvidenceCards.some((card) => card.title === 'Apas' && card.rows[1]?.join('|') === 'Search and Damage Assessment|8|Structural Assessment Team'));
+  assert.ok(canonicalResult.directResourceEvidenceRows.some((row) => row.join('|') === 'Rescue Boat|Rescue and Extraction|17 units'));
+  assert.ok(canonicalResult.locationResourceEvidenceCards.some((card) => card.title === 'Guadalupe' && card.rows[0]?.join('|') === 'Body Harness|Rescue and Extraction|7 units'));
+  assert.ok(canonicalResult.locationResourceEvidenceCards.some((card) => card.title === 'Apas' && card.rows[0]?.join('|') === 'Structural Assessment Team|Search and Damage Assessment|8 units'));
   assert.match(canonicalResult.text, /Closed and discarded reports are not current pressure/);
   assert.match(canonicalResult.text, /4 resolved reports were treated as addressed history/);
   assert.match(canonicalResult.text, /5 resolved reports were treated as addressed history/);

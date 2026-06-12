@@ -1764,46 +1764,19 @@ async function openCommandSupportRequestModal(context) {
 }
 
 function commandSupportActionApplies(context) {
-    const gap = context?.gap ?? {};
     const row = context?.row ?? {};
-    const category = String(gap.category ?? '').trim().toLowerCase();
 
-    if (category === 'data confidence') {
-        return false;
-    }
-
-    return isCommandResourceSupportContext(gap, row) || isCommandAccessSupportContext(gap, row);
-}
-
-function isCommandResourceSupportContext(gap, row) {
-    const gapType = String(gap?.type ?? '').trim().toLowerCase();
-    const title = String(gap?.title ?? '').trim().toLowerCase();
-
-    return gapType === 'open_needs'
-        || title.includes('resource supply')
-        || row?.quantity_requested != null
-        || row?.quantity != null
-        || Array.isArray(row?.resources);
-}
-
-function isCommandAccessSupportContext(gap, row) {
-    const title = String(gap?.title ?? '').trim().toLowerCase();
-    const category = String(gap?.category ?? '').trim().toLowerCase();
-
-    return Boolean(row?.route_location)
-        || Boolean(row?.obstruction_type)
-        || title.includes('route')
-        || title.includes('road')
-        || title.includes('access')
-        || category.includes('access');
+    return row?.kind === 'resource_need' && Number.parseInt(row?.resource_type_id, 10) > 0;
 }
 
 function commandEvidenceRowSummary(row) {
     const parts = [
-        row?.location ?? row?.source_hub_name ?? null,
-        row?.category ?? row?.route_location ?? row?.population_signal ?? null,
-        row?.quantity_requested != null ? `${row.quantity_requested} units` : null,
-        Array.isArray(row?.resources) ? row.resources.filter(Boolean).join(', ') : null,
+        row?.location_name ?? row?.location ?? row?.source_hub_name ?? null,
+        row?.resource_type_name ?? row?.resource ?? null,
+        row?.resource_type_category_name ?? row?.category ?? null,
+        row?.quantity_requested != null || row?.quantity != null
+            ? `${row.quantity_requested ?? row.quantity} ${row.unit_label ?? 'units'}`
+            : null,
         row?.status ?? null,
         row?.obstruction_type ?? null,
         row?.notes ?? row?.note ?? null,
@@ -1815,10 +1788,10 @@ function commandEvidenceRowSummary(row) {
 function commandDefaultRequestedAssistance(context) {
     const row = context?.row ?? {};
     const options = [
+        row?.resource_type_name,
         row?.resource,
         Array.isArray(row?.resources) ? row.resources.filter(Boolean).join(', ') : '',
         row?.category,
-        row?.route_location,
     ];
 
     return options.map((value) => String(value ?? '').trim()).find(Boolean) ?? '';
@@ -1837,7 +1810,7 @@ function commandDefaultSupportQuantityUnit(row) {
         return '';
     }
 
-    return row?.quantity_unit ? String(row.quantity_unit) : 'units';
+    return row?.quantity_unit ? String(row.quantity_unit) : (row?.unit_label ? String(row.unit_label) : 'units');
 }
 
 function commandRequesterIdentity() {
@@ -1874,7 +1847,7 @@ function buildCommandSupportRequestPayload(context, values = {}) {
 function commandRequestedCapability(context) {
     const row = context?.row ?? {};
     const gap = context?.gap ?? {};
-    const value = row?.category ?? row?.resource ?? gap?.title ?? null;
+    const value = row?.resource_type_name ?? row?.resource ?? gap?.title ?? null;
 
     return String(value ?? '').trim().slice(0, 120) || null;
 }
@@ -1892,7 +1865,9 @@ function commandSupportQuantityValue(value) {
 }
 
 function commandIncidentRefs(row) {
-    const refs = row?.incident_refs ?? row?.incidentRefs ?? [];
+    const refs = row?.incident_refs ?? row?.incidentRefs ?? (
+        Array.isArray(row?.incident_ids) ? row.incident_ids.map((id) => ({ id })) : []
+    );
 
     return Array.isArray(refs) ? refs : [];
 }

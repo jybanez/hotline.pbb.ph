@@ -501,7 +501,10 @@ final class SitrepDocumentRenderer
         $evidence = trim((string) ($gap['evidence'] ?? ''));
         $sourceHubs = array_values(array_filter((array) ($gap['source_hubs'] ?? []), 'is_scalar'));
         if ($this->isResourceSupplyGap($gap)) {
-            $groups = $this->resourceEvidenceGroups($gap, $needs, $targetName);
+            $groups = $this->canonicalResourceEvidenceGroups($gap, $targetName);
+            if ($groups === []) {
+                $groups = $this->resourceEvidenceGroups($gap, $needs, $targetName);
+            }
             if ($groups !== []) {
                 return $this->resourceEvidenceCards($groups);
             }
@@ -918,6 +921,41 @@ final class SitrepDocumentRenderer
         }
 
         return $groups;
+    }
+
+    /**
+     * @param array<string, mixed> $gap
+     * @return array<int, array{location: string, headers: array<int, string>, rows: array<int, array<int, mixed>>}>
+     */
+    private function canonicalResourceEvidenceGroups(array $gap, ?string $targetName): array
+    {
+        $items = array_values(array_filter($gap['resource_needs'] ?? [], 'is_array'));
+        if ($items === []) {
+            return [];
+        }
+
+        $groups = [];
+        foreach ($items as $item) {
+            if (($item['kind'] ?? null) !== 'resource_need' || empty($item['resource_type_id'])) {
+                continue;
+            }
+
+            $location = $this->shortLocation((string) ($item['location_name'] ?? $item['source_hub_name'] ?? 'Current Location'), $targetName);
+            $groups[$location] ??= [
+                'location' => $location,
+                'headers' => ['Resource', 'Category', 'Quantity'],
+                'rows' => [],
+            ];
+            $quantity = trim((string) ($item['quantity'] ?? $item['quantity_requested'] ?? 0));
+            $unit = trim((string) ($item['unit_label'] ?? ''));
+            $groups[$location]['rows'][] = [
+                $item['resource_type_name'] ?? $item['resource'] ?? 'Resource',
+                $item['resource_type_category_name'] ?? $item['category'] ?? 'Uncategorized',
+                trim($quantity.' '.$unit),
+            ];
+        }
+
+        return array_values(array_filter($groups, fn (array $group): bool => $group['rows'] !== []));
     }
 
     /**
