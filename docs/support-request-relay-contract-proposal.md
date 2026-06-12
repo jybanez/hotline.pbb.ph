@@ -195,7 +195,15 @@ First-pass payload:
     "requested_capability": "rescue_and_extraction",
     "quantity": 2,
     "quantity_unit": "teams",
-    "staging_notes": "Stage near Barangay Hall. Main road blocked; use alternate route.",
+    "justification_codes": [
+      "local_resources_insufficient",
+      "specialized_capability_required"
+    ],
+    "justification_labels": [
+      "Local resources insufficient",
+      "Specialized capability required"
+    ],
+    "staging_notes": null,
     "command_notes": "Local team capacity exceeded by active incidents.",
     "requested_at": "2026-06-10T08:30:00+08:00"
   },
@@ -236,6 +244,15 @@ First-pass payload:
   ]
 }
 ```
+
+`justification_codes` are stable metric keys selected by the Command user from a pre-defined checklist. `command_notes` remains optional free text for context that does not fit the checklist. `staging_notes` remains in the payload for compatibility, but Hotline's first Command UI no longer asks for it because route/access constraints should already be represented in the SITREP evidence selected for the request.
+
+Resource support requests carry both an evidence scope and a request scope:
+
+- `evidence_scope.incident_ids` is the full set of incident IDs carried by the selected SITREP resource evidence row.
+- `request_scope.selected_incident_ids` is the Command user's selected subset for this request. If Command leaves the selector untouched, Hotline defaults this to the full evidence scope.
+- `request_scope.quantity_note` explicitly states that the requested quantity is manually set by Command and may not equal selected incident count. Hotline must not auto-compute quantity from incidents because scarce resources may be assigned across multiple incidents.
+- `support_context` repeats the compact resource, evidence scope, and request scope context for downstream consumers that need a self-contained operational payload.
 
 The Support Request may include a compact SITREP reference and selected evidence row, but should not embed the full SITREP JSON. Support can drill down through the source Hotline or use separately relayed SITREP records when needed.
 

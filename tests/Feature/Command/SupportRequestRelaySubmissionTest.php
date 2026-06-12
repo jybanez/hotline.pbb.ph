@@ -45,6 +45,8 @@ class SupportRequestRelaySubmissionTest extends TestCase
             'sitrep_report_id' => $sitrep->id,
             'sitrep_evidence_ref' => 'gaps.resource_supply.1',
         ]);
+        $this->assertSame(['local_resources_insufficient'], $supportRequest->justification_codes);
+        $this->assertSame(['Local resources insufficient'], $supportRequest->justification_labels);
 
         $this->assertDatabaseHas('support_request_histories', [
             'support_request_id' => $supportRequest->id,
@@ -104,12 +106,17 @@ class SupportRequestRelaySubmissionTest extends TestCase
                 && $payload['schema_version'] === 1
                 && $payload['request']['local_request_id'] === $supportRequest->local_request_id
                 && $payload['request']['requested_assistance'] === 'Rescue and extraction support'
+                && $payload['request']['justification_codes'] === ['local_resources_insufficient']
+                && $payload['request']['justification_labels'] === ['Local resources insufficient']
                 && $payload['source']['system'] === 'hotline.command'
                 && $payload['source']['relay_hub_id'] === '072217029'
                 && $payload['requester']['display_name'] === 'Command User'
                 && $payload['sitrep']['sequence_number'] === '0054'
                 && $payload['gap']['title'] === 'Resource supply not confirmed'
                 && $payload['evidence_row']['category'] === 'Rescue and Extraction'
+                && $payload['evidence_scope']['incident_ids'] === [234, 235]
+                && $payload['request_scope']['selected_incident_ids'] === [234]
+                && $payload['support_context']['request_scope']['selected_incident_ids'] === [234]
                 && $payload['incident_refs'] === [[
                     'id' => 234,
                     'public_code' => 'A000234',
@@ -246,7 +253,8 @@ class SupportRequestRelaySubmissionTest extends TestCase
             'requested_capability' => 'rescue_and_extraction',
             'quantity' => 2,
             'quantity_unit' => 'teams',
-            'staging_notes' => 'Stage near Barangay Hall. Main road blocked; use alternate route.',
+            'justification_codes' => ['local_resources_insufficient'],
+            'justification_labels' => ['Local resources insufficient'],
             'command_notes' => 'Local team capacity exceeded by active incidents.',
             'gap' => [
                 'title' => 'Resource supply not confirmed',
@@ -254,15 +262,27 @@ class SupportRequestRelaySubmissionTest extends TestCase
                 'type' => 'open_needs',
             ],
             'evidence_row' => [
+                'kind' => 'resource_need',
+                'resource_type_id' => 10,
+                'resource_type_name' => 'Rescue Team',
+                'resource_type_category_id' => 3,
+                'resource_type_category_name' => 'Rescue and Extraction',
                 'category' => 'Rescue and Extraction',
                 'quantity' => 2,
+                'unit_label' => 'teams',
                 'resources' => 'Rescue Team',
                 'location_name' => 'Guadalupe',
+                'incident_ids' => [234, 235],
             ],
             'incident_refs' => [[
                 'id' => 234,
                 'public_code' => 'A000234',
             ]],
+            'selected_incident_ids' => [234],
+            'support_context' => [
+                'evidence_scope' => ['incident_ids' => [234, 235]],
+                'request_scope' => ['selected_incident_ids' => [234]],
+            ],
         ];
     }
 }

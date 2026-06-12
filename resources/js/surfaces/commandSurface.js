@@ -28,6 +28,16 @@ const COMMAND_INCIDENTS_URL = '/api/command/incidents';
 const COMMAND_BROADCASTS_URL = '/api/command/broadcasts';
 const COMMAND_ALERT_LEVEL_URL = '/api/command/alert-level';
 const COMMAND_SUPPORT_REQUESTS_URL = '/api/command/support-requests';
+const COMMAND_SUPPORT_JUSTIFICATIONS = [
+    { code: 'local_resources_unavailable', label: 'Local resources unavailable' },
+    { code: 'local_resources_insufficient', label: 'Local resources insufficient' },
+    { code: 'specialized_capability_required', label: 'Specialized capability required' },
+    { code: 'urgent_life_safety_need', label: 'Urgent life-safety need' },
+    { code: 'access_or_route_support_required', label: 'Access or route support required' },
+    { code: 'inter_agency_coordination_needed', label: 'Inter-agency coordination needed' },
+    { code: 'sustained_operation_relief_rotation_needed', label: 'Sustained operation / relief rotation needed' },
+    { code: 'verification_or_assessment_support_needed', label: 'Verification or assessment support needed' },
+];
 const CALL_DISCOVERY_ROOM = 'presence.global.hotline';
 const INCIDENT_UPDATE_EVENT = 'hotline.incident.updated';
 const COMMAND_REALTIME_RECONNECT_MIN_MS = 1000;
@@ -1610,76 +1620,37 @@ async function openCommandSupportRequestModal(context) {
         return;
     }
 
-    const gap = context?.gap ?? {};
     const row = context?.row ?? {};
-    const sitrep = context?.sitrep ?? {};
-    const title = String(gap.title ?? 'SITREP gap').trim() || 'SITREP gap';
-    const category = String(gap.category ?? '').trim();
-    const evidenceSummary = commandEvidenceRowSummary(row);
+    const requestedAssistance = commandDefaultRequestedAssistance(context);
     const requester = commandRequesterIdentity();
+    const incidentContexts = commandSupportIncidentContexts(context);
+    const justificationInitialValues = Object.fromEntries(
+        COMMAND_SUPPORT_JUSTIFICATIONS.map((option) => [`justification_${option.code}`, false]),
+    );
+    const incidentInitialValues = Object.fromEntries(
+        incidentContexts.map((incident) => [`incident_${incident.id}`, true]),
+    );
     const modal = appState.helper.createFormModal({
         title: 'Request Support',
+        className: 'command-support-request-modal',
         submitLabel: 'Submit Request',
         busyMessage: 'Submitting support request...',
         initialValues: {
-            sitrep_ref: sitrep?.sequence_number ? `${formatSitrepNumber(sitrep.sequence_number)} / record ${formatSitrepRecordNumber(sitrep.id)}` : `Record ${sitrep?.id ?? 'unknown'}`,
-            gap_ref: category ? `${title} / ${category}` : title,
-            evidence_row: evidenceSummary,
-            requested_assistance: commandDefaultRequestedAssistance(context),
+            ...justificationInitialValues,
+            ...incidentInitialValues,
+            requested_assistance: requestedAssistance,
             quantity: commandDefaultSupportQuantity(row),
             quantity_unit: commandDefaultSupportQuantityUnit(row),
             priority: normalizeCommandAlertLevel(appState.bootstrap?.alert_level) === 'Critical' ? 'urgent' : 'normal',
-            staging_notes: '',
             command_notes: '',
             requested_by: requester.name ? `${requester.name}${requester.id ? ` (#${requester.id})` : ''}` : 'Current command user',
         },
         rows: [
             [
                 {
-                    type: 'input',
-                    name: 'sitrep_ref',
-                    label: 'Source SITREP',
-                    readOnly: true,
-                },
-            ],
-            [
-                {
-                    type: 'input',
-                    name: 'gap_ref',
-                    label: 'Gap',
-                    readOnly: true,
-                },
-            ],
-            [
-                {
-                    type: 'textarea',
-                    name: 'evidence_row',
-                    label: 'Evidence Row',
-                    readOnly: true,
-                    rows: 3,
-                },
-            ],
-            [
-                {
-                    type: 'input',
-                    name: 'requested_assistance',
-                    label: 'Requested Assistance / Capability',
-                    required: true,
-                    maxlength: 160,
-                },
-                {
-                    type: 'input',
-                    name: 'quantity',
-                    label: 'Quantity',
-                    placeholder: 'Optional',
-                    maxlength: 40,
-                },
-                {
-                    type: 'input',
-                    name: 'quantity_unit',
-                    label: 'Unit',
-                    placeholder: 'teams, units, packs',
-                    maxlength: 40,
+                    type: 'text',
+                    content: requestedAssistance || 'Selected support request',
+                    rowClassName: 'command-support-request-title',
                 },
             ],
             [
@@ -1693,15 +1664,30 @@ async function openCommandSupportRequestModal(context) {
                         { value: 'urgent', label: 'Urgent' },
                     ],
                 },
+                {
+                    type: 'number-stepper',
+                    name: 'quantity',
+                    label: 'Quantity',
+                    min: 0,
+                    step: 1,
+                    decimals: 0,
+                    allowEmpty: true,
+                },
             ],
             [
                 {
-                    type: 'textarea',
-                    name: 'staging_notes',
-                    label: 'Staging / Access / Logistics Notes',
-                    maxlength: 2000,
+                    type: 'hidden',
+                    name: 'quantity_unit',
                 },
             ],
+            ...commandSupportIncidentRows(incidentContexts),
+            [
+                {
+                    type: 'divider',
+                    label: 'Justification',
+                },
+            ],
+            ...commandSupportJustificationRows(),
             [
                 {
                     type: 'textarea',
@@ -1710,30 +1696,35 @@ async function openCommandSupportRequestModal(context) {
                     maxlength: 2000,
                 },
             ],
-            [
-                {
-                    type: 'input',
-                    name: 'requested_by',
-                    label: 'Requester / Approver',
-                    readOnly: true,
-                },
-            ],
         ],
         async onSubmit(values, modalContext) {
-            if (!String(values?.requested_assistance ?? '').trim()) {
-                modalContext?.setErrors?.({
-                    requested_assistance: 'Enter the requested assistance or capability.',
-                });
+            if (!requestedAssistance) {
+                modalContext?.setFormError?.('The selected evidence row does not identify a requested assistance item.');
+                return false;
+            }
+
+            const selectedIncidentIds = commandSelectedSupportIncidentIds(values, incidentContexts);
+            if (incidentContexts.length > 0 && selectedIncidentIds.length === 0) {
+                modalContext?.setFormError?.('Select at least one incident for the support request scope.');
+                return false;
+            }
+
+            const justifications = commandSelectedSupportJustifications(values);
+            if (justifications.length === 0) {
+                modalContext?.setFormError?.('Select at least one justification for the support request.');
                 return false;
             }
 
             const payload = buildCommandSupportRequestPayload(context, {
-                requested_assistance: values.requested_assistance,
+                requested_assistance: requestedAssistance,
                 quantity: values.quantity,
                 quantity_unit: values.quantity_unit,
                 urgency: values.priority,
-                staging_notes: values.staging_notes,
+                justification_codes: justifications.map((option) => option.code),
+                justification_labels: justifications.map((option) => option.label),
                 command_notes: values.command_notes,
+                selected_incident_ids: selectedIncidentIds,
+                support_context: buildCommandSupportContext(context, selectedIncidentIds),
             });
 
             try {
@@ -1761,6 +1752,55 @@ async function openCommandSupportRequestModal(context) {
 
     trackSurfaceInstance(modal);
     await modal.open();
+}
+
+function commandSupportIncidentRows(incidentContexts = []) {
+    if (!incidentContexts.length) {
+        return [];
+    }
+
+    return [
+        [
+            {
+                type: 'divider',
+                label: 'Incidents to Address',
+            },
+        ],
+        [
+            {
+                type: 'text',
+                content: 'Select the incidents this request should cover. Quantity remains a Command decision and will not auto-change.',
+                rowClassName: 'command-support-request-note',
+            },
+        ],
+        ...incidentContexts.map((incident) => [
+            {
+                type: 'checkbox',
+                name: `incident_${incident.id}`,
+                label: commandSupportIncidentLabel(incident),
+            },
+        ]),
+    ];
+}
+
+function commandSelectedSupportIncidentIds(values = {}, incidentContexts = []) {
+    return incidentContexts
+        .filter((incident) => Boolean(values[`incident_${incident.id}`]))
+        .map((incident) => incident.id);
+}
+
+function commandSupportJustificationRows() {
+    return COMMAND_SUPPORT_JUSTIFICATIONS.map((option) => [
+        {
+            type: 'checkbox',
+            name: `justification_${option.code}`,
+            label: option.label,
+        },
+    ]);
+}
+
+function commandSelectedSupportJustifications(values = {}) {
+    return COMMAND_SUPPORT_JUSTIFICATIONS.filter((option) => Boolean(values[`justification_${option.code}`]));
 }
 
 function commandSupportActionApplies(context) {
@@ -1829,6 +1869,98 @@ function commandRequesterIdentity() {
     };
 }
 
+function commandSupportIncidentContexts(context) {
+    const row = context?.row ?? {};
+    const incidentIds = commandResourceIncidentIds(row);
+    const incidentIndex = commandSitrepIncidentIndex(context?.sitrep);
+    const rowIncidents = new Map(
+        (Array.isArray(row?.incidents) ? row.incidents : [])
+            .map((incident) => [Number.parseInt(incident?.incident_id ?? incident?.id, 10), incident])
+            .filter(([id]) => Number.isFinite(id)),
+    );
+
+    return incidentIds.map((id) => {
+        const rowIncident = rowIncidents.get(id) ?? {};
+        const indexed = incidentIndex.get(id) ?? {};
+        const population = commandRowsForIncident(row?.population, id);
+        const routes = commandRowsForIncident(row?.routes, id);
+
+        return {
+            id,
+            ref: rowIncident?.incident_ref ?? indexed?.incident_ref ?? `#${String(id).padStart(6, '0')}`,
+            incident_types: Array.isArray(rowIncident?.incident_types) ? rowIncident.incident_types : [],
+            location: rowIncident?.location ?? indexed?.source_hub_name ?? row?.location_name ?? row?.source_hub_name ?? '',
+            population,
+            routes,
+        };
+    });
+}
+
+function commandResourceIncidentIds(row) {
+    return Array.isArray(row?.incident_ids)
+        ? [...new Set(row.incident_ids.map((id) => Number.parseInt(id, 10)).filter(Number.isFinite))]
+        : [];
+}
+
+function commandSitrepIncidentIndex(sitrep) {
+    const rows = sitrep?.source_snapshot?.rollup?.incident_index ?? sitrep?.source_snapshot?.incident_index ?? [];
+    const map = new Map();
+
+    (Array.isArray(rows) ? rows : []).forEach((row) => {
+        const id = Number.parseInt(row?.incident_id ?? row?.id, 10);
+        if (Number.isFinite(id)) {
+            map.set(id, row);
+        }
+    });
+
+    return map;
+}
+
+function commandRowsForIncident(rows, incidentId) {
+    return (Array.isArray(rows) ? rows : []).filter((row) => (
+        Array.isArray(row?.incident_ids)
+            ? row.incident_ids.map((id) => Number.parseInt(id, 10)).includes(incidentId)
+            : Number.parseInt(row?.incident_id, 10) === incidentId
+    ));
+}
+
+function commandSupportIncidentLabel(incident) {
+    const pieces = [
+        incident.ref,
+        Array.isArray(incident.incident_types) && incident.incident_types.length
+            ? incident.incident_types.join(', ')
+            : null,
+        commandSupportPopulationSummary(incident.population),
+        commandSupportRouteSummary(incident.routes),
+    ];
+
+    return pieces.map((piece) => String(piece ?? '').trim()).filter(Boolean).join(' - ');
+}
+
+function commandSupportPopulationSummary(rows = []) {
+    const parts = rows.map((row) => {
+        const signal = String(row?.signal ?? row?.label ?? '').trim();
+        const people = Number.parseInt(row?.people ?? row?.reports, 10);
+        const count = Number.isFinite(people) && people > 0 ? `${people} people` : '';
+
+        return [signal, count].filter(Boolean).join(': ');
+    }).filter(Boolean);
+
+    return parts.length ? `For ${parts.join('; ')}` : '';
+}
+
+function commandSupportRouteSummary(rows = []) {
+    const parts = rows.map((row) => {
+        const route = String(row?.route_location ?? '').trim();
+        const status = String(row?.status ?? '').trim();
+        const obstruction = String(row?.obstruction_type ?? '').trim();
+
+        return [route, [status, obstruction].filter(Boolean).join(', ')].filter(Boolean).join(' ');
+    }).filter(Boolean);
+
+    return parts.length ? `Access: ${parts.join('; ')}` : '';
+}
+
 function buildCommandSupportRequestPayload(context, values = {}) {
     const sitrep = context?.sitrep ?? {};
     const gap = context?.gap ?? {};
@@ -1836,6 +1968,7 @@ function buildCommandSupportRequestPayload(context, values = {}) {
 
     return {
         sitrep_report_id: sitrep?.id ?? null,
+        sitrep_ref: formatSitrepRecordNumber(sitrep.id),
         sitrep_section: context?.section ?? 'gaps',
         sitrep_evidence_ref: context?.evidenceRef ?? null,
         gap,
@@ -1845,9 +1978,44 @@ function buildCommandSupportRequestPayload(context, values = {}) {
         quantity: commandSupportQuantityValue(values.quantity),
         quantity_unit: String(values.quantity_unit ?? '').trim() || null,
         urgency: String(values.urgency ?? 'normal').trim() || 'normal',
-        staging_notes: String(values.staging_notes ?? '').trim(),
+        justification_codes: Array.isArray(values.justification_codes) ? values.justification_codes : [],
+        justification_labels: Array.isArray(values.justification_labels) ? values.justification_labels : [],
         command_notes: String(values.command_notes ?? '').trim(),
         incident_refs: commandIncidentRefs(row),
+        selected_incident_ids: Array.isArray(values.selected_incident_ids) ? values.selected_incident_ids : [],
+        support_context: values.support_context && typeof values.support_context === 'object' ? values.support_context : {},
+    };
+}
+
+function buildCommandSupportContext(context, selectedIncidentIds = []) {
+    const row = context?.row ?? {};
+    const selected = new Set(selectedIncidentIds.map((id) => Number.parseInt(id, 10)).filter(Number.isFinite));
+    const allIncidentIds = commandResourceIncidentIds(row);
+    const incidents = commandSupportIncidentContexts(context).filter((incident) => selected.has(incident.id));
+
+    return {
+        resource: {
+            resource_type_id: Number.parseInt(row?.resource_type_id, 10) || null,
+            resource_type_name: row?.resource_type_name ?? row?.resource ?? null,
+            resource_type_category_id: Number.parseInt(row?.resource_type_category_id, 10) || null,
+            resource_type_category_name: row?.resource_type_category_name ?? row?.category ?? null,
+            evidence_quantity: Number.parseInt(row?.quantity ?? row?.quantity_requested, 10) || null,
+            unit_label: row?.unit_label ?? row?.quantity_unit ?? null,
+        },
+        evidence_scope: {
+            incident_ids: allIncidentIds,
+            population: Array.isArray(row?.population) ? row.population : [],
+            routes: Array.isArray(row?.routes) ? row.routes : [],
+        },
+        request_scope: {
+            selected_incident_ids: selectedIncidentIds,
+            quantity_note: 'Quantity is manually set by Command and may not equal selected incident count.',
+            incidents,
+        },
+        derived_from: {
+            section: context?.section ?? 'gaps',
+            evidence_ref: context?.evidenceRef ?? null,
+        },
     };
 }
 

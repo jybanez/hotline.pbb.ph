@@ -266,6 +266,7 @@ try {
           window.rowActionClicks.push({
             section,
             gapTitle: gap?.title ?? null,
+            rowResource: row?.resource ?? null,
             rowCategory: row?.category ?? null,
             resourceTypeId: row?.resource_type_id ?? null,
             rowIndex,
@@ -643,6 +644,7 @@ try {
   assert.equal(result.rowActionResult.clicks.length, 1);
   assert.equal(result.rowActionResult.clicks[0].section, 'gaps');
   assert.equal(result.rowActionResult.clicks[0].gapTitle, 'Resource supply not confirmed');
+  assert.equal(result.rowActionResult.clicks[0].rowResource, 'Rescue Boat');
   assert.equal(result.rowActionResult.clicks[0].rowCategory, 'Rescue and Extraction');
   assert.equal(result.rowActionResult.clicks[0].resourceTypeId, 12);
   assert.equal(result.rowActionResult.clicks[0].rowIndex, 0);

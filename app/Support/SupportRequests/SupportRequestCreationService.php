@@ -38,6 +38,8 @@ class SupportRequestCreationService
                 'requested_capability' => $this->clean($attributes['requested_capability'] ?? null),
                 'quantity' => $this->nullableInt($attributes['quantity'] ?? null),
                 'quantity_unit' => $this->clean($attributes['quantity_unit'] ?? null),
+                'justification_codes' => $this->stringList($attributes['justification_codes'] ?? []),
+                'justification_labels' => $this->stringList($attributes['justification_labels'] ?? []),
                 'staging_notes' => $this->clean($attributes['staging_notes'] ?? null),
                 'command_notes' => $this->clean($attributes['command_notes'] ?? null),
                 'requester_user_id' => $requester?->id,
@@ -56,6 +58,8 @@ class SupportRequestCreationService
                 'gap_json' => $this->arrayOrNull($attributes['gap'] ?? null),
                 'evidence_row_json' => $this->arrayOrNull($attributes['evidence_row'] ?? null),
                 'incident_refs_json' => $this->arrayOrNull($attributes['incident_refs'] ?? null) ?? [],
+                'selected_incident_ids_json' => $this->intList($attributes['selected_incident_ids'] ?? []),
+                'support_context_json' => $this->arrayOrNull($attributes['support_context'] ?? null) ?? [],
                 'requested_at' => $requestedAt,
             ]);
 
@@ -68,6 +72,7 @@ class SupportRequestCreationService
                 'payload_json' => [
                     'local_request_id' => $supportRequest->local_request_id,
                     'correlation_id' => $supportRequest->correlation_id,
+                    'selected_incident_ids' => $supportRequest->selected_incident_ids_json ?? [],
                 ],
                 'occurred_at' => $requestedAt,
             ]);
@@ -162,5 +167,35 @@ class SupportRequestCreationService
     private function arrayOrNull(mixed $value): ?array
     {
         return is_array($value) ? $value : null;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function stringList(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        return array_values(array_filter(array_unique(array_map(
+            fn (mixed $item): string => trim(is_scalar($item) ? (string) $item : ''),
+            $value,
+        )), fn (string $item): bool => $item !== ''));
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function intList(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        return array_values(array_unique(array_filter(array_map(
+            fn (mixed $item): ?int => is_numeric($item) ? (int) $item : null,
+            $value,
+        ), fn (?int $item): bool => $item !== null)));
     }
 }
