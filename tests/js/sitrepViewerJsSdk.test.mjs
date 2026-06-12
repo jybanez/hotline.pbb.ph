@@ -69,8 +69,20 @@ try {
     const altered = {
       ...sitrep,
       title: 'Second SITREP',
+      summary: {
+        ...sitrep.summary,
+        rollup: {
+          ...sitrep.summary?.rollup,
+          executive_assessment: '<script>alert(1)</script>',
+        },
+      },
       situation: {
         ...sitrep.situation,
+        rollup: {
+          ...sitrep.situation?.rollup,
+          narrative: '<script>alert(1)</script>',
+          executive_assessment: '<script>alert(1)</script>',
+        },
         narrative: '<script>alert(1)</script>',
         executive_assessment: '<script>alert(1)</script>',
       },
