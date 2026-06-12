@@ -95,6 +95,20 @@ class SitrepMediaController extends Controller
             ], 404);
         }
 
+        $missingContext = $this->missingDownloadContext($request, $kind);
+        if ($missingContext !== null) {
+            $this->logAccess('download_missing_context', $request, [
+                'kind' => $kind,
+                'id' => $id,
+                'reason' => $missingContext,
+            ]);
+
+            return response()->json([
+                'ok' => false,
+                'message' => $missingContext,
+            ], 422);
+        }
+
         $ref = [
             'kind' => $kind,
             $kind === 'message_attachment' ? 'attachment_id' : 'media_id' => $id,
@@ -310,6 +324,19 @@ class SitrepMediaController extends Controller
         $query = http_build_query(array_filter($context, static fn ($value): bool => $value !== null && $value !== ''));
 
         return url(sprintf('/api/internal/sitrep/media/%s/%d', $kind, $id)).($query !== '' ? '?'.$query : '');
+    }
+
+    private function missingDownloadContext(Request $request, string $kind): ?string
+    {
+        if (! $request->filled('incident_id')) {
+            return 'missing_incident_context';
+        }
+
+        if ($kind === 'message_attachment' && ! $request->filled('message_id')) {
+            return 'missing_message_context';
+        }
+
+        return null;
     }
 
     /**

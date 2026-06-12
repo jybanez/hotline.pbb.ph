@@ -92,16 +92,46 @@ class SitrepMediaAccessTest extends TestCase
         $this->assertSame('incident-media-bytes', $response->streamedContent());
     }
 
+    public function test_download_rejects_authorized_incident_media_without_incident_context(): void
+    {
+        [, $mediaId] = $this->seedMediaFixture();
+
+        $this->getJson('/api/internal/sitrep/media/incident_media/'.$mediaId, $this->headers())
+            ->assertUnprocessable()
+            ->assertJsonPath('ok', false)
+            ->assertJsonPath('message', 'missing_incident_context');
+    }
+
     public function test_download_returns_message_attachment_for_authorized_caller(): void
     {
-        [$incidentId, , $attachmentId] = $this->seedMediaFixture();
+        [$incidentId, , $attachmentId, $messageId] = $this->seedMediaFixture();
 
-        $response = $this->get('/api/internal/sitrep/media/message_attachment/'.$attachmentId.'?incident_id='.$incidentId, $this->headers());
+        $response = $this->get('/api/internal/sitrep/media/message_attachment/'.$attachmentId.'?incident_id='.$incidentId.'&message_id='.$messageId, $this->headers());
 
         $response
             ->assertOk()
             ->assertHeader('X-Hotline-Sitrep-Media-Kind', 'message_attachment');
         $this->assertSame('attachment-bytes', $response->streamedContent());
+    }
+
+    public function test_download_rejects_authorized_message_attachment_without_context(): void
+    {
+        [, , $attachmentId] = $this->seedMediaFixture();
+
+        $this->getJson('/api/internal/sitrep/media/message_attachment/'.$attachmentId, $this->headers())
+            ->assertUnprocessable()
+            ->assertJsonPath('ok', false)
+            ->assertJsonPath('message', 'missing_incident_context');
+    }
+
+    public function test_download_rejects_authorized_message_attachment_without_message_context(): void
+    {
+        [$incidentId, , $attachmentId] = $this->seedMediaFixture();
+
+        $this->getJson('/api/internal/sitrep/media/message_attachment/'.$attachmentId.'?incident_id='.$incidentId, $this->headers())
+            ->assertUnprocessable()
+            ->assertJsonPath('ok', false)
+            ->assertJsonPath('message', 'missing_message_context');
     }
 
     public function test_download_rejects_unauthorized_caller(): void
@@ -123,7 +153,7 @@ class SitrepMediaAccessTest extends TestCase
     }
 
     /**
-     * @return array{0:int,1:int,2:int}
+     * @return array{0:int,1:int,2:int,3:int}
      */
     private function seedMediaFixture(): array
     {
@@ -183,7 +213,7 @@ class SitrepMediaAccessTest extends TestCase
             'created_at' => now(),
         ]);
 
-        return [$incidentId, $mediaId, $attachmentId];
+        return [$incidentId, $mediaId, $attachmentId, $messageId];
     }
 
     /**
