@@ -263,6 +263,60 @@ class SitrepConsolidatorSdkTest extends TestCase
         $this->assertSame(10.33049, $province->sitrep['source_snapshot']['rollup']['incident_index'][0]['lat']);
     }
 
+    public function test_multi_hop_consolidation_preserves_section_drilldown_items(): void
+    {
+        $consolidator = new SitrepConsolidator();
+        $sources = [
+            $this->canonicalResourceNeedSitrep(12, 'Apas', 41, 'Assessment Team', 12, 'Search and Damage Assessment', 8, [501, 502]),
+            $this->canonicalResourceNeedSitrep(13, 'Guadalupe', 7, 'Ambulance', 3, 'Medical Response', 3, [601]),
+            $this->canonicalResourceNeedSitrep(14, 'Capitol Site', 41, 'Assessment Team', 12, 'Search and Damage Assessment', 5, [701]),
+            $this->canonicalResourceNeedSitrep(15, 'Labangon', 9, 'Rescue Boat', 4, 'Rescue and Extraction', 2, [801]),
+            $this->canonicalResourceNeedSitrep(16, 'Lahug', 7, 'Ambulance', 3, 'Medical Response', 4, [901]),
+        ];
+
+        $direct = $consolidator->consolidate($sources, [
+            'target_level' => 'province',
+            'target_hub_id' => '72',
+            'target_hub_name' => 'Cebu Province',
+        ]);
+        $cityA = $consolidator->consolidate(array_slice($sources, 0, 2), [
+            'target_level' => 'city',
+            'target_hub_id' => '21',
+            'target_hub_name' => 'City A',
+        ]);
+        $cityB = $consolidator->consolidate(array_slice($sources, 2), [
+            'target_level' => 'city',
+            'target_hub_id' => '22',
+            'target_hub_name' => 'City B',
+        ]);
+
+        $this->assertTrue($direct->ok);
+        $this->assertTrue($cityA->ok);
+        $this->assertTrue($cityB->ok);
+
+        $multiHop = $consolidator->consolidate([$cityA->sitrep, $cityB->sitrep], [
+            'target_level' => 'province',
+            'target_hub_id' => '72',
+            'target_hub_name' => 'Cebu Province',
+        ]);
+
+        $this->assertTrue($multiHop->ok);
+
+        $this->assertSame(
+            $this->resourceNeedTotalsByTypeAndLocation($direct->sitrep),
+            $this->resourceNeedTotalsByTypeAndLocation($multiHop->sitrep),
+        );
+        $this->assertSame(
+            array_column($direct->sitrep['source_snapshot']['rollup']['incident_index'], 'key'),
+            array_column($multiHop->sitrep['source_snapshot']['rollup']['incident_index'], 'key'),
+        );
+        $expectedLocations = ['Apas', 'Guadalupe', 'Capitol Site', 'Labangon', 'Lahug'];
+        $this->assertSame($expectedLocations, $this->sectionItemLocations($direct->sitrep, 'needs'));
+        $this->assertSame($expectedLocations, $this->sectionItemLocations($multiHop->sitrep, 'needs'));
+        $this->assertSame($expectedLocations, $this->sectionItemLocations($direct->sitrep, 'gaps'));
+        $this->assertSame($expectedLocations, $this->sectionItemLocations($multiHop->sitrep, 'gaps'));
+    }
+
     public function test_consolidated_period_bounds_compare_instants_across_timezone_offsets(): void
     {
         $consolidator = new SitrepConsolidator();
@@ -764,6 +818,43 @@ class SitrepConsolidatorSdkTest extends TestCase
         ];
 
         return $sitrep;
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private function resourceNeedTotalsByTypeAndLocation(array $sitrep): array
+    {
+        $totals = [];
+        foreach (($sitrep['gaps']['rollup']['items'] ?? []) as $gap) {
+            if (! is_array($gap) || ($gap['type'] ?? null) !== 'open_needs') {
+                continue;
+            }
+
+            foreach (($gap['resource_needs'] ?? []) as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+
+                $key = ($row['resource_type_id'] ?? '').'|'.($row['location_name'] ?? $row['source_hub_name'] ?? '');
+                $totals[$key] = ($totals[$key] ?? 0) + (int) ($row['quantity'] ?? 0);
+            }
+        }
+
+        ksort($totals);
+
+        return $totals;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function sectionItemLocations(array $sitrep, string $section): array
+    {
+        return array_values(array_map(
+            static fn (array $item): string => (string) ($item['location']['name'] ?? ''),
+            array_filter($sitrep[$section]['items'] ?? [], 'is_array'),
+        ));
     }
 
     /**

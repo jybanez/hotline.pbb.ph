@@ -198,16 +198,42 @@ final class SitrepConsolidator
         $items = [];
 
         foreach ($normalized as $source) {
-            $items[] = [
-                'location' => $this->sourceLocation($source),
-                'data' => $this->sourceSection($source, $section),
-            ];
+            $items = array_merge($items, $this->sourceSectionItems($source, $section));
         }
 
         return [
             'rollup' => count($normalized) === 1 ? ($items[0]['data'] ?? $mergedRollup) : $mergedRollup,
             'items' => $items,
         ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function sourceSectionItems(array $source, string $section): array
+    {
+        $data = $source['payload'][$section] ?? [];
+        $location = $this->sourceLocation($source);
+
+        if (is_array($data) && isset($data['items']) && is_array($data['items']) && $data['items'] !== []) {
+            return array_values(array_map(function (array $item) use ($source, $location): array {
+                $item['location'] = is_array($item['location'] ?? null) ? $item['location'] : $location;
+                $item['parent_source'] ??= [
+                    'source_hub_id' => $source['source_hub_id'],
+                    'source_hub_name' => $source['source_hub_name'],
+                    'source_deployment' => $source['source_deployment'],
+                    'sequence_number' => $source['sequence_number'],
+                    'title' => $source['title'],
+                ];
+
+                return $item;
+            }, array_filter($data['items'], 'is_array')));
+        }
+
+        return [[
+            'location' => $location,
+            'data' => $this->sourceSection($source, $section),
+        ]];
     }
 
     /**
