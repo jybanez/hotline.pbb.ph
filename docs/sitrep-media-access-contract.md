@@ -39,6 +39,27 @@ The PHP SDK lives in `packages/pbb-hotline-media-sdk` and is framework-light. It
 
 The resolver extracts media refs from direct, consolidated, and multi-hop SITREP payloads and maps source hub ids to Hotline base URLs where hub metadata is present. The client requests a manifest, downloads available items, and reports cache hit, download, and failure states with structured metadata.
 
+For user-facing media playback, upstream apps should expose app-local URLs and keep source Hotline authentication on the backend. The SDK helper `MediaRefLocalUrl` derives these paths from SITREP refs:
+
+```text
+/media/{source_hub_id}/{incident_id}/incident_media/{media_type}/{media_id}
+/media/{source_hub_id}/{incident_id}/message_attachment/{message_id}/{attachment_id}
+```
+
+The backend route should check the caller app cache first, then fetch/cache through the source Hotline media API on cache miss. Browsers should not call source Hotline media endpoints directly.
+
+The recommended backend integration uses the SDK's `MediaRef` wrapper:
+
+```php
+$media = new \Pbb\Hotline\Media\MediaRef($ref, __DIR__.'/cache/hotline-media', [
+    'relay_token' => $settings->relayToken,
+]);
+
+$media->serve();
+```
+
+`MediaRef` owns cache lookup, Relay relationship resolution, source manifest/download calls, cache writes, and streaming. The app owns only route authorization, the cache storage location, and supplying its Relay client token. The SDK expects the local Relay at `https://relay.pbb.ph` and fails loudly if that local hub authority is unavailable.
+
 The SDK includes a source-only CLI demo at `packages/pbb-hotline-media-sdk/demo`. Start with dry-run mode to inspect a SITREP payload without requiring a token:
 
 ```powershell

@@ -2,6 +2,25 @@
 
 This demo shows how an upstream app reads SITREP `media_refs`, resolves the source Hotline hub, asks for a media manifest, and optionally downloads media into a caller-owned cache.
 
+Dry-run output also shows the app-local media URL and cache key that an upstream backend can expose to its own frontend:
+
+```text
+/media/{source_hub_id}/{incident_id}/incident_media/{media_type}/{media_id}
+/media/{source_hub_id}/{incident_id}/message_attachment/{message_id}/{attachment_id}
+```
+
+For a backend route, the intended SDK usage is:
+
+```php
+$media = new \Pbb\Hotline\Media\MediaRef($ref, __DIR__.'/cache/hotline-media', [
+    'relay_token' => $settings->relayToken,
+]);
+
+$media->serve();
+```
+
+The SDK checks cache first, resolves the source relationship through local Relay at `https://relay.pbb.ph` on cache miss, fetches from source Hotline, stores the media, then streams it.
+
 The demo is source-only. It is not part of installed Hotline runtime bundles.
 
 ## Dry Run
@@ -34,4 +53,3 @@ C:\wamp64\bin\php\php8.2.29\php.exe packages\pbb-hotline-media-sdk\demo\resolve.
 ```
 
 Downloaded files are stored under `packages/pbb-hotline-media-sdk/demo/cache` by default. Caller apps own cache retention, purge policy, and local user authorization.
-

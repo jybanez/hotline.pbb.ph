@@ -111,6 +111,11 @@ final class HotlineMediaClient
      */
     private function cacheKey(array $item): string
     {
+        $localKey = (new MediaRefLocalUrl())->cacheKey($item);
+        if ($localKey !== null) {
+            return $localKey;
+        }
+
         return implode(':', [
             $item['source_hub_id'] ?? 'local',
             $item['kind'] ?? 'media',
