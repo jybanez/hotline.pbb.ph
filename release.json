@@ -44,6 +44,14 @@
     "source": "github-releases",
     "channel": "testing"
   },
+  "launcher": {
+    "logo_url": "https://hotline.pbb.ph/assets/launcher/app-icon.png",
+    "logo_alt": "PBB Hotline",
+    "logo_kind": "mark",
+    "icon": "hotline",
+    "primary_launch_url": "https://hotline.pbb.ph/command",
+    "audience": ["citizen", "operator", "command", "admin"]
+  },
   "type": "laravel",
   "requires": {
     "os": ["windows", "linux"],
