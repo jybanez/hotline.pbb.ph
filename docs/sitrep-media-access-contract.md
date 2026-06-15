@@ -18,6 +18,29 @@ The manifest endpoint accepts `media_refs` or `refs` arrays from a SITREP payloa
 
 The download endpoint validates the same internal token, resolves the requested item by kind and id, checks optional context query parameters such as `incident_id` and `message_id`, logs the access attempt, and streams the file through Laravel storage response APIs.
 
+## Landing Public Gateway
+
+Hotline declares a narrow machine-only Landing public gateway for these media access endpoints in `release.json`:
+
+- `landing.public_gateway.path_prefix=/hotline`
+- `landing.public_gateway.allowed_path_prefixes=["/api/internal/sitrep/media"]`
+- `landing.public_gateway.m2m_only=true`
+- `landing.public_gateway.exposure=machine`
+
+Kit derives the local `target_base_url` during install or repair. Landing may forward requests such as:
+
+```text
+https://{hub.domain}/hotline/api/internal/sitrep/media/manifest
+```
+
+to the installed source Hotline:
+
+```text
+https://hotline.pbb.ph/api/internal/sitrep/media/manifest
+```
+
+The gateway does not make media public. Hotline still authenticates every manifest and download request with the media access token, and browser UI, session, admin, bootstrap, CSRF, storage, asset, and general API routes must remain blocked.
+
 ## Authentication
 
 The first-pass contract uses the `sitrep_media_access_token` runtime setting. Callers can provide it through:

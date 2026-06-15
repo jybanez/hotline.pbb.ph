@@ -44,6 +44,20 @@
     "source": "github-releases",
     "channel": "testing"
   },
+  "landing": {
+    "public_gateway": {
+      "enabled": true,
+      "path_prefix": "/hotline",
+      "allowed_path_prefixes": [
+        "/api/internal/sitrep/media"
+      ],
+      "m2m_only": true,
+      "exposure": "machine",
+      "owner": "pbb-hotline",
+      "reason": "Support drilldown access to source-Hotline SITREP media references.",
+      "notes": "Expose only authenticated SITREP media manifest/download machine endpoints. Do not expose browser UI, session, admin, bootstrap, CSRF, storage, asset, or general API routes through Landing public gateway."
+    }
+  },
   "type": "laravel",
   "requires": {
     "os": ["windows", "linux"],
