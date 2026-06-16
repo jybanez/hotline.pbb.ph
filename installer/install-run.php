@@ -98,7 +98,6 @@ function runPreflight(string $root, array $config, string $mode = 'preflight'): 
         $checks = array_merge($checks, checkFilesystemBoundaries($root, $config));
         $checks[] = checkDatabase($config['database'] ?? []);
         $checks[] = checkMediaBinary($root, 'ffmpeg', (string) dataGet($config, ['hotline', 'ffmpeg_binary'], ''));
-        $checks[] = checkMediaBinary($root, 'ffprobe', (string) dataGet($config, ['hotline', 'ffprobe_binary'], ''), false);
         $checks[] = checkNodeBinary((string) dataGet($config, ['hotline', 'sitrep_node_binary'], 'node'));
         $checks[] = checkRealtimeCaBundle($config);
         $checks = array_merge($checks, checkSecrets($config, $mode));
@@ -1803,7 +1802,6 @@ function postInstallHealthCheckIds(): array
         'health_queue_failed_command',
         'health_schedule_list_command',
         'health_media_ffmpeg',
-        'health_media_ffprobe',
         'health_http_up',
         'health_http_bootstrap',
     ];
@@ -1820,7 +1818,6 @@ function runPostInstallHealthChecks(string $root, array $config): array
     $checks[] = commandHealthCheck($root, 'health_queue_failed_command', [PHP_BINARY, 'artisan', 'queue:failed']);
     $checks[] = commandHealthCheck($root, 'health_schedule_list_command', [PHP_BINARY, 'artisan', 'schedule:list']);
     $checks[] = normalizeHealthId(checkMediaBinary($root, 'ffmpeg', (string) dataGet($config, ['hotline', 'ffmpeg_binary'], '')), 'health_media_ffmpeg');
-    $checks[] = normalizeHealthId(checkMediaBinary($root, 'ffprobe', (string) dataGet($config, ['hotline', 'ffprobe_binary'], ''), false), 'health_media_ffprobe');
 
     $appUrl = rtrim((string) dataGet($config, ['app', 'app_url'], ''), '/');
     if ($appUrl === '') {
