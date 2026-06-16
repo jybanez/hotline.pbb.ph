@@ -2,6 +2,7 @@
   "schema_version": 1,
   "app": "pbb-hotline",
   "name": "PBB Hotline",
+  "display_name": "Hotline",
   "milestone": 1,
   "version": "5.6.1",
   "display_version": "v1-5.6.1",
