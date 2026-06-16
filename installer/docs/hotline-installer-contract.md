@@ -27,7 +27,7 @@ Hotline release bundles are ready-to-run. They must include `vendor/`, `public/b
 - `app.install_path` must match the extracted app root selected by Kit, `app.public_path` must resolve to `public/` under that root, and app-owned runtime/cache/generated paths such as `hotline.playwright_browsers_path` must remain under `app.install_path` unless Kit explicitly provides a named external path contract.
 - config shape includes required app, database, admin, and Hotline keys when `--config` is provided.
 - MySQL connection succeeds when database config is provided.
-- bundled app-owned `bin/ffmpeg/ffmpeg(.exe)` paths are preferred; configured external `ffmpeg` paths are fallback only. `ffprobe` is optional and external-only because current Hotline runtime media assembly does not call it.
+- bundled app-owned `bin/ffmpeg/ffmpeg(.exe)` paths are preferred; configured external `ffmpeg` paths are fallback only. `ffprobe` is not validated because current Hotline runtime media assembly does not call it.
 - Realtime HTTPS publish CA bundle is available through `hotline.realtime_ca_bundle` or PHP `curl.cainfo` / `openssl.cafile`.
 - SITREP Node binary is available when configured.
 - required secrets are present and not placeholder values.
@@ -110,7 +110,7 @@ Post-install health checks cover:
 - `php artisan about --only=environment`
 - `php artisan queue:failed`
 - `php artisan schedule:list`
-- bundled app-owned `ffmpeg`, plus optional external `ffprobe` if configured or available on PATH
+- bundled app-owned `ffmpeg`
 - `APP_URL/up`
 - `APP_URL/api/bootstrap?surface=public`
 
