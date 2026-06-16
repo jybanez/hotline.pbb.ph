@@ -46,6 +46,17 @@
     "channel": "testing"
   },
   "landing": {
+    "launcher": {
+      "visible": true,
+      "sort": 20,
+      "logo_url": "https://hotline.pbb.ph/assets/launcher/app-icon.png",
+      "logo_kind": "mark",
+      "icon": "hotline",
+      "local_url": "https://hotline.pbb.ph",
+      "launch_url": "https://hotline.pbb.ph/command",
+      "health_url": "https://hotline.pbb.ph/api/bootstrap?surface=public",
+      "audience": ["citizen", "operator", "command", "admin"]
+    },
     "public_gateway": {
       "enabled": true,
       "path_prefix": "/hotline",
