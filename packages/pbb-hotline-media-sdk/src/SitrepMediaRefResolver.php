@@ -134,10 +134,23 @@ final class SitrepMediaRefResolver
 
         if ($value === null) {
             $domain = $this->text($snapshot['domain'] ?? $snapshot['host'] ?? null);
-            $value = $domain !== null ? 'https://'.$domain : null;
+            $value = $domain !== null ? $this->landingGatewayBaseUrl($domain) : null;
         }
 
         return $value !== null ? rtrim($value, '/') : null;
+    }
+
+    private function landingGatewayBaseUrl(string $domain): string
+    {
+        $baseUrl = preg_match('/^https?:\/\//i', $domain) === 1
+            ? rtrim($domain, '/')
+            : 'https://'.rtrim($domain, '/');
+
+        if (preg_match('/\/hotline$/i', $baseUrl) === 1) {
+            return $baseUrl;
+        }
+
+        return $baseUrl.'/hotline';
     }
 
     private function text(mixed $value): ?string

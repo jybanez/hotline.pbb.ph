@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Pbb\Hotline\Media\FilesystemMediaCache;
 use Pbb\Hotline\Media\HotlineMediaClient;
+use Pbb\Hotline\Media\MediaRefLocalUrl;
 use Pbb\Hotline\Media\SitrepMediaRefResolver;
 
 $autoload = dirname(__DIR__, 3).DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR.'autoload.php';
@@ -43,6 +44,7 @@ $dryRun = isset($options['dry-run']);
 
 $sitrep = loadJsonFile($sitrepPath);
 $resolver = new SitrepMediaRefResolver();
+$localUrl = new MediaRefLocalUrl();
 $refs = $resolver->extractMediaRefs($sitrep);
 $sourceHubs = $resolver->resolveSourceHubs($sitrep);
 $groups = groupRefsByBaseUrl($refs, $sourceHubs, $baseUrlOverride);
@@ -62,6 +64,8 @@ foreach ($groups as $baseUrl => $groupRefs) {
     line('Source: '.$baseUrl);
     foreach ($groupRefs as $ref) {
         line('  - '.describeRef($ref));
+        line('    local_url: '.($localUrl->path($ref) ?? 'unavailable'));
+        line('    cache_key: '.($localUrl->cacheKey($ref) ?? 'unavailable'));
     }
     line('');
 }
