@@ -74,7 +74,7 @@ class HotlineMediaSdkTest extends TestCase
         $hubs = $resolver->resolveSourceHubs($sitrep);
 
         $this->assertSame(['hub-1', 'hub-2', 'hub-3'], array_column($refs, 'source_hub_id'));
-        $this->assertSame('https://hub-1.test', $hubs['hub-1']);
+        $this->assertSame('https://hub-1.test/hotline', $hubs['hub-1']);
         $this->assertSame('https://hub-2.test', $hubs['hub-2']);
         $this->assertSame('https://hub-3.test', $hubs['hub-3']);
     }
@@ -222,13 +222,13 @@ class HotlineMediaSdkTest extends TestCase
                     'valid' => true,
                     'source_hub_id' => '13',
                     'target_hub_id' => '11',
-                    'domain' => 'apas-cebu-cebu-hotline.pbb.ph',
+                    'domain' => 'apas-cebu-cebu.pbb.ph',
                     'auth_mode' => 'shared_key',
                     'token' => 'pbb_link_secret',
                     'version' => '1',
                 ], JSON_THROW_ON_ERROR),
             ],
-            'POST https://apas-cebu-cebu-hotline.pbb.ph/api/internal/sitrep/media/manifest' => [
+            'POST https://apas-cebu-cebu.pbb.ph/hotline/api/internal/sitrep/media/manifest' => [
                 'status' => 200,
                 'headers' => ['content-type' => 'application/json'],
                 'body' => json_encode([
@@ -246,7 +246,7 @@ class HotlineMediaSdkTest extends TestCase
                     'unavailable' => [],
                 ], JSON_THROW_ON_ERROR),
             ],
-            'GET https://apas-cebu-cebu-hotline.pbb.ph/api/internal/sitrep/media/incident_media/501?incident_id=593' => [
+            'GET https://apas-cebu-cebu.pbb.ph/hotline/api/internal/sitrep/media/incident_media/501?incident_id=593' => [
                 'status' => 200,
                 'headers' => ['content-type' => 'video/webm'],
                 'body' => 'video-bytes',
@@ -268,6 +268,30 @@ class HotlineMediaSdkTest extends TestCase
         $this->assertSame('X-Relay-Key: relay-client-token', $transport->requests[1]['headers']['X-Relay-Key'] ?? null);
         $this->assertSame('X-Hotline-Media-Key: pbb_link_secret', $transport->requests[2]['headers']['X-Hotline-Media-Key'] ?? null);
         $this->assertSame('X-PBB-Source-Hub-Id: 11', $transport->requests[2]['headers']['X-PBB-Source-Hub-Id'] ?? null);
+    }
+
+    public function test_relay_relationship_resolution_uses_landing_hotline_gateway_base_url(): void
+    {
+        $resolver = new RelayRelationshipResolver(new FakeTransport([
+            'GET https://relay.pbb.ph/hub.json' => [
+                'status' => 200,
+                'headers' => ['content-type' => 'application/json'],
+                'body' => json_encode(['hub_id' => '11'], JSON_THROW_ON_ERROR),
+            ],
+            'POST https://relay.pbb.ph/api/v1/relationships/resolve' => [
+                'status' => 200,
+                'headers' => ['content-type' => 'application/json'],
+                'body' => json_encode([
+                    'valid' => true,
+                    'source_hub_domain' => 'apas-cebu-cebu.pbb.ph',
+                    'token' => 'pbb_link_secret',
+                ], JSON_THROW_ON_ERROR),
+            ],
+        ]));
+
+        $result = $resolver->resolve('13', 'relay-client-token');
+
+        $this->assertSame('https://apas-cebu-cebu.pbb.ph/hotline', $result['source_base_url']);
     }
 
     public function test_relay_relationship_resolution_fails_loudly_without_local_relay_hub(): void

@@ -51,7 +51,14 @@ final class RelayRelationshipResolver
         }
 
         $token = $this->text($payload['token'] ?? null);
-        $domain = $this->text($payload['source_hotline_url'] ?? $payload['source_base_url'] ?? $payload['domain'] ?? null);
+        $domain = $this->text(
+            $payload['source_hub_domain']
+                ?? $payload['source_domain']
+                ?? $payload['domain']
+                ?? $payload['source_base_url']
+                ?? $payload['source_hotline_url']
+                ?? null
+        );
 
         if ($token === null) {
             throw new \RuntimeException('Relay relationship response did not include a credential token.');
@@ -62,7 +69,7 @@ final class RelayRelationshipResolver
         }
 
         return [
-            'source_base_url' => $this->baseUrl($domain),
+            'source_base_url' => $this->landingGatewayBaseUrl($domain),
             'token' => $token,
             'local_hub_id' => $localHubId,
             'relationship_direction' => $this->text($payload['relationship_direction'] ?? null),
@@ -93,13 +100,17 @@ final class RelayRelationshipResolver
         return $hubId;
     }
 
-    private function baseUrl(string $value): string
+    private function landingGatewayBaseUrl(string $value): string
     {
-        if (preg_match('/^https?:\/\//i', $value) === 1) {
-            return rtrim($value, '/');
+        $baseUrl = preg_match('/^https?:\/\//i', $value) === 1
+            ? rtrim($value, '/')
+            : 'https://'.rtrim($value, '/');
+
+        if (preg_match('/\/hotline$/i', $baseUrl) === 1) {
+            return $baseUrl;
         }
 
-        return 'https://'.rtrim($value, '/');
+        return $baseUrl.'/hotline';
     }
 
     private function text(mixed $value): ?string

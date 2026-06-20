@@ -2,7 +2,7 @@
 
 SITREP `source_snapshot.rollup.media_refs[]` entries are identifiers and metadata only. They are not public file URLs and they must not expose storage paths.
 
-Hotline remains the source-of-truth owner for incident media and message attachments. Upstream PBB apps should request a manifest from the source Hotline hub, then download individual media items through the authenticated internal media endpoint.
+Hotline remains the source-of-truth owner for incident media and message attachments. Upstream PBB apps should request a manifest from the source Hotline hub, then download individual media items through the authenticated internal media endpoint. Across hubs, those source Hotline endpoints are reached through the source hub's Landing public gateway, not through a public `hotline.pbb.ph` app host.
 
 ## Source Hotline Endpoints
 
@@ -27,6 +27,15 @@ The manifest accepts:
 ```
 
 It returns available items with an authenticated `download_url` and reports missing or rejected refs in `unavailable[]`. It does not return raw storage paths.
+
+Across hubs, Landing forwards the narrow Hotline media API under the source hub public domain:
+
+```text
+https://{source_hub.domain}/hotline/api/internal/sitrep/media/manifest
+https://{source_hub.domain}/hotline/api/internal/sitrep/media/{kind}/{id}
+```
+
+Landing is the public gateway only. Source Hotline still authenticates every request with the media access token.
 
 ## Auth
 
@@ -110,13 +119,19 @@ $result = $media->resolve();
 
 `resolve()` checks the SDK cache first. It contacts the source Hotline manifest/download endpoints only when the selected media is not already cached.
 
-When only `relay_token` is provided, the SDK requires the local Relay to be reachable at `https://relay.pbb.ph`. It reads the local hub id from `https://relay.pbb.ph/hub.json`, resolves the relationship through `POST https://relay.pbb.ph/api/v1/relationships/resolve`, then uses the returned source domain and link token for the source Hotline media request. If `relay.pbb.ph` is not reachable in the local network, the SDK fails loudly because the machine is not acting as a valid PBB hub.
+When only `relay_token` is provided, the SDK requires the local Relay to be reachable at `https://relay.pbb.ph`. It reads the local hub id from `https://relay.pbb.ph/hub.json`, resolves the relationship through `POST https://relay.pbb.ph/api/v1/relationships/resolve`, then uses the returned source hub domain and link token for the source Hotline media request through Landing:
+
+```text
+https://{source_hub.domain}/hotline/api/internal/sitrep/media/manifest
+```
+
+If `relay.pbb.ph` is not reachable in the local network, the SDK fails loudly because the machine is not acting as a valid PBB hub.
 
 ## Demo
 
 The package includes a source-only CLI demo under `packages/pbb-hotline-media-sdk/demo`.
 
-Dry-run mode parses a SITREP payload, extracts media refs, resolves source Hotline hubs, and prints the manifest calls that would be made:
+Dry-run mode parses a SITREP payload, extracts media refs, resolves source hubs from the SITREP snapshot, and prints the Landing gateway media calls that would be made:
 
 ```powershell
 C:\wamp64\bin\php\php8.2.29\php.exe packages\pbb-hotline-media-sdk\demo\resolve.php --dry-run

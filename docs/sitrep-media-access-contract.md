@@ -60,7 +60,7 @@ The PHP SDK lives in `packages/pbb-hotline-media-sdk` and is framework-light. It
 - `MediaCacheInterface`
 - `FilesystemMediaCache`
 
-The resolver extracts media refs from direct, consolidated, and multi-hop SITREP payloads and maps source hub ids to Hotline base URLs where hub metadata is present. The client requests a manifest, downloads available items, and reports cache hit, download, and failure states with structured metadata.
+The resolver extracts media refs from direct, consolidated, and multi-hop SITREP payloads and maps source hub ids to media API base URLs where hub metadata is present. If only a source hub `domain` is present, the SDK treats it as the source hub Landing domain and builds the media API base as `https://{hub.domain}/hotline`. The client requests a manifest, downloads available items, and reports cache hit, download, and failure states with structured metadata.
 
 For user-facing media playback, upstream apps should expose app-local URLs and keep source Hotline authentication on the backend. The SDK helper `MediaRefLocalUrl` derives these paths from SITREP refs:
 
@@ -81,7 +81,7 @@ $media = new \Pbb\Hotline\Media\MediaRef($ref, __DIR__.'/cache/hotline-media', [
 $media->serve();
 ```
 
-`MediaRef` owns cache lookup, Relay relationship resolution, source manifest/download calls, cache writes, and streaming. The app owns only route authorization, the cache storage location, and supplying its Relay client token. The SDK expects the local Relay at `https://relay.pbb.ph` and fails loudly if that local hub authority is unavailable.
+`MediaRef` owns cache lookup, Relay relationship resolution, source manifest/download calls, cache writes, and streaming. The app owns only route authorization, the cache storage location, and supplying its Relay client token. The SDK expects the local Relay at `https://relay.pbb.ph` and fails loudly if that local hub authority is unavailable. Relationship resolution returns the source hub public Landing domain plus the Hotline media token; the SDK calls source Hotline through `https://{source_hub.domain}/hotline/api/internal/sitrep/media/...`.
 
 The SDK includes a source-only CLI demo at `packages/pbb-hotline-media-sdk/demo`. Start with dry-run mode to inspect a SITREP payload without requiring a token:
 

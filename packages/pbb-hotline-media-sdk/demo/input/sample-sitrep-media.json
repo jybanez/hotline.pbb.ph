@@ -11,8 +11,7 @@
         "snapshot": {
           "hub_id": "13",
           "name": "Barangay Apas",
-          "domain": "hotline.pbb.ph",
-          "hotline_url": "https://hotline.pbb.ph"
+          "domain": "apas-cebu-cebu.pbb.ph"
         }
       },
       "media_refs": [
@@ -43,4 +42,3 @@
     }
   }
 }
-
