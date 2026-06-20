@@ -4,8 +4,8 @@ namespace App\Console\Commands;
 
 use App\Models\Hub;
 use App\Models\HubHeartbeatCheck;
-use App\Models\Setting;
 use App\Services\HubHeartbeatChecker;
+use App\Support\Settings\SettingsService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
@@ -15,9 +15,9 @@ class CheckHubHeartbeats extends Command
 
     protected $description = 'Poll active hubs through Relay /api/status and persist heartbeat snapshot/history.';
 
-    public function handle(HubHeartbeatChecker $checker): int
+    public function handle(HubHeartbeatChecker $checker, SettingsService $settings): int
     {
-        $policy = $this->policy();
+        $policy = $this->policy($settings);
 
         if (! $policy['enabled']) {
             $this->info('Heartbeat checks disabled.');
@@ -29,7 +29,7 @@ class CheckHubHeartbeats extends Command
             return self::SUCCESS;
         }
 
-        if (! $this->intervalElapsed($policy['interval_minutes'])) {
+        if (! $this->intervalElapsed($policy['interval_minutes'], $settings)) {
             $this->info('Heartbeat interval has not elapsed yet.');
             return self::SUCCESS;
         }
@@ -66,17 +66,9 @@ class CheckHubHeartbeats extends Command
             }
         }
 
-        Setting::setValue(
-            'heartbeat_last_run_at',
-            now()->toIso8601String(),
-            'Last HQ heartbeat cycle run time.'
-        );
+        $settings->set('heartbeat_last_run_at', now()->toIso8601String());
         if ($summary['success'] > 0) {
-            Setting::setValue(
-                'heartbeat_last_success_at',
-                now()->toIso8601String(),
-                'Last HQ heartbeat cycle with at least one successful response.'
-            );
+            $settings->set('heartbeat_last_success_at', now()->toIso8601String());
         }
 
         Log::info('Hub heartbeat cycle finished.', $summary);
@@ -90,19 +82,19 @@ class CheckHubHeartbeats extends Command
         return self::SUCCESS;
     }
 
-    private function policy(): array
+    private function policy(SettingsService $settings): array
     {
         return [
-            'enabled' => (bool) Setting::valueFor('heartbeat_enabled', true),
-            'interval_minutes' => max(1, (int) Setting::valueFor('heartbeat_interval_minutes', 5)),
-            'timeout_seconds' => max(1, (int) Setting::valueFor('heartbeat_timeout_seconds', 5)),
-            'paused' => (bool) Setting::valueFor('heartbeat_paused', false),
+            'enabled' => (bool) $settings->get('heartbeat_enabled', true),
+            'interval_minutes' => max(1, (int) $settings->get('heartbeat_interval_minutes', 5)),
+            'timeout_seconds' => max(1, (int) $settings->get('heartbeat_timeout_seconds', 5)),
+            'paused' => (bool) $settings->get('heartbeat_paused', false),
         ];
     }
 
-    private function intervalElapsed(int $intervalMinutes): bool
+    private function intervalElapsed(int $intervalMinutes, SettingsService $settings): bool
     {
-        $lastRunAt = Setting::valueFor('heartbeat_last_run_at');
+        $lastRunAt = $settings->get('heartbeat_last_run_at');
         if (! $lastRunAt) {
             return true;
         }
