@@ -2,6 +2,7 @@
   "schema_version": 1,
   "app": "pbb-hotline",
   "name": "PBB Hotline",
+  "display_name": "Hotline",
   "milestone": 1,
   "version": "5.6.1",
   "display_version": "v1-5.6.1",
@@ -43,6 +44,31 @@
   "updates": {
     "source": "github-releases",
     "channel": "testing"
+  },
+  "landing": {
+    "launcher": {
+      "visible": true,
+      "sort": 20,
+      "logo_url": "https://hotline.pbb.ph/assets/launcher/app-icon.png",
+      "logo_kind": "mark",
+      "icon": "hotline",
+      "local_url": "https://hotline.pbb.ph",
+      "launch_url": "https://hotline.pbb.ph/command",
+      "health_url": "https://hotline.pbb.ph/api/bootstrap?surface=public",
+      "audience": ["citizen", "operator", "command", "admin"]
+    },
+    "public_gateway": {
+      "enabled": true,
+      "path_prefix": "/hotline",
+      "allowed_path_prefixes": [
+        "/api/internal/sitrep/media"
+      ],
+      "m2m_only": true,
+      "exposure": "machine",
+      "owner": "pbb-hotline",
+      "reason": "Support drilldown access to source-Hotline SITREP media references.",
+      "notes": "Expose only authenticated SITREP media manifest/download machine endpoints. Do not expose browser UI, session, admin, bootstrap, CSRF, storage, asset, or general API routes through Landing public gateway."
+    }
   },
   "type": "laravel",
   "requires": {
