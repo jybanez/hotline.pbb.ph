@@ -40,6 +40,7 @@ Current active route table:
 | removed 2026-05-26 | remove candidate | `app/Http/Controllers/Api/SettingsController.php` | No active route references it. Admin settings now use `App\Http\Controllers\Api\Admin\SettingsController`. | Removed after approval. |
 | pending | remove candidate | `app/Http/Controllers/Api/WorkspaceController.php` and `config/services.php` `workspace.access_token` | No active route references `WorkspaceController`; only broad workspace strings remain in active Realtime room names/UI labels. | Remove controller and config key after confirming Workspace app-access endpoint is not required for Hotline onboarding. |
 | removed 2026-05-26 | remove candidate | `app/Http/Controllers/Api/HubController.php`, `app/Http/Controllers/Api/HubTokenController.php`, `app/Http/Controllers/Api/GeodataController.php`, `app/Http/Middleware/AuthenticateHubToken.php` | No active web/API routes mount these controllers or middleware. The runtime route list has no Hubs/Geodata endpoints. | Removed after approval. |
+| removed 2026-06-20 | remove candidate | `app/Console/Commands/CheckHubHeartbeats.php`, `app/Services/HubHeartbeatChecker.php`, `app/Models/Hub.php`, `HubToken.php`, `HubUplink.php`, `HubHeartbeatCheck.php` | `app:check-hub-heartbeats` was scheduled every minute, but Hotline has never shipped migrations or baseline schema for `hubs`, `hub_tokens`, `hub_uplinks`, or `hub_heartbeat_checks`; new installs failed every minute once the command reached the `Hub` query. | Removed after approval; hub heartbeat polling is not owned by Hotline runtime. |
 | removed 2026-05-26 | remove candidate | `resources/views/swagger-hubs.blade.php` and `public/openapi/hubs.yaml` | No active route exposes this view. YAML documents `PBB - HQ API`, not Hotline. | Removed after approval. |
 | removed 2026-05-26 | remove candidate | `resources/js/geodata-map-runtime.js` | Not included in `vite.config.js`, not imported by active JS entries, and references `/geodata/ph.json`, which is not present in active routes/files. | Removed after approval. |
 | removed 2026-05-26 | remove candidate | `resources/css/app.css` | Not listed in `vite.config.js`; no Blade view includes it. Contains old `.hubs-*` and `.geodata-*` styles. | Removed after approval. |
@@ -50,7 +51,6 @@ Current active route table:
 
 | Cleanup Status | Review Status | Artifact(s) | Evidence | Decision Needed |
 | --- | --- | --- | --- | --- |
-| pending decision | needs decision | `app/Console/Commands/CheckHubHeartbeats.php`, `app/Services/HubHeartbeatChecker.php`, `app/Models/Hub.php`, `HubToken.php`, `HubUplink.php`, `HubHeartbeatCheck.php` | `app:check-hub-heartbeats` is still registered and scheduled every minute in `routes/console.php`; README also lists it. However, this repo has no migrations creating `hubs`, `hub_tokens`, `hub_uplinks`, or `hub_heartbeat_checks`. | Decide whether Hotline still owns hub heartbeat polling. If no, remove command/schedule/models/docs. If yes, add/restore migrations and route/docs ownership. |
 | pending decision | needs decision | `app/Models/GeoRegion.php`, `GeoProvince.php`, `GeoCity.php`, `GeoBarangay.php` | Controllers reference these models, but active routes do not mount Geodata endpoints and no migrations create `geo_regions`, `geo_provinces`, `geo_cities`, or `geo_barangays`. | Decide whether Hotline should retain local geodata admin. Current MapServer/Kit direction suggests this likely belongs outside Hotline. |
 
 ## Keep For Now
@@ -78,9 +78,8 @@ Recommendation:
 
 1. Remove standalone inactive generic API controllers.
 2. Remove inactive Hubs/Geodata HTTP docs/views/assets if Hub ownership is confirmed out of scope.
-3. Resolve the scheduled `app:check-hub-heartbeats` decision before deleting Hub models.
-4. Remove unused legacy PWA icon files and `.env.example` caller lifetime entry.
-5. Run route list, PHP tests, JS contract tests, and Vite build.
+3. Remove unused legacy PWA icon files and `.env.example` caller lifetime entry.
+4. Run route list, PHP tests, JS contract tests, and Vite build.
 
 Recommended verification after each approved cleanup batch:
 

@@ -339,4 +339,4 @@ Expected operator-side result after running:
 
 Current status:
 - command is implemented as `app:clear-test-incidents`
-- current available custom commands include `app:check-hub-heartbeats`, `app:finalize-stale-call-media`, `app:prune-data-api-cache`, and `app:clear-test-incidents`
+- current available custom commands include `app:finalize-stale-call-media`, `app:prune-data-api-cache`, and `app:clear-test-incidents`
