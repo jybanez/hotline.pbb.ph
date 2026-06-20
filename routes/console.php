@@ -13,11 +13,6 @@ Schedule::command('app:prune-data-api-cache --hours=168')
     ->withoutOverlapping()
     ->runInBackground();
 
-Schedule::command('app:check-hub-heartbeats')
-    ->everyMinute()
-    ->withoutOverlapping()
-    ->runInBackground();
-
 Schedule::command('app:finalize-stale-call-media --grace-seconds=30')
     ->everyMinute()
     ->withoutOverlapping()
