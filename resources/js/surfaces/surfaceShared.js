@@ -1268,16 +1268,23 @@ async function logoutCurrentUser() {
     }
 }
 
-async function openLoginModal() {
+async function openLoginModal(options = {}) {
     const helper = await ensureHelperUi();
+    const blocking = Boolean(options?.blocking);
 
     helper.loginModal?.destroy?.();
     helper.loginModal = helper.createLoginFormModal({
         title: 'PBB Hotline Login',
         message: 'Use your active Hotline account to continue.',
         identifierKind: 'email',
-        closeOnBackdrop: true,
-        closeOnEscape: true,
+        submitLabel: 'Login',
+        mediaUrl: '/assets/launcher/app-icon.png',
+        mediaAlt: 'PBB Hotline',
+        backgroundTone: 'dark',
+        showCloseButton: !blocking,
+        showCancelButton: !blocking,
+        closeOnBackdrop: !blocking,
+        closeOnEscape: !blocking,
         async onSubmit(values, context) {
             try {
                 const activeCsrfToken = currentCsrfToken();

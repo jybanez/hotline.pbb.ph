@@ -1,4 +1,6 @@
-import { appState, ensureHelperUi, fetchJson, resetSurfaceRuntime, syncBootstrapSessionState } from './surfaceShared.js';
+import { appState, ensureHelperUi, fetchJson, openLoginModal, resetSurfaceRuntime, syncBootstrapSessionState } from './surfaceShared.js';
+
+const AUTH_REQUIRED_SURFACES = new Set(['citizen', 'operator', 'command', 'admin']);
 
 export async function renderSurface(surface, options = {}) {
     const root = document.getElementById('app');
@@ -15,6 +17,12 @@ export async function renderSurface(surface, options = {}) {
     appState.activeSurface = surface;
     await ensureHelperUi();
     syncBootstrapSessionState(bootstrap);
+
+    if (AUTH_REQUIRED_SURFACES.has(surface) && !bootstrap?.authenticated) {
+        root.replaceChildren();
+        await openLoginModal({ blocking: true });
+        return;
+    }
 
     if (surface === 'public') {
         const { renderPublicSurface } = await import('./publicSurface.js');
