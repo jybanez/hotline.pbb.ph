@@ -119,6 +119,22 @@ select {
     gap: 0.45rem;
 }
 
+.hotline-login-modal .ui-form-modal-branding {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+}
+
+.hotline-login-modal .ui-form-modal-branding::after {
+    background: transparent;
+}
+
+.hotline-login-modal .ui-form-modal-branding-media {
+    width: min(184px, 70%);
+    max-width: min(184px, 70%);
+    box-shadow: none;
+}
+
 .helper-primer-button .ui-icon {
     flex: 0 0 auto;
 }
