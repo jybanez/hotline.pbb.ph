@@ -135,6 +135,10 @@ select {
     box-shadow: none;
 }
 
+.hotline-login-modal .ui-form-modal-text {
+    text-align: center;
+}
+
 .helper-primer-button .ui-icon {
     flex: 0 0 auto;
 }

@@ -1275,7 +1275,7 @@ async function openLoginModal(options = {}) {
     helper.loginModal?.destroy?.();
     helper.loginModal = helper.createLoginFormModal({
         title: 'PBB Hotline Login',
-        message: 'Use your active Hotline account to continue.',
+        message: 'Welcome to PBB Hotline',
         className: blocking ? 'hotline-login-modal is-required-login' : 'hotline-login-modal',
         identifierKind: 'email',
         submitLabel: 'Login',
