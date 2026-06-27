@@ -1,6 +1,6 @@
 import { appState, ensureHelperUi, fetchJson, openLoginModal, resetSurfaceRuntime, syncBootstrapSessionState } from './surfaceShared.js';
 
-const AUTH_REQUIRED_SURFACES = new Set(['citizen', 'operator', 'command', 'admin']);
+const AUTH_REQUIRED_SURFACES = new Set(['public', 'citizen', 'operator', 'command', 'admin']);
 
 export async function renderSurface(surface, options = {}) {
     const root = document.getElementById('app');
