@@ -866,6 +866,7 @@ CREATE TABLE `users` (
   `avatar_path` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `mobile` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `email` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `pbb_user_id` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `password` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `role` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `status` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',
@@ -875,6 +876,7 @@ CREATE TABLE `users` (
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `users_email_unique` (`email`),
+  UNIQUE KEY `users_pbb_user_id_unique` (`pbb_user_id`),
   KEY `users_role_index` (`role`),
   KEY `users_status_index` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -946,4 +948,5 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES
   ('2026_06_11_000001_create_support_requests_table', 1),
   ('2026_06_11_000002_create_support_request_histories_table', 1),
   ('2026_06_12_000001_add_justifications_to_support_requests_table', 1),
-  ('2026_06_12_000002_add_scope_context_to_support_requests_table', 1);
+  ('2026_06_12_000002_add_scope_context_to_support_requests_table', 1),
+  ('2026_06_29_000001_add_pbb_user_id_to_users_table', 1);

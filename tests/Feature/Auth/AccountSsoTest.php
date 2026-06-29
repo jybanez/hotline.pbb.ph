@@ -118,6 +118,19 @@ class AccountSsoTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_bootstrap_exposes_account_callback_error_once(): void
+    {
+        session()->flash('account_login_error', 'Account callback state is invalid or expired.');
+
+        $this->getJson('/api/bootstrap?surface=public')
+            ->assertOk()
+            ->assertJsonPath('auth.account_sso.error', 'Account callback state is invalid or expired.');
+
+        $this->getJson('/api/bootstrap?surface=public')
+            ->assertOk()
+            ->assertJsonPath('auth.account_sso.error', null);
+    }
+
     public function test_logout_clears_local_session_then_redirects_to_account_logout(): void
     {
         $user = User::factory()->create([
