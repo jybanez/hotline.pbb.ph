@@ -21,6 +21,7 @@ class User extends Authenticatable
         'mobile',
         'email',
         'password',
+        'pbb_user_id',
         'role',
         'status',
         'last_login_at',
@@ -50,7 +51,7 @@ class User extends Authenticatable
     {
         $path = trim((string) $this->avatar_path);
 
-        if ($path === '' || !Storage::disk('public')->exists($path)) {
+        if ($path === '' || ! Storage::disk('public')->exists($path)) {
             return null;
         }
 
