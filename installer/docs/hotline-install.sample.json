@@ -53,6 +53,8 @@
     "realtime_media_ingest_secret": "replace-with-kit-generated-secret",
     "realtime_token_signing_secret": "replace-with-kit-generated-secret",
     "realtime_ca_bundle": "C:\\wamp64\\bin\\php\\php8.2.29\\cacert.pem",
+    "pbb_account_admin_api_enabled": false,
+    "pbb_account_admin_api_token": "replace-with-kit-generated-service-token",
     "relay_url": "https://relay.pbb.ph",
     "relay_token": "replace-with-kit-generated-token",
     "map_server_url": "https://mapserver.pbb.ph",

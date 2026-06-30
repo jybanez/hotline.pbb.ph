@@ -13,4 +13,5 @@ Route::middleware('web')->group(function (): void {
     require __DIR__.'/api/realtime.php';
 });
 
+require __DIR__.'/api/account_admin.php';
 require __DIR__.'/api/internal.php';

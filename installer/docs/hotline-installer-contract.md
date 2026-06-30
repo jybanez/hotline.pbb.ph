@@ -56,6 +56,7 @@ Running without `--config` is allowed for bundle/host validation and returns war
 - applies Realtime, Relay, and MapServer runtime settings
 - writes `HOTLINE_FFMPEG_BINARY` to the resolved app-owned bundled binary under `bin/ffmpeg` when it exists, even if Kit supplied an external FFmpeg path. External paths remain fallback only. `HOTLINE_FFPROBE_BINARY` is written only when an external/configured or PATH-resolvable `ffprobe` exists.
 - writes `HOTLINE_REALTIME_CA_BUNDLE` to `hotline.realtime_ca_bundle` when provided, otherwise to the PHP runtime CA bundle detected from `curl.cainfo` or `openssl.cafile`.
+- writes `PBB_ACCOUNT_ADMIN_API_ENABLED` from `hotline.pbb_account_admin_api_enabled`, defaulting to `false`, and writes `PBB_ACCOUNT_ADMIN_API_TOKEN` from `hotline.pbb_account_admin_api_token` as the dedicated PBB Account app-admin service token.
 - creates the first admin account when missing, using the Kit Setup first-admin contract, when `options.create_admin` is enabled
 - creates `public/storage` with `php artisan storage:link --force`
 - caches config, routes, and views when `options.cache_config` is enabled

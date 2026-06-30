@@ -48,3 +48,51 @@ https://account.pbb.ph/oauth/logout?client_id=pbb-hotline&post_logout_redirect_u
 ```
 
 When Account SSO is disabled, `/auth/logout` redirects to `/` after clearing the local Hotline session.
+
+## Account App-Admin API
+
+Hotline exposes a service-only app-admin API for PBB Account under `/api/account-admin`. These endpoints do not use browser sessions and are not a replacement for local Hotline admin authorization.
+
+Required headers:
+
+```http
+Authorization: Bearer <PBB_ACCOUNT_ADMIN_API_TOKEN>
+X-PBB-Account-Client: pbb-account
+Accept: application/json
+Content-Type: application/json
+```
+
+Configuration:
+
+```env
+PBB_ACCOUNT_ADMIN_API_ENABLED=false
+PBB_ACCOUNT_ADMIN_API_TOKEN=
+PBB_ACCOUNT_ADMIN_API_CLIENT=pbb-account
+```
+
+Fresh installs can enable the service API through the installer config:
+
+```json
+{
+  "hotline": {
+    "pbb_account_admin_api_enabled": true,
+    "pbb_account_admin_api_token": "replace-with-kit-generated-service-token"
+  }
+}
+```
+
+`PBB_ACCOUNT_ADMIN_API_TOKEN` must be a dedicated Account app-admin service token. Do not reuse `PBB_ACCOUNT_CLIENT_SECRET`.
+
+Endpoints:
+
+- `GET /api/account-admin/meta`
+- `GET /api/account-admin/users/{pbb_user_id}`
+- `PUT /api/account-admin/users/{pbb_user_id}`
+- `PATCH /api/account-admin/users/{pbb_user_id}/role`
+- `PATCH /api/account-admin/users/{pbb_user_id}/status`
+
+Hotline publishes its own role vocabulary: `admin`, `command`, `operator`, `citizen`.
+
+Hotline publishes its own status vocabulary from the local user status enum: `active`, `suspended`, `disabled`, `pending`.
+
+`PUT /users/{pbb_user_id}` is idempotent. It creates a local user when no link exists, links an existing unlinked user by email when safe, and updates only safe identity fields when the link already exists. Role and status remain Hotline-owned; Account requests changes through the dedicated role/status patch endpoints.
