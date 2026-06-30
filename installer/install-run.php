@@ -1048,6 +1048,9 @@ function buildEnvFile(array $config): string
         'PBB_ACCOUNT_SCOPES' => 'openid profile',
         'PBB_ACCOUNT_TIMEOUT_SECONDS' => '10',
         'PBB_ACCOUNT_CA_BUNDLE' => '',
+        'PBB_ACCOUNT_ADMIN_API_ENABLED' => boolString(configBool($hotline['pbb_account_admin_api_enabled'] ?? false)),
+        'PBB_ACCOUNT_ADMIN_API_TOKEN' => (string) ($hotline['pbb_account_admin_api_token'] ?? ''),
+        'PBB_ACCOUNT_ADMIN_API_CLIENT' => 'pbb-account',
         'BROADCAST_CONNECTION' => 'log',
         'FILESYSTEM_DISK' => 'local',
         'QUEUE_CONNECTION' => 'database',
@@ -1223,7 +1226,7 @@ function externalReliedOnPaths(string $root, array $config): array
 }
 
 /**
- * @param array<int, array{path: string, content: string}> $artifacts
+ * @param  array<int, array{path: string, content: string}>  $artifacts
  */
 function writeServiceArtifacts(array $artifacts): void
 {
@@ -1277,7 +1280,7 @@ UNIT.PHP_EOL;
 
 function linuxSchedulerTimer(): string
 {
-    return <<<UNIT
+    return <<<'UNIT'
 [Unit]
 Description=Run PBB Hotline Laravel Scheduler every minute
 
@@ -1315,7 +1318,7 @@ POWERSHELL.PHP_EOL;
 function serviceArtifactReadme(string $targetOs): string
 {
     if ($targetOs === 'linux') {
-        return <<<MARKDOWN
+        return <<<'MARKDOWN'
 # PBB Hotline Service Artifacts
 
 Generated files:
@@ -1328,7 +1331,7 @@ Install them with the host's normal systemd workflow, then enable and start the 
 MARKDOWN.PHP_EOL;
     }
 
-    return <<<MARKDOWN
+    return <<<'MARKDOWN'
 # PBB Hotline Service Artifacts
 
 Generated files:
@@ -1604,7 +1607,7 @@ function maintenanceRuntimeSettingsCommand(array $config, string $configPath, st
 }
 
 /**
- * @param array<int, string> $argv
+ * @param  array<int, string>  $argv
  */
 function displayCommand(array $argv): string
 {
@@ -1762,7 +1765,7 @@ function splitSqlStatements(string $sql): array
 }
 
 /**
- * @param array<int, string> $argv
+ * @param  array<int, string>  $argv
  * @return array{status: string, exit_code: int, stdout: string, stderr: string}
  */
 function runCommand(string $cwd, array $argv): array
@@ -1911,7 +1914,7 @@ function checkHttpEndpoint(string $id, string $url): array
 }
 
 /**
- * @param array<int, string> $headers
+ * @param  array<int, string>  $headers
  */
 function httpStatusCode(array $headers): int
 {
@@ -1949,6 +1952,15 @@ function envValue(string $value): string
 function boolString(bool $value): string
 {
     return $value ? 'true' : 'false';
+}
+
+function configBool(mixed $value): bool
+{
+    if (is_bool($value)) {
+        return $value;
+    }
+
+    return filter_var($value, FILTER_VALIDATE_BOOLEAN);
 }
 
 function ensureDirectory(string $path): void
@@ -1994,7 +2006,7 @@ function normalizePath(string $path): string
 }
 
 /**
- * @param array<int, array<string, mixed>> $actions
+ * @param  array<int, array<string, mixed>>  $actions
  * @return array<int, array<string, mixed>>
  */
 function markAction(array $actions, string $id, string $status, array $details = []): array

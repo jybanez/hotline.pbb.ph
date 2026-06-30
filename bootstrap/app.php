@@ -22,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'role' => \App\Http\Middleware\EnsureRole::class,
+            'account.admin' => \App\Http\Middleware\VerifyAccountAdminService::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
