@@ -10,7 +10,4 @@ return [
     'scopes' => array_filter(preg_split('/\s+/', trim((string) env('PBB_ACCOUNT_SCOPES', 'openid profile'))) ?: []),
     'timeout_seconds' => (int) env('PBB_ACCOUNT_TIMEOUT_SECONDS', 10),
     'ca_bundle' => env('PBB_ACCOUNT_CA_BUNDLE'),
-    'admin_api_enabled' => filter_var(env('PBB_ACCOUNT_ADMIN_API_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
-    'admin_api_token' => env('PBB_ACCOUNT_ADMIN_API_TOKEN', ''),
-    'admin_api_client' => env('PBB_ACCOUNT_ADMIN_API_CLIENT', 'pbb-account'),
 ];

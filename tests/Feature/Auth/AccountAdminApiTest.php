@@ -5,6 +5,7 @@ namespace Tests\Feature\Auth;
 use App\Domain\Shared\Enums\UserRole;
 use App\Domain\Shared\Enums\UserStatus;
 use App\Models\User;
+use App\Support\Settings\SettingsService;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -22,11 +23,10 @@ class AccountAdminApiTest extends TestCase
 
         $this->withoutMiddleware(VerifyCsrfToken::class);
 
-        config([
-            'account.admin_api_enabled' => true,
-            'account.admin_api_token' => self::TOKEN,
-            'account.admin_api_client' => 'pbb-account',
-        ]);
+        $settings = app(SettingsService::class);
+        $settings->set('account_admin_api_enabled', true);
+        $settings->set('account_admin_api_token', self::TOKEN);
+        $settings->set('account_admin_api_client', 'pbb-account');
     }
 
     public function test_rejects_missing_or_invalid_service_auth(): void
@@ -46,6 +46,26 @@ class AccountAdminApiTest extends TestCase
         ])->getJson('/api/account-admin/meta')
             ->assertUnauthorized()
             ->assertJsonPath('error.code', 'invalid_account_client');
+    }
+
+    public function test_request_time_auth_ignores_generic_account_env_config(): void
+    {
+        config([
+            'account.admin_api_enabled' => true,
+            'account.admin_api_token' => 'wrong-shared-env-token',
+            'account.admin_api_client' => 'pbb-account',
+        ]);
+
+        $this->withHeaders([
+            'X-PBB-Account-Client' => 'pbb-account',
+            'Authorization' => 'Bearer wrong-shared-env-token',
+        ])->getJson('/api/account-admin/meta')
+            ->assertUnauthorized()
+            ->assertJsonPath('error.code', 'invalid_app_admin_token');
+
+        $this->accountAdmin()
+            ->getJson('/api/account-admin/meta')
+            ->assertOk();
     }
 
     public function test_meta_returns_hotline_role_and_status_vocabulary(): void
