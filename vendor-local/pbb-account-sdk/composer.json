@@ -1,0 +1,16 @@
+{
+    "name": "pbb/account-sdk",
+    "description": "Plain PHP SDK for integrating local PBB apps with PBB Account.",
+    "type": "library",
+    "license": "proprietary",
+    "require": {
+        "php": "^8.2",
+        "ext-curl": "*",
+        "ext-json": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "Pbb\\AccountSdk\\": "src/"
+        }
+    }
+}

@@ -61,6 +61,13 @@ class BootstrapPayloadBuilder
                 'version' => config('app.version'),
                 'release_name' => config('app.release_name'),
                 'release_date' => config('app.release_date'),
+                'account_sso' => $this->accountSsoPayload(),
+            ],
+            'auth' => [
+                'account_sso' => [
+                    'success' => (bool) session()->pull('account_login_success', false),
+                    'error' => session()->pull('account_login_error'),
+                ],
             ],
             'user' => $user,
             'surface' => $surface,
@@ -72,6 +79,39 @@ class BootstrapPayloadBuilder
                 'citizen_relationships' => self::CITIZEN_RELATIONSHIP_OPTIONS,
             ],
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function accountSsoPayload(): array
+    {
+        $enabled = (bool) config('account.enabled');
+        $clientSecret = trim((string) config('account.client_secret'));
+
+        return [
+            'enabled' => $enabled,
+            'ready' => $enabled
+                && trim((string) config('account.base_url')) !== ''
+                && trim((string) config('account.client_id')) !== ''
+                && $clientSecret !== ''
+                && trim((string) config('account.redirect_uri')) !== '',
+            'login_url' => url('/auth/account/redirect'),
+            'logout_url' => url('/auth/logout'),
+            'account_logout_url' => $this->accountLogoutUrl(),
+            'base_url' => config('account.base_url'),
+            'client_id' => config('account.client_id'),
+        ];
+    }
+
+    private function accountLogoutUrl(): string
+    {
+        $baseUrl = rtrim((string) config('account.base_url'), '/');
+
+        return $baseUrl.'/oauth/logout?'.http_build_query([
+            'client_id' => config('account.client_id'),
+            'post_logout_redirect_uri' => config('account.post_logout_redirect_uri') ?: url('/'),
+        ]);
     }
 
     /**

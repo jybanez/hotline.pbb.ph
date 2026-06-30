@@ -1256,6 +1256,13 @@ function mountSurfaceChrome(root, surface, bootstrap) {
 }
 
 async function logoutCurrentUser() {
+    const accountSso = accountSsoConfig();
+    if (accountSso.enabled && accountSso.logout_url) {
+        clearClientSessionState();
+        window.location.assign(accountSso.logout_url);
+        return;
+    }
+
     try {
         const response = await fetchJson('/api/logout', { method: 'post' });
 
@@ -1271,6 +1278,18 @@ async function logoutCurrentUser() {
 async function openLoginModal(options = {}) {
     const helper = await ensureHelperUi();
     const blocking = Boolean(options?.blocking);
+    const accountSso = accountSsoConfig();
+    const accountSsoError = accountSsoLoginError();
+
+    if (accountSsoError) {
+        showToast(accountSsoError, 'error');
+    }
+
+    if (shouldUseAccountSsoLogin(accountSso, accountSsoError)) {
+        helper.loginModal?.destroy?.();
+        window.location.assign(accountSso.login_url);
+        return null;
+    }
 
     helper.loginModal?.destroy?.();
     helper.loginModal = helper.createLoginFormModal({
@@ -1331,6 +1350,26 @@ async function openLoginModal(options = {}) {
     });
 
     return helper.loginModal.open();
+}
+
+function accountSsoConfig() {
+    return appState.bootstrap?.app?.account_sso ?? {};
+}
+
+function accountSsoLoginError() {
+    return String(appState.bootstrap?.auth?.account_sso?.error ?? '').trim();
+}
+
+function shouldUseAccountSsoLogin(accountSso, accountSsoError = accountSsoLoginError()) {
+    const surface = appState.activeSurface ?? appState.bootstrap?.surface ?? 'public';
+
+    return Boolean(
+        accountSso?.enabled
+        && accountSso?.ready
+        && accountSso?.login_url
+        && !accountSsoError
+        && ['public', 'citizen', 'caller'].includes(surface)
+    );
 }
 
 async function openReauthModal() {

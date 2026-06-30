@@ -30,7 +30,7 @@
     "requires_database_migration": true,
     "database_migration": {
       "policy": "additive",
-      "summary": "Adds the sitrep_relay_deliveries outbox table, Support Request local persistence/history tables, justification fields, and selected incident/request-scope context for Relay-backed operational support requests.",
+      "summary": "Adds the sitrep_relay_deliveries outbox table, Support Request local persistence/history tables, justification fields, selected incident/request-scope context for Relay-backed operational support requests, and nullable unique users.pbb_user_id for PBB Account SSO citizen provisioning.",
       "rollback": "app-owned; forward repair reruns Laravel migrations",
       "destructive": false,
       "drops_tables": false,
@@ -97,7 +97,7 @@
       "baseline_schema": {
         "path": "database/schema/hotline-schema-mysql.sql",
         "engine": "mysql",
-        "generated_at": "2026-06-12T00:00:00Z",
+        "generated_at": "2026-06-30T00:00:00Z",
         "source": "current-release-schema"
       },
       "upgrade_strategy": "laravel_migrations",
@@ -105,7 +105,7 @@
         "path": "database/schema/hotline-schema-mysql.sql",
         "driver": "mysql",
         "fresh_install_method": "baseline_schema",
-        "migration_count": 55
+        "migration_count": 56
       }
     },
     "tools": {
