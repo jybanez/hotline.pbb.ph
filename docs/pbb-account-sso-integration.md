@@ -62,13 +62,15 @@ Accept: application/json
 Content-Type: application/json
 ```
 
-Configuration:
+Runtime settings:
 
-```env
-PBB_ACCOUNT_ADMIN_API_ENABLED=false
-PBB_ACCOUNT_ADMIN_API_TOKEN=
-PBB_ACCOUNT_ADMIN_API_CLIENT=pbb-account
-```
+Hotline stores Account app-admin runtime credentials in the local `settings` table:
+
+- `account_admin_api_enabled`
+- `account_admin_api_token`
+- `account_admin_api_client`
+
+The request-time middleware reads these DB settings only. It does not read `PBB_ACCOUNT_ADMIN_API_*` from `.env`, because shared WAMP/Apache/PHP runtimes can leak generic environment names across sibling PBB apps. Installer/bootstrap tooling may receive Account app-admin values from Kit config, but must write them into the app-local settings table before the API is considered runtime-ready.
 
 Fresh installs can enable the service API through the installer config:
 
@@ -81,7 +83,7 @@ Fresh installs can enable the service API through the installer config:
 }
 ```
 
-`PBB_ACCOUNT_ADMIN_API_TOKEN` must be a dedicated Account app-admin service token. Do not reuse `PBB_ACCOUNT_CLIENT_SECRET`.
+`account_admin_api_token` must be a dedicated Account app-admin service token. Do not reuse `PBB_ACCOUNT_CLIENT_SECRET`.
 
 Endpoints:
 

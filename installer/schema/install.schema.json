@@ -90,6 +90,7 @@
         "realtime_token_signing_secret": { "type": "string", "minLength": 8 },
         "realtime_ca_bundle": { "type": "string" },
         "pbb_account_admin_api_enabled": { "type": "boolean" },
+        "pbb_account_admin_api_client": { "type": "string" },
         "pbb_account_admin_api_token": { "type": "string" },
         "relay_url": { "type": "string" },
         "relay_token": { "type": "string" },

@@ -1305,6 +1305,42 @@ function settingsEditorData(state) {
                 ],
             },
             {
+                id: 'integration-account',
+                title: 'Account',
+                description: 'PBB Account SSO and service-only app-admin integration settings.',
+                properties: [
+                    {
+                        id: 'account_admin_api_enabled',
+                        kind: 'select',
+                        label: 'Account App-Admin API',
+                        value: isTruthySetting(values.account_admin_api_enabled) ? 'true' : 'false',
+                        options: [
+                            { value: 'true', label: 'Enabled' },
+                            { value: 'false', label: 'Disabled' },
+                        ],
+                        help: 'Enables the server-to-server Account app-admin API for user provisioning, role changes, and status changes.',
+                    },
+                    {
+                        id: 'account_admin_api_client',
+                        kind: 'text',
+                        label: 'Account App-Admin Client',
+                        value: values.account_admin_api_client ?? 'pbb-account',
+                        placeholder: 'pbb-account',
+                        autocomplete: 'off',
+                        help: 'Expected X-PBB-Account-Client header value for Account service calls.',
+                    },
+                    {
+                        id: 'account_admin_api_token',
+                        kind: 'password',
+                        label: 'Account App-Admin Token',
+                        value: values.account_admin_api_token ?? '',
+                        placeholder: 'Enter dedicated Account app-admin token',
+                        autocomplete: 'off',
+                        help: 'Dedicated service token used only for Account-to-Hotline app-admin API calls. Do not reuse the Account OAuth client secret.',
+                    },
+                ],
+            },
+            {
                 id: 'integration-map-server',
                 title: 'Map Server',
                 description: 'Map tiles and shared map-asset delivery for operator and future command views.',

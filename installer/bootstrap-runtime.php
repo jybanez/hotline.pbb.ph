@@ -107,12 +107,15 @@ function hotlineSettingKeys(): array
         'realtime_token_signing_secret' => 'realtime_token_signing_secret',
         'relay_url' => 'relay_url',
         'relay_token' => 'relay_token',
+        'pbb_account_admin_api_enabled' => 'account_admin_api_enabled',
+        'pbb_account_admin_api_token' => 'account_admin_api_token',
+        'pbb_account_admin_api_client' => 'account_admin_api_client',
         'map_server_url' => 'map_server_url',
     ];
 }
 
 /**
- * @param array<string, mixed> $hotline
+ * @param  array<string, mixed>  $hotline
  * @return array<string, mixed>
  */
 function normalizeHotlineSettings(array $hotline): array
