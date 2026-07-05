@@ -63,8 +63,11 @@ class IncidentRelayTest extends TestCase
         $this->assertCount(2, $refs);
         $this->assertSame('incident_media', $refs[0]['kind']);
         $this->assertSame('message_attachment', $refs[1]['kind']);
-        $this->assertSame('photo.jpg', $refs[0]['original_filename']);
-        $this->assertSame('xray.png', $refs[1]['original_filename']);
+        $this->assertSame('image', $refs[0]['media_type']);
+        $this->assertSame('image', $refs[1]['media_type']);
+        $this->assertSame('photo.jpg', $refs[0]['safe_filename']);
+        $this->assertSame('xray.png', $refs[1]['safe_filename']);
+        $this->assertArrayNotHasKey('original_filename', $refs[0]);
 
         $json = json_encode($refs, JSON_UNESCAPED_SLASHES);
         $this->assertStringNotContainsString('/storage/', $json);
@@ -84,6 +87,26 @@ class IncidentRelayTest extends TestCase
 
         $this->assertSame($first['stable_incident_key'], $second['stable_incident_key']);
         $this->assertNotSame($first['message_idempotency_key'], $second['message_idempotency_key']);
+    }
+
+    public function test_relation_only_resource_update_changes_incident_relay_revision(): void
+    {
+        $incident = $this->createRichIncident();
+        $serializer = app(IncidentRelaySerializer::class);
+
+        $first = $serializer->serialize($incident);
+        DB::table('incident_resources_needed')
+            ->where('incident_id', $incident->id)
+            ->update([
+                'quantity_required' => 4,
+                'updated_at' => now()->addMinute(),
+            ]);
+        $second = $serializer->serialize($incident->fresh());
+
+        $this->assertSame($first['stable_incident_key'], $second['stable_incident_key']);
+        $this->assertNotSame($first['revision'], $second['revision']);
+        $this->assertNotSame($first['message_idempotency_key'], $second['message_idempotency_key']);
+        $this->assertSame(4, $second['incident']['resources'][0]['quantity']);
     }
 
     public function test_outbox_coalesces_repeated_pending_changes_for_same_incident(): void
@@ -156,6 +179,28 @@ class IncidentRelayTest extends TestCase
 
         $this->assertDatabaseCount('incident_relay_deliveries', 2);
         $this->assertSame(2, IncidentRelayDelivery::query()->where('incident_id', $incident->id)->count());
+    }
+
+    public function test_unchanged_requeue_does_not_resend_already_sent_payload(): void
+    {
+        $incident = $this->createIncident();
+        app(SettingsService::class)->set('incident_relay_enabled', true);
+        app(SettingsService::class)->set('relay_token', 'relay-test-token');
+
+        Http::fake([
+            'https://relay.pbb.ph/hub.json' => Http::response($this->hubJson(), 200),
+            'https://relay.pbb.ph/api/v1/messages' => Http::response(['message_id' => 'msg-once'], 201),
+        ]);
+
+        $outbox = app(IncidentRelayOutboxService::class)->markPending($incident);
+        $first = app(IncidentRelaySubmissionService::class)->submit($outbox);
+        $outbox = app(IncidentRelayOutboxService::class)->markPending($incident->fresh());
+        $second = app(IncidentRelaySubmissionService::class)->submit($outbox);
+
+        $this->assertSame($first->id, $second->id);
+        $this->assertDatabaseCount('incident_relay_deliveries', 1);
+        $this->assertDatabaseMissing('incident_relay_outbox', ['incident_id' => $incident->id]);
+        $this->assertSame(1, $this->relayPostCount());
     }
 
     private function createRichIncident(): Incident
@@ -358,6 +403,13 @@ class IncidentRelayTest extends TestCase
         Http::fake([
             'https://relay.pbb.ph/hub.json' => Http::response($this->hubJson(), 200),
         ]);
+    }
+
+    private function relayPostCount(): int
+    {
+        return Http::recorded()
+            ->filter(fn (array $record): bool => $record[0]->url() === 'https://relay.pbb.ph/api/v1/messages')
+            ->count();
     }
 
     private function ensureIncidentRelayTablesExist(): void

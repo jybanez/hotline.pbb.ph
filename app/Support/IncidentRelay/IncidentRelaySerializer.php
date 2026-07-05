@@ -39,7 +39,26 @@ class IncidentRelaySerializer
         $sourceHubId = $source['hub_id'] ?? 'unknown-hub';
         $incidentId = (string) $incident->id;
         $stableKey = implode(':', [$sourceHubId, $sourceSystem, $incidentId]);
-        $revision = $this->revision($incident);
+        $incidentPayload = [
+            'id' => $incident->id,
+            'ref' => $this->incidentRef($incident),
+            'status' => $this->enumValue($incident->status),
+            'alert_level' => $this->enumValue($incident->alert_level),
+            'location' => $this->location($incident),
+            'timestamps' => $this->timestamps($incident),
+            'types' => $this->incidentTypes($incident),
+            'details' => $this->details($incident),
+            'resources' => $this->resources($incident),
+            'team_assignments' => $this->teamAssignments($incident),
+            'media_refs' => $this->mediaRefs($incident, $sourceHubId),
+        ];
+        $debugContext = $this->debugContext($incident);
+        $sourcePayload = array_merge($source, [
+            'system' => $sourceSystem,
+            'incident_id' => $incidentId,
+            'incident_ref' => $this->incidentRef($incident),
+        ]);
+        $revision = $this->revision($sourcePayload, $incidentPayload, $debugContext);
 
         return [
             'schema_version' => 1,
@@ -47,28 +66,12 @@ class IncidentRelaySerializer
             'stable_incident_key' => $stableKey,
             'message_idempotency_key' => $stableKey.':'.$revision,
             'revision' => $revision,
-            'source' => array_merge($source, [
-                'system' => $sourceSystem,
-                'incident_id' => $incidentId,
-                'incident_ref' => $this->incidentRef($incident),
-            ]),
-            'incident' => [
-                'id' => $incident->id,
-                'ref' => $this->incidentRef($incident),
-                'status' => $this->enumValue($incident->status),
-                'alert_level' => $this->enumValue($incident->alert_level),
-                'location' => $this->location($incident),
-                'timestamps' => $this->timestamps($incident),
-                'types' => $this->incidentTypes($incident),
-                'details' => $this->details($incident),
-                'resources' => $this->resources($incident),
-                'team_assignments' => $this->teamAssignments($incident),
-                'media_refs' => $this->mediaRefs($incident, $sourceHubId),
-            ],
-            'debug_context' => $this->debugContext($incident),
+            'source' => $sourcePayload,
+            'incident' => $incidentPayload,
+            'debug_context' => $debugContext,
             'notes' => [
-                'revision_source' => 'updated_at',
-                'revision_limitation' => 'V1 uses incident updated_at as the revision. Changes that do not touch the incident timestamp must be requeued by the worker or future model hooks.',
+                'revision_source' => 'exported_payload_hash',
+                'revision_limitation' => 'V1 derives revision from exported incident state, including related resources, details, assignments, media, messages, and attachments.',
                 'media_access' => 'media_refs contain metadata only; upstream retrieval must use trusted media access flow.',
             ],
         ];
@@ -81,9 +84,18 @@ class IncidentRelaySerializer
         return $sourceSystem !== '' ? $sourceSystem : 'hotline.incident';
     }
 
-    private function revision(Incident $incident): string
+    /**
+     * @param  array<string, mixed>  $sourcePayload
+     * @param  array<string, mixed>  $incidentPayload
+     * @param  array<string, mixed>  $debugContext
+     */
+    private function revision(array $sourcePayload, array $incidentPayload, array $debugContext): string
     {
-        return ($incident->updated_at ?? $incident->created_at ?? now())->toIso8601String();
+        return hash('sha256', json_encode([
+            'source' => $sourcePayload,
+            'incident' => $incidentPayload,
+            'debug_context' => $debugContext,
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '');
     }
 
     private function incidentRef(Incident $incident): string
@@ -222,9 +234,9 @@ class IncidentRelaySerializer
                 'incident_id' => $incident->id,
                 'incident_ref' => $this->incidentRef($incident),
                 'media_id' => $media->id,
-                'type' => $media->type,
+                'media_type' => $media->type,
                 'mime_type' => $this->stringOrNull($media->metadata_json['mime_type'] ?? null),
-                'original_filename' => $this->safeFilename($media->metadata_json['original_filename'] ?? null),
+                'safe_filename' => $this->safeFilename($media->metadata_json['original_filename'] ?? null),
                 'created_at' => $media->created_at?->toIso8601String(),
                 'available_at' => $media->available_at?->toIso8601String(),
                 'peer_role' => $this->stringOrNull($media->peer_role),
@@ -239,9 +251,9 @@ class IncidentRelaySerializer
                     'incident_ref' => $this->incidentRef($incident),
                     'attachment_id' => $attachment->id,
                     'message_id' => $message->id,
-                    'type' => $attachment->type,
+                    'media_type' => $attachment->type,
                     'mime_type' => $attachment->mime_type,
-                    'original_filename' => $this->safeFilename($attachment->original_filename),
+                    'safe_filename' => $this->safeFilename($attachment->original_filename),
                     'created_at' => $attachment->created_at?->toIso8601String(),
                     'uploader_role' => $this->stringOrNull($message->sender_role),
                 ],

@@ -73,6 +73,22 @@ class IncidentRelaySubmissionService
         }
 
         $payload = $this->serializer->serialize($incident);
+        $payloadHash = $this->payloadHash($payload);
+        $sentDelivery = $this->alreadySentDelivery($payload, $payloadHash);
+
+        if ($sentDelivery instanceof IncidentRelayDelivery) {
+            $outbox->delete();
+
+            Log::info('Incident Relay outbox cleared because the exported payload was already sent.', [
+                'incident_id' => $incident->id,
+                'incident_relay_delivery_id' => $sentDelivery->id,
+                'stable_incident_key' => $sentDelivery->stable_incident_key,
+                'idempotency_key' => $sentDelivery->idempotency_key,
+            ]);
+
+            return $sentDelivery;
+        }
+
         $delivery = $this->makeDelivery($incident, $payload);
 
         $outbox->forceFill([
@@ -210,7 +226,7 @@ class IncidentRelaySubmissionService
             'stable_incident_key' => (string) ($payload['stable_incident_key'] ?? ''),
             'revision' => (string) ($payload['revision'] ?? ''),
             'idempotency_key' => $idempotencyKey,
-            'payload_hash' => hash('sha256', json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: ''),
+            'payload_hash' => $this->payloadHash($payload),
             'payload_summary_json' => [
                 'incident_id' => $incident->id,
                 'incident_ref' => $payload['source']['incident_ref'] ?? null,
@@ -219,6 +235,33 @@ class IncidentRelaySubmissionService
             ],
             'attempted_at' => now(),
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function alreadySentDelivery(array $payload, string $payloadHash): ?IncidentRelayDelivery
+    {
+        $idempotencyKey = (string) ($payload['message_idempotency_key'] ?? '');
+
+        return IncidentRelayDelivery::query()
+            ->where('status', IncidentRelayDelivery::STATUS_SENT)
+            ->where(function ($query) use ($idempotencyKey, $payloadHash): void {
+                $query
+                    ->where('idempotency_key', $idempotencyKey)
+                    ->orWhere('payload_hash', $payloadHash);
+            })
+            ->latest('sent_at')
+            ->latest('id')
+            ->first();
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function payloadHash(array $payload): string
+    {
+        return hash('sha256', json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '');
     }
 
     private function failedDeliveryFromOutbox(IncidentRelayOutbox $outbox, string $message): IncidentRelayDelivery
