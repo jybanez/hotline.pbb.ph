@@ -82,7 +82,8 @@ class AccountAdminApiTest extends TestCase
             ->assertJsonPath('data.statuses.1.value', 'suspended')
             ->assertJsonPath('data.statuses.2.value', 'disabled')
             ->assertJsonPath('data.statuses.3.value', 'pending')
-            ->assertJsonPath('data.capabilities.provisionUser', true);
+            ->assertJsonPath('data.capabilities.provisionUser', true)
+            ->assertJsonPath('data.capabilities.removeUser', true);
     }
 
     public function test_legacy_caller_role_is_exposed_as_citizen(): void
@@ -221,6 +222,55 @@ class AccountAdminApiTest extends TestCase
             'actor_role' => 'pbb-account',
             'action_type' => 'account_admin_status_updated',
             'message' => 'Disabled by Account admin.',
+        ]);
+    }
+
+    public function test_delete_removes_account_access_without_deleting_local_user(): void
+    {
+        $user = User::factory()->create([
+            'pbb_user_id' => 'pbb-remove',
+            'role' => UserRole::Command,
+            'status' => UserStatus::Active,
+        ]);
+
+        $this->accountAdmin()
+            ->deleteJson('/api/account-admin/users/pbb-remove', [
+                'reason' => 'Removed by Account admin.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.removed', true)
+            ->assertJsonPath('data.user.pbbUserId', null)
+            ->assertJsonPath('data.user.localUserId', (string) $user->id)
+            ->assertJsonPath('data.user.role', 'command')
+            ->assertJsonPath('data.user.status', 'disabled');
+
+        $this->assertDatabaseHas('users', [
+            'id' => $user->id,
+            'pbb_user_id' => null,
+            'role' => UserRole::Command->value,
+            'status' => UserStatus::Disabled->value,
+        ]);
+        $this->assertDatabaseHas('activity_logs', [
+            'actor_role' => 'pbb-account',
+            'action_type' => 'account_admin_access_removed',
+            'message' => 'Removed by Account admin.',
+        ]);
+    }
+
+    public function test_delete_remove_access_is_idempotent_for_missing_link(): void
+    {
+        $this->accountAdmin()
+            ->deleteJson('/api/account-admin/users/pbb-missing', [
+                'reason' => 'Repeat remove request.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.removed', false)
+            ->assertJsonPath('data.pbbUserId', 'pbb-missing')
+            ->assertJsonPath('data.status', 'not_linked');
+
+        $this->assertDatabaseMissing('activity_logs', [
+            'actor_role' => 'pbb-account',
+            'action_type' => 'account_admin_access_removed',
         ]);
     }
 

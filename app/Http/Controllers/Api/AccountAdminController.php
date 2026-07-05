@@ -46,6 +46,7 @@ class AccountAdminController extends Controller
                 'provisionUser' => true,
                 'updateRole' => true,
                 'updateStatus' => true,
+                'removeUser' => true,
                 'blockLogin' => false,
                 'suspendLogin' => true,
             ],
@@ -186,6 +187,35 @@ class AccountAdminController extends Controller
         $this->recordAccountAdminAction($user, 'account_admin_status_updated', $data['reason'] ?? null);
 
         return $this->ok([
+            'user' => $this->accountUserPayload($user),
+        ]);
+    }
+
+    public function removeAccess(Request $request, string $pbb_user_id): JsonResponse
+    {
+        $data = $request->validate([
+            'reason' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $user = $this->findLinkedUser($pbb_user_id);
+
+        if (! $user) {
+            return $this->ok([
+                'removed' => false,
+                'pbbUserId' => $pbb_user_id,
+                'status' => 'not_linked',
+            ]);
+        }
+
+        $user->forceFill([
+            'pbb_user_id' => null,
+            'status' => UserStatus::Disabled,
+        ])->save();
+
+        $this->recordAccountAdminAction($user, 'account_admin_access_removed', $data['reason'] ?? null);
+
+        return $this->ok([
+            'removed' => true,
             'user' => $this->accountUserPayload($user),
         ]);
     }

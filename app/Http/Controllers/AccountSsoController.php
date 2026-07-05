@@ -6,6 +6,7 @@ use App\Domain\Shared\Enums\UserRole;
 use App\Domain\Shared\Enums\UserStatus;
 use App\Models\User;
 use App\Services\Account\AccountClientFactory;
+use App\Support\Auth\RoleRedirector;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -20,25 +21,29 @@ class AccountSsoController extends Controller
     {
         abort_unless(config('account.enabled'), 404);
 
-        $request->session()->put('pbb_account.return_to', '/citizen');
+        $returnTo = $this->safeReturnPath($request->query('return_to'));
+
+        if ($returnTo !== null) {
+            $request->session()->put('pbb_account.return_to', $returnTo);
+        }
 
         return redirect()->away($accounts->make($request)->authorizationUrl());
     }
 
-    public function callback(Request $request, AccountClientFactory $accounts): RedirectResponse
+    public function callback(Request $request, AccountClientFactory $accounts, RoleRedirector $roleRedirector): RedirectResponse
     {
         abort_unless(config('account.enabled'), 404);
 
         try {
             $identity = $accounts->make($request)->handleCallback($request->query())->toArray();
-            $user = $this->resolveCitizenUser($identity);
+            $user = $this->resolveAccountUser($identity);
             $this->assertLocalAccessAllowed($user);
 
             Auth::guard('web')->login($user, true);
             $request->session()->regenerate();
             $user->forceFill(['last_login_at' => now()])->save();
 
-            return redirect($request->session()->pull('pbb_account.return_to', '/citizen'))
+            return redirect($request->session()->pull('pbb_account.return_to', null) ?? $roleRedirector->homePathFor($user))
                 ->with('account_login_success', true);
         } catch (AccountException $exception) {
             return redirect('/')->with('account_login_error', $exception->getMessage());
@@ -67,7 +72,7 @@ class AccountSsoController extends Controller
     /**
      * @param  array<string, mixed>  $identity
      */
-    private function resolveCitizenUser(array $identity): User
+    private function resolveAccountUser(array $identity): User
     {
         $pbbUserId = trim((string) ($identity['pbb_user_id'] ?? ''));
         $email = mb_strtolower(trim((string) ($identity['email'] ?? '')));
@@ -77,13 +82,12 @@ class AccountSsoController extends Controller
         abort_if($pbbUserId === '', 422, 'Account identity is missing pbb_user_id.');
 
         $user = User::query()->where('pbb_user_id', $pbbUserId)->first();
-        abort_if($user && ! ($user->role?->isCitizen() ?? false), 409, 'This Account identity is linked to a local Hotline staff account.');
 
         if (! $user && $email !== '') {
             $emailUser = User::query()->where('email', $email)->first();
 
             if ($emailUser) {
-                abort_if(! ($emailUser->role?->isCitizen() ?? false), 409, 'This email belongs to a local Hotline staff account.');
+                abort_if(! ($emailUser->role?->isCitizen() ?? false), 409, 'This email belongs to a local Hotline staff account that must be linked by Account first.');
                 abort_if($emailUser->pbb_user_id && $emailUser->pbb_user_id !== $pbbUserId, 409, 'This email is already linked to another Account identity.');
 
                 $user = $emailUser;
@@ -113,7 +117,21 @@ class AccountSsoController extends Controller
     private function assertLocalAccessAllowed(User $user): void
     {
         abort_if($user->status !== UserStatus::Active, 403, 'This Hotline account is not currently allowed to sign in.');
-        abort_if(! ($user->role?->isCitizen() ?? false), 403, 'Account SSO is only enabled for Hotline citizen access.');
+    }
+
+    private function safeReturnPath(mixed $path): ?string
+    {
+        $path = trim((string) $path);
+
+        if ($path === '' || ! str_starts_with($path, '/') || str_starts_with($path, '//')) {
+            return null;
+        }
+
+        if (preg_match('/[\x00-\x1F\x7F]/', $path) === 1) {
+            return null;
+        }
+
+        return $path;
     }
 
     private function syntheticEmail(string $pbbUserId): string
