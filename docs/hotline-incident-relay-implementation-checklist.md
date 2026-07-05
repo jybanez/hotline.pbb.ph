@@ -152,10 +152,51 @@ Payload should include these areas where available:
 - toned-down type details
 - requested/default resource context
 - team assignments and assignment status timestamps
-- media references or local URL paths where already available
+- media references where already available
 - short-retention raw/debug data
 
-Do not include secrets, internal storage paths, private filesystem paths, or user session data.
+Do not include secrets, internal storage paths, private filesystem paths, direct source-Hotline URLs, or user session data.
+
+## Media Access Contract
+
+Incident relay payloads should carry `media_refs[]` only. They should not carry raw public `/storage/...` URLs or direct source Hotline URLs as the primary access path.
+
+Utility/Vena should use the Hotline media SDK as a local retrieval and cache layer. Remote cross-hub access must go through Landing, not direct app-to-source-Hotline calls.
+
+Expected media flow:
+
+```text
+Utility/Vena UI
+-> Utility backend media/cache route
+-> Hotline media SDK
+-> local Landing proxy/domain
+-> source hub Hotline media endpoint
+-> Utility local cache
+-> Utility/Vena UI playback or preview
+```
+
+Example media reference:
+
+```json
+{
+  "source_hub_id": "13",
+  "kind": "incident_media",
+  "incident_id": "606",
+  "media_type": "citizen_video",
+  "media_id": "4",
+  "mime_type": "video/webm",
+  "safe_filename": "citizen-video-606.webm"
+}
+```
+
+The SDK may expose local app-facing paths such as:
+
+```text
+/media/{source_hub_id}/{incident_id}/incident_media/{media_type}/{media_id}
+/media/{source_hub_id}/{incident_id}/message_attachment/{message_id}/{attachment_id}
+```
+
+Those paths are local Utility/consumer routes. On cache miss, they must resolve remote media through Landing proxy and hub trust, then serve cached content locally.
 
 ## Outbox And Delivery Model
 
@@ -313,7 +354,8 @@ Settings should be visible in the existing admin settings surface if this become
 - Missing location is accepted but explicit.
 - Missing incident type is accepted for early call-created incidents.
 - Team assignment timestamps are preserved.
-- Media refs do not expose internal storage paths.
+- Media refs do not expose internal storage paths or direct source-Hotline URLs.
+- Utility media retrieval uses Landing proxy through the Hotline media SDK.
 - Relay failures are visible and retryable.
 - SITREP relay and Support Request relay tests remain unaffected.
 
@@ -322,4 +364,4 @@ Settings should be visible in the existing admin settings surface if this become
 - Should Hotline add a dedicated `incident_export_revision` column, or derive revision from delivery sequence first?
 - Should resolved/discarded get dedicated message types in V1 or remain status updates under `hotline.incident.upserted`?
 - What exact target system name should Utility/Vena publish: `utility.vena`, `utility.dispatch`, or another value?
-- What media URL contract should Utility consume first: `media_refs` only, local URL paths, or both?
+- What exact Landing proxy media API shape should the Hotline media SDK use for Utility/Vena cache misses?
