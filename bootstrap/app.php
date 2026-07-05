@@ -11,6 +11,11 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    ->withCommands([
+        \App\Console\Commands\ExportIncidentRelay::class,
+        \App\Console\Commands\QueueIncidentRelay::class,
+        \App\Console\Commands\ProcessIncidentRelayOutbox::class,
+    ])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(prepend: [
             \App\Http\Middleware\ConfigureCriticalSessionLifetime::class,
