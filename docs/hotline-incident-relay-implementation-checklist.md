@@ -182,17 +182,17 @@ Example media reference:
   "source_hub_id": "13",
   "kind": "incident_media",
   "incident_id": "606",
-  "media_type": "citizen_video",
+  "type": "citizen_video",
   "media_id": "4",
   "mime_type": "video/webm",
-  "safe_filename": "citizen-video-606.webm"
+  "original_filename": "citizen-video-606.webm"
 }
 ```
 
 The SDK may expose local app-facing paths such as:
 
 ```text
-/media/{source_hub_id}/{incident_id}/incident_media/{media_type}/{media_id}
+/media/{source_hub_id}/{incident_id}/incident_media/{type}/{media_id}
 /media/{source_hub_id}/{incident_id}/message_attachment/{message_id}/{attachment_id}
 ```
 

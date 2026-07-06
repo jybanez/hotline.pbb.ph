@@ -63,11 +63,12 @@ class IncidentRelayTest extends TestCase
         $this->assertCount(2, $refs);
         $this->assertSame('incident_media', $refs[0]['kind']);
         $this->assertSame('message_attachment', $refs[1]['kind']);
-        $this->assertSame('image', $refs[0]['media_type']);
-        $this->assertSame('image', $refs[1]['media_type']);
-        $this->assertSame('photo.jpg', $refs[0]['safe_filename']);
-        $this->assertSame('xray.png', $refs[1]['safe_filename']);
-        $this->assertArrayNotHasKey('original_filename', $refs[0]);
+        $this->assertSame('image', $refs[0]['type']);
+        $this->assertSame('image', $refs[1]['type']);
+        $this->assertSame('photo.jpg', $refs[0]['original_filename']);
+        $this->assertSame('xray.png', $refs[1]['original_filename']);
+        $this->assertArrayNotHasKey('safe_filename', $refs[0]);
+        $this->assertArrayNotHasKey('media_type', $refs[0]);
 
         $json = json_encode($refs, JSON_UNESCAPED_SLASHES);
         $this->assertStringNotContainsString('/storage/', $json);
