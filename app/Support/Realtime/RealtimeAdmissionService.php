@@ -214,6 +214,61 @@ class RealtimeAdmissionService
     }
 
     /**
+     * @return array<string, mixed>
+     */
+    public function forPublicCommunity(): array
+    {
+        $config = $this->config();
+        $builder = new \RealtimeTokenBuilder($config);
+        $claims = $builder->forChatSession([
+            'app_code' => $this->realtimeAppCode(),
+            'project_code' => $this->realtimeProjectCode('caller', 'prj_hotline_caller'),
+            'user_id' => 'community',
+            'display_name' => 'Community Viewer',
+            'email' => null,
+            'roles' => ['community'],
+            'room' => RealtimeEventPublishService::SETTINGS_ROOM,
+            'capabilities' => [
+                'session.connect',
+                'room.join',
+            ],
+            'allowed_room_prefixes' => [
+                'hotline.settings.',
+                'hotline.broadcast.',
+            ],
+        ]);
+
+        $claims['allowed_rooms'] = [
+            RealtimeEventPublishService::SETTINGS_ROOM,
+            RealtimeEventPublishService::BROADCAST_ROOM,
+        ];
+        $claims['allowed_room_prefixes'] = [
+            'hotline.settings.',
+            'hotline.broadcast.',
+        ];
+
+        $token = $builder->sign($claims);
+
+        return [
+            'token' => $token,
+            'websocket_url' => $config->websocketUrl,
+            'app_code' => $this->realtimeAppCode(),
+            'project_code' => $claims['project_code'],
+            'rooms' => $claims['allowed_rooms'],
+            'expires_at' => gmdate('c', (int) $claims['exp']),
+            'session' => [
+                'token_id' => $claims['jti'],
+                'user_id' => $claims['user_id'],
+                'display_name' => $claims['display_name'],
+                'capabilities' => $claims['capabilities'],
+                'allowed_rooms' => $claims['allowed_rooms'],
+                'allowed_room_prefixes' => $claims['allowed_room_prefixes'],
+                'attachment_policy' => $claims['attachment_policy'],
+            ],
+        ];
+    }
+
+    /**
      * @param  array<int, string>  $capabilities
      * @return array<string, mixed>
      */

@@ -57,8 +57,9 @@ PBB Hotline is the emergency-call and local incident operations app. Current dev
 
 ### Community SDK
 
-- [PBB Hotline Community SDK Proposal](pbb-hotline-community-sdk-proposal.md) - proposed read-only JavaScript SDK for other PBB apps to consume Hotline community alert status and public/community broadcasts.
-- [PBB Hotline Community SDK Implementation Checklist](pbb-hotline-community-sdk-implementation-checklist.md) - proposed implementation checklist for REST bootstrap, Realtime updates, SDK behavior, tests, broadcast filtering, and cross-team boundaries.
+- [PBB Hotline Community SDK Proposal](pbb-hotline-community-sdk-proposal.md) - implemented read-only JavaScript SDK contract for other PBB apps to consume Hotline community alert status and public/community broadcasts.
+- [PBB Hotline Community SDK Implementation Checklist](pbb-hotline-community-sdk-implementation-checklist.md) - current implementation checklist for REST bootstrap, Realtime updates, SDK behavior, tests, broadcast filtering, and cross-team boundaries.
+- [PBB Hotline Community SDK README](../packages/pbb-hotline-community-sdk/README.md) - source SDK usage, events, and endpoint summary.
 
 ### Media SDK
 

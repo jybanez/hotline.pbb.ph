@@ -1,9 +1,11 @@
 # PBB Hotline Community SDK Proposal
 
-Status: proposal  
+Status: implemented initial SDK
 Owner: PBB Hotline Beta  
 Primary consumers: PBB Support, Utility/Vena, Landing, MapServer, Relay dashboards, future PBB apps  
 Last updated: 2026-07-09
+
+Implementation status: initial source SDK and public endpoints are implemented on `main`. The SDK is intentionally source/dev scope and is not part of installable Hotline runtime bundles unless a consuming app vendors it.
 
 ## Purpose
 
@@ -90,29 +92,53 @@ broadcast.public
 - No cross-hub aggregation in first pass.
 - No alert or broadcast analytics in first pass.
 
-## Proposed Package
+## Implemented Package
 
 ```text
 packages/pbb-hotline-community-sdk/
 ```
 
-Suggested package shape:
+Current package shape:
 
 ```text
 packages/pbb-hotline-community-sdk/
-  src/
-    HotlineCommunityClient.js
-    normalizeAlertStatus.js
-    normalizeBroadcastMessage.js
+  js/
+    hotline-community.js
   demo/
     community-sdk.html
-  docs/
-    developer-manual.md
   README.md
-  package.json
 ```
 
 The package should be source/dev scope like other Hotline SDK packages. Installer bundles should exclude it unless a consumer explicitly needs source SDK files at runtime.
+
+The SDK exports:
+
+```js
+import {
+  HotlineCommunityClient,
+  createHotlineCommunityClient,
+  normalizeAlertStatus,
+  normalizeBroadcastMessage,
+} from './packages/pbb-hotline-community-sdk/js/hotline-community.js';
+```
+
+Default usage:
+
+```js
+const client = createHotlineCommunityClient({
+  baseUrl: 'https://hotline.pbb.ph',
+});
+
+client.on('alert.changed', ({ current }) => {
+  console.log(current.level);
+});
+
+client.on('broadcast.received', ({ broadcast }) => {
+  console.log(broadcast.message);
+});
+
+await client.start();
+```
 
 ## Alert Status Contract
 

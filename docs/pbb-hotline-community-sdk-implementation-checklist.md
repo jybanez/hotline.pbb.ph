@@ -1,7 +1,21 @@
 # PBB Hotline Community SDK Implementation Checklist
 
-Status: proposal checklist  
+Status: initial implementation complete
 Related proposal: [PBB Hotline Community SDK Proposal](pbb-hotline-community-sdk-proposal.md)
+
+Implemented package location:
+
+```text
+packages/pbb-hotline-community-sdk/
+```
+
+Implemented files:
+
+```text
+packages/pbb-hotline-community-sdk/js/hotline-community.js
+packages/pbb-hotline-community-sdk/demo/community-sdk.html
+packages/pbb-hotline-community-sdk/README.md
+```
 
 ## Product Boundary
 
