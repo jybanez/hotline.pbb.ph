@@ -55,6 +55,11 @@ PBB Hotline is the emergency-call and local incident operations app. Current dev
 
 - [Hotline Incident Relay Implementation Checklist](hotline-incident-relay-implementation-checklist.md) - current V1 contract for `hotline.incident.upserted`, coalesced outbox, delivery history, media refs, and Utility/Vena ownership.
 
+### Alert Status SDK
+
+- [PBB Hotline Alert SDK Proposal](pbb-hotline-alert-sdk-proposal.md) - proposed read-only JavaScript SDK for other PBB apps to consume Hotline community alert status.
+- [PBB Hotline Alert SDK Implementation Checklist](pbb-hotline-alert-sdk-implementation-checklist.md) - proposed implementation checklist for REST bootstrap, Realtime updates, SDK behavior, tests, and cross-team boundaries.
+
 ### Media SDK
 
 - [Hotline Media SDK Manual](../packages/pbb-hotline-media-sdk/docs/developer-manual.md) - upstream media retrieval, cache ownership, Relay relationship resolution, and Landing gateway access.
