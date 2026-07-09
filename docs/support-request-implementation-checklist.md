@@ -45,29 +45,37 @@ Related contract proposal:
 
 ## 2. Command UI Request Support Form
 
-- Add explicit `Request Support` action only on requestable SITREP operational context.
-- Requestable by default:
-  - resource supply gaps
-  - open needs
-  - road/access constraints
-  - logistics or staging constraints
-  - rescue/access support gaps
+- Add explicit `Request Support` action only on requestable SITREP operational resource context.
+- Requestable in the current Command UI:
+  - resource supply/open-needs gap;
+  - evidence row kind `resource_need`;
+  - valid canonical `resource_type_id` from Hotline `resource_types`.
 - Not requestable by default:
-  - population verification
-  - counting/data-quality notes
-  - historical context
-  - resolved/discarded context
+  - route/access gaps by themselves;
+  - population/data-confidence gaps;
+  - category-only resource summaries;
+  - free-text-only evidence;
+  - logistics or staging notes without a canonical resource;
+  - rescue/access support gaps unless represented by a canonical resource evidence row;
+  - counting/data-quality notes;
+  - historical context;
+  - resolved/discarded context.
+- Rationale:
+  - road/access and population gaps provide context;
+  - resource evidence rows create taskable requests;
+  - route/population context is linked through the selected SITREP evidence and selected incident IDs.
 - Use Helper UI modal/form where available.
 - Prefill from selected SITREP gap/evidence row.
 - Allow Command users to edit prefilled request details before submit.
 - Required fields:
-  - requested assistance
-  - capability
-  - urgency
-  - quantity/unit
-  - staging notes
-  - command notes
-- Show payload preview or summary before submit.
+  - requested assistance/capability, derived from canonical resource type;
+  - urgency;
+  - quantity/unit;
+  - at least one justification code;
+  - selected incident IDs from the selected resource evidence row.
+- Optional fields:
+  - command notes.
+- The current UI no longer asks for staging/access/logistics notes as a primary field; route/access context should already be represented in the linked SITREP evidence when relevant.
 
 ## 3. Outbound Relay Submission
 
@@ -82,8 +90,12 @@ Related contract proposal:
   - SITREP reference
   - gap/evidence row reference
   - incident references
+  - selected incident IDs
+  - canonical resource block
   - requested capability/assistance
-  - urgency and notes
+  - urgency
+  - justification codes
+  - notes
 - Do not embed full SITREP JSON.
 - Persist locally before Relay submission.
 - Update local status to `requested` after local creation.
@@ -149,10 +161,10 @@ POST /api/internal/relay/support-request-updates
 ## 7. Media Evidence Integration
 
 - Keep media files out of `support.request` Relay payloads.
-- Use linked SITREP context and selected incident IDs to identify related media refs.
+- Use linked SITREP context, selected incident IDs, and canonical resource evidence to identify related media refs.
 - Treat `source_snapshot.rollup.media_refs[]` as the media discovery list.
 - Do not expose public `/storage/...` URLs as the integration contract.
-- Use the Hotline-owned media SDK/API for upstream media access once available.
+- Use the Hotline-owned media SDK/API for upstream media access.
 - Validate access with hub-to-hub / HQ token trust through the source Hotline hub.
 - Let upstream apps cache authorized media locally; Hotline should not dictate their cache path, retention, or UI.
 - Support Request UI may show media availability later, but media drill-down remains optional evidence context and must not block request submission.

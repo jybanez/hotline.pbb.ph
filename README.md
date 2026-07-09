@@ -10,6 +10,11 @@ Official GitHub repository:
 Contributor and agent workflow:
 - [Agent Working Protocol](./docs/agent-working-protocol.md)
 
+Current management/review documentation:
+- [Management Review Documentation Index](./docs/management-review-documentation-index.md)
+
+The repository keeps historical proposal and planning documents for traceability. For management, Kit, Support, Utility/Vena, Relay, Account, and implementation reviews, use the management review index to identify the current source-of-truth documents.
+
 ## Local Setup
 
 ### Media Binaries

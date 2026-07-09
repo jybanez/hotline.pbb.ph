@@ -2,6 +2,10 @@
 
 Date: 2026-04-04
 
+Status: historical planning pack
+
+This pack is retained for traceability from the early Hotline Beta planning phase. It is not the current management review index and should not be treated as the current implementation source of truth. For the current review entry point, use [PBB Hotline Management Review Documentation Index](./management-review-documentation-index.md).
+
 This pack is intended for the new `PBB Hotline Beta` team.
 
 ## Primary Docs

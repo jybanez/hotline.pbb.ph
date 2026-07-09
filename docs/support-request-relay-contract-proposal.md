@@ -350,32 +350,37 @@ Support should own `received`, `under_review`, `accepted`, `rejected`, `assigned
 
 ## Hotline UI Behavior
 
-The Command surface should create Support Requests explicitly from requestable operational context.
+The Command surface should create Support Requests explicitly from requestable operational resource context.
 
 Suggested first pass:
 
 - Use the official JS SITREP Viewer SDK for the Current SITREP panel.
 - Add generic Viewer SDK row actions.
-- In Hotline Command, provide a `Request Support` row action only for requestable operational gaps.
+- In Hotline Command, provide a `Request Support` row action only for requestable resource evidence rows.
 - Do not show `Request Support` by default for data-confidence gaps, such as population verification.
 - Open a Hotline-owned modal form using Helper UI primitives where available.
 - Prefill the form from selected SITREP gap/evidence row.
 - Let Command edit the actual request fields before submission.
 
-Requestable gap examples:
+Requestable current examples:
 
-- resource supply not confirmed;
-- open needs tied to active/deferred incidents;
-- road/access constraints affecting movement;
-- logistics/staging constraints;
-- rescue/access support needs.
+- resource supply/open-needs gap;
+- evidence row kind `resource_need`;
+- valid canonical `resource_type_id` from Hotline `resource_types`;
+- active/deferred incident context selected from the evidence row.
 
 Non-requestable by default:
 
+- route/access gaps by themselves;
 - population figures require verification;
+- category-only resource summaries;
+- free-text-only evidence;
+- logistics/staging notes without a canonical resource;
 - counting/data-quality notes;
 - purely informational constraints;
 - historical/resolved/discarded context.
+
+Road/access and population gaps are context for why a resource may be needed. They do not directly create Support Requests unless a linked canonical resource evidence row is selected.
 
 ## Hotline Inbound Endpoint
 
