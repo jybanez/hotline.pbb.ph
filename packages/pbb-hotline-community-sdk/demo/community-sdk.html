@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PBB Hotline Community SDK Demo</title>
+    <style>
+      body {
+        margin: 0;
+        background: #07111d;
+        color: #d8e7ff;
+        font-family: Arial, sans-serif;
+      }
+
+      main {
+        max-width: 880px;
+        margin: 40px auto;
+        padding: 0 20px;
+      }
+
+      section {
+        border: 1px solid #264565;
+        border-radius: 8px;
+        padding: 18px;
+        margin-top: 16px;
+        background: #0b1728;
+      }
+
+      h1,
+      h2 {
+        margin: 0 0 10px;
+      }
+
+      code {
+        color: #8fd5ff;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>PBB Hotline Community SDK Demo</h1>
+      <p>This page loads the public Hotline community snapshot and listens for Realtime alert/broadcast updates.</p>
+
+      <section>
+        <h2>Alert</h2>
+        <div id="alert">Loading...</div>
+      </section>
+
+      <section>
+        <h2>Broadcasts</h2>
+        <div id="broadcasts">Loading...</div>
+      </section>
+
+      <section>
+        <h2>Events</h2>
+        <pre id="events"></pre>
+      </section>
+    </main>
+
+    <script type="module">
+      import { createHotlineCommunityClient } from '../js/hotline-community.js';
+
+      const alertTarget = document.querySelector('#alert');
+      const broadcastsTarget = document.querySelector('#broadcasts');
+      const eventsTarget = document.querySelector('#events');
+      const client = createHotlineCommunityClient({
+        baseUrl: window.location.origin,
+      });
+
+      const log = (type, payload) => {
+        eventsTarget.textContent = `${new Date().toISOString()} ${type}\n${eventsTarget.textContent}`;
+      };
+
+      const render = () => {
+        const alert = client.currentAlert();
+        const broadcasts = client.currentBroadcasts();
+
+        alertTarget.innerHTML = alert
+          ? `<strong>${alert.level}</strong><br>${alert.description}`
+          : 'No alert loaded.';
+
+        broadcastsTarget.innerHTML = broadcasts.length
+          ? broadcasts.map((broadcast) => `<article><strong>${broadcast.title || broadcast.tone}</strong><br>${broadcast.message}</article>`).join('')
+          : 'No active public/community broadcasts.';
+      };
+
+      client.on('*', (type, payload) => {
+        log(type, payload);
+        render();
+      });
+
+      client.start().catch((error) => {
+        eventsTarget.textContent = error.message;
+      });
+    </script>
+  </body>
+</html>
+
