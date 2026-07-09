@@ -71,24 +71,22 @@ source_hub_id + source_system + source_incident_id
 Relay/message idempotency must be separate from incident identity:
 
 ```text
-source_hub_id + source_system + source_incident_id + revision
+source_hub_id + source_system + source_incident_id + exported_payload_hash
 ```
 
-Preferred long-term shape:
+V1 derives `revision` from the exported payload hash. The hash is computed from the outbound source payload, incident payload, and short-retention debug context, so relation-owned changes are included even when `incidents.updated_at` is unchanged. Covered related data includes incident resources, incident type details, team assignments, media, messages, and attachments.
+
+Current V1 shape:
 
 ```json
 {
   "incident_key": "13:hotline:606",
-  "revision": 7,
-  "message_idempotency_key": "13:hotline:606:rev:7"
+  "revision": "c0a1f4cbd5...",
+  "message_idempotency_key": "13:hotline:606:c0a1f4cbd5..."
 }
 ```
 
-If a dedicated revision does not exist in the first implementation, use exported `updated_at` as a temporary revision source:
-
-```text
-13:hotline:606:updated:2026-07-06T10:15:00Z
-```
+The implementation does not use `updated_at` as the revision source. A changed exported payload creates a changed `revision` and `message_idempotency_key`; unchanged requeues are detected by matching sent delivery `idempotency_key` or `payload_hash` and are not posted to Relay again.
 
 ## Payload Contract V1
 
@@ -101,8 +99,8 @@ Minimum envelope:
   "schema_version": 1,
   "message_type": "hotline.incident.upserted",
   "incident_key": "13:hotline:606",
-  "revision": 7,
-  "message_idempotency_key": "13:hotline:606:rev:7",
+  "revision": "c0a1f4cbd5...",
+  "message_idempotency_key": "13:hotline:606:c0a1f4cbd5...",
   "source": {
     "hub_id": "13",
     "system": "hotline",
@@ -182,17 +180,17 @@ Example media reference:
   "source_hub_id": "13",
   "kind": "incident_media",
   "incident_id": "606",
-  "media_type": "citizen_video",
+  "type": "citizen_video",
   "media_id": "4",
   "mime_type": "video/webm",
-  "safe_filename": "citizen-video-606.webm"
+  "original_filename": "citizen-video-606.webm"
 }
 ```
 
 The SDK may expose local app-facing paths such as:
 
 ```text
-/media/{source_hub_id}/{incident_id}/incident_media/{media_type}/{media_id}
+/media/{source_hub_id}/{incident_id}/incident_media/{type}/{media_id}
 /media/{source_hub_id}/{incident_id}/message_attachment/{message_id}/{attachment_id}
 ```
 
@@ -240,7 +238,7 @@ incident_relay_deliveries
 - last_error
 ```
 
-The worker reads the latest incident state, assigns the next revision/idempotency key, appends a delivery row, submits to Relay, then updates delivery status.
+The worker reads the latest incident state, derives the revision/idempotency key from the exported payload hash, skips Relay POST when the same sent idempotency key or payload hash already exists, appends a delivery row for new exports, submits to Relay, then updates delivery status.
 
 ## Trigger Rules
 
@@ -347,7 +345,8 @@ Settings should be visible in the existing admin settings surface if this become
 
 - Sparse empty incident exports successfully.
 - Later update for the same incident keeps the same `incident_key`.
-- Later update gets a new message idempotency key/revision.
+- Later exported payload change gets a new message idempotency key/revision.
+- Relation-only changes affecting exported resources, details, assignments, media, messages, or attachments change the exported payload hash.
 - Rapid repeated edits coalesce into one pending outbox row.
 - Sent delivery history is append-only.
 - Utility/Vena can upsert by stable incident identity.
@@ -361,7 +360,6 @@ Settings should be visible in the existing admin settings surface if this become
 
 ## Open Questions
 
-- Should Hotline add a dedicated `incident_export_revision` column, or derive revision from delivery sequence first?
 - Should resolved/discarded get dedicated message types in V1 or remain status updates under `hotline.incident.upserted`?
 - What exact target system name should Utility/Vena publish: `utility.vena`, `utility.dispatch`, or another value?
 - What exact Landing proxy media API shape should the Hotline media SDK use for Utility/Vena cache misses?

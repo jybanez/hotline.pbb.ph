@@ -429,6 +429,62 @@ CREATE TABLE `incidents` (
   CONSTRAINT `incidents_operator_id_foreign` FOREIGN KEY (`operator_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `incident_relay_outbox`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `incident_relay_outbox` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `incident_id` bigint(20) unsigned NOT NULL,
+  `message_type` varchar(96) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'hotline.incident.upserted',
+  `status` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `pending_since` timestamp NULL DEFAULT NULL,
+  `last_changed_at` timestamp NULL DEFAULT NULL,
+  `attempt_count` int(10) unsigned NOT NULL DEFAULT '0',
+  `last_attempted_at` timestamp NULL DEFAULT NULL,
+  `last_error` text COLLATE utf8mb4_unicode_ci,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `incident_relay_outbox_incident_id_unique` (`incident_id`),
+  KEY `incident_relay_outbox_status_index` (`status`),
+  KEY `incident_relay_outbox_pending_since_index` (`pending_since`),
+  KEY `incident_relay_outbox_last_changed_at_index` (`last_changed_at`),
+  CONSTRAINT `incident_relay_outbox_incident_id_foreign` FOREIGN KEY (`incident_id`) REFERENCES `incidents` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `incident_relay_deliveries`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `incident_relay_deliveries` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `incident_id` bigint(20) unsigned NOT NULL,
+  `message_type` varchar(96) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'hotline.incident.upserted',
+  `status` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `stable_incident_key` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `revision` varchar(96) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `idempotency_key` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `payload_hash` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `payload_summary_json` json DEFAULT NULL,
+  `relay_id` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `relay_message_id` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `deliveries_count` int(10) unsigned DEFAULT NULL,
+  `attempted_at` timestamp NULL DEFAULT NULL,
+  `sent_at` timestamp NULL DEFAULT NULL,
+  `failed_at` timestamp NULL DEFAULT NULL,
+  `last_error` text COLLATE utf8mb4_unicode_ci,
+  `response_json` json DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `incident_relay_deliveries_idempotency_key_unique` (`idempotency_key`),
+  KEY `incident_relay_deliveries_status_index` (`status`),
+  KEY `incident_relay_deliveries_stable_incident_key_index` (`stable_incident_key`),
+  KEY `incident_relay_deliveries_relay_id_index` (`relay_id`),
+  KEY `incident_relay_deliveries_relay_message_id_index` (`relay_message_id`),
+  KEY `incident_relay_deliveries_incident_id_status_index` (`incident_id`,`status`),
+  CONSTRAINT `incident_relay_deliveries_incident_id_foreign` FOREIGN KEY (`incident_id`) REFERENCES `incidents` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `job_batches`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -949,4 +1005,6 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES
   ('2026_06_11_000002_create_support_request_histories_table', 1),
   ('2026_06_12_000001_add_justifications_to_support_requests_table', 1),
   ('2026_06_12_000002_add_scope_context_to_support_requests_table', 1),
-  ('2026_06_29_000001_add_pbb_user_id_to_users_table', 1);
+  ('2026_06_29_000001_add_pbb_user_id_to_users_table', 1),
+  ('2026_07_06_000001_create_incident_relay_outbox_table', 1),
+  ('2026_07_06_000002_create_incident_relay_deliveries_table', 1);
