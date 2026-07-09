@@ -8,6 +8,7 @@ Related proposal: [PBB Hotline Community SDK Proposal](pbb-hotline-community-sdk
 - Hotline remains the source of truth for alert status and official public/community broadcasts.
 - The SDK is read-only.
 - Consuming apps decide how to render or react to alert status and broadcasts.
+- SDK-owned Realtime is the default plug-and-play mode.
 - Realtime transports updates but does not own alert or broadcast semantics.
 - Helper may own visual widgets later, but the SDK core must remain UI-free.
 - Operator-only, command-only, admin, internal, team, support, incident, SITREP, and media payloads are out of scope.
@@ -19,6 +20,7 @@ Related proposal: [PBB Hotline Community SDK Proposal](pbb-hotline-community-sdk
 - [ ] Confirm where Command/Admin updates alert level.
 - [ ] Confirm the current Realtime event emitted when alert level changes.
 - [ ] Confirm which Realtime room consumers can join for alert updates.
+- [ ] Confirm how Hotline can mint a narrow public/community Realtime admission token without a consuming-app secret.
 - [ ] Confirm whether alert voice and audio graph style should be exposed in the public alert object.
 - [ ] Locate current Hotline broadcast storage/publishing logic.
 - [ ] Classify existing broadcast audiences and identify which values are safe for public/community consumers.
@@ -90,7 +92,38 @@ GET /api/public/broadcasts
 - [ ] Add tests excluding expired, retracted, operator-only, command-only, admin, internal, team, and support broadcasts.
 - [ ] Add tests proving sensitive settings and operational records are not present.
 
-## 3. Realtime Event Contract
+## 3. Public/Community Realtime Admission
+
+- [ ] Add public read-only Realtime admission endpoint:
+
+```text
+GET /api/public/community-realtime
+```
+
+- [ ] Return:
+
+```json
+{
+  "ok": true,
+  "websocket_url": "wss://realtime.pbb.ph/realtime",
+  "token": "public-community-scoped-token",
+  "rooms": [
+    "hotline.settings.global",
+    "hotline.broadcast.global"
+  ],
+  "expires_at": "2026-07-09T12:15:00+08:00"
+}
+```
+
+- [ ] Token must be read/listen only.
+- [ ] Token must allow only public/community alert and broadcast rooms.
+- [ ] Token must not allow publish capability.
+- [ ] Token must not allow incident, support request, SITREP, media, command, operator, admin, team, or internal rooms.
+- [ ] Endpoint must not require a consuming-app secret.
+- [ ] Add tests proving the token/rooms are narrow.
+- [ ] Add tests proving no sensitive settings are exposed.
+
+## 4. Realtime Event Contract
 
 - [ ] Reuse existing alert-change and broadcast Realtime publishing if already stable.
 - [ ] If needed, add or document canonical event types:
@@ -111,7 +144,7 @@ hotline.broadcast.retracted
 - [ ] Document room names used for alert and broadcast updates.
 - [ ] Ensure unsupported audiences are not published to public/community Realtime channels.
 
-## 4. SDK Package
+## 5. SDK Package
 
 - [ ] Create source package:
 
@@ -140,11 +173,14 @@ packages/pbb-hotline-community-sdk/
 - [ ] Do not import Helper in SDK core.
 - [ ] Do not expose alert mutation methods.
 - [ ] Do not expose broadcast publishing methods.
-- [ ] Use dependency injection for `fetchImpl` and `realtimeClient` for tests.
+- [ ] Use dependency injection for `fetchImpl`, `realtimeFactory`, and optional `realtimeClient` for tests.
+- [ ] Keep `realtimeClient` as an optional advanced override, not a required consumer dependency.
 
-## 5. SDK Client Behavior
+## 6. SDK Client Behavior
 
+- [ ] Implement `start()` to run bootstrap and SDK-owned Realtime connection by default.
 - [ ] Implement `bootstrap()` to fetch current community status.
+- [ ] Implement `connectRealtime()` to call `/api/public/community-realtime` and create the SDK-owned socket.
 - [ ] Implement `subscribe()` to listen for Realtime alert and broadcast events.
 - [ ] Implement `unsubscribe()`.
 - [ ] Implement `currentAlert()`.
@@ -175,9 +211,12 @@ community.reconnected
 - [ ] Do not emit duplicate `alert.changed` if the normalized alert state has not changed.
 - [ ] Do not emit duplicate broadcast events if the normalized broadcast has not changed.
 - [ ] Preserve last known alert and active broadcast list on network or Realtime failure.
+- [ ] Refresh admission when the SDK-owned token expires.
 - [ ] Remove broadcasts from `activeBroadcasts()` on expiry/retraction.
+- [ ] Support REST-only mode when `autoRealtime` is `false`.
+- [ ] Use a supplied `realtimeClient` only when advanced consumers provide one.
 
-## 6. Normalization Helpers
+## 7. Normalization Helpers
 
 - [ ] Normalize alert level names to lowercase.
 - [ ] Map alert severities:
@@ -214,7 +253,7 @@ broadcastCssClass(broadcast)
 
 - [ ] Keep helper methods pure and deterministic.
 
-## 7. Demo And Documentation
+## 8. Demo And Documentation
 
 - [ ] Add browser demo page:
 
@@ -227,7 +266,8 @@ packages/pbb-hotline-community-sdk/demo/community-sdk.html
   - show normalized alert JSON;
   - show active public/community broadcasts;
   - show alert helper output;
-  - optionally connect to Realtime if a client is supplied;
+  - connect to Realtime through the SDK-owned default path;
+  - demonstrate REST-only mode with `autoRealtime=false`;
   - not require authenticated Hotline user session.
 
 - [ ] Add developer manual:
@@ -237,31 +277,37 @@ packages/pbb-hotline-community-sdk/docs/developer-manual.md
 ```
 
 - [ ] Include examples for Support, Utility/Vena, Landing, MapServer, and citizen-facing PBB apps.
+- [ ] Document that consumers need only `hotlineBaseUrl` for the default plug-and-play path.
+- [ ] Document `realtimeClient` as an optional advanced override.
 - [ ] Document read-only boundary clearly.
 - [ ] Document unsupported broadcast audiences clearly.
 
-## 8. Tests
+## 9. Tests
 
 - [ ] Unit tests for `normalizeAlertStatus`.
 - [ ] Unit tests for `normalizeBroadcastMessage`.
+- [ ] Unit tests for client `start()` success.
 - [ ] Unit tests for client bootstrap success.
+- [ ] Unit tests for SDK-owned Realtime admission and connection.
 - [ ] Unit tests for bootstrap failure and last-known fallback.
+- [ ] Unit tests for REST-only mode.
 - [ ] Unit tests for Realtime `alert.changed`.
 - [ ] Unit tests for Realtime broadcast publish/update/expire/retract events.
 - [ ] Unit tests for duplicate suppression.
 - [ ] Unit tests proving no mutation/publish API exists.
 - [ ] Feature test for REST endpoint shape.
+- [ ] Feature test for public/community Realtime admission shape.
 - [ ] Feature test proving sensitive settings are not exposed.
 - [ ] Feature test proving non-public broadcast audiences are excluded.
 
-## 9. Packaging Boundary
+## 10. Packaging Boundary
 
 - [ ] Keep SDK source/dev scope unless a consuming app explicitly vendors it.
 - [ ] Do not build a Hotline installer bundle from the feature branch.
 - [ ] If package metadata changes affect bundle rules, update `release.json` only after review.
 - [ ] Main-built bundle handoff to Kit happens only after merge and explicit approval.
 
-## 10. Cross-Team Coordination
+## 11. Cross-Team Coordination
 
 - [ ] Inform Support about the read-only Community SDK once the branch is ready.
 - [ ] Inform Utility/Vena about the normalized alert/broadcast objects and intended map use.

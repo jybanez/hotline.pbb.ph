@@ -27,6 +27,7 @@ Hotline owns:
 - audience classification for broadcasts;
 - alert and broadcast update authority through Command/Admin;
 - REST bootstrap endpoints;
+- public/community Realtime admission endpoint;
 - Realtime publication;
 - SDK contract and source package.
 
@@ -68,6 +69,7 @@ broadcast.public
 - Provide one canonical JavaScript client for Hotline community signals.
 - Bootstrap current alert status through REST.
 - Bootstrap active public/community broadcasts through REST.
+- Create a narrow public/community Realtime connection by default.
 - Listen for Realtime alert-change and broadcast events.
 - Normalize alert values into a small stable object.
 - Normalize broadcast messages into a small stable object.
@@ -84,7 +86,7 @@ broadcast.public
 - No incident, SITREP, support request, or media payload delivery.
 - No Helper UI dependency in SDK core.
 - No global browser styling injected by the SDK.
-- No replacement for Realtime SDK.
+- No replacement for Realtime SDK in authenticated app workflows.
 - No cross-hub aggregation in first pass.
 - No alert or broadcast analytics in first pass.
 
@@ -298,6 +300,41 @@ The endpoint should be public/read-only and safe for sibling PBB apps to call. I
 
 ## Realtime Events
 
+The SDK should own its Realtime connection by default so consuming apps do not need to configure Realtime, secrets, or app-local admission flows.
+
+Proposed public/community Realtime admission endpoint:
+
+```text
+GET /api/public/community-realtime
+```
+
+Expected response:
+
+```json
+{
+  "ok": true,
+  "websocket_url": "wss://realtime.pbb.ph/realtime",
+  "token": "public-community-scoped-token",
+  "rooms": [
+    "hotline.settings.global",
+    "hotline.broadcast.global"
+  ],
+  "expires_at": "2026-07-09T12:15:00+08:00"
+}
+```
+
+The token must be narrow:
+
+- read/listen only;
+- public/community alert and broadcast rooms only;
+- no incident rooms;
+- no support request rooms;
+- no SITREP payload access;
+- no media access;
+- no publish capability.
+
+Consuming apps should not need a configured Realtime client. Advanced consumers may pass an existing Realtime client as an override when they already own one, but that is optional and not the default path.
+
 Proposed event types:
 
 ```text
@@ -363,11 +400,10 @@ If Hotline already emits a settings/broadcast event for alert or broadcast chang
 import { HotlineCommunityClient } from './src/HotlineCommunityClient.js';
 
 const client = new HotlineCommunityClient({
-  hotlineBaseUrl: 'https://hotline.pbb.ph',
-  realtimeClient,
+  hotlineBaseUrl: 'https://hotline.pbb.ph'
 });
 
-await client.bootstrap();
+await client.start();
 
 client.on('alert.changed', (alert) => {
   console.log(alert.level);
@@ -384,6 +420,8 @@ Constructor options:
 {
   hotlineBaseUrl,
   realtimeClient,
+  realtimeFactory,
+  autoRealtime,
   rooms,
   fetchImpl,
   logger,
@@ -410,7 +448,9 @@ community.reconnected
 Methods:
 
 ```js
+start()
 bootstrap()
+connectRealtime()
 subscribe()
 unsubscribe()
 currentAlert()
@@ -427,6 +467,20 @@ broadcastCssClass(broadcast)
 ```
 
 The SDK may expose helper functions, but they must be pure and framework-agnostic.
+
+Default behavior:
+
+1. `start()` calls `bootstrap()`.
+2. SDK calls `/api/public/community-realtime`.
+3. SDK creates its own Realtime connection.
+4. SDK subscribes to public/community rooms.
+5. SDK emits alert and broadcast events.
+
+Advanced behavior:
+
+- If `realtimeClient` is supplied, SDK uses it instead of creating a socket.
+- If `autoRealtime` is `false`, SDK runs REST-only until `connectRealtime()` is called.
+- No consumer secrets or tokens are required in default mode or REST-only mode.
 
 ## Consumer Behavior Examples
 
@@ -474,6 +528,8 @@ Alert status and public broadcasts are community posture signals, not user secre
 
 The SDK should not require browser credentials for first-pass read access. If a future deployment needs private community signals, a separate authenticated endpoint can be added without breaking the public SDK object shape.
 
+The public/community Realtime admission endpoint should also require no consuming-app secret. Hotline mints a narrow token for public/community listening only.
+
 ## Broadcast Filtering Rules
 
 The REST endpoint and SDK should only expose broadcasts that are:
@@ -499,6 +555,7 @@ On Realtime disconnect:
 
 - SDK keeps last known alert and broadcast list;
 - emits reconnect/error events if the underlying realtime client exposes them;
+- refreshes admission when the SDK-owned token expires;
 - does not repeatedly fetch in a tight loop.
 
 On broadcast expiry:
@@ -532,8 +589,8 @@ Breaking changes:
 
 ## Open Questions
 
-- Should the package filename be changed immediately from alert SDK to community SDK, or should the proposal filename remain for continuity until implementation starts?
 - Should the first endpoint be `/api/public/community-status` or another namespace aligned with Landing public gateways?
+- Should `/api/public/community-realtime` return a Realtime JWT directly, or a wrapper object with short cache-control and explicit room metadata?
 - Does Hotline already have broadcast persistence suitable for public/community filtering, or does first pass need a new public-broadcast read model?
 - Should broadcast `body` support plain text only, Markdown subset, or sanitized HTML?
 - Should alert status include hub identity from Relay `/hub.json`, or only app identity in first pass?
