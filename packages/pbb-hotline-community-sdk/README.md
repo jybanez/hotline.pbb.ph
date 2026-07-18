@@ -38,6 +38,8 @@ hotline.broadcast.global
 
 The token allows only `session.connect` and `room.join`.
 
+When the SDK owns the raw browser WebSocket, it sends `room.join.request` for every admitted room after the socket opens. Apps that inject a richer Realtime client can keep using that client; the SDK will call `join(room)` or `subscribe(room)` when those methods exist.
+
 ## Events
 
 - `community.loaded`
