@@ -70,6 +70,40 @@
       "notes": "Expose only authenticated SITREP media manifest/download machine endpoints. Do not expose browser UI, session, admin, bootstrap, CSRF, storage, asset, or general API routes through Landing public gateway."
     }
   },
+  "web_server": {
+    "requirements": [
+      {
+        "id": "hotline.laravel_bootstrap_env",
+        "kind": "apache_setenv",
+        "scope": "vhost",
+        "server_names": [
+          "hotline.pbb.ph",
+          "hotline-sitrep.pbb.ph"
+        ],
+        "keys": [
+          {"name": "APP_NAME", "value_source": "generated_env.APP_NAME", "required": true, "secret": false},
+          {"name": "APP_ENV", "value_source": "generated_env.APP_ENV", "required": true, "secret": false},
+          {"name": "APP_DEBUG", "value_source": "generated_env.APP_DEBUG", "required": true, "secret": false},
+          {"name": "APP_URL", "value_source": "generated_env.APP_URL", "required": true, "secret": false},
+          {"name": "APP_KEY", "value_source": "generated_env.APP_KEY", "required": true, "secret": true},
+          {"name": "DB_CONNECTION", "value_source": "generated_env.DB_CONNECTION", "required": true, "secret": false},
+          {"name": "DB_HOST", "value_source": "generated_env.DB_HOST", "required": true, "secret": false},
+          {"name": "DB_PORT", "value_source": "generated_env.DB_PORT", "required": true, "secret": false},
+          {"name": "DB_DATABASE", "value_source": "generated_env.DB_DATABASE", "required": true, "secret": false},
+          {"name": "DB_USERNAME", "value_source": "generated_env.DB_USERNAME", "required": true, "secret": false},
+          {"name": "DB_PASSWORD", "value_source": "generated_env.DB_PASSWORD", "required": false, "secret": true},
+          {"name": "SESSION_DRIVER", "value_source": "generated_env.SESSION_DRIVER", "required": true, "secret": false},
+          {"name": "SESSION_DOMAIN", "value_source": "generated_env.SESSION_DOMAIN", "required": false, "secret": false},
+          {"name": "SESSION_COOKIE", "value_source": "generated_env.SESSION_COOKIE", "required": true, "secret": false},
+          {"name": "SESSION_LIFETIME", "value_source": "generated_env.SESSION_LIFETIME", "required": true, "secret": false},
+          {"name": "CACHE_STORE", "value_source": "generated_env.CACHE_STORE", "required": true, "secret": false},
+          {"name": "QUEUE_CONNECTION", "value_source": "generated_env.QUEUE_CONNECTION", "required": true, "secret": false},
+          {"name": "FILESYSTEM_DISK", "value_source": "generated_env.FILESYSTEM_DISK", "required": true, "secret": false}
+        ],
+        "notes": "Do not emit HOTLINE_SESSION_* aliases into Apache SetEnv; Laravel session config falls back to these standard pins and avoids duplicate session-cookie declarations per vhost."
+      }
+    ]
+  },
   "type": "laravel",
   "requires": {
     "os": ["windows", "linux"],

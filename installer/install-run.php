@@ -1031,14 +1031,8 @@ function buildEnvFile(array $config): string
         'SESSION_COOKIE' => 'pbb_hotline_session',
         'SESSION_PATH' => '/',
         'SESSION_DOMAIN' => $sessionDomain,
-        'HOTLINE_SESSION_DRIVER' => 'database',
-        'HOTLINE_SESSION_LIFETIME' => $normalSessionLifetime,
         'HOTLINE_CRITICAL_SESSION_LIFETIME' => $citizenSessionLifetime,
         'HOTLINE_CITIZEN_SESSION_LIFETIME' => $citizenSessionLifetime,
-        'HOTLINE_SESSION_ENCRYPT' => 'false',
-        'HOTLINE_SESSION_COOKIE' => 'pbb_hotline_session',
-        'HOTLINE_SESSION_PATH' => '/',
-        'HOTLINE_SESSION_DOMAIN' => $sessionDomain,
         'PBB_ACCOUNT_SSO_ENABLED' => 'true',
         'PBB_ACCOUNT_BASE_URL' => 'https://account.pbb.ph',
         'PBB_ACCOUNT_CLIENT_ID' => 'pbb-hotline',
@@ -1106,6 +1100,9 @@ function buildInstallManifest(string $root, array $config, string $envPath, ?str
             'relied_on_external_paths' => $externalPaths,
         ],
         'database_setup' => $databaseSetup,
+        'web_server' => [
+            'requirements' => webServerRequirements(),
+        ],
         'database' => [
             'host' => (string) dataGet($config, ['database', 'host'], ''),
             'port' => (int) dataGet($config, ['database', 'port'], 3306),
@@ -1116,6 +1113,44 @@ function buildInstallManifest(string $root, array $config, string $envPath, ?str
             'queue' => 'php artisan queue:work --queue=default --sleep=1 --tries=3 --timeout=90',
             'scheduler' => 'php artisan schedule:run',
             'artifacts_path' => $servicesDir,
+        ],
+    ];
+}
+
+/**
+ * @return array<int, array<string, mixed>>
+ */
+function webServerRequirements(): array
+{
+    return [
+        [
+            'id' => 'hotline.laravel_bootstrap_env',
+            'kind' => 'apache_setenv',
+            'scope' => 'vhost',
+            'server_names' => [
+                'hotline.pbb.ph',
+                'hotline-sitrep.pbb.ph',
+            ],
+            'keys' => [
+                ['name' => 'APP_NAME', 'value_source' => 'generated_env.APP_NAME', 'required' => true, 'secret' => false],
+                ['name' => 'APP_ENV', 'value_source' => 'generated_env.APP_ENV', 'required' => true, 'secret' => false],
+                ['name' => 'APP_DEBUG', 'value_source' => 'generated_env.APP_DEBUG', 'required' => true, 'secret' => false],
+                ['name' => 'APP_URL', 'value_source' => 'generated_env.APP_URL', 'required' => true, 'secret' => false],
+                ['name' => 'APP_KEY', 'value_source' => 'generated_env.APP_KEY', 'required' => true, 'secret' => true],
+                ['name' => 'DB_CONNECTION', 'value_source' => 'generated_env.DB_CONNECTION', 'required' => true, 'secret' => false],
+                ['name' => 'DB_HOST', 'value_source' => 'generated_env.DB_HOST', 'required' => true, 'secret' => false],
+                ['name' => 'DB_PORT', 'value_source' => 'generated_env.DB_PORT', 'required' => true, 'secret' => false],
+                ['name' => 'DB_DATABASE', 'value_source' => 'generated_env.DB_DATABASE', 'required' => true, 'secret' => false],
+                ['name' => 'DB_USERNAME', 'value_source' => 'generated_env.DB_USERNAME', 'required' => true, 'secret' => false],
+                ['name' => 'DB_PASSWORD', 'value_source' => 'generated_env.DB_PASSWORD', 'required' => false, 'secret' => true],
+                ['name' => 'SESSION_DRIVER', 'value_source' => 'generated_env.SESSION_DRIVER', 'required' => true, 'secret' => false],
+                ['name' => 'SESSION_DOMAIN', 'value_source' => 'generated_env.SESSION_DOMAIN', 'required' => false, 'secret' => false],
+                ['name' => 'SESSION_COOKIE', 'value_source' => 'generated_env.SESSION_COOKIE', 'required' => true, 'secret' => false],
+                ['name' => 'SESSION_LIFETIME', 'value_source' => 'generated_env.SESSION_LIFETIME', 'required' => true, 'secret' => false],
+                ['name' => 'CACHE_STORE', 'value_source' => 'generated_env.CACHE_STORE', 'required' => true, 'secret' => false],
+                ['name' => 'QUEUE_CONNECTION', 'value_source' => 'generated_env.QUEUE_CONNECTION', 'required' => true, 'secret' => false],
+                ['name' => 'FILESYSTEM_DISK', 'value_source' => 'generated_env.FILESYSTEM_DISK', 'required' => true, 'secret' => false],
+            ],
         ],
     ];
 }

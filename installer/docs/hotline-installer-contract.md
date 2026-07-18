@@ -46,7 +46,7 @@ Running without `--config` is allowed for bundle/host validation and returns war
 - backs up the existing `.env` before rewrite when overwrite is allowed
 - writes a generated `.env` from installer config
 - writes `VIEW_COMPILED_PATH` to the absolute in-root `storage/framework/views` path before Laravel config/view cache commands run
-- writes `SESSION_DOMAIN` and `HOTLINE_SESSION_DOMAIN` blank so Laravel issues host-only Hotline session and CSRF cookies
+- writes `SESSION_DOMAIN` blank so Laravel issues host-only Hotline session and CSRF cookies; `HOTLINE_SESSION_*` aliases are not emitted because the app falls back to the standard Laravel session pins
 - generates a fresh Laravel `APP_KEY`
 - prepares `storage/app/installer` and `storage/app/installer/services`
 - applies `database/schema/hotline-schema-mysql.sql` for fresh installs when `options.database_setup=baseline_schema` is set, with `options.use_baseline_schema=true` retained as a backward-compatible fallback
@@ -65,6 +65,7 @@ Running without `--config` is allowed for bundle/host validation and returns war
 - writes `storage/app/installer/install-manifest.json` after the install commands pass
 - writes `storage/app/installer/install-report.json` for status/discovery, even when `--report` also writes a copy elsewhere
 - reports filesystem boundary details in the install manifest: app root, app-owned paths created or relied on, and external binary paths relied on without creating them
+- reports `web_server.requirements[]` with the standard Laravel Apache `SetEnv` pins Kit needs for isolated WAMP vhosts: app identity, database, `SESSION_DRIVER`, `SESSION_COOKIE`, `SESSION_LIFETIME`, optional blank `SESSION_DOMAIN`, `CACHE_STORE`, `QUEUE_CONNECTION`, and `FILESYSTEM_DISK`
 - returns planned actions and a manifest preview when `--dry-run` is used
 
 Direct service registration is intentionally not performed by default. The installer writes service artifacts for Kit Setup or an operator to register. If config requests direct registration without `--no-service-register`, the current slice fails with a structured message instead of pretending registration happened.
