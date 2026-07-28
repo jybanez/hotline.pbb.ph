@@ -49,7 +49,7 @@
     "launcher": {
       "visible": true,
       "sort": 20,
-      "logo_url": "https://hotline.pbb.ph/assets/launcher/app-icon.png",
+      "logo_url": "https://hotline.pbb.ph/assets/launcher/app-icon.webp",
       "logo_kind": "mark",
       "icon": "hotline",
       "local_url": "https://hotline.pbb.ph",

@@ -1298,7 +1298,7 @@ async function openLoginModal(options = {}) {
         className: blocking ? 'hotline-login-modal is-required-login' : 'hotline-login-modal',
         identifierKind: 'email',
         submitLabel: 'Login',
-        mediaUrl: '/assets/launcher/app-icon.png',
+        mediaUrl: '/assets/launcher/app-icon.webp',
         mediaAlt: 'PBB Hotline',
         backgroundTone: 'dark',
         showCloseButton: !blocking,
