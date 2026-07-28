@@ -111,7 +111,7 @@ final class HotlineMediaClient
      */
     private function cacheKey(array $item): string
     {
-        $localKey = (new MediaRefLocalUrl())->cacheKey($item);
+        $localKey = (new MediaRefLocalUrl)->cacheKey($item);
         if ($localKey !== null) {
             return $localKey;
         }
@@ -137,6 +137,12 @@ final class HotlineMediaClient
             'attachment_id' => $item['attachment_id'] ?? null,
             'mime_type' => $item['mime_type'] ?? null,
             'original_filename' => $item['original_filename'] ?? null,
+            'stored_mime_type' => $item['stored_mime_type'] ?? null,
+            'stored_size_bytes' => $item['stored_size_bytes'] ?? null,
+            'image_width' => $item['image_width'] ?? null,
+            'image_height' => $item['image_height'] ?? null,
+            'sha256' => $item['sha256'] ?? null,
+            'normalized_at' => $item['normalized_at'] ?? null,
             'source_metadata' => $item['source_metadata'] ?? [],
         ];
     }

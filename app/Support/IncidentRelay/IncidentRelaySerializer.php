@@ -15,8 +15,7 @@ class IncidentRelaySerializer
     public function __construct(
         private readonly SettingsService $settings,
         private readonly IncidentRelayHubContext $hubContext,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array<string, mixed>
@@ -252,8 +251,14 @@ class IncidentRelaySerializer
                     'attachment_id' => $attachment->id,
                     'message_id' => $message->id,
                     'type' => $attachment->type,
-                    'mime_type' => $attachment->mime_type,
+                    'mime_type' => $attachment->stored_mime_type ?? $attachment->mime_type,
                     'original_filename' => $this->safeFilename($attachment->original_filename),
+                    'stored_mime_type' => $attachment->stored_mime_type,
+                    'stored_size_bytes' => $attachment->stored_size_bytes,
+                    'image_width' => $attachment->image_width,
+                    'image_height' => $attachment->image_height,
+                    'sha256' => $attachment->sha256,
+                    'normalized_at' => $attachment->normalized_at?->toIso8601String(),
                     'created_at' => $attachment->created_at?->toIso8601String(),
                     'uploader_role' => $this->stringOrNull($message->sender_role),
                 ],

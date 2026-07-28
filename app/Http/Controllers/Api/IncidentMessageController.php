@@ -8,6 +8,7 @@ use App\Domain\Messages\Models\MessageAttachment;
 use App\Domain\Shared\Enums\UserRole;
 use App\Domain\Users\Models\User;
 use App\Http\Controllers\Controller;
+use App\Support\Media\ChatPhotoWebpNormalizer;
 use App\Support\Media\MediaBinaryResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,12 +16,15 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use RuntimeException;
 use Symfony\Component\Process\Process;
 
 class IncidentMessageController extends Controller
 {
     public function __construct(
         private readonly MediaBinaryResolver $mediaBinaries,
+        private readonly ChatPhotoWebpNormalizer $chatPhotoNormalizer,
     ) {}
 
     public function index(Request $request, Incident $incident): JsonResponse
@@ -43,18 +47,10 @@ class IncidentMessageController extends Controller
                     'sender_avatar' => $message->sender?->avatar,
                     'body' => $message->body,
                     'type' => $message->type,
-                    'attachments' => $message->attachments->map(fn ($attachment) => [
-                        'id' => $attachment->id,
-                        'message_id' => $attachment->message_id,
-                        'type' => $attachment->type,
-                        'mime_type' => $attachment->mime_type,
-                        'original_filename' => $attachment->original_filename,
-                        'stored_path' => $attachment->stored_path,
-                        'file_size' => $attachment->file_size,
-                        'thumbnail_path' => $attachment->thumbnail_path,
-                        'uploaded_by' => $attachment->uploaded_by,
-                        'created_at' => $attachment->created_at?->toIso8601String(),
-                    ])->values()->all(),
+                    'attachments' => $message->attachments
+                        ->map(fn (MessageAttachment $attachment) => $this->attachmentPayload($attachment))
+                        ->values()
+                        ->all(),
                     'created_at' => $message->created_at?->toIso8601String(),
                 ])
                 ->values()
@@ -127,46 +123,96 @@ class IncidentMessageController extends Controller
         /** @var UploadedFile $file */
         $file = $validated['attachment'];
         $type = $this->normalizeAttachmentType($validated['type'] ?? null, $file);
-        $extension = strtolower((string) $file->getClientOriginalExtension());
-        $safeName = Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) ?: 'attachment';
-        $filename = sprintf(
-            '%s_%s%s',
-            now()->format('YmdHis'),
-            Str::limit($safeName, 48, ''),
-            $extension !== '' ? ".{$extension}" : ''
-        );
-        $storedPath = $file->storeAs(
-            sprintf('incident-messages/%d/%d', $incident->id, $message->id),
-            $filename,
-            'public',
-        );
+        $directory = sprintf('incident-messages/%d/%d', $incident->id, $message->id);
+        $originalMimeType = $file->getMimeType() ?: 'application/octet-stream';
+        $metadata = [];
+
+        if ($type === 'image') {
+            try {
+                $normalized = $this->chatPhotoNormalizer->normalize($file);
+            } catch (RuntimeException $exception) {
+                throw ValidationException::withMessages([
+                    'attachment' => $exception->getMessage(),
+                ]);
+            }
+
+            $storedPath = $directory.'/'.$normalized->storedFilename;
+            Storage::disk('public')->put($storedPath, $normalized->contents);
+
+            $metadata = [
+                'mime_type' => $normalized->storedMimeType,
+                'stored_path' => $storedPath,
+                'file_size' => $normalized->storedSizeBytes,
+                'original_mime_type' => $originalMimeType,
+                'stored_mime_type' => $normalized->storedMimeType,
+                'stored_filename' => $normalized->storedFilename,
+                'stored_size_bytes' => $normalized->storedSizeBytes,
+                'image_width' => $normalized->width,
+                'image_height' => $normalized->height,
+                'sha256' => $normalized->sha256,
+                'normalized_at' => now(),
+            ];
+        } else {
+            $extension = strtolower((string) $file->getClientOriginalExtension());
+            $safeName = Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) ?: 'attachment';
+            $filename = sprintf(
+                '%s_%s%s',
+                now()->format('YmdHis'),
+                Str::limit($safeName, 48, ''),
+                $extension !== '' ? ".{$extension}" : ''
+            );
+            $storedPath = $file->storeAs($directory, $filename, 'public');
+
+            $metadata = [
+                'mime_type' => $originalMimeType,
+                'stored_path' => $storedPath,
+                'file_size' => $file->getSize() ?: 0,
+            ];
+        }
 
         $attachment = MessageAttachment::query()->create([
             'message_id' => $message->id,
             'type' => $type,
-            'mime_type' => $file->getMimeType() ?: 'application/octet-stream',
             'original_filename' => $file->getClientOriginalName(),
-            'stored_path' => $storedPath,
-            'file_size' => $file->getSize() ?: 0,
-            'thumbnail_path' => $this->generateAttachmentThumbnail($storedPath, $type),
             'uploaded_by' => (int) $request->user()->id,
             'created_at' => now(),
+            ...$metadata,
         ]);
 
+        $attachment->forceFill([
+            'thumbnail_path' => $this->generateAttachmentThumbnail($attachment->stored_path, $type),
+        ])->save();
+
         return response()->json([
-            'item' => [
-                'id' => $attachment->id,
-                'message_id' => $attachment->message_id,
-                'type' => $attachment->type,
-                'mime_type' => $attachment->mime_type,
-                'original_filename' => $attachment->original_filename,
-                'stored_path' => $attachment->stored_path,
-                'file_size' => $attachment->file_size,
-                'thumbnail_path' => $attachment->thumbnail_path,
-                'uploaded_by' => $attachment->uploaded_by,
-                'created_at' => $attachment->created_at?->toIso8601String(),
-            ],
+            'item' => $this->attachmentPayload($attachment),
         ], 201);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function attachmentPayload(MessageAttachment $attachment): array
+    {
+        return [
+            'id' => $attachment->id,
+            'message_id' => $attachment->message_id,
+            'type' => $attachment->type,
+            'mime_type' => $attachment->stored_mime_type ?? $attachment->mime_type,
+            'original_mime_type' => $attachment->original_mime_type,
+            'stored_mime_type' => $attachment->stored_mime_type,
+            'original_filename' => $attachment->original_filename,
+            'stored_filename' => $attachment->stored_filename,
+            'stored_path' => $attachment->stored_path,
+            'file_size' => $attachment->stored_size_bytes ?? $attachment->file_size,
+            'stored_size_bytes' => $attachment->stored_size_bytes,
+            'image_width' => $attachment->image_width,
+            'image_height' => $attachment->image_height,
+            'sha256' => $attachment->sha256,
+            'normalized_at' => $attachment->normalized_at?->toIso8601String(),
+            'thumbnail_path' => $attachment->thumbnail_path,
+            'uploaded_by' => $attachment->uploaded_by,
+            'created_at' => $attachment->created_at?->toIso8601String(),
+        ];
     }
 
     private function canAccessIncident(Request $request, Incident $incident): bool

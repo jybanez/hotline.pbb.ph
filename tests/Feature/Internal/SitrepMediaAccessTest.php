@@ -61,6 +61,13 @@ class SitrepMediaAccessTest extends TestCase
             ->assertJsonPath('items.0.source_hub_id', 'hub-1')
             ->assertJsonPath('items.0.evidence_ref', 'resource:oxygen:1')
             ->assertJsonPath('items.1.kind', 'message_attachment')
+            ->assertJsonPath('items.1.mime_type', 'image/webp')
+            ->assertJsonPath('items.1.stored_mime_type', 'image/webp')
+            ->assertJsonPath('items.1.file_size', 8)
+            ->assertJsonPath('items.1.stored_size_bytes', 8)
+            ->assertJsonPath('items.1.image_width', 800)
+            ->assertJsonPath('items.1.image_height', 600)
+            ->assertJsonPath('items.1.sha256', str_repeat('c', 64))
             ->assertJsonPath('unavailable.0.reason', 'incident_media_unavailable');
 
         $payload = $response->json();
@@ -207,8 +214,15 @@ class SitrepMediaAccessTest extends TestCase
             'type' => 'image',
             'mime_type' => 'image/jpeg',
             'original_filename' => 'scene.jpg',
+            'stored_mime_type' => 'image/webp',
             'stored_path' => $attachmentPath,
+            'stored_filename' => 'scene.webp',
             'file_size' => 16,
+            'stored_size_bytes' => 8,
+            'image_width' => 800,
+            'image_height' => 600,
+            'sha256' => str_repeat('c', 64),
+            'normalized_at' => now(),
             'uploaded_by' => $operator->id,
             'created_at' => now(),
         ]);

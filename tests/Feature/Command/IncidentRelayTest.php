@@ -67,6 +67,13 @@ class IncidentRelayTest extends TestCase
         $this->assertSame('image', $refs[1]['type']);
         $this->assertSame('photo.jpg', $refs[0]['original_filename']);
         $this->assertSame('xray.png', $refs[1]['original_filename']);
+        $this->assertSame('image/webp', $refs[1]['mime_type']);
+        $this->assertSame('image/webp', $refs[1]['stored_mime_type']);
+        $this->assertSame(4567, $refs[1]['stored_size_bytes']);
+        $this->assertSame(1024, $refs[1]['image_width']);
+        $this->assertSame(768, $refs[1]['image_height']);
+        $this->assertSame(str_repeat('a', 64), $refs[1]['sha256']);
+        $this->assertNotNull($refs[1]['normalized_at']);
         $this->assertArrayNotHasKey('safe_filename', $refs[0]);
         $this->assertArrayNotHasKey('media_type', $refs[0]);
 
@@ -339,8 +346,15 @@ class IncidentRelayTest extends TestCase
             'type' => 'image',
             'mime_type' => 'image/png',
             'original_filename' => 'xray.png',
+            'stored_mime_type' => 'image/webp',
             'stored_path' => 'attachments/xray.png',
+            'stored_filename' => 'xray.webp',
             'file_size' => 12345,
+            'stored_size_bytes' => 4567,
+            'image_width' => 1024,
+            'image_height' => 768,
+            'sha256' => str_repeat('a', 64),
+            'normalized_at' => now(),
             'uploaded_by' => $incident->operator_id,
             'created_at' => now(),
         ]);

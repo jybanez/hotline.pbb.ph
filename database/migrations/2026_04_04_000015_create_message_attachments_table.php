@@ -14,8 +14,16 @@ return new class extends Migration
             $table->string('type');
             $table->string('mime_type');
             $table->string('original_filename');
+            $table->string('original_mime_type')->nullable();
+            $table->string('stored_mime_type')->nullable();
             $table->string('stored_path');
+            $table->string('stored_filename')->nullable();
             $table->unsignedBigInteger('file_size');
+            $table->unsignedBigInteger('stored_size_bytes')->nullable();
+            $table->unsignedInteger('image_width')->nullable();
+            $table->unsignedInteger('image_height')->nullable();
+            $table->string('sha256', 64)->nullable();
+            $table->timestamp('normalized_at')->nullable();
             $table->string('thumbnail_path')->nullable();
             $table->foreignId('uploaded_by')->constrained('users')->restrictOnDelete();
             $table->timestamp('created_at')->useCurrent();

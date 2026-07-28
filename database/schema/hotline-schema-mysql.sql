@@ -552,8 +552,16 @@ CREATE TABLE `message_attachments` (
   `type` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `mime_type` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `original_filename` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `original_mime_type` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `stored_mime_type` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `stored_path` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `stored_filename` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `file_size` bigint(20) unsigned NOT NULL,
+  `stored_size_bytes` bigint(20) unsigned DEFAULT NULL,
+  `image_width` int(10) unsigned DEFAULT NULL,
+  `image_height` int(10) unsigned DEFAULT NULL,
+  `sha256` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `normalized_at` timestamp NULL DEFAULT NULL,
   `thumbnail_path` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `uploaded_by` bigint(20) unsigned NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1007,4 +1015,5 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES
   ('2026_06_12_000002_add_scope_context_to_support_requests_table', 1),
   ('2026_06_29_000001_add_pbb_user_id_to_users_table', 1),
   ('2026_07_06_000001_create_incident_relay_outbox_table', 1),
-  ('2026_07_06_000002_create_incident_relay_deliveries_table', 1);
+  ('2026_07_06_000002_create_incident_relay_deliveries_table', 1),
+  ('2026_07_28_000001_add_normalized_image_metadata_to_message_attachments_table', 1);

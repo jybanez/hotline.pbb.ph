@@ -17,8 +17,16 @@ class MessageAttachment extends Model
         'type',
         'mime_type',
         'original_filename',
+        'original_mime_type',
+        'stored_mime_type',
         'stored_path',
+        'stored_filename',
         'file_size',
+        'stored_size_bytes',
+        'image_width',
+        'image_height',
+        'sha256',
+        'normalized_at',
         'thumbnail_path',
         'uploaded_by',
         'created_at',
@@ -27,6 +35,10 @@ class MessageAttachment extends Model
     protected function casts(): array
     {
         return [
+            'stored_size_bytes' => 'integer',
+            'image_width' => 'integer',
+            'image_height' => 'integer',
+            'normalized_at' => 'datetime',
             'created_at' => 'datetime',
         ];
     }
