@@ -8,6 +8,7 @@ use App\Domain\Shared\Enums\IncidentStatus;
 use App\Domain\Shared\Enums\UserRole;
 use App\Domain\Sitreps\Models\SitrepReport;
 use App\Domain\Users\Models\User;
+use App\Support\Media\MessageAttachmentMetadata;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -20,6 +21,7 @@ class SitrepGenerationService
 
     public function __construct(
         private readonly SitrepRelayOutboxService $relayOutbox,
+        private readonly MessageAttachmentMetadata $attachmentMetadata,
     ) {}
 
     public function generate(?User $preparedBy, array $input): SitrepReport
@@ -988,25 +990,12 @@ class SitrepGenerationService
 
             foreach ($incident->messages as $message) {
                 foreach ($message->attachments as $attachment) {
-                    $refs[] = [
-                        'kind' => 'message_attachment',
+                    $refs[] = $this->attachmentMetadata->mediaRef($attachment, [
                         'source_hub_id' => $sourceHubId,
                         'incident_id' => (int) $incident->id,
                         'incident_ref' => $this->incidentReference($incident),
-                        'attachment_id' => (int) $attachment->id,
-                        'message_id' => (int) $message->id,
-                        'type' => (string) $attachment->type,
-                        'mime_type' => (string) ($attachment->stored_mime_type ?? $attachment->mime_type),
-                        'original_filename' => $this->safeOriginalFilename($attachment->original_filename),
-                        'stored_mime_type' => $this->nullableText($attachment->stored_mime_type),
-                        'stored_size_bytes' => $attachment->stored_size_bytes !== null ? (int) $attachment->stored_size_bytes : null,
-                        'image_width' => $attachment->image_width !== null ? (int) $attachment->image_width : null,
-                        'image_height' => $attachment->image_height !== null ? (int) $attachment->image_height : null,
-                        'sha256' => $this->nullableText($attachment->sha256),
-                        'normalized_at' => $attachment->normalized_at?->toIso8601String(),
-                        'created_at' => $attachment->created_at?->toIso8601String(),
                         'uploader_role' => $this->nullableText($message->sender_role),
-                    ];
+                    ]);
                 }
             }
         }

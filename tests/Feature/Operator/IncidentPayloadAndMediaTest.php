@@ -49,11 +49,19 @@ class IncidentPayloadAndMediaTest extends TestCase
 
         DB::table('message_attachments')->insert([
             'message_id' => $messageId,
-            'type' => 'photo',
-            'mime_type' => 'image/jpeg',
+            'type' => 'image',
+            'mime_type' => 'image/webp',
             'original_filename' => 'scene.jpg',
-            'stored_path' => 'incident-media/scene.jpg',
+            'original_mime_type' => 'image/jpeg',
+            'stored_mime_type' => 'image/webp',
+            'stored_filename' => 'scene.webp',
+            'stored_path' => 'incident-media/scene.webp',
             'file_size' => 1024,
+            'stored_size_bytes' => 1024,
+            'image_width' => 800,
+            'image_height' => 600,
+            'sha256' => str_repeat('d', 64),
+            'normalized_at' => now()->subMinutes(2),
             'thumbnail_path' => 'incident-media/thumb-scene.jpg',
             'uploaded_by' => $operator->id,
             'created_at' => now()->subMinutes(2),
@@ -368,7 +376,7 @@ class IncidentPayloadAndMediaTest extends TestCase
         $mediaId = (int) $createResponse->json('media.id');
 
         $this->actingAs($operator)
-            ->post('/api/operator/media/' . $mediaId . '/chunks', [
+            ->post('/api/operator/media/'.$mediaId.'/chunks', [
                 'chunk' => \Illuminate\Http\UploadedFile::fake()->createWithContent('000000.chunk', "\x1A\x45\xDF\xA3".'audio-chunk-1'),
                 'chunk_index' => 0,
             ])
@@ -379,7 +387,7 @@ class IncidentPayloadAndMediaTest extends TestCase
         Storage::disk('local')->assertExists("media-processing/{$incidentId}/1/{$mediaId}/chunks/000000.chunk");
 
         $finalizeResponse = $this->actingAs($operator)
-            ->postJson('/api/operator/media/' . $mediaId . '/finalize', [
+            ->postJson('/api/operator/media/'.$mediaId.'/finalize', [
                 'duration_seconds' => 9,
                 'ended_at' => now()->toIso8601String(),
                 'extension' => 'weba',
@@ -444,14 +452,14 @@ class IncidentPayloadAndMediaTest extends TestCase
         ]);
 
         $this->actingAs($otherOperator)
-            ->post('/api/operator/media/' . $mediaId . '/chunks', [
+            ->post('/api/operator/media/'.$mediaId.'/chunks', [
                 'chunk' => \Illuminate\Http\UploadedFile::fake()->createWithContent('000000.chunk', 'audio-chunk-1'),
                 'chunk_index' => 0,
             ])
             ->assertNotFound();
 
         $this->actingAs($otherOperator)
-            ->postJson('/api/operator/media/' . $mediaId . '/finalize', [
+            ->postJson('/api/operator/media/'.$mediaId.'/finalize', [
                 'duration_seconds' => 4,
                 'extension' => 'weba',
             ])
@@ -481,7 +489,7 @@ class IncidentPayloadAndMediaTest extends TestCase
         $mediaId = (int) $createResponse->json('media.id');
 
         $this->actingAs($operator)
-            ->postJson('/api/operator/media/' . $mediaId . '/finalize', [
+            ->postJson('/api/operator/media/'.$mediaId.'/finalize', [
                 'duration_seconds' => 5,
                 'extension' => 'webm',
             ])
@@ -549,7 +557,7 @@ class IncidentPayloadAndMediaTest extends TestCase
         $mediaId = (int) $createResponse->json('media.id');
 
         $this->actingAs($operator)
-            ->post('/api/operator/media/' . $mediaId . '/chunks', [
+            ->post('/api/operator/media/'.$mediaId.'/chunks', [
                 'chunk' => \Illuminate\Http\UploadedFile::fake()->createWithContent(
                     '000001.chunk',
                     hex2bin('43C38103BF80FB034FB01F9F181D124310955AD3DC0F19DBE2D6C279C25D292D')
@@ -559,7 +567,7 @@ class IncidentPayloadAndMediaTest extends TestCase
             ->assertCreated();
 
         $this->actingAs($operator)
-            ->postJson('/api/operator/media/' . $mediaId . '/finalize', [
+            ->postJson('/api/operator/media/'.$mediaId.'/finalize', [
                 'duration_seconds' => 5,
                 'extension' => 'weba',
             ])
@@ -597,7 +605,7 @@ class IncidentPayloadAndMediaTest extends TestCase
         $mediaId = (int) $createResponse->json('media.id');
 
         $this->actingAs($operator)
-            ->post('/api/operator/media/' . $mediaId . '/chunks', [
+            ->post('/api/operator/media/'.$mediaId.'/chunks', [
                 'chunk' => \Illuminate\Http\UploadedFile::fake()->createWithContent(
                     '000001.chunk',
                     hex2bin('1A45DFA39F4286810142F7810142F2810442F381084282847765626D42878104')
@@ -607,7 +615,7 @@ class IncidentPayloadAndMediaTest extends TestCase
             ->assertCreated();
 
         $this->actingAs($operator)
-            ->postJson('/api/operator/media/' . $mediaId . '/finalize', [
+            ->postJson('/api/operator/media/'.$mediaId.'/finalize', [
                 'duration_seconds' => 5,
                 'extension' => 'weba',
             ])

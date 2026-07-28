@@ -19,9 +19,25 @@ final class ChatPhotoWebpNormalizer
             throw new RuntimeException('Uploaded image file is unavailable.');
         }
 
+        $baseName = Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) ?: 'chat-photo';
+        $storedFilename = sprintf('%s_%s.webp', now()->format('YmdHis'), Str::limit($baseName, 48, ''));
+
+        return $this->normalizePath($sourcePath, $storedFilename, $maxLongEdge, $quality, 'Uploaded image');
+    }
+
+    public function normalizePath(string $sourcePath, string $storedFilename, int $maxLongEdge = 1600, int $quality = 84): NormalizedChatImage
+    {
+        if (! function_exists('imagewebp')) {
+            throw new RuntimeException('WebP encoding is unavailable on this server.');
+        }
+
+        if (! is_file($sourcePath)) {
+            throw new RuntimeException("Image file is unavailable: {$sourcePath}");
+        }
+
         $source = $this->decode($sourcePath);
         if (! $source) {
-            throw new RuntimeException('Uploaded image could not be decoded.');
+            throw new RuntimeException("Image file could not be decoded: {$sourcePath}");
         }
 
         $source = $this->applyExifOrientation($sourcePath, $source);
@@ -65,11 +81,8 @@ final class ChatPhotoWebpNormalizer
         imagedestroy($source);
 
         if (! $encoded || $contents === '') {
-            throw new RuntimeException('Uploaded image could not be encoded as WebP.');
+            throw new RuntimeException("Image file could not be encoded as WebP: {$sourcePath}");
         }
-
-        $baseName = Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) ?: 'chat-photo';
-        $storedFilename = sprintf('%s_%s.webp', now()->format('YmdHis'), Str::limit($baseName, 48, ''));
 
         return new NormalizedChatImage(
             contents: $contents,

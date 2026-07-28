@@ -84,6 +84,8 @@ Related proposal:
   - `normalized_at`
 - Update API responses to include normalized metadata.
 - Preserve old response fields so current Command/Operator surfaces do not break.
+- For chat image/photo attachments, do not silently fall back to legacy JPEG/PNG metadata after this release. Missing WebP metadata is an unavailable/error state until the required normalization command is run.
+- Non-image attachments remain backward-compatible.
 - Ensure frontend URL normalization still uses `stored_path` and `thumbnail_path` correctly.
 
 ## 5. UI And Frontend
@@ -126,16 +128,20 @@ Related proposal:
 - Do not expose `stored_path` or filesystem paths in Relay/SITREP refs.
 - Keep media SDK contracts backward-compatible.
 
-## 8. Optional Backfill
+## 8. Required Existing Image Backfill
 
-- Decide whether existing image attachments should be backfilled.
-- If yes, add an Artisan command:
-  - dry-run by default;
-  - batch size option;
-  - skip already normalized rows;
-  - record failures without stopping the full run;
-  - avoid deleting old files until explicitly requested.
-- If no, document that normalization applies only to new chat photo uploads.
+- Add an Artisan command:
+  - `php artisan app:normalize-chat-image-attachments`;
+  - `--dry-run` audits without writing changes;
+  - live mode is required in the release/update path after DB migration;
+  - skip already normalized rows only after verifying file, MIME, size, dimensions, and SHA-256;
+  - fail non-zero on missing files, unsupported/corrupt images, write failures, thumbnail failures, or metadata mismatch;
+  - update `mime_type`, `file_size`, and `stored_path` to the authoritative WebP values;
+  - fill `original_mime_type`, `stored_mime_type`, `stored_filename`, `stored_size_bytes`, `image_width`, `image_height`, `sha256`, and `normalized_at`;
+  - regenerate thumbnails for normalized images;
+  - avoid deleting old files until explicitly approved.
+- Existing image/photo attachment rows are not considered readable as successful legacy images until normalized. Runtime serializers expose them as unavailable with `image_attachment_not_normalized`.
+- Existing non-image attachment rows remain readable through the legacy fields.
 
 ## 9. Tests
 
@@ -147,7 +153,11 @@ Related proposal:
 - Unit test: SHA-256 matches stored WebP bytes.
 - Serialization test: API returns normalized fields and old fields.
 - SITREP/Incident Relay test: refs include normalized metadata and exclude storage paths.
-- Regression test: existing legacy rows without new metadata still render.
+- Regression test: existing legacy non-image rows without new metadata still render.
+- Regression test: existing legacy image/photo rows without normalized metadata are unavailable until backfilled.
+- Command test: existing JPEG/PNG message attachment row converts to WebP and old source bytes remain in place.
+- Command test: missing source file fails loudly.
+- Command test: corrupt/unsupported image fails loudly.
 - Avatar test, only if Hotline owns avatar storage: avatar WebP variants render and cache-busting value changes on update.
 
 ## 10. Verification
@@ -174,11 +184,11 @@ Related proposal:
 - Update fresh baseline schema.
 - Confirm installable bundle includes no temporary conversion files.
 - Confirm no source upload originals are packaged or left in temp paths.
-- Document whether existing installed nodes need a backfill command.
+- Document that existing installed nodes must run `php artisan app:normalize-chat-image-attachments` after migration and before treating chat image media refs as available.
 
 ## Current Recommendation
 
-- Normalize new chat photo uploads only for the first implementation.
-- Do not backfill old attachments unless storage pressure requires it.
+- Normalize new chat photo uploads and require a one-time live backfill for existing chat image/photo attachments.
+- Do not keep silent legacy image fallback after this release; unnormalized image rows must be fixed by the command.
 - Use WebP quality `82-85`.
 - Use max long edge `1600` unless field testing shows response teams need higher detail.

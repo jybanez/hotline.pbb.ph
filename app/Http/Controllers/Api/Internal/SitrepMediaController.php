@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Internal;
 use App\Domain\Media\Models\Media;
 use App\Domain\Messages\Models\MessageAttachment;
 use App\Http\Controllers\Controller;
+use App\Support\Media\MessageAttachmentMetadata;
 use App\Support\Settings\SettingsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,6 +20,7 @@ class SitrepMediaController extends Controller
 
     public function __construct(
         private readonly SettingsService $settings,
+        private readonly MessageAttachmentMetadata $attachmentMetadata,
     ) {}
 
     public function manifest(Request $request): JsonResponse
@@ -272,6 +274,14 @@ class SitrepMediaController extends Controller
         if ($this->hasContextMismatch($ref, 'incident_id', $message->incident_id)
             || $this->hasContextMismatch($ref, 'message_id', $attachment->message_id)) {
             return ['status' => 'context_mismatch', 'reason' => 'message_attachment_context_mismatch'];
+        }
+
+        if ($unavailable = $this->attachmentMetadata->imageUnavailableReason($attachment)) {
+            return [
+                'status' => 'unavailable',
+                'reason' => $unavailable['error'],
+                'details' => $unavailable,
+            ];
         }
 
         $item = [

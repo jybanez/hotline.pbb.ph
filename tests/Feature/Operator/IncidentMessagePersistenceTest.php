@@ -227,7 +227,7 @@ class IncidentMessagePersistenceTest extends TestCase
         Storage::disk('public')->assertExists($attachment->stored_path);
     }
 
-    public function test_legacy_message_attachment_rows_remain_readable(): void
+    public function test_legacy_image_attachment_rows_are_reported_unavailable_until_backfilled(): void
     {
         [$incidentId, $messageId, $operator] = $this->createOwnedIncidentMessage();
 
@@ -246,8 +246,36 @@ class IncidentMessagePersistenceTest extends TestCase
         $this->actingAs($operator)
             ->getJson("/api/incidents/{$incidentId}/messages")
             ->assertOk()
-            ->assertJsonPath('items.0.attachments.0.mime_type', 'image/jpeg')
-            ->assertJsonPath('items.0.attachments.0.file_size', 123)
+            ->assertJsonPath('items.0.attachments.0.available', false)
+            ->assertJsonPath('items.0.attachments.0.error', 'image_attachment_not_normalized')
+            ->assertJsonPath('items.0.attachments.0.mime_type', null)
+            ->assertJsonPath('items.0.attachments.0.file_size', null)
+            ->assertJsonPath('items.0.attachments.0.stored_mime_type', null)
+            ->assertJsonPath('items.0.attachments.0.normalized_at', null);
+    }
+
+    public function test_legacy_non_image_attachment_rows_remain_readable(): void
+    {
+        [$incidentId, $messageId, $operator] = $this->createOwnedIncidentMessage();
+
+        DB::table('message_attachments')->insert([
+            'message_id' => $messageId,
+            'type' => 'file',
+            'mime_type' => 'application/pdf',
+            'original_filename' => 'legacy-brief.pdf',
+            'stored_path' => 'incident-messages/legacy-brief.pdf',
+            'file_size' => 321,
+            'thumbnail_path' => null,
+            'uploaded_by' => $operator->id,
+            'created_at' => now(),
+        ]);
+
+        $this->actingAs($operator)
+            ->getJson("/api/incidents/{$incidentId}/messages")
+            ->assertOk()
+            ->assertJsonPath('items.0.attachments.0.available', true)
+            ->assertJsonPath('items.0.attachments.0.mime_type', 'application/pdf')
+            ->assertJsonPath('items.0.attachments.0.file_size', 321)
             ->assertJsonPath('items.0.attachments.0.stored_mime_type', null)
             ->assertJsonPath('items.0.attachments.0.normalized_at', null);
     }
