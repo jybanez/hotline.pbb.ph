@@ -101,16 +101,57 @@ export class HotlineCommunityClient {
     }
 
     const socket = new this.WebSocketImpl(withToken(this.realtimeAdmission.websocket_url, this.realtimeAdmission.token));
+    let joinedRooms = false;
+    const joinRooms = () => {
+      if (joinedRooms) {
+        return;
+      }
+
+      joinedRooms = true;
+      this.joinRealtimeRooms(socket, this.realtimeAdmission);
+    };
 
     if (typeof socket.addEventListener === 'function') {
       socket.addEventListener('message', (event) => this.handleRealtimeMessage(event.data));
+      socket.addEventListener('open', joinRooms);
     } else {
       socket.onmessage = (event) => this.handleRealtimeMessage(event.data);
+      socket.onopen = joinRooms;
     }
 
     this.socket = socket;
 
     return socket;
+  }
+
+  joinRealtimeRooms(socket, admission) {
+    if (! socket || typeof socket.send !== 'function') {
+      return;
+    }
+
+    const rooms = Array.isArray(admission?.rooms)
+      ? admission.rooms
+      : admission?.room ? [admission.room] : [];
+
+    rooms.forEach((room, index) => {
+      const normalizedRoom = String(room ?? '').trim();
+
+      if (normalizedRoom === '') {
+        return;
+      }
+
+      socket.send(JSON.stringify({
+        namespace: 'pbb.realtime.v1',
+        phase: 'request',
+        id: `community_join_${Date.now()}_${index}`,
+        type: 'room.join.request',
+        room: normalizedRoom,
+        payload: {},
+        meta: {
+          source: 'pbb-hotline-community-sdk',
+        },
+      }));
+    });
   }
 
   close() {
