@@ -24,320 +24,212 @@ packages/pbb-hotline-community-sdk/README.md
 - Consuming apps decide how to render or react to alert status and broadcasts.
 - SDK-owned Realtime is the default plug-and-play mode.
 - Realtime transports updates but does not own alert or broadcast semantics.
-- Helper may own visual widgets later, but the SDK core must remain UI-free.
+- Helper may own visual widgets later, but the SDK core remains UI-free.
 - Operator-only, command-only, admin, internal, team, support, incident, SITREP, and media payloads are out of scope.
 
-## 1. Current Runtime Audit
+## Completed Runtime Audit
 
-- [ ] Locate the current Hotline alert-level source in settings/runtime services.
-- [ ] Confirm all valid current alert levels.
-- [ ] Confirm where Command/Admin updates alert level.
-- [ ] Confirm the current Realtime event emitted when alert level changes.
-- [ ] Confirm which Realtime room consumers can join for alert updates.
-- [ ] Confirm how Hotline can mint a narrow public/community Realtime admission token without a consuming-app secret.
-- [ ] Confirm whether alert voice and audio graph style should be exposed in the public alert object.
-- [ ] Locate current Hotline broadcast storage/publishing logic.
-- [ ] Classify existing broadcast audiences and identify which values are safe for public/community consumers.
-- [ ] Confirm whether current broadcast payloads can be safely exposed as plain text.
-- [ ] Confirm current Realtime event emitted when a broadcast is published, updated, expired, or retracted.
+- [x] Alert level source is `SettingsService::currentAlertLevel()`.
+- [x] Valid current alert levels are `Normal`, `Elevated`, and `Critical`.
+- [x] Alert changes publish through existing Realtime settings room behavior.
+- [x] Public/community listeners use:
 
-## 2. REST Bootstrap Endpoint
+```text
+hotline.settings.global
+hotline.broadcast.global
+```
 
-- [ ] Add public read-only consolidated endpoint:
+- [x] Hotline can mint a narrow public/community Realtime admission token without a consuming-app secret.
+- [x] Alert voice and audio graph style are intentionally not exposed in the initial public alert object.
+- [x] Broadcast storage uses `command_broadcasts`.
+- [x] Public/community broadcast visibility is limited to broadcasts targeting `citizen`, `caller`, `public`, or `community`.
+- [x] Operator-only, command-only, admin, and internal broadcasts are excluded from the SDK bootstrap response.
+
+## Completed Public REST Endpoints
+
+- [x] Added read-only consolidated endpoint:
 
 ```text
 GET /api/public/community-status
 ```
 
-- [ ] Return only minimal community signal data:
+- [x] Response includes only minimal community signal data:
   - current alert status;
-  - active public/community broadcasts.
-- [ ] Do not expose full settings.
-- [ ] Do not expose users, incidents, SITREPs, support requests, media refs, storage URLs, tokens, operator-only broadcasts, or internal broadcast payloads.
-- [ ] Normalize response to:
+  - active community-visible broadcasts;
+  - Realtime room/event metadata.
+- [x] Response does not expose full settings, incidents, SITREPs, support requests, media refs, storage URLs, Realtime signing secret, backend secrets, or internal broadcast payloads.
+- [x] Current implemented response shape:
 
 ```json
 {
-  "ok": true,
+  "namespace": "pbb.hotline.community.v1",
+  "generated_at": "2026-07-09T10:15:00+08:00",
   "alert": {
-    "level": "normal",
-    "label": "Normal",
-    "severity": 0,
-    "updated_at": "2026-07-09T10:15:00+08:00",
-    "source": {
-      "app": "hotline",
-      "hub_id": "13",
-      "deployment": "barangay"
-    },
-    "presentation": {
-      "voice": "default",
-      "audio_graph_style": "tsunami"
-    }
+    "level": "Elevated",
+    "description": "Heightened readiness is in effect due to increased local risk.",
+    "room": "hotline.settings.global"
   },
   "broadcasts": [
     {
-      "id": "bcast_01kz...",
-      "level": "advisory",
-      "title": "Evacuation advisory",
-      "body": "Residents near the river are advised to move to higher ground.",
-      "audience": "public",
-      "priority": 1,
-      "created_at": "2026-07-09T11:30:00+08:00",
-      "expires_at": "2026-07-09T18:00:00+08:00",
-      "source": {
-        "app": "hotline",
-        "hub_id": "13",
-        "deployment": "barangay"
-      }
+      "id": "7",
+      "title": "Community Advisory",
+      "message": "Evacuation center is open.",
+      "tone": "warning",
+      "audience": "community",
+      "target_roles": ["citizen"],
+      "published_at": "2026-07-09T10:10:00+08:00",
+      "expires_at": "2026-07-09T12:10:00+08:00"
     }
-  ]
+  ],
+  "realtime": {
+    "admission_url": "https://hotline.pbb.ph/api/public/community-realtime",
+    "rooms": [
+      "hotline.settings.global",
+      "hotline.broadcast.global"
+    ],
+    "event_types": [
+      "hotline.alert_level.changed",
+      "hotline.broadcast.created"
+    ]
+  }
 }
 ```
 
-- [ ] Optional separate endpoint only if needed:
-
-```text
-GET /api/public/alert-status
-GET /api/public/broadcasts
-```
-
-- [ ] Add tests for normal, elevated, and critical alert output.
-- [ ] Add tests for active public/community broadcast output.
-- [ ] Add tests excluding expired, retracted, operator-only, command-only, admin, internal, team, and support broadcasts.
-- [ ] Add tests proving sensitive settings and operational records are not present.
-
-## 3. Public/Community Realtime Admission
-
-- [ ] Add public read-only Realtime admission endpoint:
+- [x] Added read-only Realtime admission endpoint:
 
 ```text
 GET /api/public/community-realtime
 ```
 
-- [ ] Return:
+- [x] Token is narrow:
+  - allows `session.connect`;
+  - allows `room.join`;
+  - allows only `hotline.settings.global` and `hotline.broadcast.global`;
+  - does not allow publish capability;
+  - does not allow incident, support request, SITREP, media, command, operator, admin, team, or internal rooms.
+- [x] Endpoint does not require a consuming-app secret.
+- [x] Endpoint returns `422` if Hotline Realtime signing is not configured.
 
-```json
-{
-  "ok": true,
-  "websocket_url": "wss://realtime.pbb.ph/realtime",
-  "token": "public-community-scoped-token",
-  "rooms": [
-    "hotline.settings.global",
-    "hotline.broadcast.global"
-  ],
-  "expires_at": "2026-07-09T12:15:00+08:00"
-}
-```
+## Completed SDK Package
 
-- [ ] Token must be read/listen only.
-- [ ] Token must allow only public/community alert and broadcast rooms.
-- [ ] Token must not allow publish capability.
-- [ ] Token must not allow incident, support request, SITREP, media, command, operator, admin, team, or internal rooms.
-- [ ] Endpoint must not require a consuming-app secret.
-- [ ] Add tests proving the token/rooms are narrow.
-- [ ] Add tests proving no sensitive settings are exposed.
-
-## 4. Realtime Event Contract
-
-- [ ] Reuse existing alert-change and broadcast Realtime publishing if already stable.
-- [ ] If needed, add or document canonical event types:
+- [x] Added source-only browser SDK:
 
 ```text
-hotline.alert.changed
-hotline.broadcast.published
-hotline.broadcast.updated
-hotline.broadcast.expired
-hotline.broadcast.retracted
+packages/pbb-hotline-community-sdk/js/hotline-community.js
 ```
 
-- [ ] Use the same normalized alert object as REST.
-- [ ] Use the same normalized broadcast object as REST.
-- [ ] Keep alert event publishing tied to successful alert-level changes only.
-- [ ] Keep broadcast event publishing tied to approved public/community broadcast lifecycle changes only.
-- [ ] Add tests or contract coverage for emitted payload shapes.
-- [ ] Document room names used for alert and broadcast updates.
-- [ ] Ensure unsupported audiences are not published to public/community Realtime channels.
+- [x] Exports:
 
-## 5. SDK Package
-
-- [ ] Create source package:
-
-```text
-packages/pbb-hotline-community-sdk/
+```js
+HotlineCommunityClient
+createHotlineCommunityClient
+normalizeAlertStatus
+normalizeBroadcastMessage
 ```
 
-- [ ] Add package files:
+- [x] SDK is framework-agnostic.
+- [x] SDK does not import Hotline app internals.
+- [x] SDK does not import Helper UI.
+- [x] SDK does not expose alert mutation methods.
+- [x] SDK does not expose broadcast publishing methods.
+- [x] SDK supports dependency injection for `fetchImpl`, `realtimeFactory`, optional `realtimeClient`, and optional `WebSocketImpl`.
+- [x] SDK-owned Realtime is the default mode.
+- [x] Advanced consumers may inject an existing Realtime client or factory.
 
-```text
-packages/pbb-hotline-community-sdk/
-  src/
-    HotlineCommunityClient.js
-    normalizeAlertStatus.js
-    normalizeBroadcastMessage.js
-  demo/
-    community-sdk.html
-  docs/
-    developer-manual.md
-  README.md
-  package.json
-```
+## Completed SDK Behavior
 
-- [ ] Keep SDK framework-agnostic.
-- [ ] Do not import Hotline app internals.
-- [ ] Do not import Helper in SDK core.
-- [ ] Do not expose alert mutation methods.
-- [ ] Do not expose broadcast publishing methods.
-- [ ] Use dependency injection for `fetchImpl`, `realtimeFactory`, and optional `realtimeClient` for tests.
-- [ ] Keep `realtimeClient` as an optional advanced override, not a required consumer dependency.
-
-## 6. SDK Client Behavior
-
-- [ ] Implement `start()` to run bootstrap and SDK-owned Realtime connection by default.
-- [ ] Implement `bootstrap()` to fetch current community status.
-- [ ] Implement `connectRealtime()` to call `/api/public/community-realtime` and create the SDK-owned socket.
-- [ ] Implement `subscribe()` to listen for Realtime alert and broadcast events.
-- [ ] Implement `unsubscribe()`.
-- [ ] Implement `currentAlert()`.
-- [ ] Implement `activeBroadcasts()`.
-- [ ] Implement `getBroadcast(id)`.
-- [ ] Implement event emitter methods:
-
-```text
-on(eventName, handler)
-off(eventName, handler)
-```
-
-- [ ] Emit:
+- [x] `start()` loads current community status and connects Realtime by default.
+- [x] `load()` fetches `/api/public/community-status`.
+- [x] `connectRealtime()` fetches `/api/public/community-realtime`.
+- [x] Browser WebSocket fallback appends the token as a query parameter.
+- [x] `currentAlert()` returns the latest normalized alert.
+- [x] `currentBroadcasts()` returns active normalized broadcasts.
+- [x] `on(eventName, handler)` registers listeners.
+- [x] `off(eventName, handler)` unregisters listeners.
+- [x] `close()` closes owned transports when possible.
+- [x] `handleRealtimeMessage(message)` accepts raw Realtime event objects or JSON strings.
+- [x] Supports REST-only mode with `autoRealtime: false`.
+- [x] Emits:
 
 ```text
 community.loaded
 alert.loaded
 alert.changed
-broadcast.loaded
 broadcast.received
-broadcast.updated
-broadcast.expired
-broadcast.retracted
-community.error
-community.reconnected
+broadcast.removed
 ```
 
-- [ ] Do not emit duplicate `alert.changed` if the normalized alert state has not changed.
-- [ ] Do not emit duplicate broadcast events if the normalized broadcast has not changed.
-- [ ] Preserve last known alert and active broadcast list on network or Realtime failure.
-- [ ] Refresh admission when the SDK-owned token expires.
-- [ ] Remove broadcasts from `activeBroadcasts()` on expiry/retraction.
-- [ ] Support REST-only mode when `autoRealtime` is `false`.
-- [ ] Use a supplied `realtimeClient` only when advanced consumers provide one.
+## Completed Normalization
 
-## 7. Normalization Helpers
-
-- [ ] Normalize alert level names to lowercase.
-- [ ] Map alert severities:
+- [x] Alert normalization maps:
 
 ```text
-normal = 0
-elevated = 1
-critical = 2
+Normal = 0
+Elevated = 1
+Critical = 2
 ```
 
-- [ ] Preserve unknown future alert levels as raw strings.
-- [ ] Normalize broadcast levels:
+- [x] Unknown alert levels are preserved with severity `-1`.
+- [x] Broadcast normalization filters operator/admin/internal-only broadcasts.
+- [x] Broadcast IDs are normalized to strings.
+- [x] Broadcast body accepts `message` or `body`.
+- [x] Broadcast audience is normalized to community-safe values.
+
+## Completed Demo And Docs
+
+- [x] Added SDK README:
 
 ```text
-info
-advisory
-warning
-urgent
+packages/pbb-hotline-community-sdk/README.md
 ```
 
-- [ ] Preserve unknown future broadcast levels as raw strings, but assign safe fallback priority.
-- [ ] Normalize broadcast audiences and filter unsupported public SDK audiences.
-- [ ] Ensure broadcast title/body are strings and safe for consumer rendering as text.
-- [ ] Provide helper methods:
-
-```text
-isNormal()
-isElevated()
-isCritical()
-severityRank()
-alertCssClass()
-broadcastCssClass(broadcast)
-```
-
-- [ ] Keep helper methods pure and deterministic.
-
-## 8. Demo And Documentation
-
-- [ ] Add browser demo page:
+- [x] Added browser demo:
 
 ```text
 packages/pbb-hotline-community-sdk/demo/community-sdk.html
 ```
 
-- [ ] Demo should:
-  - fetch current community status;
-  - show normalized alert JSON;
-  - show active public/community broadcasts;
-  - show alert helper output;
-  - connect to Realtime through the SDK-owned default path;
-  - demonstrate REST-only mode with `autoRealtime=false`;
-  - not require authenticated Hotline user session.
+- [x] Updated management review index.
+- [x] Updated Community SDK proposal with implemented package path and usage.
 
-- [ ] Add developer manual:
+## Completed Tests
+
+- [x] Added feature tests for `/api/public/community-status`.
+- [x] Added feature tests for `/api/public/community-realtime`.
+- [x] Added tests proving operator-only broadcasts are excluded.
+- [x] Added tests proving narrow Realtime rooms/capabilities.
+- [x] Added Playwright-backed SDK contract test.
+- [x] Added npm script:
 
 ```text
-packages/pbb-hotline-community-sdk/docs/developer-manual.md
+npm run test:hotline-community-sdk
 ```
 
-- [ ] Include examples for Support, Utility/Vena, Landing, MapServer, and citizen-facing PBB apps.
-- [ ] Document that consumers need only `hotlineBaseUrl` for the default plug-and-play path.
-- [ ] Document `realtimeClient` as an optional advanced override.
-- [ ] Document read-only boundary clearly.
-- [ ] Document unsupported broadcast audiences clearly.
+Validation performed for PR #81:
 
-## 9. Tests
+```text
+php artisan test tests\Feature\Realtime\AdmissionTest.php tests\Feature\Public\CommunityStatusApiTest.php
+npm run test:hotline-community-sdk
+npm run build
+git diff --check
+```
 
-- [ ] Unit tests for `normalizeAlertStatus`.
-- [ ] Unit tests for `normalizeBroadcastMessage`.
-- [ ] Unit tests for client `start()` success.
-- [ ] Unit tests for client bootstrap success.
-- [ ] Unit tests for SDK-owned Realtime admission and connection.
-- [ ] Unit tests for bootstrap failure and last-known fallback.
-- [ ] Unit tests for REST-only mode.
-- [ ] Unit tests for Realtime `alert.changed`.
-- [ ] Unit tests for Realtime broadcast publish/update/expire/retract events.
-- [ ] Unit tests for duplicate suppression.
-- [ ] Unit tests proving no mutation/publish API exists.
-- [ ] Feature test for REST endpoint shape.
-- [ ] Feature test for public/community Realtime admission shape.
-- [ ] Feature test proving sensitive settings are not exposed.
-- [ ] Feature test proving non-public broadcast audiences are excluded.
+## Current Known Limits
 
-## 10. Packaging Boundary
+- Initial Realtime event support tracks the existing Hotline event names:
 
-- [ ] Keep SDK source/dev scope unless a consuming app explicitly vendors it.
-- [ ] Do not build a Hotline installer bundle from the feature branch.
-- [ ] If package metadata changes affect bundle rules, update `release.json` only after review.
-- [ ] Main-built bundle handoff to Kit happens only after merge and explicit approval.
+```text
+hotline.alert_level.changed
+hotline.broadcast.created
+```
 
-## 11. Cross-Team Coordination
+- Explicit broadcast updated/expired/retracted backend events are not yet implemented in Hotline. The SDK already accepts removed-event names for forward compatibility.
+- Automatic Realtime admission refresh before token expiry is not implemented yet.
+- The SDK does not render UI. Consuming apps own banners, badges, notifications, sounds, and local persistence.
 
-- [ ] Inform Support about the read-only Community SDK once the branch is ready.
-- [ ] Inform Utility/Vena about the normalized alert/broadcast objects and intended map use.
-- [ ] Ask Realtime for confirmation if a new canonical event type or room is needed.
-- [ ] Ask Helper only if shared visual alert/broadcast components are requested later.
-- [ ] Ask Landing only if public gateway routing is needed for cross-app community bootstrap.
+## Future Enhancements
 
-## Acceptance Criteria
-
-- [ ] Other PBB apps can fetch current alert status without knowing Hotline settings internals.
-- [ ] Other PBB apps can fetch active public/community broadcasts without accessing Hotline broadcast internals.
-- [ ] Other PBB apps can receive live alert and broadcast changes through the SDK.
-- [ ] SDK does not mutate alert state.
-- [ ] SDK does not publish broadcasts.
-- [ ] SDK does not render UI or inject styles.
-- [ ] Sensitive settings and operational records are not exposed.
-- [ ] Operator-only, command-only, admin, internal, support, team, incident, SITREP, and media payloads are not exposed.
-- [ ] Tests cover REST endpoint, normalization, Realtime client behavior, and audience filtering.
-- [ ] Docs and demo are usable by a consuming app developer.
+- Add backend broadcast lifecycle events for update, expiry, and retraction when Hotline gains those workflows.
+- Add automatic Realtime token refresh and reconnect policy.
+- Add optional Helper-owned visual components for alert banners or broadcast cards if multiple PBB apps converge on the same UI.
+- Add a dedicated developer manual if downstream integration grows beyond the README.
