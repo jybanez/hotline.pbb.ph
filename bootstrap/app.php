@@ -13,6 +13,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withCommands([
         \App\Console\Commands\ExportIncidentRelay::class,
+        \App\Console\Commands\NormalizeChatImageAttachments::class,
         \App\Console\Commands\QueueIncidentRelay::class,
         \App\Console\Commands\ProcessIncidentRelayOutbox::class,
     ])

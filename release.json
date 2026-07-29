@@ -30,7 +30,7 @@
     "requires_database_migration": true,
     "database_migration": {
       "policy": "additive",
-      "summary": "Adds the sitrep_relay_deliveries outbox table, Support Request local persistence/history tables, incident Relay outbox/delivery tables, justification fields, selected incident/request-scope context for Relay-backed operational support requests, and nullable unique users.pbb_user_id for PBB Account SSO citizen provisioning.",
+      "summary": "Adds the sitrep_relay_deliveries outbox table, Support Request local persistence/history tables, incident Relay outbox/delivery tables, justification fields, selected incident/request-scope context for Relay-backed operational support requests, nullable unique users.pbb_user_id for PBB Account SSO citizen provisioning, and normalized chat-photo metadata on message_attachments with required existing image attachment normalization.",
       "rollback": "app-owned; forward repair reruns Laravel migrations",
       "destructive": false,
       "drops_tables": false,
@@ -38,6 +38,17 @@
       "overwrites_existing_data": false
     },
     "requires_data_prep_rerun": false,
+    "post_migration_commands": [
+      {
+        "id": "normalize_chat_image_attachments",
+        "required": true,
+        "command": "php artisan app:normalize-chat-image-attachments",
+        "dry_run_command": "php artisan app:normalize-chat-image-attachments --dry-run",
+        "description": "Normalize existing message_attachments image/photo rows to authoritative WebP files after the nullable metadata columns are migrated. The command fails non-zero on missing, corrupt, unsupported, unwritable, or metadata-mismatched image attachments. Non-image attachments are not changed.",
+        "failure_policy": "stop_update_and_fix_source_attachment",
+        "runs_after": ["database_migration"]
+      }
+    ],
     "requires_service_restart": true,
     "rollback_supported": true
   },
@@ -131,7 +142,7 @@
       "baseline_schema": {
         "path": "database/schema/hotline-schema-mysql.sql",
         "engine": "mysql",
-        "generated_at": "2026-07-05T22:12:12Z",
+        "generated_at": "2026-07-28T03:30:00Z",
         "source": "current-release-schema"
       },
       "upgrade_strategy": "laravel_migrations",
@@ -139,7 +150,7 @@
         "path": "database/schema/hotline-schema-mysql.sql",
         "driver": "mysql",
         "fresh_install_method": "baseline_schema",
-        "migration_count": 58
+        "migration_count": 59
       }
     },
     "tools": {

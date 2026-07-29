@@ -24,63 +24,63 @@ class SitrepGenerationTest extends TestCase
         $this->withoutMiddleware(VerifyCsrfToken::class);
         Carbon::setTestNow(Carbon::parse('2026-04-29 10:00:00'));
         $hubJsonResponse = Http::response([
-                'base_url' => 'https://hub.pbb.ph',
-                'hub_id' => 12,
-                'relay_hub_id' => '072217029',
-                'name' => 'Guadalupe, CEBU CITY, CEBU',
-                'deployment' => 'barangay',
-                'domain' => 'guadalupe-cebu-cebu.pbb.ph',
-                'status' => 'active',
-                'country_code' => 'PH',
-                'reg_code' => '07',
-                'prov_code' => '0722',
-                'citymun_code' => '072217',
-                'brgy_code' => '072217029',
-                'uplinks' => [[
-                    'id' => 29,
-                    'uplink_hub_id' => 11,
-                    'uplink_type' => 'hierarchy',
-                    'uplink_domain' => 'cebu-cebu.pbb.ph',
-                    'priority' => 1,
-                    'is_primary' => true,
-                    'hub' => [
-                        'id' => 11,
-                        'name' => 'CEBU CITY, CEBU',
-                        'code' => 'cebu-cebu',
-                        'deployment' => 'city',
-                        'domain' => 'cebu-cebu.pbb.ph',
-                        'status' => 'active',
-                        'country_code' => 'PH',
-                        'reg_code' => '07',
-                        'prov_code' => '0722',
-                        'citymun_code' => '072217',
-                    ],
-                ]],
-                'sources' => [[
-                    'id' => 30,
-                    'source_hub_id' => 13,
-                    'source_type' => 'hierarchy',
-                    'source_domain' => 'apas-cebu-cebu.pbb.ph',
-                    'priority' => 1,
-                    'is_primary' => false,
-                    'hub' => [
-                        'id' => 13,
-                        'name' => 'Apas, CEBU CITY, CEBU',
-                        'code' => 'apas-cebu-cebu',
-                        'deployment' => 'barangay',
-                        'domain' => 'apas-cebu-cebu.pbb.ph',
-                        'status' => 'active',
-                        'country_code' => 'PH',
-                        'reg_code' => '07',
-                        'prov_code' => '0722',
-                        'citymun_code' => '072217',
-                        'brgy_code' => '072217003',
-                    ],
-                ]],
-                'hydrated_at' => '2026-05-26T09:28:40+00:00',
-                'hydrated_from' => 'hq_heartbeat',
-                'snapshot_version' => 'hub-12:test',
-                'snapshot_hash' => 'test-hash',
+            'base_url' => 'https://hub.pbb.ph',
+            'hub_id' => 12,
+            'relay_hub_id' => '072217029',
+            'name' => 'Guadalupe, CEBU CITY, CEBU',
+            'deployment' => 'barangay',
+            'domain' => 'guadalupe-cebu-cebu.pbb.ph',
+            'status' => 'active',
+            'country_code' => 'PH',
+            'reg_code' => '07',
+            'prov_code' => '0722',
+            'citymun_code' => '072217',
+            'brgy_code' => '072217029',
+            'uplinks' => [[
+                'id' => 29,
+                'uplink_hub_id' => 11,
+                'uplink_type' => 'hierarchy',
+                'uplink_domain' => 'cebu-cebu.pbb.ph',
+                'priority' => 1,
+                'is_primary' => true,
+                'hub' => [
+                    'id' => 11,
+                    'name' => 'CEBU CITY, CEBU',
+                    'code' => 'cebu-cebu',
+                    'deployment' => 'city',
+                    'domain' => 'cebu-cebu.pbb.ph',
+                    'status' => 'active',
+                    'country_code' => 'PH',
+                    'reg_code' => '07',
+                    'prov_code' => '0722',
+                    'citymun_code' => '072217',
+                ],
+            ]],
+            'sources' => [[
+                'id' => 30,
+                'source_hub_id' => 13,
+                'source_type' => 'hierarchy',
+                'source_domain' => 'apas-cebu-cebu.pbb.ph',
+                'priority' => 1,
+                'is_primary' => false,
+                'hub' => [
+                    'id' => 13,
+                    'name' => 'Apas, CEBU CITY, CEBU',
+                    'code' => 'apas-cebu-cebu',
+                    'deployment' => 'barangay',
+                    'domain' => 'apas-cebu-cebu.pbb.ph',
+                    'status' => 'active',
+                    'country_code' => 'PH',
+                    'reg_code' => '07',
+                    'prov_code' => '0722',
+                    'citymun_code' => '072217',
+                    'brgy_code' => '072217003',
+                ],
+            ]],
+            'hydrated_at' => '2026-05-26T09:28:40+00:00',
+            'hydrated_from' => 'hq_heartbeat',
+            'snapshot_version' => 'hub-12:test',
+            'snapshot_hash' => 'test-hash',
         ]);
 
         Http::fake([
@@ -270,10 +270,17 @@ class SitrepGenerationTest extends TestCase
         $attachmentId = DB::table('message_attachments')->insertGetId([
             'message_id' => $messageId,
             'type' => 'image',
-            'mime_type' => 'image/jpeg',
+            'mime_type' => 'image/webp',
             'original_filename' => 'field-photo.jpg',
-            'stored_path' => 'incident-media/field-photo.jpg',
-            'file_size' => 12345,
+            'stored_mime_type' => 'image/webp',
+            'stored_path' => 'incident-media/field-photo.webp',
+            'stored_filename' => 'field-photo.webp',
+            'file_size' => 4567,
+            'stored_size_bytes' => 4567,
+            'image_width' => 1200,
+            'image_height' => 900,
+            'sha256' => str_repeat('b', 64),
+            'normalized_at' => now()->subMinutes(17),
             'thumbnail_path' => 'incident-media/thumb-field-photo.jpg',
             'uploaded_by' => $command->id,
             'created_at' => now()->subMinutes(17),
@@ -301,8 +308,14 @@ class SitrepGenerationTest extends TestCase
         $this->assertSame('flood-scene.webm', $refs[0]['original_filename']);
         $this->assertSame($attachmentId, $refs[1]['attachment_id']);
         $this->assertSame($messageId, $refs[1]['message_id']);
-        $this->assertSame('image/jpeg', $refs[1]['mime_type']);
+        $this->assertSame('image/webp', $refs[1]['mime_type']);
         $this->assertSame('field-photo.jpg', $refs[1]['original_filename']);
+        $this->assertSame('image/webp', $refs[1]['stored_mime_type']);
+        $this->assertSame(4567, $refs[1]['stored_size_bytes']);
+        $this->assertSame(1200, $refs[1]['image_width']);
+        $this->assertSame(900, $refs[1]['image_height']);
+        $this->assertSame(str_repeat('b', 64), $refs[1]['sha256']);
+        $this->assertNotNull($refs[1]['normalized_at']);
 
         foreach ($refs as $ref) {
             $this->assertArrayNotHasKey('path', $ref);

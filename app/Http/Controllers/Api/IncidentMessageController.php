@@ -8,19 +8,24 @@ use App\Domain\Messages\Models\MessageAttachment;
 use App\Domain\Shared\Enums\UserRole;
 use App\Domain\Users\Models\User;
 use App\Http\Controllers\Controller;
-use App\Support\Media\MediaBinaryResolver;
+use App\Support\Media\ChatPhotoWebpNormalizer;
+use App\Support\Media\MessageAttachmentMetadata;
+use App\Support\Media\MessageAttachmentThumbnailGenerator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Symfony\Component\Process\Process;
+use Illuminate\Validation\ValidationException;
+use RuntimeException;
 
 class IncidentMessageController extends Controller
 {
     public function __construct(
-        private readonly MediaBinaryResolver $mediaBinaries,
+        private readonly ChatPhotoWebpNormalizer $chatPhotoNormalizer,
+        private readonly MessageAttachmentMetadata $attachmentMetadata,
+        private readonly MessageAttachmentThumbnailGenerator $thumbnailGenerator,
     ) {}
 
     public function index(Request $request, Incident $incident): JsonResponse
@@ -43,18 +48,10 @@ class IncidentMessageController extends Controller
                     'sender_avatar' => $message->sender?->avatar,
                     'body' => $message->body,
                     'type' => $message->type,
-                    'attachments' => $message->attachments->map(fn ($attachment) => [
-                        'id' => $attachment->id,
-                        'message_id' => $attachment->message_id,
-                        'type' => $attachment->type,
-                        'mime_type' => $attachment->mime_type,
-                        'original_filename' => $attachment->original_filename,
-                        'stored_path' => $attachment->stored_path,
-                        'file_size' => $attachment->file_size,
-                        'thumbnail_path' => $attachment->thumbnail_path,
-                        'uploaded_by' => $attachment->uploaded_by,
-                        'created_at' => $attachment->created_at?->toIso8601String(),
-                    ])->values()->all(),
+                    'attachments' => $message->attachments
+                        ->map(fn (MessageAttachment $attachment) => $this->attachmentPayload($attachment))
+                        ->values()
+                        ->all(),
                     'created_at' => $message->created_at?->toIso8601String(),
                 ])
                 ->values()
@@ -127,46 +124,77 @@ class IncidentMessageController extends Controller
         /** @var UploadedFile $file */
         $file = $validated['attachment'];
         $type = $this->normalizeAttachmentType($validated['type'] ?? null, $file);
-        $extension = strtolower((string) $file->getClientOriginalExtension());
-        $safeName = Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) ?: 'attachment';
-        $filename = sprintf(
-            '%s_%s%s',
-            now()->format('YmdHis'),
-            Str::limit($safeName, 48, ''),
-            $extension !== '' ? ".{$extension}" : ''
-        );
-        $storedPath = $file->storeAs(
-            sprintf('incident-messages/%d/%d', $incident->id, $message->id),
-            $filename,
-            'public',
-        );
+        $directory = sprintf('incident-messages/%d/%d', $incident->id, $message->id);
+        $originalMimeType = $file->getMimeType() ?: 'application/octet-stream';
+        $metadata = [];
+
+        if ($type === 'image') {
+            try {
+                $normalized = $this->chatPhotoNormalizer->normalize($file);
+            } catch (RuntimeException $exception) {
+                throw ValidationException::withMessages([
+                    'attachment' => $exception->getMessage(),
+                ]);
+            }
+
+            $storedPath = $directory.'/'.$normalized->storedFilename;
+            Storage::disk('public')->put($storedPath, $normalized->contents);
+
+            $metadata = [
+                'mime_type' => $normalized->storedMimeType,
+                'stored_path' => $storedPath,
+                'file_size' => $normalized->storedSizeBytes,
+                'original_mime_type' => $originalMimeType,
+                'stored_mime_type' => $normalized->storedMimeType,
+                'stored_filename' => $normalized->storedFilename,
+                'stored_size_bytes' => $normalized->storedSizeBytes,
+                'image_width' => $normalized->width,
+                'image_height' => $normalized->height,
+                'sha256' => $normalized->sha256,
+                'normalized_at' => now(),
+            ];
+        } else {
+            $extension = strtolower((string) $file->getClientOriginalExtension());
+            $safeName = Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) ?: 'attachment';
+            $filename = sprintf(
+                '%s_%s%s',
+                now()->format('YmdHis'),
+                Str::limit($safeName, 48, ''),
+                $extension !== '' ? ".{$extension}" : ''
+            );
+            $storedPath = $file->storeAs($directory, $filename, 'public');
+
+            $metadata = [
+                'mime_type' => $originalMimeType,
+                'stored_path' => $storedPath,
+                'file_size' => $file->getSize() ?: 0,
+            ];
+        }
 
         $attachment = MessageAttachment::query()->create([
             'message_id' => $message->id,
             'type' => $type,
-            'mime_type' => $file->getMimeType() ?: 'application/octet-stream',
             'original_filename' => $file->getClientOriginalName(),
-            'stored_path' => $storedPath,
-            'file_size' => $file->getSize() ?: 0,
-            'thumbnail_path' => $this->generateAttachmentThumbnail($storedPath, $type),
             'uploaded_by' => (int) $request->user()->id,
             'created_at' => now(),
+            ...$metadata,
         ]);
 
+        $attachment->forceFill([
+            'thumbnail_path' => $this->thumbnailGenerator->generate($attachment->stored_path, $type),
+        ])->save();
+
         return response()->json([
-            'item' => [
-                'id' => $attachment->id,
-                'message_id' => $attachment->message_id,
-                'type' => $attachment->type,
-                'mime_type' => $attachment->mime_type,
-                'original_filename' => $attachment->original_filename,
-                'stored_path' => $attachment->stored_path,
-                'file_size' => $attachment->file_size,
-                'thumbnail_path' => $attachment->thumbnail_path,
-                'uploaded_by' => $attachment->uploaded_by,
-                'created_at' => $attachment->created_at?->toIso8601String(),
-            ],
+            'item' => $this->attachmentPayload($attachment),
         ], 201);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function attachmentPayload(MessageAttachment $attachment): array
+    {
+        return $this->attachmentMetadata->responsePayload($attachment);
     }
 
     private function canAccessIncident(Request $request, Incident $incident): bool
@@ -249,131 +277,5 @@ class IncidentMessageController extends Controller
         }
 
         return 'file';
-    }
-
-    private function generateAttachmentThumbnail(string $storedPath, string $type): ?string
-    {
-        return match ($type) {
-            'image' => $this->generateImageThumbnail($storedPath),
-            'video' => $this->generateVideoThumbnail($storedPath),
-            default => null,
-        };
-    }
-
-    private function generateImageThumbnail(string $storedPath): ?string
-    {
-        $sourcePath = Storage::disk('public')->path($storedPath);
-
-        if (! is_file($sourcePath)) {
-            return null;
-        }
-
-        $imageInfo = @getimagesize($sourcePath);
-        $mimeType = strtolower((string) ($imageInfo['mime'] ?? ''));
-
-        $source = match ($mimeType) {
-            'image/jpeg', 'image/jpg' => @imagecreatefromjpeg($sourcePath),
-            'image/png' => @imagecreatefrompng($sourcePath),
-            'image/gif' => @imagecreatefromgif($sourcePath),
-            'image/webp' => function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($sourcePath) : false,
-            default => false,
-        };
-
-        if (! $source) {
-            return null;
-        }
-
-        $width = imagesx($source);
-        $height = imagesy($source);
-
-        if ($width <= 0 || $height <= 0) {
-            imagedestroy($source);
-
-            return null;
-        }
-
-        $maxDimension = 512;
-        $scale = min($maxDimension / $width, $maxDimension / $height, 1);
-        $targetWidth = max(1, (int) round($width * $scale));
-        $targetHeight = max(1, (int) round($height * $scale));
-        $thumbnail = imagecreatetruecolor($targetWidth, $targetHeight);
-
-        imagealphablending($thumbnail, true);
-        imagesavealpha($thumbnail, true);
-        $background = imagecolorallocate($thumbnail, 18, 26, 40);
-        imagefill($thumbnail, 0, 0, $background);
-
-        imagecopyresampled(
-            $thumbnail,
-            $source,
-            0,
-            0,
-            0,
-            0,
-            $targetWidth,
-            $targetHeight,
-            $width,
-            $height,
-        );
-
-        $thumbnailPath = $this->thumbnailPathFor($storedPath);
-        $targetPath = Storage::disk('public')->path($thumbnailPath);
-        $targetDirectory = dirname($targetPath);
-
-        if (! is_dir($targetDirectory)) {
-            mkdir($targetDirectory, 0777, true);
-        }
-
-        $written = imagejpeg($thumbnail, $targetPath, 82);
-
-        imagedestroy($thumbnail);
-        imagedestroy($source);
-
-        return $written ? $thumbnailPath : null;
-    }
-
-    private function generateVideoThumbnail(string $storedPath): ?string
-    {
-        $sourcePath = Storage::disk('public')->path($storedPath);
-
-        if (! is_file($sourcePath)) {
-            return null;
-        }
-
-        $thumbnailPath = $this->thumbnailPathFor($storedPath);
-        $targetPath = Storage::disk('public')->path($thumbnailPath);
-        $targetDirectory = dirname($targetPath);
-
-        if (! is_dir($targetDirectory)) {
-            mkdir($targetDirectory, 0777, true);
-        }
-
-        $process = new Process([
-            $this->mediaBinaries->ffmpeg(),
-            '-y',
-            '-i',
-            $sourcePath,
-            '-ss',
-            '00:00:00.000',
-            '-frames:v',
-            '1',
-            '-vf',
-            'scale=512:-2',
-            $targetPath,
-        ]);
-
-        $process->run();
-
-        return $process->isSuccessful() && is_file($targetPath)
-            ? $thumbnailPath
-            : null;
-    }
-
-    private function thumbnailPathFor(string $storedPath): string
-    {
-        $directory = trim(str_replace('\\', '/', dirname($storedPath)), './');
-        $filename = pathinfo($storedPath, PATHINFO_FILENAME);
-
-        return ltrim($directory.'/'.$filename.'_thumb.jpg', '/');
     }
 }

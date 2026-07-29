@@ -69,7 +69,7 @@ Out of scope:
 
 ## Proposed Data Model
 
-Extend `message_attachments` with additive nullable columns first, then backfill and tighten behavior after rollout.
+Extend `message_attachments` with additive nullable columns first, then run the required existing-image normalization command. The columns remain nullable for non-image and legacy compatibility, but chat image/photo attachments must be normalized to be treated as available media.
 
 Recommended fields:
 
@@ -164,10 +164,13 @@ Recommended response additions:
 
 Consumers should use:
 
-- `stored_mime_type ?? mime_type` for rendering;
-- `stored_size_bytes ?? file_size` for size;
+- `stored_mime_type` for chat image/photo rendering after normalization;
+- `stored_size_bytes` for chat image/photo size after normalization;
+- `stored_mime_type ?? mime_type` and `stored_size_bytes ?? file_size` only for non-image attachments;
 - `sha256` when validating cached media;
 - `image_width` and `image_height` for layout.
+
+If a chat image/photo attachment is missing normalized WebP metadata after this release, Hotline should report it as unavailable with `image_attachment_not_normalized` instead of silently presenting the old JPEG/PNG metadata as valid.
 
 ## Relationship To SITREP And Incident Relay Media Refs
 
@@ -193,14 +196,14 @@ Use a conservative additive rollout:
 
 1. Add nullable metadata columns to `message_attachments`.
 2. Update ingest for new chat photos to store normalized WebP.
-3. Keep existing attachments readable.
-4. Update API serialization to prefer normalized fields when present.
-5. Add optional backfill command for existing image attachments if needed.
-6. After confidence, update docs and media reference examples to show normalized metadata.
+3. Run the required backfill command for existing image/photo attachment rows.
+4. Keep existing non-image attachments readable through legacy fields.
+5. Treat image/photo rows missing normalized metadata as unavailable until fixed.
+6. Update API serialization and media reference examples to show normalized metadata.
 
 ## Open Decisions
 
 - Exact max long edge: `1600` or `2048`.
-- Whether to backfill existing photo attachments or only normalize new uploads.
-- Whether `mime_type` and `file_size` should be updated to normalized values for new records, or kept as legacy-compatible aliases of `stored_mime_type` and `stored_size_bytes`.
+- Backfill is required for existing photo/image attachments.
+- `mime_type` and `file_size` are updated to normalized WebP values for chat image/photo records.
 - Whether Hotline continues storing local avatar variants or defers avatar storage to Account SSO.

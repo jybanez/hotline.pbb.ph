@@ -5,6 +5,7 @@ namespace Pbb\Hotline\Media;
 final class MediaRef
 {
     private readonly MediaRefLocalUrl $localUrl;
+
     private readonly MediaCacheInterface $cache;
 
     /**
@@ -17,7 +18,7 @@ final class MediaRef
         private readonly array $config = [],
         private readonly ?HttpTransportInterface $transport = null,
     ) {
-        $this->localUrl = new MediaRefLocalUrl();
+        $this->localUrl = new MediaRefLocalUrl;
         $this->cache = is_string($cache) ? new FilesystemMediaCache($cache) : $cache;
     }
 
@@ -159,7 +160,7 @@ final class MediaRef
 
         $relayToken = $this->text($this->config['relay_token'] ?? getenv('RELAY_TOKEN') ?: null);
         if ($sourceHubId !== null && $relayToken !== null) {
-            return (new RelayRelationshipResolver($this->transport ?? new NativeHttpTransport()))->resolve($sourceHubId, $relayToken);
+            return (new RelayRelationshipResolver($this->transport ?? new NativeHttpTransport))->resolve($sourceHubId, $relayToken);
         }
 
         return [];
@@ -184,6 +185,12 @@ final class MediaRef
             'attachment_id' => $this->ref['attachment_id'] ?? null,
             'mime_type' => $this->ref['mime_type'] ?? null,
             'original_filename' => $this->ref['original_filename'] ?? null,
+            'stored_mime_type' => $this->ref['stored_mime_type'] ?? null,
+            'stored_size_bytes' => $this->ref['stored_size_bytes'] ?? null,
+            'image_width' => $this->ref['image_width'] ?? null,
+            'image_height' => $this->ref['image_height'] ?? null,
+            'sha256' => $this->ref['sha256'] ?? null,
+            'normalized_at' => $this->ref['normalized_at'] ?? null,
         ];
     }
 

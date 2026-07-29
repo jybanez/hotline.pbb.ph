@@ -61,6 +61,13 @@ class SitrepMediaAccessTest extends TestCase
             ->assertJsonPath('items.0.source_hub_id', 'hub-1')
             ->assertJsonPath('items.0.evidence_ref', 'resource:oxygen:1')
             ->assertJsonPath('items.1.kind', 'message_attachment')
+            ->assertJsonPath('items.1.mime_type', 'image/webp')
+            ->assertJsonPath('items.1.stored_mime_type', 'image/webp')
+            ->assertJsonPath('items.1.file_size', 8)
+            ->assertJsonPath('items.1.stored_size_bytes', 8)
+            ->assertJsonPath('items.1.image_width', 800)
+            ->assertJsonPath('items.1.image_height', 600)
+            ->assertJsonPath('items.1.sha256', str_repeat('c', 64))
             ->assertJsonPath('unavailable.0.reason', 'incident_media_unavailable');
 
         $payload = $response->json();
@@ -69,6 +76,40 @@ class SitrepMediaAccessTest extends TestCase
         $this->assertStringNotContainsString('/storage/', json_encode($payload, JSON_THROW_ON_ERROR));
         $this->assertStringNotContainsString('incidents/'.$incidentId.'/media', json_encode($payload, JSON_THROW_ON_ERROR));
         $this->assertStringNotContainsString('incident-messages/'.$incidentId, json_encode($payload, JSON_THROW_ON_ERROR));
+    }
+
+    public function test_manifest_reports_legacy_image_attachment_without_normalized_metadata_as_unavailable(): void
+    {
+        [$incidentId, , , $messageId] = $this->seedMediaFixture();
+
+        $legacyAttachmentId = DB::table('message_attachments')->insertGetId([
+            'message_id' => $messageId,
+            'type' => 'image',
+            'mime_type' => 'image/jpeg',
+            'original_filename' => 'legacy-scene.jpg',
+            'stored_path' => "incident-messages/{$incidentId}/{$messageId}/legacy-scene.jpg",
+            'file_size' => 123,
+            'thumbnail_path' => null,
+            'uploaded_by' => 1,
+            'created_at' => now(),
+        ]);
+
+        $this->postJson('/api/internal/sitrep/media/manifest', [
+            'media_refs' => [
+                [
+                    'kind' => 'message_attachment',
+                    'source_hub_id' => 'hub-1',
+                    'incident_id' => $incidentId,
+                    'message_id' => $messageId,
+                    'attachment_id' => $legacyAttachmentId,
+                ],
+            ],
+        ], $this->headers())
+            ->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonCount(0, 'items')
+            ->assertJsonCount(1, 'unavailable')
+            ->assertJsonPath('unavailable.0.reason', 'image_attachment_not_normalized');
     }
 
     public function test_manifest_rejects_unauthorized_caller(): void
@@ -200,15 +241,22 @@ class SitrepMediaAccessTest extends TestCase
             'type' => 'message',
             'created_at' => now(),
         ]);
-        $attachmentPath = "incident-messages/{$incidentId}/{$messageId}/scene.jpg";
+        $attachmentPath = "incident-messages/{$incidentId}/{$messageId}/scene.webp";
         Storage::disk('public')->put($attachmentPath, 'attachment-bytes');
         $attachmentId = DB::table('message_attachments')->insertGetId([
             'message_id' => $messageId,
             'type' => 'image',
-            'mime_type' => 'image/jpeg',
+            'mime_type' => 'image/webp',
             'original_filename' => 'scene.jpg',
+            'stored_mime_type' => 'image/webp',
             'stored_path' => $attachmentPath,
-            'file_size' => 16,
+            'stored_filename' => 'scene.webp',
+            'file_size' => 8,
+            'stored_size_bytes' => 8,
+            'image_width' => 800,
+            'image_height' => 600,
+            'sha256' => str_repeat('c', 64),
+            'normalized_at' => now(),
             'uploaded_by' => $operator->id,
             'created_at' => now(),
         ]);

@@ -12,10 +12,15 @@ use App\Domain\Teams\Models\Team;
 use App\Domain\Teams\Models\TeamCategory;
 use App\Domain\Users\Models\User;
 use App\Support\Media\MediaContractNormalizer;
+use App\Support\Media\MessageAttachmentMetadata;
 use Illuminate\Support\Collection;
 
 class IncidentPayloadBuilder
 {
+    public function __construct(
+        private readonly MessageAttachmentMetadata $attachmentMetadata,
+    ) {}
+
     /**
      * @return array<string, mixed>
      */
@@ -286,17 +291,7 @@ class IncidentPayloadBuilder
                     'type' => $message->type,
                     'attachments' => $message->attachments
                         ->sortBy('created_at')
-                        ->map(fn ($attachment) => [
-                            'id' => $attachment->id,
-                            'type' => $attachment->type,
-                            'mime_type' => $attachment->mime_type,
-                            'original_filename' => $attachment->original_filename,
-                            'stored_path' => $attachment->stored_path,
-                            'file_size' => $attachment->file_size,
-                            'thumbnail_path' => $attachment->thumbnail_path,
-                            'uploaded_by' => $attachment->uploaded_by,
-                            'created_at' => $attachment->created_at?->toIso8601String(),
-                        ])
+                        ->map(fn ($attachment) => $this->attachmentMetadata->responsePayload($attachment))
                         ->values()
                         ->all(),
                     'created_at' => $message->created_at?->toIso8601String(),

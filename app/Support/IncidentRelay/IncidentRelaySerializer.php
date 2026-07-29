@@ -5,6 +5,7 @@ namespace App\Support\IncidentRelay;
 use App\Domain\Incidents\Models\Incident;
 use App\Domain\Media\Models\Media;
 use App\Domain\Messages\Models\MessageAttachment;
+use App\Support\Media\MessageAttachmentMetadata;
 use App\Support\Settings\SettingsService;
 use Illuminate\Support\Str;
 
@@ -15,8 +16,8 @@ class IncidentRelaySerializer
     public function __construct(
         private readonly SettingsService $settings,
         private readonly IncidentRelayHubContext $hubContext,
-    ) {
-    }
+        private readonly MessageAttachmentMetadata $attachmentMetadata,
+    ) {}
 
     /**
      * @return array<string, mixed>
@@ -244,19 +245,12 @@ class IncidentRelaySerializer
 
         $attachments = $incident->messages
             ->flatMap(fn ($message) => $message->attachments->map(
-                fn (MessageAttachment $attachment): array => [
-                    'kind' => 'message_attachment',
+                fn (MessageAttachment $attachment): array => $this->attachmentMetadata->mediaRef($attachment, [
                     'source_hub_id' => $sourceHubId,
                     'incident_id' => $incident->id,
                     'incident_ref' => $this->incidentRef($incident),
-                    'attachment_id' => $attachment->id,
-                    'message_id' => $message->id,
-                    'type' => $attachment->type,
-                    'mime_type' => $attachment->mime_type,
-                    'original_filename' => $this->safeFilename($attachment->original_filename),
-                    'created_at' => $attachment->created_at?->toIso8601String(),
                     'uploader_role' => $this->stringOrNull($message->sender_role),
-                ],
+                ]),
             ));
 
         return $incidentMedia->concat($attachments)->values()->all();
