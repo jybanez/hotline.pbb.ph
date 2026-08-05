@@ -142,8 +142,8 @@
       "baseline_schema": {
         "path": "database/schema/hotline-schema-mysql.sql",
         "engine": "mysql",
-        "generated_at": "2026-08-06T00:00:00Z",
-        "source": "current-release-schema"
+        "generated_at": "2026-08-06T01:15:00Z",
+        "source": "current-release-schema-with-reference-data"
       },
       "upgrade_strategy": "laravel_migrations",
       "baseline_schema_legacy": {

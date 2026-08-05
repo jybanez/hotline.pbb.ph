@@ -2,6 +2,8 @@
 
 `tools/populate-initial-data.php` is Hotline's Data Prep entrypoint for non-transactional reference data. `tools/data-prep/apply-settings.php` applies runtime Realtime settings supplied by Kit/Realtime. Data Prep does not load operators, users, incident records, call sessions, assignments, dispatch defaults, or other operational history.
 
+Fresh baseline-schema installs include the packaged reference data from `resources/data/hotline/reference-data.json`. The installer fails the baseline apply if those required catalog tables are empty or below the packaged minimum counts. Run Data Prep when Kit is intentionally refreshing or replacing the packaged reference catalog, or when recovering a development database that was created by migrations without the baseline data.
+
 ## Command
 
 ```powershell

@@ -1726,6 +1726,19 @@ function applyBaselineSchema(array $config, string $schemaPath, string $artifact
             throw new RuntimeException('Baseline schema applied without initial settings rows.');
         }
 
+        $referenceDataCounts = referenceDataCounts($pdo);
+        $missingReferenceData = [];
+        foreach (referenceDataMinimumCounts() as $table => $minimum) {
+            $actual = $referenceDataCounts[$table] ?? 0;
+            if ($actual < $minimum) {
+                $missingReferenceData[] = $table.' has '.$actual.' row(s); expected at least '.$minimum;
+            }
+        }
+
+        if ($missingReferenceData !== []) {
+            throw new RuntimeException('Baseline schema applied without required reference data: '.implode('; ', $missingReferenceData).'.');
+        }
+
         return [
             'status' => 'success',
             'database_setup' => [
@@ -1738,6 +1751,7 @@ function applyBaselineSchema(array $config, string $schemaPath, string $artifact
             'artifact' => $artifact,
             'migration_rows' => $migrationRows,
             'settings_rows' => $settingsRows,
+            'reference_data_counts' => $referenceDataCounts,
         ];
     } catch (Throwable $exception) {
         return [
@@ -1798,6 +1812,42 @@ function settingsRowCount(PDO $pdo): int
     } catch (Throwable) {
         return 0;
     }
+}
+
+/**
+ * @return array<string, int>
+ */
+function referenceDataMinimumCounts(): array
+{
+    return [
+        'incident_categories' => 9,
+        'incident_types' => 23,
+        'incident_type_fields' => 26,
+        'resource_type_categories' => 14,
+        'resource_types' => 38,
+        'incident_type_default_resources' => 64,
+        'team_categories' => 6,
+        'teams' => 8,
+        'team_resource_inventories' => 27,
+    ];
+}
+
+/**
+ * @return array<string, int>
+ */
+function referenceDataCounts(PDO $pdo): array
+{
+    $counts = [];
+
+    foreach (array_keys(referenceDataMinimumCounts()) as $table) {
+        try {
+            $counts[$table] = (int) $pdo->query('SELECT COUNT(*) FROM `'.$table.'`')->fetchColumn();
+        } catch (Throwable) {
+            $counts[$table] = 0;
+        }
+    }
+
+    return $counts;
 }
 
 /**

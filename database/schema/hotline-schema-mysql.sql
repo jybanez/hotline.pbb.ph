@@ -649,6 +649,7 @@ CREATE TABLE `settings` (
   UNIQUE KEY `settings_key_unique` (`key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
 INSERT INTO `settings` (`key`, `value`, `created_at`, `updated_at`) VALUES
   ('call_hold_seconds', '{"value":1}', NOW(), NOW()),
   ('call_timeout_seconds', '{"value":20}', NOW(), NOW()),
@@ -994,6 +995,255 @@ CREATE TABLE `users` (
 
 
 -- PBB Hotline installer baseline migration ledger.
+
+--
+-- Packaged Hotline reference data
+-- Source: resources/data/hotline/reference-data.json
+--
+
+INSERT INTO `incident_categories` (`id`, `name`, `description`, `sort_order`, `created_at`, `updated_at`) VALUES
+  (1, 'Medical & Rescue', 'Health emergencies, rescue, and extraction concerns.', 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (2, 'Fire & Hazard', 'Structure fires, vehicle fires, and immediate hazard control.', 2, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (3, 'Crime & Security', 'Security incidents, threats, theft, and investigation needs.', 3, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (4, 'Disaster & Weather', 'Floods, earthquakes, landslides, and disaster impacts.', 4, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (5, 'Traffic / Road Safety', 'Road crashes, blocked routes, and transport safety incidents.', 5, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (6, 'Infrastructure & Utilities', 'Utility interruptions and public infrastructure damage.', 6, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (7, 'Protection / Safety', 'Domestic safety, vulnerable-person, and welfare-sensitive concerns.', 7, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (8, 'Public Disturbance', 'Public-order incidents, crowd unrest, and community disturbances.', 8, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (9, 'Other', 'Concerns requiring operator assessment that do not fit another category.', 9, '2026-08-06 00:00:00', '2026-08-06 00:00:00');
+
+INSERT INTO `resource_type_categories` (`id`, `name`, `description`, `sort_order`, `created_at`, `updated_at`) VALUES
+  (1, 'Medical Response', 'Medical transport, response teams, and treatment supplies.', 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (2, 'Food and Relief Supplies', 'Food, water, and relief supplies for affected families.', 3, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (3, 'Water and Sanitation', 'Potable water, sanitation, and hygiene support resources.', 4, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (4, 'Shelter Support', 'Temporary shelter and shelter support materials.', 6, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (5, 'Rescue and Extraction', 'Water, rope, and technical rescue or extraction resources.', 7, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (6, 'Welfare / Social Services', 'Social welfare and family support responders.', 11, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (7, 'Non-food Items', 'Household and personal support kits.', 13, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (8, 'Search and Damage Assessment', 'Search, field assessment, and damage assessment resources.', 16, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (9, 'Aerial / Field Reconnaissance', 'Aerial, field, and remote observation resources.', 17, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (10, 'Fire / Water Tanker Support', 'Fire suppression and water tanker support resources.', 18, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (11, 'Public Safety / Traffic Control', 'Law enforcement, traffic control, perimeter, and public-order resources.', 19, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (12, 'Specialized Rescue Equipment', 'Specialized rescue, extrication, access, and field support tools.', 20, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (13, 'Utility Restoration', 'Utility repair and service restoration resources.', 24, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (14, 'Heavy Equipment / Clearing', 'Heavy equipment for debris, road, and structural clearing operations.', 28, '2026-08-06 00:00:00', '2026-08-06 00:00:00');
+
+INSERT INTO `team_categories` (`id`, `name`, `description`, `sort_order`, `created_at`, `updated_at`) VALUES
+  (1, 'Medical', 'Emergency medical and patient transport teams.', 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (2, 'Fire', 'Fire suppression and hazard-control teams.', 2, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (3, 'Rescue', 'Technical rescue, search, and evacuation teams.', 3, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (4, 'Public Safety', 'Police, traffic, and public-order response teams.', 4, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (5, 'Welfare', 'Social welfare and relief support teams.', 5, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (6, 'Utilities', 'Utility repair and infrastructure response teams.', 6, '2026-08-06 00:00:00', '2026-08-06 00:00:00');
+
+INSERT INTO `incident_types` (`id`, `incident_category_id`, `name`, `description`, `created_at`, `updated_at`) VALUES
+  (1, 1, 'Animal Attack', 'Animal bite, attack, or aggressive animal situation requiring medical help, containment, or responder support.', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (2, 1, 'Medical Emergency', 'Urgent health concern needing medical response.', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (3, 1, 'Rescue', 'Person needing rescue or extraction from danger.', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (4, 2, 'Building/House Fire', 'Fire affecting a house, building, or other structure.', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (5, 2, 'Vehicle Fire', 'Fire involving a vehicle, road access, or casualty concern.', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (6, 3, 'Bomb Threat', 'Reported bomb threat, suspicious package, or explosive-related warning.', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (7, 3, 'Home Intrusion', 'Unauthorized entry or active threat inside a home or private property.', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (8, 3, 'Kidnapping', 'Suspected abduction, forced taking, or unlawful detention of a person.', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (9, 3, 'Missing Person', 'Person whose whereabouts are unknown and may need search or welfare check.', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (10, 3, 'Robbery', 'Theft involving force, threat, or intimidation.', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (11, 3, 'Vehicle Theft / Carnapping', 'Stolen or forcibly taken vehicle report.', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (12, 4, 'Earthquake', 'Earthquake-related impacts such as damaged infrastructure or trapped persons.', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (13, 4, 'Family Displacement', 'Families displaced or needing welfare support after a hazard.', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (14, 4, 'Flood', 'Flooding, rising water, or water intrusion affecting roads, homes, or communities.', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (15, 4, 'Landslide', 'Soil, rock, or debris movement affecting people, homes, roads, or infrastructure.', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (16, 4, 'Shelter Damage', 'Damage to a house, shelter, or occupied structure.', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (17, 5, 'Road Accident', 'Crash or road incident involving vehicles, pedestrians, injuries, or obstruction.', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (18, 6, 'Infrastructure Damage', 'Damage to roads, bridges, drainage, utilities, public buildings, or facilities.', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (19, 6, 'Power Outage', 'Electrical service interruption or unsafe power condition.', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (20, 6, 'Water Supply Issue', 'Water interruption, dirty water, low pressure, leak, or potable water concern.', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (21, 7, 'Domestic Violence', 'Violence, abuse, or immediate safety concern within a household or relationship.', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (22, 8, 'Public Disturbance / Riot', 'Public disturbance, violent crowd incident, road obstruction, or escalating group conflict.', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (23, 9, 'Other Concern', 'Incident or community concern that needs operator assessment.', '2026-08-06 00:00:00', '2026-08-06 00:00:00');
+
+INSERT INTO `resource_types` (`id`, `category_id`, `name`, `unit_label`, `created_at`, `updated_at`) VALUES
+  (1, 1, 'Ambulance', 'unit', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (2, 1, 'Medical Response Team', 'team', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (3, 1, 'Medical Supplies', 'kit', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (4, 2, 'Food & Water Supplies', 'pack', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (5, 3, 'Potable Water', 'container', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (6, 4, 'Tents', 'unit', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (7, 5, 'Rescue Team', 'team', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (8, 5, 'Rope', 'roll', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (9, 5, 'Life Vest', 'piece', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (10, 5, 'LifeBuoy Ring', 'piece', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (11, 5, 'Body Harness', 'set', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (12, 5, 'Harness Cable', 'set', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (13, 6, 'Social Welfare Team', 'team', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (14, 7, 'Hygiene Kit', 'kit', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (15, 7, 'Sleeping Kit', 'kit', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (16, 7, 'Kitchen Kit', 'kit', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (17, 7, 'Family Clothing Kit', 'kit', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (18, 8, 'Search Team', 'team', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (19, 8, 'Assessment Team', 'team', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (20, 8, 'Structural Assessment Team', 'team', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (21, 8, 'Search Lights', 'set', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (22, 9, 'Drone', 'unit', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (23, 9, 'Satellite Phone', 'unit', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (24, 10, 'Fire Truck', 'unit', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (25, 10, 'Water Tanker', 'unit', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (26, 11, 'Animal Control Team', 'team', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (27, 11, 'Police Unit', 'unit', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (28, 11, 'Investigation Team', 'team', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (29, 11, 'Crowd Control Team', 'team', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (30, 11, 'Negotiator', 'person', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (31, 11, 'Perimeter Barrier', 'set', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (32, 12, 'Hydraulic Combi-tool', 'unit', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (33, 12, 'Hydraulic Power Pack', 'unit', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (34, 13, 'Utility Repair Team', 'team', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (35, 14, 'Tow Truck', 'unit', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (36, 14, 'Backhoe', 'unit', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (37, 14, 'Dump Truck', 'unit', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (38, 14, 'Road Breaker', 'unit', '2026-08-06 00:00:00', '2026-08-06 00:00:00');
+
+INSERT INTO `teams` (`id`, `team_category_id`, `name`, `status`, `created_at`, `updated_at`) VALUES
+  (1, 1, 'Barangay EMS Team', 'active', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (2, 2, 'Barangay Fire Response Team', 'active', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (3, 3, 'Barangay Rescue Team', 'active', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (4, 3, 'Search and Assessment Team', 'active', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (5, 4, 'Barangay Public Safety Team', 'active', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (6, 4, 'Crowd Control Team', 'active', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (7, 5, 'Social Welfare Response Team', 'active', '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (8, 6, 'Utilities Response Team', 'active', '2026-08-06 00:00:00', '2026-08-06 00:00:00');
+
+INSERT INTO `incident_type_fields` (`id`, `incident_type_id`, `field_key`, `field_label`, `input_type`, `options_json`, `config_json`, `default_value`, `placeholder`, `unit`, `is_required`, `sort_order`, `min`, `max`, `step`, `created_at`, `updated_at`) VALUES
+  (1, 2, 'patient_details', 'Patient Details', 'group', NULL, '{"preset":"casualtyPatient"}', NULL, NULL, NULL, 0, 20, NULL, NULL, NULL, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (2, 1, 'patient_details', 'Patient Details', 'group', NULL, '{"preset":"casualtyPatient"}', NULL, NULL, NULL, 0, 20, NULL, NULL, NULL, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (3, 3, 'patient_details', 'Patient Details', 'group', NULL, '{"preset":"casualtyPatient"}', NULL, NULL, NULL, 0, 20, NULL, NULL, NULL, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (4, 5, 'vehicles_involved', 'Vehicles Involved', 'group', NULL, '{"preset":"vehicleInvolved"}', NULL, NULL, NULL, 0, 20, NULL, NULL, NULL, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (5, 5, 'road_access', 'Road / Access Status', 'group', NULL, '{"preset":"roadAccessStatus"}', NULL, NULL, NULL, 0, 21, NULL, NULL, NULL, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (6, 5, 'patient_details', 'Patient Details', 'group', NULL, '{"preset":"casualtyPatient"}', NULL, NULL, NULL, 0, 22, NULL, NULL, NULL, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (7, 17, 'vehicles_involved', 'Vehicles Involved', 'group', NULL, '{"preset":"vehicleInvolved"}', NULL, NULL, NULL, 0, 20, NULL, NULL, NULL, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (8, 17, 'patient_details', 'Patient Details', 'group', NULL, '{"preset":"casualtyPatient"}', NULL, NULL, NULL, 0, 21, NULL, NULL, NULL, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (9, 17, 'road_access', 'Road / Access Status', 'group', NULL, '{"preset":"roadAccessStatus"}', NULL, NULL, NULL, 0, 22, NULL, NULL, NULL, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (10, 14, 'road_access', 'Road / Access Status', 'group', NULL, '{"preset":"roadAccessStatus"}', NULL, NULL, NULL, 0, 20, NULL, NULL, NULL, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (11, 12, 'infrastructure_damage', 'Infrastructure Damage', 'group', NULL, '{"preset":"infrastructureDamage"}', NULL, NULL, NULL, 0, 20, NULL, NULL, NULL, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (12, 12, 'road_access', 'Road / Access Status', 'group', NULL, '{"preset":"roadAccessStatus"}', NULL, NULL, NULL, 0, 21, NULL, NULL, NULL, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (13, 15, 'infrastructure_damage', 'Infrastructure Damage', 'group', NULL, '{"preset":"infrastructureDamage"}', NULL, NULL, NULL, 0, 20, NULL, NULL, NULL, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (14, 15, 'road_access', 'Road / Access Status', 'group', NULL, '{"preset":"roadAccessStatus"}', NULL, NULL, NULL, 0, 21, NULL, NULL, NULL, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (15, 18, 'infrastructure_damage_details', 'Infrastructure Damage Details', 'group', NULL, '{"preset":"infrastructureDamage"}', NULL, NULL, NULL, 0, 20, NULL, NULL, NULL, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (16, 18, 'road_access', 'Road / Access Status', 'group', NULL, '{"preset":"roadAccessStatus"}', NULL, NULL, NULL, 0, 21, NULL, NULL, NULL, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (17, 11, 'vehicles_involved', 'Vehicles Involved', 'group', NULL, '{"preset":"vehicleInvolved"}', NULL, NULL, NULL, 0, 20, NULL, NULL, NULL, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (18, 8, 'vehicles_involved', 'Vehicles Involved', 'group', NULL, '{"preset":"vehicleInvolved"}', NULL, NULL, NULL, 0, 20, NULL, NULL, NULL, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (19, 8, 'victim_details', 'Victim Details', 'group', NULL, '{"preset":"person"}', NULL, NULL, NULL, 0, 21, NULL, NULL, NULL, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (20, 10, 'vehicles_involved', 'Vehicles Involved', 'group', NULL, '{"preset":"vehicleInvolved"}', NULL, NULL, NULL, 0, 20, NULL, NULL, NULL, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (21, 16, 'shelter_damage', 'Shelter Damage Details', 'group', NULL, '{"preset":"shelterDamage"}', NULL, NULL, NULL, 0, 1, NULL, NULL, NULL, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (22, 13, 'affected_families', 'Affected Families', 'group', NULL, '{"preset":"family"}', NULL, NULL, NULL, 0, 1, NULL, NULL, NULL, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (23, 22, 'disturbance_type', 'Disturbance type', 'select', '["Verbal conflict","Physical fight","Crowd unrest","Property damage","Road obstruction","Other"]', NULL, NULL, NULL, NULL, 0, 2, NULL, NULL, NULL, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (24, 22, 'weapons_seen', 'Weapons seen', 'select', '["Unknown","No","Yes"]', NULL, NULL, NULL, NULL, 0, 3, NULL, NULL, NULL, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (25, 22, 'immediate_danger', 'Immediate danger', 'select', '["Unknown","No","Yes"]', NULL, NULL, NULL, NULL, 0, 4, NULL, NULL, NULL, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (26, 22, 'access_blocked', 'Road or access blocked', 'select', '["Unknown","No","Yes"]', NULL, NULL, NULL, NULL, 0, 5, NULL, NULL, NULL, '2026-08-06 00:00:00', '2026-08-06 00:00:00');
+
+INSERT INTO `incident_type_default_resources` (`id`, `incident_type_id`, `resource_type_id`, `quantity_required`, `notes`, `sort_order`, `created_at`, `updated_at`) VALUES
+  (1, 1, 1, 1, NULL, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (2, 1, 26, 1, NULL, 2, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (3, 2, 1, 1, NULL, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (4, 2, 2, 1, NULL, 2, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (5, 2, 3, 1, NULL, 3, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (6, 3, 7, 1, NULL, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (7, 3, 1, 1, NULL, 2, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (8, 3, 8, 1, NULL, 3, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (9, 3, 11, 1, NULL, 4, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (10, 3, 12, 1, NULL, 5, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (11, 4, 24, 1, NULL, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (12, 4, 25, 1, NULL, 2, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (13, 5, 24, 1, NULL, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (14, 5, 35, 1, NULL, 2, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (15, 14, 8, 1, NULL, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (16, 14, 9, 1, NULL, 2, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (17, 14, 10, 1, NULL, 3, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (18, 12, 22, 1, NULL, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (19, 12, 23, 1, NULL, 2, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (20, 15, 36, 1, NULL, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (21, 15, 37, 1, NULL, 2, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (22, 15, 22, 1, NULL, 3, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (23, 17, 1, 1, NULL, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (24, 17, 32, 1, NULL, 2, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (25, 17, 33, 1, NULL, 3, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (26, 18, 19, 1, NULL, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (27, 18, 36, 1, NULL, 2, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (28, 18, 37, 1, NULL, 3, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (29, 18, 38, 1, NULL, 4, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (30, 16, 20, 1, NULL, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (31, 16, 6, 1, NULL, 2, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (32, 16, 15, 1, NULL, 3, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (33, 16, 14, 1, NULL, 4, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (34, 16, 17, 1, NULL, 5, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (35, 13, 13, 1, NULL, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (36, 13, 4, 1, NULL, 2, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (37, 13, 14, 1, NULL, 3, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (38, 13, 15, 1, NULL, 4, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (39, 13, 16, 1, NULL, 5, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (40, 13, 17, 1, NULL, 6, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (41, 13, 6, 1, NULL, 7, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (42, 9, 18, 1, NULL, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (43, 9, 22, 1, NULL, 2, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (44, 9, 21, 1, NULL, 3, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (45, 6, 27, 1, NULL, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (46, 6, 31, 1, NULL, 2, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (47, 6, 28, 1, NULL, 3, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (48, 7, 27, 1, NULL, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (49, 8, 27, 1, NULL, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (50, 8, 28, 1, NULL, 2, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (51, 8, 30, 1, NULL, 3, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (52, 10, 27, 1, NULL, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (53, 10, 28, 1, NULL, 2, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (54, 11, 27, 1, NULL, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (55, 11, 28, 1, NULL, 2, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (56, 21, 27, 1, NULL, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (57, 21, 13, 1, NULL, 2, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (58, 22, 27, 1, NULL, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (59, 22, 29, 1, NULL, 2, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (60, 22, 31, 1, NULL, 3, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (61, 19, 34, 1, NULL, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (62, 20, 34, 1, NULL, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (63, 20, 5, 1, NULL, 2, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (64, 20, 25, 1, NULL, 3, '2026-08-06 00:00:00', '2026-08-06 00:00:00');
+
+INSERT INTO `team_resource_inventories` (`id`, `team_id`, `resource_type_id`, `quantity_available`, `created_at`, `updated_at`) VALUES
+  (1, 1, 1, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (2, 1, 2, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (3, 1, 3, 4, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (4, 2, 24, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (5, 2, 25, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (6, 3, 7, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (7, 3, 8, 3, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (8, 3, 9, 12, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (9, 3, 10, 4, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (10, 3, 11, 2, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (11, 3, 12, 2, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (12, 4, 18, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (13, 4, 19, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (14, 4, 22, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (15, 4, 21, 2, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (16, 5, 27, 2, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (17, 5, 28, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (18, 5, 31, 4, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (19, 6, 29, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (20, 6, 31, 6, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (21, 7, 13, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (22, 7, 4, 20, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (23, 7, 14, 20, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (24, 7, 15, 20, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (25, 8, 34, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (26, 8, 5, 10, '2026-08-06 00:00:00', '2026-08-06 00:00:00'),
+  (27, 8, 25, 1, '2026-08-06 00:00:00', '2026-08-06 00:00:00');
+
+ALTER TABLE `incident_categories` AUTO_INCREMENT=10;
+ALTER TABLE `resource_type_categories` AUTO_INCREMENT=15;
+ALTER TABLE `team_categories` AUTO_INCREMENT=7;
+ALTER TABLE `incident_types` AUTO_INCREMENT=24;
+ALTER TABLE `resource_types` AUTO_INCREMENT=39;
+ALTER TABLE `teams` AUTO_INCREMENT=9;
+ALTER TABLE `incident_type_fields` AUTO_INCREMENT=27;
+ALTER TABLE `incident_type_default_resources` AUTO_INCREMENT=65;
+ALTER TABLE `team_resource_inventories` AUTO_INCREMENT=28;
+
 INSERT INTO `migrations` (`migration`, `batch`) VALUES
   ('0001_01_01_000000_create_users_table', 1),
   ('0001_01_01_000001_create_cache_table', 1),

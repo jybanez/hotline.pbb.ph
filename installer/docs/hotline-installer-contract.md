@@ -50,9 +50,9 @@ Running without `--config` is allowed for bundle/host validation and returns war
 - generates a fresh Laravel `APP_KEY`
 - prepares `storage/app/installer` and `storage/app/installer/services`
 - applies `database/schema/hotline-schema-mysql.sql` for fresh installs when `options.database_setup=baseline_schema` is set, with `options.use_baseline_schema=true` retained as a backward-compatible fallback
-- reports `database_setup.strategy`, `database_setup.baseline_schema`, `database_setup.baseline_schema_used`, `database_setup.migration_rows`, and `database_setup.upgrade_strategy` in fresh install output and manifests; the baseline apply result also reports `settings_rows`
+- reports `database_setup.strategy`, `database_setup.baseline_schema`, `database_setup.baseline_schema_used`, `database_setup.migration_rows`, and `database_setup.upgrade_strategy` in fresh install output and manifests; the baseline apply result also reports `settings_rows` and `reference_data_counts`
 - reserves `php artisan migrate --force` as the fallback path when baseline schema use is explicitly disabled or the artifact is absent
-- skips `SettingsSeeder` for fresh baseline-schema installs because production initial settings are required inside the baseline schema; baseline application fails if it leaves the `settings` table empty. If baseline schema is disabled and `database/seeders/SettingsSeeder.php` is packaged, runs `php artisan db:seed --class=SettingsSeeder --force` when `options.seed_settings` is enabled
+- skips `SettingsSeeder` for fresh baseline-schema installs because production initial settings are required inside the baseline schema; baseline application fails if it leaves the `settings` table empty or if the packaged reference tables are below required minimum counts. If baseline schema is disabled and `database/seeders/SettingsSeeder.php` is packaged, runs `php artisan db:seed --class=SettingsSeeder --force` when `options.seed_settings` is enabled
 - applies Realtime, Relay, and MapServer runtime settings
 - writes `HOTLINE_FFMPEG_BINARY` to the resolved app-owned bundled binary under `bin/ffmpeg` when it exists, even if Kit supplied an external FFmpeg path. External paths remain fallback only. `HOTLINE_FFPROBE_BINARY` is written only when an external/configured or PATH-resolvable `ffprobe` exists.
 - writes `HOTLINE_REALTIME_CA_BUNDLE` to `hotline.realtime_ca_bundle` when provided, otherwise to the PHP runtime CA bundle detected from `curl.cainfo` or `openssl.cafile`.
@@ -126,7 +126,7 @@ The core installer should only make Hotline runnable:
 - generate `APP_KEY`
 - validate bundled `vendor/`, `public/build`, Helper UI assets, and Realtime SDK
 - run migrations
-- seed settings only when the baseline schema is not used and a production settings seeder is packaged; baseline-schema installs must get initial settings from `database/schema/hotline-schema-mysql.sql`
+- seed settings only when the baseline schema is not used and a production settings seeder is packaged; baseline-schema installs must get initial settings and packaged reference data from `database/schema/hotline-schema-mysql.sql`
 - create the first admin account
 - apply Realtime, Relay, MapServer, media, and session settings
 - create storage links and writable directories
