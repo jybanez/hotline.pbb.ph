@@ -1721,6 +1721,10 @@ function applyBaselineSchema(array $config, string $schemaPath, string $artifact
         }
 
         $migrationRows = migrationRowCount($pdo);
+        $settingsRows = settingsRowCount($pdo);
+        if ($settingsRows < 1) {
+            throw new RuntimeException('Baseline schema applied without initial settings rows.');
+        }
 
         return [
             'status' => 'success',
@@ -1733,6 +1737,7 @@ function applyBaselineSchema(array $config, string $schemaPath, string $artifact
             ],
             'artifact' => $artifact,
             'migration_rows' => $migrationRows,
+            'settings_rows' => $settingsRows,
         ];
     } catch (Throwable $exception) {
         return [
@@ -1781,6 +1786,15 @@ function migrationRowCount(PDO $pdo): int
 {
     try {
         return (int) $pdo->query('SELECT COUNT(*) FROM migrations')->fetchColumn();
+    } catch (Throwable) {
+        return 0;
+    }
+}
+
+function settingsRowCount(PDO $pdo): int
+{
+    try {
+        return (int) $pdo->query('SELECT COUNT(*) FROM settings')->fetchColumn();
     } catch (Throwable) {
         return 0;
     }
