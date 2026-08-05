@@ -93,6 +93,8 @@ Rollback support is file-level: Kit can restore the previous app files while Hot
 
 If an operator intentionally needs an admin password repair during maintenance, Kit must request it explicitly with `options.maintenance_admin_bootstrap=true` or `admin.overwrite_existing=true`; only then does Hotline require and validate `admin.password`.
 
+Hotline also guards destructive Artisan database commands at runtime. `db:wipe`, `migrate:fresh`, `migrate:refresh`, `migrate:reset`, `migrate:rollback`, and `schema:load` are blocked for production-like database names. Kit and operators should use `php artisan migrate --force` for normal upgrade/repair. Destructive commands are only allowed for clearly disposable database names such as `*_test`, `*_smoke`, or `*_rehearsal`, or with `HOTLINE_ALLOW_DESTRUCTIVE_DB_COMMANDS=true` after explicit approval and backup.
+
 ## First Admin Contract
 
 Hotline follows Kit Setup's shared Laravel first-admin contract:

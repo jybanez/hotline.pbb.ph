@@ -116,6 +116,27 @@ php artisan migrate
 
 Only use the main RC database directly for explicitly approved read-only verification or when the task specifically requires testing against the live RC dataset.
 
+## Destructive Database Commands
+
+Do not run destructive database commands against the main RC database, installed-node databases, or any production-like database. This includes:
+
+```text
+db:wipe
+migrate:fresh
+migrate:refresh
+migrate:reset
+migrate:rollback
+schema:load
+```
+
+Use forward-only migrations for normal development and installed-node updates:
+
+```powershell
+php artisan migrate --force
+```
+
+Hotline blocks the destructive commands above unless the configured database name is clearly disposable, such as `*_test`, `*_smoke`, or `*_rehearsal`. The emergency override `HOTLINE_ALLOW_DESTRUCTIVE_DB_COMMANDS=true` must only be used after explicit approval and a confirmed backup.
+
 ## Task Isolation
 
 One branch should solve one task.
