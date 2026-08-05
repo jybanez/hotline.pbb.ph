@@ -10,9 +10,9 @@ return new class extends Migration
     public function up(): void
     {
         $this->dropForeignIdIfExists('incidents', 'caller_id');
-        $this->dropIndexIfExists('call_attempts', 'call_attempts_caller_id_created_at_index');
         $this->dropForeignIdIfExists('call_attempts', 'caller_id');
         $this->dropForeignIdIfExists('call_sessions', 'caller_id');
+        $this->dropIndexIfExists('call_attempts', 'call_attempts_caller_id_created_at_index');
 
         $this->dropColumnsIfExist('incidents', [
             'actual_caller_name',

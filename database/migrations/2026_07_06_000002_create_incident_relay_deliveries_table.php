@@ -13,9 +13,9 @@ return new class extends Migration
             $table->foreignId('incident_id')->constrained('incidents')->cascadeOnDelete();
             $table->string('message_type', 96)->default('hotline.incident.upserted');
             $table->string('status', 32)->default('pending')->index();
-            $table->string('stable_incident_key', 255)->index();
+            $table->string('stable_incident_key', 191)->index();
             $table->string('revision', 96)->nullable();
-            $table->string('idempotency_key', 255)->unique();
+            $table->string('idempotency_key', 191)->unique();
             $table->string('payload_hash', 64);
             $table->json('payload_summary_json')->nullable();
             $table->string('relay_id', 64)->nullable()->index();
