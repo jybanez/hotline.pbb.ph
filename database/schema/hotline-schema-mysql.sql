@@ -522,8 +522,8 @@ DROP TABLE IF EXISTS `media`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `media` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `incident_id` bigint(20) unsigned NOT NULL,
-  `call_session_id` bigint(20) unsigned NOT NULL,
+  `incident_id` bigint(20) unsigned DEFAULT NULL,
+  `call_session_id` bigint(20) unsigned DEFAULT NULL,
   `type` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `peer_user_id` bigint(20) unsigned DEFAULT NULL,
   `peer_role` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -538,6 +538,7 @@ CREATE TABLE `media` (
   KEY `media_peer_user_id_foreign` (`peer_user_id`),
   KEY `media_incident_id_created_at_index` (`incident_id`,`created_at`),
   KEY `media_incident_id_available_at_index` (`incident_id`,`available_at`),
+  KEY `media_type_created_at_index` (`type`,`created_at`),
   CONSTRAINT `media_call_session_id_foreign` FOREIGN KEY (`call_session_id`) REFERENCES `call_sessions` (`id`),
   CONSTRAINT `media_incident_id_foreign` FOREIGN KEY (`incident_id`) REFERENCES `incidents` (`id`),
   CONSTRAINT `media_peer_user_id_foreign` FOREIGN KEY (`peer_user_id`) REFERENCES `users` (`id`)
@@ -1303,4 +1304,5 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES
   ('2026_06_29_000001_add_pbb_user_id_to_users_table', 1),
   ('2026_07_06_000001_create_incident_relay_outbox_table', 1),
   ('2026_07_06_000002_create_incident_relay_deliveries_table', 1),
-  ('2026_07_28_000001_add_normalized_image_metadata_to_message_attachments_table', 1);
+  ('2026_07_28_000001_add_normalized_image_metadata_to_message_attachments_table', 1),
+  ('2026_08_07_000001_allow_diagnostic_media_records', 1);

@@ -1,4 +1,5 @@
-import { appState, buildOptions, deriveActiveCallSessionId, ensureHelperUi, escapeHtml, evaluateDevicePrimer, fetchJson, formatDateTime, formatStatusLabel, handleCommandBroadcastEnvelope, INCOMING_MODAL_DISMISS_PREFIX, logCallFlow, mergeIncidentMediaItems, mountChatComposer, mountChatThread, mountRealtimeCallSession, mountRealtimeIncidentChat, mountSurfaceChrome, OPERATOR_WORKBENCH_CALL_SESSION_KEY, OPERATOR_WORKBENCH_KEY, padIncidentId, renderAssignments, renderMedia, renderStatChips, renderTransfers, sharedShell, showToast, trackSurfaceInstance, TRANSFER_MODAL_DISMISS_PREFIX, wirePrimer } from './surfaceShared.js';
+import { appState, buildOptions, createIconMarkup, deriveActiveCallSessionId, ensureHelperUi, escapeHtml, evaluateDevicePrimer, fetchJson, formatDateTime, formatStatusLabel, handleCommandBroadcastEnvelope, INCOMING_MODAL_DISMISS_PREFIX, logCallFlow, mergeIncidentMediaItems, mountChatComposer, mountChatThread, mountRealtimeCallSession, mountRealtimeIncidentChat, mountSurfaceChrome, OPERATOR_WORKBENCH_CALL_SESSION_KEY, OPERATOR_WORKBENCH_KEY, padIncidentId, renderAssignments, renderMedia, renderStatChips, renderTransfers, sharedShell, showToast, trackSurfaceInstance, TRANSFER_MODAL_DISMISS_PREFIX, wirePrimer } from './surfaceShared.js';
+import { openOperatorMediaStreamTestTool } from '../media/operatorMediaStreamTestTool.js';
 import { renderSurface } from './renderSurface.js';
 import { createOperatorMediaManagers } from '../media/operator.js';
 import { createOperatorMediaFinalizer } from '../media/finalizers/operatorMediaFinalizer.js';
@@ -7378,8 +7379,36 @@ function renderOperator(root, bootstrap, dashboard, primerReport) {
         statusActions: ``,
     });
 
-    appState.runtime.navbarActions = [];
+    appState.runtime.navbarActions = [{
+        id: 'operator-tools',
+        label: 'Tools',
+        icon: createIconMarkup('actions.tools', { size: 18, ariaLabel: 'Tools' }),
+        menuItems: [
+            { id: 'device-primer', label: 'Device Primer' },
+            { id: 'media-stream-test', label: 'Test Media Stream Storage' },
+        ],
+    }];
     appState.runtime.navbarOnAction = null;
+    appState.runtime.navbarOnActionMenuSelect = (action, item) => {
+        if (action?.id !== 'operator-tools') {
+            return false;
+        }
+
+        if (item?.id === 'device-primer') {
+            root.querySelector('[data-open-primer]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            return true;
+        }
+
+        if (item?.id === 'media-stream-test') {
+            void openOperatorMediaStreamTestTool(root).catch((error) => {
+                console.warn('Unable to open operator media stream test tool.', error);
+                showToast('Unable to open media stream test tool.', 'warn');
+            });
+            return true;
+        }
+
+        return false;
+    };
     appState.runtime.navbarContentEnd = () => {
         const mapControlsHost = document.createElement('div');
         mapControlsHost.className = 'operator-navbar-map-controls';

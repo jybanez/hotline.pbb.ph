@@ -5,6 +5,7 @@ namespace App\Support\Media;
 use App\Domain\Calls\Models\CallSession;
 use App\Domain\Media\Models\Media;
 use App\Domain\Shared\Enums\CallStatus;
+use App\Models\User;
 use App\Support\Realtime\RealtimeEventPublishService;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
@@ -54,6 +55,39 @@ class MediaAssemblyService
         $this->realtimeEvents->publishIncidentMediaProcessing($media);
 
         return $media;
+    }
+
+    public function createDiagnosticProcessingAsset(User $operator, array $payload): Media
+    {
+        $metadata = [
+            ...(Arr::get($payload, 'metadata', []) ?: []),
+            'diagnostic' => true,
+            'diagnostic_type' => 'operator_media_stream_storage',
+            'created_by_user_id' => $operator->id,
+            'operator_user_id' => $operator->id,
+            'processing' => true,
+            'mime_type' => (string) Arr::get($payload, 'mime_type', ''),
+            'extension' => (string) Arr::get($payload, 'extension', ''),
+            'track_kind' => (string) Arr::get($payload, 'track_kind', 'audio'),
+            'segment_key' => (string) Arr::get($payload, 'segment_key', Str::uuid()->toString()),
+            'chunk_count' => 0,
+            'started_at' => Arr::get($payload, 'started_at'),
+            'ended_at' => Arr::get($payload, 'ended_at'),
+        ];
+
+        return Media::query()->create([
+            'incident_id' => null,
+            'call_session_id' => null,
+            'type' => 'operator_media_stream_test',
+            'peer_user_id' => $operator->id,
+            'peer_role' => 'operator',
+            'peer_label' => $operator->name,
+            'path' => '',
+            'duration_seconds' => Arr::get($payload, 'duration_seconds'),
+            'metadata_json' => $metadata,
+            'created_at' => now(),
+            'available_at' => null,
+        ]);
     }
 
     public function storeChunk(Media $media, string $chunkContents, int $chunkIndex): array
@@ -121,9 +155,46 @@ class MediaAssemblyService
         ])->save();
 
         $media = $media->fresh();
-        $this->realtimeEvents->publishIncidentMediaAvailable($media);
+
+        if (! $this->isDiagnosticMedia($media)) {
+            $this->realtimeEvents->publishIncidentMediaAvailable($media);
+        }
 
         return $media;
+    }
+
+    public function discardDiagnosticProcessingAsset(Media $media, string $reason = 'operator_cancelled'): Media
+    {
+        if (! $this->isDiagnosticMedia($media)) {
+            throw new RuntimeException('Only diagnostic media can be discarded through this workflow.');
+        }
+
+        if ($media->available_at !== null && (bool) Arr::get($media->metadata_json ?? [], 'discarded', false)) {
+            return $media->fresh();
+        }
+
+        $metadata = $media->metadata_json ?? [];
+        $metadata['processing'] = false;
+        $metadata['discarded'] = true;
+        $metadata['discard_reason'] = $reason !== '' ? $reason : 'operator_cancelled';
+        $metadata['discarded_at'] = now()->toIso8601String();
+
+        Storage::disk('local')->deleteDirectory(sprintf(
+            'media-processing/diagnostics/operator-media-stream-tests/%d',
+            $media->id
+        ));
+
+        if (trim((string) $media->path) !== '') {
+            Storage::disk('public')->delete((string) $media->path);
+        }
+
+        $media->forceFill([
+            'path' => '',
+            'metadata_json' => $metadata,
+            'available_at' => $media->available_at ?? now(),
+        ])->save();
+
+        return $media->fresh();
     }
 
     public function registerCompletedAsset(array $payload): Media
@@ -203,6 +274,15 @@ class MediaAssemblyService
      */
     private function chunkPaths(Media $media): array
     {
+        if ($this->isDiagnosticMedia($media)) {
+            $base = sprintf('media-processing/diagnostics/operator-media-stream-tests/%d/chunks', $media->id);
+            return collect(Storage::disk('local')->files($base))
+                ->filter(fn (string $path) => str_ends_with($path, '.chunk'))
+                ->sort()
+                ->values()
+                ->all();
+        }
+
         $base = sprintf('media-processing/%d/%d/%d/chunks', $media->incident_id, $media->call_session_id, $media->id);
         $files = collect(Storage::disk('local')->files($base))
             ->filter(fn (string $path) => str_ends_with($path, '.chunk'))
@@ -215,6 +295,14 @@ class MediaAssemblyService
 
     private function chunkPath(Media $media, int $chunkIndex): string
     {
+        if ($this->isDiagnosticMedia($media)) {
+            return sprintf(
+                'media-processing/diagnostics/operator-media-stream-tests/%d/chunks/%06d.chunk',
+                $media->id,
+                max(0, $chunkIndex)
+            );
+        }
+
         return sprintf(
             'media-processing/%d/%d/%d/chunks/%06d.chunk',
             $media->incident_id,
@@ -228,6 +316,17 @@ class MediaAssemblyService
     {
         $peerToken = $media->peer_role ?: ($media->peer_user_id ? "user-{$media->peer_user_id}" : 'peer');
         $segmentKey = Str::slug((string) Arr::get($media->metadata_json ?? [], 'segment_key', 'segment'));
+
+        if ($this->isDiagnosticMedia($media)) {
+            return sprintf(
+                'diagnostics/operator-media-stream-tests/%d/%d_%s_%s.%s',
+                $media->peer_user_id ?: 0,
+                $media->id,
+                Str::slug($media->type),
+                $segmentKey ?: $peerToken,
+                $extension
+            );
+        }
 
         return sprintf(
             'incidents/%d/media/%d/%d_%s_%s.%s',
@@ -243,6 +342,11 @@ class MediaAssemblyService
     private function defaultExtensionFor(string $type): string
     {
         return in_array($type, MediaContractNormalizer::citizenVideoTypes(), true) ? 'webm' : 'weba';
+    }
+
+    private function isDiagnosticMedia(Media $media): bool
+    {
+        return (bool) Arr::get($media->metadata_json ?? [], 'diagnostic', false);
     }
 
     /**
