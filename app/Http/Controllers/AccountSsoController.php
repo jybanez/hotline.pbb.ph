@@ -39,12 +39,14 @@ class AccountSsoController extends Controller
         abort_unless($this->accountSettings->enabled(), 404);
 
         try {
-            $identity = $accounts->make($request)->handleCallback($request->query())->toArray();
+            $token = $accounts->make($request)->handleCallbackToken($request->query());
+            $identity = $token->identity->toArray();
             $user = $this->resolveAccountUser($identity);
             $this->assertLocalAccessAllowed($user);
 
             Auth::guard('web')->login($user, true);
             $request->session()->regenerate();
+            $request->session()->put('pbb_account.session_id', $token->raw['account_session_id'] ?? null);
             $user->forceFill(['last_login_at' => now()])->save();
 
             return redirect($this->loginDestination($user, $request->session()->pull('pbb_account.return_to', null), $roleRedirector))

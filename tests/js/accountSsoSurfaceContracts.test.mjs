@@ -30,3 +30,39 @@ assert.match(
   /&&\s*!accountSsoError[\s\S]*\['public',\s*'citizen',\s*'caller'\]\.includes\(surface\)/,
   'Shared surface login flow must suppress automatic Account redirect when a callback error is present.',
 );
+
+assert.match(
+  source,
+  /function\s+initAccountSessionSdk\s*\(/,
+  'Shared surface must initialize Account browser session sync.',
+);
+
+assert.match(
+  source,
+  /window\.PbbAccountSession/,
+  'Shared surface must use the Account-hosted browser SDK when it is loaded.',
+);
+
+assert.match(
+  source,
+  /admissionUrl:\s*accountRealtimeAdmissionUrl\(accountSso\)/,
+  'Account session sync must use the Account realtime admission endpoint.',
+);
+
+assert.match(
+  source,
+  /onLogout:\s*\(\)\s*=>\s*\{[\s\S]*handleAccountSessionLogout/,
+  'Account logout events must clear the local Hotline session.',
+);
+
+assert.match(
+  source,
+  /fetchJson\('\/api\/logout',\s*\{\s*method:\s*'post'\s*\}\)/,
+  'Account logout event handling must use local /api/logout, not /auth/logout.',
+);
+
+assert.match(
+  source,
+  /target\.searchParams\.set\('return_to',\s*returnPath\)/,
+  'Account SSO redirects must preserve the current Hotline path via return_to.',
+);

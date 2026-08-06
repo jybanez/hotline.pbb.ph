@@ -28,6 +28,7 @@ const OPERATOR_WORKBENCH_CALL_SESSION_KEY = 'hotline.operator.active_call_sessio
 const INCOMING_MODAL_DISMISS_PREFIX = 'hotline.operator.dismissed_incoming.';
 const TRANSFER_MODAL_DISMISS_PREFIX = 'hotline.operator.dismissed_transfer.';
 const DEVICE_PRIMER_DISMISS_PREFIX = 'hotline.device.primer.dismissed.';
+const ACCOUNT_LOGGED_OUT_STORAGE_KEY = 'hotline.account.intentional_logout';
 const SESSION_ACTIVITY_STALE_MS = 30 * 1000;
 const SESSION_KEEPALIVE_MIN_INTERVAL_MS = 15 * 1000;
 const SESSION_WATCH_INTERVAL_MS = 5 * 1000;
@@ -35,6 +36,7 @@ const CALL_SESSION_HEARTBEAT_MS = 2000;
 const CALL_SESSION_KEEPALIVE_MS = 60 * 1000;
 const HELPER_VENDOR_REV = 'eee1354';
 const realtimeCallSessionRegistry = new Map();
+let accountSsoRedirectStarted = false;
 
 function isDebugFlagEnabled(storageKey, globalKey) {
     if (typeof window === 'undefined') {
@@ -1198,6 +1200,27 @@ function accountAvatarMarkup(user) {
     return `<span class="surface-account-avatar is-initials" aria-hidden="true">${escapeHtml(initialsFor(name))}</span>`;
 }
 
+function hasIntentionalAccountLogout() {
+    try {
+        return sessionStorage.getItem(ACCOUNT_LOGGED_OUT_STORAGE_KEY) === '1';
+    } catch {
+        return false;
+    }
+}
+
+function setIntentionalAccountLogout(value) {
+    try {
+        if (value) {
+            sessionStorage.setItem(ACCOUNT_LOGGED_OUT_STORAGE_KEY, '1');
+            return;
+        }
+
+        sessionStorage.removeItem(ACCOUNT_LOGGED_OUT_STORAGE_KEY);
+    } catch {
+        // sessionStorage can be unavailable in restricted browser contexts.
+    }
+}
+
 function mountSurfaceChrome(root, surface, bootstrap) {
     const navHost = root.querySelector('[data-helper-navbar]');
 
@@ -1289,6 +1312,7 @@ function mountSurfaceChrome(root, surface, bootstrap) {
 async function logoutCurrentUser() {
     const accountSso = accountSsoConfig();
     if (accountSso.enabled && accountSso.logout_url) {
+        setIntentionalAccountLogout(true);
         clearClientSessionState();
         window.location.assign(accountSso.logout_url);
         return;
@@ -1298,6 +1322,7 @@ async function logoutCurrentUser() {
         const response = await fetchJson('/api/logout', { method: 'post' });
 
         setCsrfToken(response?.csrf_token);
+        setIntentionalAccountLogout(true);
         clearClientSessionState();
         showToast('Signed out.', 'success');
         window.location.assign('/');
@@ -1318,7 +1343,7 @@ async function openLoginModal(options = {}) {
 
     if (shouldUseAccountSsoLogin(accountSso, accountSsoError)) {
         helper.loginModal?.destroy?.();
-        window.location.assign(accountSso.login_url);
+        startAccountSsoLogin();
         return null;
     }
 
@@ -1359,6 +1384,7 @@ async function openLoginModal(options = {}) {
                 }
 
                 applySessionPayload(response);
+                setIntentionalAccountLogout(false);
                 const target = String(response?.redirect_to ?? roleHome(response.user.role) ?? '/').trim() || '/';
 
                 showToast('Signed in successfully.', 'success');
@@ -1387,6 +1413,39 @@ function accountSsoConfig() {
     return appState.bootstrap?.app?.account_sso ?? {};
 }
 
+function accountSessionId() {
+    return String(appState.bootstrap?.auth?.account_session_id ?? appState.bootstrap?.auth?.accountSessionId ?? '').trim();
+}
+
+function accountRealtimeAdmissionUrl(accountSso = accountSsoConfig()) {
+    const baseUrl = String(accountSso?.base_url ?? '').trim().replace(/\/+$/, '');
+
+    return baseUrl ? `${baseUrl}/api/session/realtime-admission` : 'https://account.pbb.ph/api/session/realtime-admission';
+}
+
+function startAccountSsoLogin() {
+    if (accountSsoRedirectStarted) {
+        return true;
+    }
+
+    const accountSso = accountSsoConfig();
+    const loginUrl = String(accountSso?.login_url ?? '').trim();
+
+    if (!loginUrl) {
+        return false;
+    }
+
+    accountSsoRedirectStarted = true;
+    setIntentionalAccountLogout(false);
+
+    const target = new URL(loginUrl, window.location.origin);
+    const returnPath = `${window.location.pathname}${window.location.search}${window.location.hash}` || '/';
+    target.searchParams.set('return_to', returnPath);
+    window.location.assign(target.toString());
+
+    return true;
+}
+
 function accountSsoLoginError() {
     const error = String(appState.bootstrap?.auth?.account_sso?.error ?? '').trim();
 
@@ -1411,8 +1470,108 @@ function shouldUseAccountSsoLogin(accountSso, accountSsoError = accountSsoLoginE
         && accountSso?.ready
         && accountSso?.login_url
         && !accountSsoError
+        && !hasIntentionalAccountLogout()
         && ['public', 'citizen', 'caller'].includes(surface)
     );
+}
+
+function initAccountSessionSdk() {
+    const sdk = window.PbbAccountSession;
+    const accountSso = accountSsoConfig();
+
+    if (!sdk?.init || !accountSso?.enabled || !accountSso?.ready) {
+        return;
+    }
+
+    const user = appState.bootstrap?.user ?? {};
+    const pbbUserId = String(user.pbb_user_id ?? user.pbbUserId ?? '').trim();
+
+    sdk.destroy?.();
+    sdk.init({
+        clientId: String(accountSso?.client_id ?? 'pbb-hotline').trim() || 'pbb-hotline',
+        pbbUserId,
+        accountSessionId: accountSessionId(),
+        admissionUrl: accountRealtimeAdmissionUrl(accountSso),
+        onLogin: () => {
+            if (!appState.bootstrap?.authenticated) {
+                startAccountSsoLogin();
+                return;
+            }
+
+            setIntentionalAccountLogout(false);
+            void refreshAccountSessionState();
+        },
+        onLogout: () => {
+            void handleAccountSessionLogout();
+        },
+        onProfileUpdated: (event) => {
+            patchAccountIdentityFromEvent(event);
+        },
+        onStatusChanged: (event) => {
+            const status = String(event?.status ?? event?.account?.status ?? '').trim().toLowerCase();
+
+            if (status && !['active', 'verified'].includes(status)) {
+                void handleAccountSessionLogout();
+                return;
+            }
+
+            void refreshAccountSessionState();
+        },
+        onAppAccessChanged: () => {
+            void refreshAccountSessionState();
+        },
+    });
+}
+
+function patchAccountIdentityFromEvent(event) {
+    if (!appState.bootstrap?.authenticated || !appState.bootstrap?.user) {
+        return;
+    }
+
+    const account = event?.account ?? {};
+    const nextUser = {
+        ...appState.bootstrap.user,
+        name: account.name || appState.bootstrap.user.name,
+        email: account.email || appState.bootstrap.user.email,
+        mobile: account.mobile || appState.bootstrap.user.mobile,
+        avatar: account.avatar_url || account.avatar || appState.bootstrap.user.avatar,
+    };
+
+    appState.bootstrap = {
+        ...appState.bootstrap,
+        user: nextUser,
+    };
+
+    refreshActiveSurfaceSessionChrome(appState.bootstrap);
+}
+
+async function refreshAccountSessionState() {
+    try {
+        const bootstrap = await refreshBootstrap(appState.activeSurface ?? 'public');
+
+        if (!bootstrap?.authenticated) {
+            clearClientSessionState();
+        }
+
+        await rerenderActiveSurface(bootstrap, { preserveState: true });
+        initAccountSessionSdk();
+    } catch (error) {
+        console.warn('Unable to refresh Hotline session after Account event.', error);
+    }
+}
+
+async function handleAccountSessionLogout() {
+    setIntentionalAccountLogout(true);
+
+    try {
+        await fetchJson('/api/logout', { method: 'post' });
+    } catch (error) {
+        console.warn('Unable to clear local Hotline session after Account logout event.', error);
+    }
+
+    window.PbbAccountSession?.destroy?.();
+    clearClientSessionState();
+    await rerenderActiveSurface(appState.bootstrap);
 }
 
 async function openReauthModal() {
@@ -4428,6 +4587,7 @@ export {
     formatStatusLabel,
     getCallerPendingState,
     handleCommandBroadcastEnvelope,
+    initAccountSessionSdk,
     latestCallSession,
     logCallFlow,
     mergeIncidentMediaItems,

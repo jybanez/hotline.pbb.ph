@@ -66,6 +66,7 @@ class BootstrapPayloadBuilder
                 'account_sso' => $this->accountSsoPayload(),
             ],
             'auth' => [
+                'account_session_id' => $user !== null ? session()->get('pbb_account.session_id') : null,
                 'account_sso' => [
                     'success' => (bool) session()->pull('account_login_success', false),
                     'error' => session()->pull('account_login_error'),

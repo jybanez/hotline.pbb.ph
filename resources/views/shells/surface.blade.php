@@ -2,8 +2,10 @@
 
 @section('title', $title)
 
-@isset($pwaManifest)
-    @section('head')
+@section('head')
+    <script src="https://account.pbb.ph/sdk/account-session.js"></script>
+
+    @isset($pwaManifest)
         <link rel="manifest" href="{{ $pwaManifest }}">
         <meta name="theme-color" content="{{ $themeColor ?? '#0f766e' }}">
         <meta name="mobile-web-app-capable" content="yes">
@@ -13,8 +15,8 @@
         <link rel="icon" type="image/png" href="/favicon-192.png" sizes="192x192">
         <link rel="icon" type="image/png" href="/favicon-512.png" sizes="512x512">
         <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-    @endsection
-@endisset
+    @endisset
+@endsection
 
 @section('body')
     <div id="app"

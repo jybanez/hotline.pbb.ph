@@ -10,8 +10,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Mockery;
 use Pbb\AccountSdk\AccountClient;
-use Pbb\AccountSdk\AccountIdentity;
 use Pbb\AccountSdk\AccountProtocolException;
+use Pbb\AccountSdk\AccountToken;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -87,6 +87,23 @@ class AccountSsoTest extends TestCase
             'role' => UserRole::Citizen->value,
             'status' => UserStatus::Active->value,
         ]);
+    }
+
+    public function test_callback_success_stores_account_session_id_for_browser_sync(): void
+    {
+        $this->mockAccountCallback([
+            'pbb_user_id' => 'pbb-session-123',
+            'name' => 'Session Citizen',
+            'email' => 'session@example.test',
+        ], 'acct_session_123');
+
+        $this->get('/auth/account/callback?code=valid-code&state=valid-state')
+            ->assertRedirect('/citizen')
+            ->assertSessionHas('pbb_account.session_id', 'acct_session_123');
+
+        $this->getJson('/api/bootstrap?surface=citizen')
+            ->assertOk()
+            ->assertJsonPath('auth.account_session_id', 'acct_session_123');
     }
 
     public function test_callback_success_matches_existing_user_by_pbb_user_id(): void
@@ -211,7 +228,7 @@ class AccountSsoTest extends TestCase
         ]);
 
         $this->get('/auth/account/callback?code=valid-code&state=valid-state')
-            ->assertRedirect('/')
+            ->assertRedirect('/?account_sso_error=1')
             ->assertSessionHas('account_login_error', 'This email belongs to a local Hotline staff account that must be linked by Account first.');
 
         $this->assertGuest();
@@ -223,7 +240,7 @@ class AccountSsoTest extends TestCase
     public function test_callback_failure_redirects_home_with_error(): void
     {
         $client = Mockery::mock(AccountClient::class);
-        $client->shouldReceive('handleCallback')
+        $client->shouldReceive('handleCallbackToken')
             ->once()
             ->andThrow(new AccountProtocolException('Account callback state is invalid or expired.'));
 
@@ -268,12 +285,18 @@ class AccountSsoTest extends TestCase
     /**
      * @param  array<string, mixed>  $identity
      */
-    private function mockAccountCallback(array $identity): void
+    private function mockAccountCallback(array $identity, ?string $accountSessionId = 'acct_session_test'): void
     {
         $client = Mockery::mock(AccountClient::class);
-        $client->shouldReceive('handleCallback')
+        $client->shouldReceive('handleCallbackToken')
             ->once()
-            ->andReturn(AccountIdentity::fromArray($identity));
+            ->andReturn(AccountToken::fromArray([
+                ...$identity,
+                'access_token' => 'account-token',
+                'token_type' => 'Bearer',
+                'expires_in' => 3600,
+                'account_session_id' => $accountSessionId,
+            ]));
 
         $factory = Mockery::mock(AccountClientFactory::class);
         $factory->shouldReceive('make')->once()->andReturn($client);
