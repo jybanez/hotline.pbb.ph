@@ -13,10 +13,6 @@ class CleanupLegacyCookies
     {
         $response = $next($request);
 
-        if ($request->cookies->has('pbb-hotline-beta-session')) {
-            $this->expireHostOnlyCookie($response, 'pbb-hotline-beta-session', true);
-        }
-
         if ($request->cookies->has('pbb_maestro_session')) {
             $this->expireHostOnlyCookie($response, 'pbb_maestro_session', true);
             $this->expireDomainCookie($response, 'pbb_maestro_session', 'hotline.pbb.ph', true);
@@ -26,6 +22,8 @@ class CleanupLegacyCookies
         $legacyDomains = SessionCookieDomain::legacyDomains(config('app.url'));
 
         if ($request->cookies->has('pbb_hotline_session')) {
+            $this->expireHostOnlyCookie($response, 'pbb_hotline_session', true);
+
             foreach ($legacyDomains as $domain) {
                 if ($domain === $activeSessionDomain) {
                     continue;

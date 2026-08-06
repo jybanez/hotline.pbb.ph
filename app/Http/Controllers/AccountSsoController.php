@@ -6,6 +6,7 @@ use App\Domain\Shared\Enums\UserRole;
 use App\Domain\Shared\Enums\UserStatus;
 use App\Models\User;
 use App\Services\Account\AccountClientFactory;
+use App\Services\Account\AccountSsoSettings;
 use App\Support\Auth\RoleRedirector;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,9 +18,11 @@ use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 class AccountSsoController extends Controller
 {
+    public function __construct(private readonly AccountSsoSettings $accountSettings) {}
+
     public function redirect(Request $request, AccountClientFactory $accounts): RedirectResponse
     {
-        abort_unless(config('account.enabled'), 404);
+        abort_unless($this->accountSettings->enabled(), 404);
 
         $returnTo = $this->safeReturnPath($request->query('return_to'));
 
@@ -32,7 +35,7 @@ class AccountSsoController extends Controller
 
     public function callback(Request $request, AccountClientFactory $accounts, RoleRedirector $roleRedirector): RedirectResponse
     {
-        abort_unless(config('account.enabled'), 404);
+        abort_unless($this->accountSettings->enabled(), 404);
 
         try {
             $identity = $accounts->make($request)->handleCallback($request->query())->toArray();
@@ -62,11 +65,11 @@ class AccountSsoController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        if (! config('account.enabled')) {
+        if (! $this->accountSettings->enabled()) {
             return redirect('/');
         }
 
-        return redirect()->away($this->accountLogoutUrl());
+        return redirect()->away($this->accountSettings->logoutUrl());
     }
 
     /**
@@ -168,15 +171,5 @@ class AccountSsoController extends Controller
         $slug = Str::slug($pbbUserId, '-') ?: sha1($pbbUserId);
 
         return 'account-'.Str::limit($slug, 80, '').'@account.pbb.local';
-    }
-
-    private function accountLogoutUrl(): string
-    {
-        $baseUrl = rtrim((string) config('account.base_url'), '/');
-
-        return $baseUrl.'/oauth/logout?'.http_build_query([
-            'client_id' => config('account.client_id'),
-            'post_logout_redirect_uri' => config('account.post_logout_redirect_uri') ?: url('/'),
-        ]);
     }
 }

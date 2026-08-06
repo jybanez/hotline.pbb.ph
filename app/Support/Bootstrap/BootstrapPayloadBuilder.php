@@ -5,6 +5,7 @@ namespace App\Support\Bootstrap;
 use App\Domain\Shared\Enums\UserRole;
 use App\Domain\Sitreps\Models\SitrepReport;
 use App\Domain\Users\Models\User;
+use App\Services\Account\AccountSsoSettings;
 use App\Support\Citizen\CitizenHomePayloadBuilder;
 use App\Support\Incidents\IncidentPayloadBuilder;
 use App\Support\Settings\SettingsService;
@@ -38,6 +39,7 @@ class BootstrapPayloadBuilder
         private readonly CitizenHomePayloadBuilder $citizenHomePayloadBuilder,
         private readonly IncidentPayloadBuilder $incidentPayloadBuilder,
         private readonly SettingsService $settings,
+        private readonly AccountSsoSettings $accountSettings,
     ) {}
 
     /**
@@ -86,32 +88,22 @@ class BootstrapPayloadBuilder
      */
     private function accountSsoPayload(): array
     {
-        $enabled = (bool) config('account.enabled');
-        $clientSecret = trim((string) config('account.client_secret'));
+        $enabled = $this->accountSettings->enabled();
+        $clientSecret = $this->accountSettings->clientSecret();
 
         return [
             'enabled' => $enabled,
             'ready' => $enabled
-                && trim((string) config('account.base_url')) !== ''
-                && trim((string) config('account.client_id')) !== ''
+                && $this->accountSettings->baseUrl() !== ''
+                && $this->accountSettings->clientId() !== ''
                 && $clientSecret !== ''
-                && trim((string) config('account.redirect_uri')) !== '',
+                && $this->accountSettings->redirectUri() !== '',
             'login_url' => url('/auth/account/redirect'),
             'logout_url' => url('/auth/logout'),
-            'account_logout_url' => $this->accountLogoutUrl(),
-            'base_url' => config('account.base_url'),
-            'client_id' => config('account.client_id'),
+            'account_logout_url' => $this->accountSettings->logoutUrl(),
+            'base_url' => $this->accountSettings->baseUrl(),
+            'client_id' => $this->accountSettings->clientId(),
         ];
-    }
-
-    private function accountLogoutUrl(): string
-    {
-        $baseUrl = rtrim((string) config('account.base_url'), '/');
-
-        return $baseUrl.'/oauth/logout?'.http_build_query([
-            'client_id' => config('account.client_id'),
-            'post_logout_redirect_uri' => config('account.post_logout_redirect_uri') ?: url('/'),
-        ]);
     }
 
     /**

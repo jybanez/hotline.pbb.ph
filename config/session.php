@@ -1,7 +1,6 @@
 <?php
 
 use App\Support\Http\SessionCookieDomain;
-use Illuminate\Support\Str;
 
 return [
 
@@ -132,10 +131,7 @@ return [
     |
     */
 
-    'cookie' => env(
-        'HOTLINE_SESSION_COOKIE',
-        env('SESSION_COOKIE', Str::slug((string) env('APP_NAME', 'laravel')).'-session')
-    ),
+    'cookie' => env('HOTLINE_SESSION_COOKIE', 'pbb-hotline-beta-session'),
 
     /*
     |--------------------------------------------------------------------------

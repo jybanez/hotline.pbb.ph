@@ -12,21 +12,38 @@ redirect_uri: https://hotline.pbb.ph/auth/account/callback
 post_logout_redirect_uri: https://hotline.pbb.ph
 ```
 
-## Hotline Environment
+## Hotline Runtime Settings
 
-```env
-PBB_ACCOUNT_SSO_ENABLED=true
-PBB_ACCOUNT_BASE_URL=https://account.pbb.ph
-PBB_ACCOUNT_CLIENT_ID=pbb-hotline
-PBB_ACCOUNT_CLIENT_SECRET=pbb-hotline-dev-secret
-PBB_ACCOUNT_REDIRECT_URI=https://hotline.pbb.ph/auth/account/callback
-PBB_ACCOUNT_POST_LOGOUT_REDIRECT_URI=https://hotline.pbb.ph
-PBB_ACCOUNT_SCOPES="openid profile"
-PBB_ACCOUNT_TIMEOUT_SECONDS=10
-PBB_ACCOUNT_CA_BUNDLE=
+Hotline stores browser Account SSO settings in the local `settings` table so shared WAMP/Apache/PHP environment variables cannot bleed between sibling PBB apps.
+
+Runtime settings:
+
+- `account_sso_enabled`
+- `account_sso_base_url`
+- `account_sso_client_id`
+- `account_sso_client_secret`
+- `account_sso_redirect_uri`
+- `account_sso_post_logout_redirect_uri`
+- `account_sso_scopes`
+- `account_sso_ca_bundle`
+
+The legacy `PBB_ACCOUNT_*` environment values remain compatibility fallbacks for source/dev work only. Fresh installs should write Account SSO values through installer/bootstrap into the app-local settings table. Rotate `account_sso_client_secret` outside development.
+
+Fresh install config:
+
+```json
+{
+  "hotline": {
+    "pbb_account_sso_enabled": true,
+    "pbb_account_base_url": "https://account.pbb.ph",
+    "pbb_account_client_id": "pbb-hotline",
+    "pbb_account_client_secret": "replace-with-account-oauth-client-secret",
+    "pbb_account_redirect_uri": "https://hotline.pbb.ph/auth/account/callback",
+    "pbb_account_post_logout_redirect_uri": "https://hotline.pbb.ph",
+    "pbb_account_scopes": "openid profile"
+  }
+}
 ```
-
-Rotate `PBB_ACCOUNT_CLIENT_SECRET` outside development.
 
 ## Runtime Flow
 
@@ -83,7 +100,7 @@ Fresh installs can enable the service API through the installer config:
 }
 ```
 
-`account_admin_api_token` must be a dedicated Account app-admin service token. Do not reuse `PBB_ACCOUNT_CLIENT_SECRET`.
+`account_admin_api_token` must be a dedicated Account app-admin service token. Do not reuse `account_sso_client_secret`.
 
 Endpoints:
 

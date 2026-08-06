@@ -18,6 +18,7 @@ class CleanupLegacyCookiesTest extends TestCase
 
         $request = Request::create('https://hotline.pbb.ph/command');
         $request->cookies->set('pbb_hotline_session', 'old-session');
+        $request->cookies->set('pbb-hotline-beta-session', 'active-session');
         $request->cookies->set('XSRF-TOKEN', 'old-xsrf');
 
         $response = (new CleanupLegacyCookies)->handle(
@@ -31,13 +32,14 @@ class CleanupLegacyCookiesTest extends TestCase
             $cookies
         );
 
+        $this->assertContains(['pbb_hotline_session', null, true], $cookieSignatures);
         $this->assertContains(['pbb_hotline_session', 'hotline.pbb.ph', true], $cookieSignatures);
         $this->assertContains(['pbb_hotline_session', 'pbb.ph', true], $cookieSignatures);
         $this->assertContains(['pbb_hotline_session', '.pbb.ph', true], $cookieSignatures);
         $this->assertContains(['XSRF-TOKEN', 'hotline.pbb.ph', false], $cookieSignatures);
         $this->assertContains(['XSRF-TOKEN', 'pbb.ph', false], $cookieSignatures);
         $this->assertContains(['XSRF-TOKEN', '.pbb.ph', false], $cookieSignatures);
-        $this->assertNotContains(['pbb_hotline_session', '', true], $cookieSignatures);
+        $this->assertNotContains(['pbb-hotline-beta-session', '', true], $cookieSignatures);
         $this->assertNotContains(['XSRF-TOKEN', '', false], $cookieSignatures);
     }
 }
