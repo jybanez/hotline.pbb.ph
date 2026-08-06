@@ -36,10 +36,14 @@ class CleanupLegacyCookiesTest extends TestCase
         $this->assertContains(['pbb_hotline_session', 'hotline.pbb.ph', true], $cookieSignatures);
         $this->assertContains(['pbb_hotline_session', 'pbb.ph', true], $cookieSignatures);
         $this->assertContains(['pbb_hotline_session', '.pbb.ph', true], $cookieSignatures);
+        $this->assertContains(['pbb-hotline-beta-session', 'hotline.pbb.ph', true], $cookieSignatures);
+        $this->assertContains(['pbb-hotline-beta-session', 'pbb.ph', true], $cookieSignatures);
+        $this->assertContains(['pbb-hotline-beta-session', '.pbb.ph', true], $cookieSignatures);
         $this->assertContains(['XSRF-TOKEN', 'hotline.pbb.ph', false], $cookieSignatures);
         $this->assertContains(['XSRF-TOKEN', 'pbb.ph', false], $cookieSignatures);
         $this->assertContains(['XSRF-TOKEN', '.pbb.ph', false], $cookieSignatures);
         $this->assertNotContains(['pbb-hotline-beta-session', '', true], $cookieSignatures);
+        $this->assertNotContains(['pbb-hotline-beta-session', null, true], $cookieSignatures);
         $this->assertNotContains(['XSRF-TOKEN', '', false], $cookieSignatures);
     }
 }

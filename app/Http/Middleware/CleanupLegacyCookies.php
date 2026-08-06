@@ -19,7 +19,18 @@ class CleanupLegacyCookies
         }
 
         $activeSessionDomain = SessionCookieDomain::normalize(config('session.domain'), config('app.url'));
+        $activeSessionCookie = (string) config('session.cookie', 'pbb-hotline-beta-session');
         $legacyDomains = SessionCookieDomain::legacyDomains(config('app.url'));
+
+        if ($activeSessionCookie !== '' && $request->cookies->has($activeSessionCookie)) {
+            foreach ($legacyDomains as $domain) {
+                if ($domain === $activeSessionDomain) {
+                    continue;
+                }
+
+                $this->expireDomainCookie($response, $activeSessionCookie, $domain, true);
+            }
+        }
 
         if ($request->cookies->has('pbb_hotline_session')) {
             $this->expireHostOnlyCookie($response, 'pbb_hotline_session', true);

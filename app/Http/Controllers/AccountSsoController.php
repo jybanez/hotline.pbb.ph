@@ -12,6 +12,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Pbb\AccountSdk\AccountException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
@@ -161,6 +162,15 @@ class AccountSsoController extends Controller
 
     private function failedLoginRedirect(Request $request, string $message): RedirectResponse
     {
+        Log::warning('Account SSO callback failed.', [
+            'message' => $message,
+            'has_code' => trim((string) $request->query('code', '')) !== '',
+            'has_state' => trim((string) $request->query('state', '')) !== '',
+            'session_id_hash' => hash('sha256', $request->session()->getId()),
+            'ip' => $request->ip(),
+            'user_agent_hash' => hash('sha256', (string) $request->userAgent()),
+        ]);
+
         $request->session()->forget('pbb_account.return_to');
 
         return redirect('/?account_sso_error=1')->with('account_login_error', $message);
