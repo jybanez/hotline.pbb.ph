@@ -117,6 +117,52 @@ class AccountSsoTest extends TestCase
         ]);
     }
 
+    public function test_callback_ignores_return_path_that_does_not_match_user_role(): void
+    {
+        $existing = User::factory()->create([
+            'pbb_user_id' => 'pbb-admin-123',
+            'role' => UserRole::Admin,
+            'status' => UserStatus::Active,
+        ]);
+
+        $this->mockAccountCallback([
+            'pbb_user_id' => 'pbb-admin-123',
+            'name' => 'Updated Admin',
+            'email' => 'admin@example.test',
+        ]);
+
+        $this->withSession(['pbb_account.return_to' => '/citizen'])
+            ->get('/auth/account/callback?code=valid-code&state=valid-state')
+            ->assertRedirect('/admin')
+            ->assertSessionHas('account_login_success', true)
+            ->assertSessionMissing('pbb_account.return_to');
+
+        $this->assertAuthenticatedAs($existing->fresh());
+    }
+
+    public function test_callback_uses_return_path_that_matches_user_role(): void
+    {
+        $existing = User::factory()->create([
+            'pbb_user_id' => 'pbb-command-123',
+            'role' => UserRole::Command,
+            'status' => UserStatus::Active,
+        ]);
+
+        $this->mockAccountCallback([
+            'pbb_user_id' => 'pbb-command-123',
+            'name' => 'Updated Command',
+            'email' => 'command@example.test',
+        ]);
+
+        $this->withSession(['pbb_account.return_to' => '/command'])
+            ->get('/auth/account/callback?code=valid-code&state=valid-state')
+            ->assertRedirect('/command')
+            ->assertSessionHas('account_login_success', true)
+            ->assertSessionMissing('pbb_account.return_to');
+
+        $this->assertAuthenticatedAs($existing->fresh());
+    }
+
     #[DataProvider('accountLinkedStaffRoleProvider')]
     public function test_callback_success_allows_account_linked_staff_users(UserRole $role, string $expectedRedirect): void
     {
@@ -186,7 +232,7 @@ class AccountSsoTest extends TestCase
         $this->app->instance(AccountClientFactory::class, $factory);
 
         $this->get('/auth/account/callback?code=bad-code&state=bad-state')
-            ->assertRedirect('/')
+            ->assertRedirect('/?account_sso_error=1')
             ->assertSessionHas('account_login_error', 'Account callback state is invalid or expired.');
 
         $this->assertGuest();

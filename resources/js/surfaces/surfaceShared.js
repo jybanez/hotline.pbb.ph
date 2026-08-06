@@ -1357,7 +1357,19 @@ function accountSsoConfig() {
 }
 
 function accountSsoLoginError() {
-    return String(appState.bootstrap?.auth?.account_sso?.error ?? '').trim();
+    const error = String(appState.bootstrap?.auth?.account_sso?.error ?? '').trim();
+
+    if (error) {
+        return error;
+    }
+
+    try {
+        return new URLSearchParams(window.location.search).has('account_sso_error')
+            ? 'Account sign in was not completed.'
+            : '';
+    } catch (error) {
+        return '';
+    }
 }
 
 function shouldUseAccountSsoLogin(accountSso, accountSsoError = accountSsoLoginError()) {

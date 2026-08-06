@@ -43,16 +43,16 @@ class AccountSsoController extends Controller
             $request->session()->regenerate();
             $user->forceFill(['last_login_at' => now()])->save();
 
-            return redirect($request->session()->pull('pbb_account.return_to', null) ?? $roleRedirector->homePathFor($user))
+            return redirect($this->loginDestination($user, $request->session()->pull('pbb_account.return_to', null), $roleRedirector))
                 ->with('account_login_success', true);
         } catch (AccountException $exception) {
-            return redirect('/')->with('account_login_error', $exception->getMessage());
+            return $this->failedLoginRedirect($request, $exception->getMessage());
         } catch (HttpExceptionInterface $exception) {
-            return redirect('/')->with('account_login_error', $exception->getMessage() ?: 'Account sign in was rejected.');
+            return $this->failedLoginRedirect($request, $exception->getMessage() ?: 'Account sign in was rejected.');
         } catch (\Throwable $exception) {
             report($exception);
 
-            return redirect('/')->with('account_login_error', 'Unable to complete Account sign in.');
+            return $this->failedLoginRedirect($request, 'Unable to complete Account sign in.');
         }
     }
 
@@ -132,6 +132,35 @@ class AccountSsoController extends Controller
         }
 
         return $path;
+    }
+
+    private function loginDestination(User $user, mixed $returnTo, RoleRedirector $roleRedirector): string
+    {
+        $home = $roleRedirector->homePathFor($user);
+        $returnTo = $this->safeReturnPath($returnTo);
+
+        return $returnTo !== null && $this->returnPathMatchesRole($user, $returnTo)
+            ? $returnTo
+            : $home;
+    }
+
+    private function returnPathMatchesRole(User $user, string $path): bool
+    {
+        $prefix = '/'.trim(explode('?', $path, 2)[0], '/');
+
+        return match ($user->role) {
+            UserRole::Admin => $prefix === '/admin' || str_starts_with($prefix, '/admin/'),
+            UserRole::Command => $prefix === '/command' || str_starts_with($prefix, '/command/'),
+            UserRole::Operator => $prefix === '/operator' || str_starts_with($prefix, '/operator/'),
+            default => $user->role?->isCitizen() === true && ($prefix === '/citizen' || str_starts_with($prefix, '/citizen/')),
+        };
+    }
+
+    private function failedLoginRedirect(Request $request, string $message): RedirectResponse
+    {
+        $request->session()->forget('pbb_account.return_to');
+
+        return redirect('/?account_sso_error=1')->with('account_login_error', $message);
     }
 
     private function syntheticEmail(string $pbbUserId): string
