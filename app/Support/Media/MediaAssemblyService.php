@@ -163,6 +163,40 @@ class MediaAssemblyService
         return $media;
     }
 
+    public function discardDiagnosticProcessingAsset(Media $media, string $reason = 'operator_cancelled'): Media
+    {
+        if (! $this->isDiagnosticMedia($media)) {
+            throw new RuntimeException('Only diagnostic media can be discarded through this workflow.');
+        }
+
+        if ($media->available_at !== null && (bool) Arr::get($media->metadata_json ?? [], 'discarded', false)) {
+            return $media->fresh();
+        }
+
+        $metadata = $media->metadata_json ?? [];
+        $metadata['processing'] = false;
+        $metadata['discarded'] = true;
+        $metadata['discard_reason'] = $reason !== '' ? $reason : 'operator_cancelled';
+        $metadata['discarded_at'] = now()->toIso8601String();
+
+        Storage::disk('local')->deleteDirectory(sprintf(
+            'media-processing/diagnostics/operator-media-stream-tests/%d',
+            $media->id
+        ));
+
+        if (trim((string) $media->path) !== '') {
+            Storage::disk('public')->delete((string) $media->path);
+        }
+
+        $media->forceFill([
+            'path' => '',
+            'metadata_json' => $metadata,
+            'available_at' => $media->available_at ?? now(),
+        ])->save();
+
+        return $media->fresh();
+    }
+
     public function registerCompletedAsset(array $payload): Media
     {
         return Media::query()->create([

@@ -78,5 +78,45 @@ export function createDiagnosticMediaClient(options = {}) {
                 },
             });
         },
+        async cancel(mediaId, payload = {}) {
+            const nextMediaId = Number(mediaId ?? 0);
+
+            if (nextMediaId <= 0) {
+                throw new Error('Diagnostic cancel requires media_id.');
+            }
+
+            return request(`/api/operator/media-tests/${nextMediaId}`, {
+                method: 'delete',
+                data: {
+                    reason: payload.reason ?? 'operator_cancelled',
+                },
+            });
+        },
     };
+}
+
+export async function finalizeStoppedDiagnosticRecording({
+    session,
+    client,
+    media,
+    record = {},
+    recordingStartedAt,
+    now = () => Date.now(),
+} = {}) {
+    if (!session || !client || !media?.id) {
+        throw new Error('Diagnostic finalize requires an active media session.');
+    }
+
+    const stopped = await session.stop();
+    const endedAtMs = now();
+    const durationSeconds = recordingStartedAt
+        ? Math.max(0, Math.floor((endedAtMs - recordingStartedAt) / 1000))
+        : 0;
+    const finalized = await client.finalize(media.id, {
+        duration_seconds: durationSeconds,
+        ended_at: new Date(endedAtMs).toISOString(),
+        extension: record?.extension ?? '',
+    });
+
+    return { stopped, finalized };
 }

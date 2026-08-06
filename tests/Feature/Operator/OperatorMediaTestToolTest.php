@@ -120,6 +120,91 @@ class OperatorMediaTestToolTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_operator_can_cancel_diagnostic_media_and_cleanup_chunks(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+
+        $operator = User::factory()->create(['role' => UserRole::Operator]);
+
+        $mediaId = $this->actingAs($operator)
+            ->postJson('/api/operator/media-tests', [
+                'mime_type' => 'audio/webm;codecs=opus',
+                'extension' => 'weba',
+                'track_kind' => 'audio',
+            ])
+            ->assertCreated()
+            ->json('media.id');
+
+        $chunk = UploadedFile::fake()->createWithContent('diagnostic-000000.weba', "\x1A\x45\xDF\xA3".'operator-audio-chunk');
+
+        $this->actingAs($operator)
+            ->post("/api/operator/media-tests/{$mediaId}/chunks", [
+                'chunk' => $chunk,
+                'chunk_index' => 0,
+            ])
+            ->assertOk();
+
+        $chunkPath = "media-processing/diagnostics/operator-media-stream-tests/{$mediaId}/chunks/000000.chunk";
+        Storage::disk('local')->assertExists($chunkPath);
+
+        $this->actingAs($operator)
+            ->deleteJson("/api/operator/media-tests/{$mediaId}", ['reason' => 'operator_reset'])
+            ->assertOk()
+            ->assertJsonPath('media.processing', false)
+            ->assertJsonPath('media.discarded', true)
+            ->assertJsonPath('media.metadata.discard_reason', 'operator_reset');
+
+        Storage::disk('local')->assertMissing($chunkPath);
+        $this->assertDatabaseHas('media', [
+            'id' => $mediaId,
+            'path' => '',
+        ]);
+        $this->assertNotNull(DB::table('media')->where('id', $mediaId)->value('available_at'));
+
+        $this->actingAs($operator)
+            ->postJson("/api/operator/media-tests/{$mediaId}/finalize", ['extension' => 'weba'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('media');
+    }
+
+    public function test_diagnostic_media_accepts_audio_only_values(): void
+    {
+        $operator = User::factory()->create(['role' => UserRole::Operator]);
+
+        $this->actingAs($operator)
+            ->postJson('/api/operator/media-tests', [
+                'mime_type' => 'video/webm',
+                'extension' => 'webm',
+                'track_kind' => 'video',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['mime_type', 'track_kind']);
+
+        $this->actingAs($operator)
+            ->postJson('/api/operator/media-tests', [
+                'mime_type' => 'audio/webm',
+                'extension' => 'mp4',
+                'track_kind' => 'audio',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('extension');
+
+        $mediaId = $this->actingAs($operator)
+            ->postJson('/api/operator/media-tests', [
+                'mime_type' => 'audio/ogg;codecs=opus',
+                'extension' => 'ogg',
+                'track_kind' => 'audio',
+            ])
+            ->assertCreated()
+            ->json('media.id');
+
+        $this->actingAs($operator)
+            ->postJson("/api/operator/media-tests/{$mediaId}/finalize", ['extension' => 'mp3'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('extension');
+    }
+
     public function test_diagnostic_media_is_not_exported_as_incident_relay_media_ref(): void
     {
         $operator = User::factory()->create(['role' => UserRole::Operator]);

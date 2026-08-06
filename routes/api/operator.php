@@ -46,6 +46,7 @@ Route::middleware(['auth', 'role:operator'])->prefix('/operator')->group(functio
     Route::post('/media-tests', [MediaTestController::class, 'store']);
     Route::post('/media-tests/{media}/chunks', [MediaTestController::class, 'storeChunk']);
     Route::post('/media-tests/{media}/finalize', [MediaTestController::class, 'finalize']);
+    Route::delete('/media-tests/{media}', [MediaTestController::class, 'destroy']);
     Route::post('/media/logs', [MediaLogController::class, 'store']);
     Route::post('/transfers/{transfer}/accept', [TransferController::class, 'accept']);
     Route::post('/transfers/{transfer}/reject', [TransferController::class, 'reject']);

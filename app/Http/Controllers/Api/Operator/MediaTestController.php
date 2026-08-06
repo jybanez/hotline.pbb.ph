@@ -9,11 +9,25 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 class MediaTestController extends Controller
 {
+    private const ALLOWED_AUDIO_MIME_TYPES = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/ogg;codecs=opus',
+        'audio/ogg',
+    ];
+
+    private const ALLOWED_AUDIO_EXTENSIONS = [
+        'weba',
+        'webm',
+        'ogg',
+    ];
+
     public function __construct(private readonly MediaAssemblyService $mediaAssembly)
     {
     }
@@ -21,9 +35,9 @@ class MediaTestController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'mime_type' => ['nullable', 'string', 'max:120'],
-            'extension' => ['nullable', 'string', 'max:12'],
-            'track_kind' => ['nullable', 'string', 'max:40'],
+            'mime_type' => ['required', 'string', 'max:120', Rule::in(self::ALLOWED_AUDIO_MIME_TYPES)],
+            'extension' => ['required', 'string', 'max:12', Rule::in(self::ALLOWED_AUDIO_EXTENSIONS)],
+            'track_kind' => ['required', 'string', Rule::in(['audio'])],
             'segment_key' => ['nullable', 'string', 'max:120'],
             'started_at' => ['nullable', 'date'],
             'duration_seconds' => ['nullable', 'integer', 'min:0', 'max:86400'],
@@ -84,8 +98,14 @@ class MediaTestController extends Controller
         $validated = $request->validate([
             'duration_seconds' => ['nullable', 'integer', 'min:0', 'max:86400'],
             'ended_at' => ['nullable', 'date'],
-            'extension' => ['nullable', 'string', 'max:12'],
+            'extension' => ['required', 'string', 'max:12', Rule::in(self::ALLOWED_AUDIO_EXTENSIONS)],
         ]);
+
+        if ((bool) Arr::get($media->metadata_json ?? [], 'discarded', false)) {
+            throw ValidationException::withMessages([
+                'media' => ['This diagnostic media test was already discarded and cannot be finalized.'],
+            ]);
+        }
 
         try {
             $media = $this->mediaAssembly->finalizeProcessingAsset($media, $validated);
@@ -94,6 +114,24 @@ class MediaTestController extends Controller
                 'media' => [$exception->getMessage()],
             ]);
         }
+
+        return response()->json([
+            'media' => $this->serializeMedia($media),
+        ]);
+    }
+
+    public function destroy(Request $request, Media $media): JsonResponse
+    {
+        $this->authorizeDiagnosticMedia($request, $media);
+
+        $validated = $request->validate([
+            'reason' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $media = $this->mediaAssembly->discardDiagnosticProcessingAsset(
+            $media,
+            (string) ($validated['reason'] ?? 'operator_cancelled')
+        );
 
         return response()->json([
             'media' => $this->serializeMedia($media),

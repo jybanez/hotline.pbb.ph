@@ -32,6 +32,7 @@ export function createMediaStreamSession(options = {}) {
     let state = 'idle';
     let chunkIndex = 0;
     const pendingChunks = new Set();
+    const failedChunks = [];
     const spec = resolveAudioRecorderSpec(MediaRecorderCtor);
 
     function emitState(nextState, detail = {}) {
@@ -52,10 +53,24 @@ export function createMediaStreamSession(options = {}) {
 
     async function waitForPendingChunks() {
         if (pendingChunks.size === 0) {
+            if (failedChunks.length > 0) {
+                throw new AggregateError(
+                    failedChunks.map((failure) => failure.error),
+                    'One or more media chunks failed to upload.',
+                );
+            }
+
             return;
         }
 
         await Promise.allSettled([...pendingChunks]);
+
+        if (failedChunks.length > 0) {
+            throw new AggregateError(
+                failedChunks.map((failure) => failure.error),
+                'One or more media chunks failed to upload.',
+            );
+        }
     }
 
     async function start() {
@@ -73,6 +88,7 @@ export function createMediaStreamSession(options = {}) {
             stream = await getUserMedia(constraints);
             recorder = new MediaRecorderCtor(stream, spec.mimeType ? { mimeType: spec.mimeType } : undefined);
             chunkIndex = 0;
+            failedChunks.splice(0, failedChunks.length);
 
             recorder.addEventListener('dataavailable', (event) => {
                 const blob = event?.data;
@@ -91,6 +107,7 @@ export function createMediaStreamSession(options = {}) {
                     mime_type: blob.type || spec.mimeType,
                     extension: spec.extension,
                 })).catch((error) => {
+                    failedChunks.push({ chunk_index: nextIndex, error });
                     onError(error, { phase: 'chunk', chunk_index: nextIndex });
                     throw error;
                 }).finally(() => {
@@ -118,10 +135,16 @@ export function createMediaStreamSession(options = {}) {
 
     async function stop() {
         if (!recorder || state !== 'recording') {
-            await waitForPendingChunks();
-            stopTracks();
-            emitState('idle');
-            return { state, chunk_count: chunkIndex };
+            try {
+                await waitForPendingChunks();
+                stopTracks();
+                emitState('idle');
+                return { state, chunk_count: chunkIndex };
+            } catch (error) {
+                stopTracks();
+                emitState('error', { error });
+                throw error;
+            }
         }
 
         emitState('stopping');
@@ -132,9 +155,15 @@ export function createMediaStreamSession(options = {}) {
             currentRecorder.stop();
         });
 
-        await waitForPendingChunks();
         stopTracks();
         recorder = null;
+        try {
+            await waitForPendingChunks();
+        } catch (error) {
+            emitState('error', { error });
+            throw error;
+        }
+
         emitState('idle');
 
         return { state, chunk_count: chunkIndex };
@@ -161,6 +190,7 @@ export function createMediaStreamSession(options = {}) {
         destroy,
         getState: () => state,
         getChunkCount: () => chunkIndex,
+        getFailedChunks: () => [...failedChunks],
         getSpec: () => spec,
     };
 }

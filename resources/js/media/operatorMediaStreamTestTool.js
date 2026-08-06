@@ -1,4 +1,4 @@
-import { createDiagnosticMediaClient } from './diagnosticMediaClient.js';
+import { createDiagnosticMediaClient, finalizeStoppedDiagnosticRecording } from './diagnosticMediaClient.js';
 import { mountHelperAudioPlayback } from './helperAudioPlayback.js';
 import { createMediaQueueStorage } from './mediaQueueStorage.js';
 import { createMediaStreamSession, resolveAudioRecorderSpec } from './mediaStreamSession.js';
@@ -83,6 +83,10 @@ function clearError(content) {
     }
 }
 
+function isProcessingDiagnostic(media) {
+    return Boolean(media?.id && media?.processing && !media?.discarded);
+}
+
 export async function openOperatorMediaStreamTestTool(root, options = {}) {
     const helper = await ensureHelperUi();
 
@@ -106,6 +110,21 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
     let playbackApi = null;
     let chunkCount = 0;
     let isBusy = false;
+
+    const cancelDiagnosticMedia = async (reason) => {
+        if (!isProcessingDiagnostic(media)) {
+            return;
+        }
+
+        const mediaId = media.id;
+        const response = await client.cancel(mediaId, { reason });
+        media = response?.media ?? {
+            ...media,
+            processing: false,
+            discarded: true,
+        };
+        await queue.clearDiagnosticMedia(mediaId);
+    };
 
     const updateElapsed = () => {
         if (!recordingStartedAt) {
@@ -131,6 +150,12 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
         stopElapsedTimer();
 
         if (media?.id) {
+            try {
+                await cancelDiagnosticMedia('operator_reset');
+            } catch (error) {
+                showError(content, 'Reset', error);
+            }
+
             await queue.clearDiagnosticMedia(media.id);
         }
 
@@ -210,6 +235,11 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
             showError(content, 'Start', error);
             session?.destroy?.();
             session = null;
+            try {
+                await cancelDiagnosticMedia('start_failed');
+            } catch (cancelError) {
+                showError(content, 'Cleanup', cancelError);
+            }
             toggleButton.textContent = 'Start';
             resetButton.disabled = false;
         } finally {
@@ -229,18 +259,18 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
         setPhase(content, 'Stop', 'flushing final media chunks.');
 
         try {
-            const stopped = await session.stop();
+            setText(content, '[data-media-test-finalize]', 'Uploading final metadata...');
+            setPhase(content, 'Finalize', 'assembling diagnostic audio.');
+            const { stopped, finalized } = await finalizeStoppedDiagnosticRecording({
+                session,
+                client,
+                media,
+                record,
+                recordingStartedAt,
+            });
             chunkCount = Math.max(chunkCount, Number(stopped?.chunk_count ?? 0));
             setText(content, '[data-media-test-chunks]', String(chunkCount));
             stopElapsedTimer();
-            setText(content, '[data-media-test-finalize]', 'Uploading final metadata...');
-            setPhase(content, 'Finalize', 'assembling diagnostic audio.');
-
-            const finalized = await client.finalize(media.id, {
-                duration_seconds: Math.max(0, Math.floor((Date.now() - recordingStartedAt) / 1000)),
-                ended_at: new Date().toISOString(),
-                extension: record?.extension ?? '',
-            });
 
             media = finalized?.media ?? media;
             await queue.clearDiagnosticMedia(media.id);
@@ -254,6 +284,11 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
         } catch (error) {
             showError(content, 'Finalize', error);
             setText(content, '[data-media-test-finalize]', 'Failed');
+            try {
+                await cancelDiagnosticMedia('recording_failed');
+            } catch (cancelError) {
+                showError(content, 'Cleanup', cancelError);
+            }
         } finally {
             isBusy = false;
             toggleButton.disabled = false;
@@ -289,6 +324,7 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
             session?.destroy?.();
             playbackApi?.destroy?.();
             stopElapsedTimer();
+            void cancelDiagnosticMedia('modal_closed');
         },
     });
 

@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
-import { createDiagnosticMediaClient } from '../../resources/js/media/diagnosticMediaClient.js';
+import {
+    createDiagnosticMediaClient,
+    finalizeStoppedDiagnosticRecording,
+} from '../../resources/js/media/diagnosticMediaClient.js';
 import { createMediaStreamSession, resolveAudioRecorderSpec } from '../../resources/js/media/mediaStreamSession.js';
 
 class FakeTrack {
@@ -74,6 +77,46 @@ assert.equal(chunks[0].extension, 'weba');
 assert.equal(track.stopped, true);
 assert.deepEqual(states, ['starting', 'recording', 'stopping', 'idle']);
 
+const failedTrack = new FakeTrack();
+const failedSession = createMediaStreamSession({
+    MediaRecorderCtor: FakeMediaRecorder,
+    getUserMedia: async () => ({
+        getTracks: () => [failedTrack],
+    }),
+    onChunk: async () => {
+        throw new Error('chunk upload failed');
+    },
+});
+
+await failedSession.start();
+await assert.rejects(
+    () => failedSession.stop(),
+    /One or more media chunks failed to upload/,
+);
+assert.equal(failedSession.getState(), 'error');
+assert.equal(failedSession.getFailedChunks().length, 1);
+assert.equal(failedTrack.stopped, true);
+
+let finalizeCalledAfterFailure = false;
+await failedSession.start();
+await assert.rejects(
+    () => finalizeStoppedDiagnosticRecording({
+        session: failedSession,
+        client: {
+            async finalize() {
+                finalizeCalledAfterFailure = true;
+                return { media: { id: 77 } };
+            },
+        },
+        media: { id: 77, processing: true },
+        record: { extension: 'weba' },
+        recordingStartedAt: 1000,
+        now: () => 3000,
+    }),
+    /One or more media chunks failed to upload/,
+);
+assert.equal(finalizeCalledAfterFailure, false);
+
 const requests = [];
 const client = createDiagnosticMediaClient({
     async request(url, options = {}) {
@@ -99,9 +142,13 @@ await client.uploadChunk(42, {
     extension: spec.extension,
 });
 await client.finalize(42, { duration_seconds: 1, extension: spec.extension });
+await client.cancel(42, { reason: 'operator_reset' });
 
 assert.equal(requests[0].url, '/api/operator/media-tests');
 assert.equal(requests[0].options.data.track_kind, 'audio');
 assert.equal(requests[1].url, '/api/operator/media-tests/42/chunks');
 assert.equal(requests[2].url, '/api/operator/media-tests/42/finalize');
 assert.equal(requests[2].options.data.duration_seconds, 1);
+assert.equal(requests[3].url, '/api/operator/media-tests/42');
+assert.equal(requests[3].options.method, 'delete');
+assert.equal(requests[3].options.data.reason, 'operator_reset');
