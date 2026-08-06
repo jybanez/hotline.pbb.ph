@@ -10,8 +10,8 @@ return new class extends Migration
     {
         Schema::create('media', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('incident_id')->constrained()->restrictOnDelete();
-            $table->foreignId('call_session_id')->constrained()->restrictOnDelete();
+            $table->foreignId('incident_id')->nullable()->constrained()->restrictOnDelete();
+            $table->foreignId('call_session_id')->nullable()->constrained()->restrictOnDelete();
             $table->string('type');
             $table->foreignId('peer_user_id')->nullable()->constrained('users')->restrictOnDelete();
             $table->string('peer_role')->nullable();

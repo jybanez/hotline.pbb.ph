@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Operator\CallSessionMediaController;
 use App\Http\Controllers\Api\Operator\DashboardController;
 use App\Http\Controllers\Api\Operator\IncidentController;
 use App\Http\Controllers\Api\Operator\MediaLogController;
+use App\Http\Controllers\Api\Operator\MediaTestController;
 use App\Http\Controllers\Api\Operator\TeamAssignmentController;
 use App\Http\Controllers\Api\Operator\TransferController;
 use Illuminate\Support\Facades\Route;
@@ -42,6 +43,9 @@ Route::middleware(['auth', 'role:operator'])->prefix('/operator')->group(functio
     Route::post('/call-sessions/{callSession}/media', [CallSessionMediaController::class, 'store']);
     Route::post('/media/{media}/chunks', [CallSessionMediaController::class, 'storeChunk']);
     Route::post('/media/{media}/finalize', [CallSessionMediaController::class, 'finalize']);
+    Route::post('/media-tests', [MediaTestController::class, 'store']);
+    Route::post('/media-tests/{media}/chunks', [MediaTestController::class, 'storeChunk']);
+    Route::post('/media-tests/{media}/finalize', [MediaTestController::class, 'finalize']);
     Route::post('/media/logs', [MediaLogController::class, 'store']);
     Route::post('/transfers/{transfer}/accept', [TransferController::class, 'accept']);
     Route::post('/transfers/{transfer}/reject', [TransferController::class, 'reject']);

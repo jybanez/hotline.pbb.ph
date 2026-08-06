@@ -7,6 +7,7 @@
         "dev": "vite",
         "test:command-surface-contracts": "node tests/js/commandSurfaceContracts.test.mjs",
         "test:hotline-community-sdk": "node tests/js/hotlineCommunitySdk.test.mjs",
+        "test:operator-media-stream-tool": "node tests/js/operatorMediaStreamTestTool.test.mjs",
         "test:sitrep-viewer-js": "node tests/js/sitrepViewerJsSdk.test.mjs"
     },
     "dependencies": {
