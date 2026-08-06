@@ -67,7 +67,7 @@ class FinalizeStaleCallMediaCommandTest extends TestCase
         $this->artisan('app:finalize-stale-call-media', [
             '--grace-seconds' => 0,
         ])
-            ->expectsOutput('Finalize stale call media finished. scanned=2 finalized=1 skipped_no_chunks=1 skipped_not_ended=0 failed=0')
+            ->expectsOutput('Finalize stale call media finished. scanned=2 finalized=2 skipped_no_chunks=0 skipped_not_ended=0 failed=0')
             ->assertExitCode(0);
 
         $expectedPath = "incidents/{$incidentId}/media/1/{$finalizableMediaId}_audio-peer_operator-main.weba";
@@ -84,7 +84,11 @@ class FinalizeStaleCallMediaCommandTest extends TestCase
             'id' => $noChunkMediaId,
             'path' => '',
         ]);
-        $this->assertNull(DB::table('media')->where('id', $noChunkMediaId)->value('available_at'));
+        $this->assertNotNull(DB::table('media')->where('id', $noChunkMediaId)->value('available_at'));
+        $this->assertTrue((bool) data_get(
+            json_decode((string) DB::table('media')->where('id', $noChunkMediaId)->value('metadata_json'), true),
+            'discarded',
+        ));
     }
 
     public function test_command_skips_processing_media_for_sessions_that_are_not_ended(): void

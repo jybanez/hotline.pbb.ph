@@ -2,7 +2,12 @@ export function createOperatorMediaFinalizer() {
     return {
         async finalizeRecord(record) {
             const nextMediaId = Number(record?.media_id ?? 0);
-            window.axios({
+
+            if (nextMediaId <= 0) {
+                return null;
+            }
+
+            const response = await window.axios({
                 url: `/api/operator/media/${nextMediaId}/finalize`,
                 method: 'post',
                 data: {
@@ -13,7 +18,9 @@ export function createOperatorMediaFinalizer() {
                 headers: {
                     Accept: 'application/json',
                 },
-            }).catch(() => undefined);
+            });
+
+            return response?.data ?? null;
         },
     };
 }

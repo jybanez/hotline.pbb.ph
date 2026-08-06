@@ -264,22 +264,21 @@ export class Consumer {
             return;
         }
 
-        try {
-            await this.finalizer.finalizeRecord?.(record);
-        } finally {
-            await this.storage.deleteChunksFor(nextMediaId);
-            await this.storage.deleteRecord(nextMediaId);
-            this.state = 'finalized';
-            this.updatedAt = new Date().toISOString();
-            this.debug?.('consumer-record-finalized', {
-                debugSource: 'Consumer',
-                mediaId: nextMediaId,
-                key: String(record?.key ?? ''),
-                mediaType: String(record?.media_type ?? ''),
-                trackKind: String(record?.track_kind ?? ''),
-                source: 'consumer-manager',
-            });
-        }
+        const result = await this.finalizer.finalizeRecord?.(record);
+
+        await this.storage.deleteChunksFor(nextMediaId);
+        await this.storage.deleteRecord(nextMediaId);
+        this.state = result?.media?.discarded ? 'discarded' : 'finalized';
+        this.updatedAt = new Date().toISOString();
+        this.debug?.('consumer-record-finalized', {
+            debugSource: 'Consumer',
+            mediaId: nextMediaId,
+            key: String(record?.key ?? ''),
+            mediaType: String(record?.media_type ?? ''),
+            trackKind: String(record?.track_kind ?? ''),
+            discarded: Boolean(result?.media?.discarded),
+            source: 'consumer-manager',
+        });
     }
 
     async deleteRecord(record) {

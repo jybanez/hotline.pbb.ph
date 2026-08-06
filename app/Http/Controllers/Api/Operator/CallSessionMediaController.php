@@ -119,6 +119,9 @@ class CallSessionMediaController extends Controller
      */
     private function serializeMedia(Media $media): array
     {
+        $metadata = $media->metadata_json ?? [];
+        $discarded = (bool) ($metadata['discarded'] ?? false);
+
         return [
             'id' => $media->id,
             'incident_id' => $media->incident_id,
@@ -127,10 +130,11 @@ class CallSessionMediaController extends Controller
             'peer_user_id' => $media->peer_user_id,
             'peer_role' => $media->peer_role,
             'peer_label' => $media->peer_label,
-            'path' => $media->available_at ? $media->path : null,
+            'path' => $media->available_at && $media->path !== '' ? $media->path : null,
             'duration_seconds' => $media->duration_seconds,
-            'metadata' => $media->metadata_json ?? [],
-            'processing' => $media->available_at === null,
+            'metadata' => $metadata,
+            'processing' => $media->available_at === null && ! $discarded,
+            'discarded' => $discarded,
             'created_at' => $media->created_at?->toIso8601String(),
             'available_at' => $media->available_at?->toIso8601String(),
         ];

@@ -466,7 +466,7 @@ class IncidentPayloadAndMediaTest extends TestCase
             ->assertNotFound();
     }
 
-    public function test_finalize_returns_conflict_when_no_chunks_were_uploaded(): void
+    public function test_finalize_discards_processing_media_when_no_chunks_were_uploaded(): void
     {
         Storage::fake('local');
         Storage::fake('public');
@@ -493,9 +493,14 @@ class IncidentPayloadAndMediaTest extends TestCase
                 'duration_seconds' => 5,
                 'extension' => 'webm',
             ])
-            ->assertStatus(409)
-            ->assertJsonPath('ok', false)
-            ->assertJsonPath('message', 'No media chunks were uploaded for this asset.');
+            ->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('media.id', $mediaId)
+            ->assertJsonPath('media.path', null)
+            ->assertJsonPath('media.processing', false)
+            ->assertJsonPath('media.discarded', true)
+            ->assertJsonPath('media.metadata.discarded', true)
+            ->assertJsonPath('media.metadata.discard_reason', 'no_chunks_uploaded');
 
         $this->assertDatabaseHas('media', [
             'id' => $mediaId,
@@ -504,6 +509,8 @@ class IncidentPayloadAndMediaTest extends TestCase
             'peer_role' => 'citizen',
             'path' => '',
         ]);
+
+        $this->assertNotNull(\App\Domain\Media\Models\Media::query()->find($mediaId)?->available_at);
     }
 
     public function test_operator_media_endpoint_accepts_citizen_media_aliases(): void

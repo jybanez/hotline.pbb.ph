@@ -90,7 +90,19 @@ class MediaAssemblyService
         $chunkPaths = $this->chunkPaths($media);
 
         if ($chunkPaths === []) {
-            throw new RuntimeException('No media chunks were uploaded for this asset.');
+            $metadata['processing'] = false;
+            $metadata['discarded'] = true;
+            $metadata['discard_reason'] = 'no_chunks_uploaded';
+            $metadata['discarded_at'] = now()->toIso8601String();
+
+            $media->forceFill([
+                'path' => '',
+                'duration_seconds' => Arr::get($payload, 'duration_seconds', $media->duration_seconds),
+                'metadata_json' => $metadata,
+                'available_at' => now(),
+            ])->save();
+
+            return $media->fresh();
         }
 
         $extension = strtolower((string) Arr::get($payload, 'extension', $metadata['extension'] ?? ''));
@@ -164,11 +176,6 @@ class MediaAssemblyService
                 || $callSession->ended_at->gt($threshold)
             ) {
                 $summary['skipped_not_ended']++;
-                continue;
-            }
-
-            if ($this->chunkPaths($media) === []) {
-                $summary['skipped_no_chunks']++;
                 continue;
             }
 
