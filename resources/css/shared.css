@@ -111,11 +111,25 @@ select {
     line-height: 1;
 }
 
-.helper-nav-host .surface-account-avatar {
+.helper-nav-host .surface-account-action .ui-nav-content,
+.helper-nav-host .surface-account-action .ui-nav-icon {
     display: inline-grid;
     place-items: center;
     width: 28px;
     height: 28px;
+    flex: 0 0 28px;
+    gap: 0;
+    line-height: 1;
+}
+
+.helper-nav-host .surface-account-avatar {
+    display: inline-grid;
+    place-items: center;
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    min-height: 28px;
+    flex: 0 0 28px;
     border-radius: 999px;
     object-fit: cover;
     background: color-mix(in srgb, var(--accent) 24%, var(--panel-soft));
