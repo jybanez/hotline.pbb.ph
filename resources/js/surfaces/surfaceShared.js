@@ -1169,6 +1169,35 @@ function createIconMarkup(name, options = {}) {
     }
 }
 
+function initialsFor(value) {
+    const words = String(value ?? '')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+
+    if (words.length === 0) {
+        return 'U';
+    }
+
+    const initials = words
+        .slice(0, 2)
+        .map((word) => word.slice(0, 1).toUpperCase())
+        .join('');
+
+    return initials || 'U';
+}
+
+function accountAvatarMarkup(user) {
+    const name = user?.name || user?.email || 'Account';
+    const avatar = String(user?.avatar ?? '').trim();
+
+    if (avatar !== '') {
+        return `<img class="surface-account-avatar" src="${escapeHtml(avatar)}" alt="${escapeHtml(`${name} profile photo`)}">`;
+    }
+
+    return `<span class="surface-account-avatar is-initials" aria-hidden="true">${escapeHtml(initialsFor(name))}</span>`;
+}
+
 function mountSurfaceChrome(root, surface, bootstrap) {
     const navHost = root.querySelector('[data-helper-navbar]');
 
@@ -1188,7 +1217,9 @@ function mountSurfaceChrome(root, surface, bootstrap) {
             {
                 id: 'profile',
                 label: bootstrap.user?.name ?? 'Account',
-                icon: createIconMarkup('people.user', { size: 18, ariaLabel: 'Account' }),
+                icon: accountAvatarMarkup(bootstrap.user),
+                iconOnly: true,
+                className: 'surface-account-action',
                 menuItems: [
                     ...(Array.isArray(appState.runtime.navbarProfileMenuItems) ? appState.runtime.navbarProfileMenuItems : []),
                     ...createProfileMenuItems(),

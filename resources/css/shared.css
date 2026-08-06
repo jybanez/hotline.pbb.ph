@@ -100,6 +100,32 @@ select {
     height: 18px;
 }
 
+.helper-nav-host .ui-navbar-action.surface-account-action.is-icon-only {
+    display: inline-grid;
+    place-items: center;
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 10px;
+    line-height: 1;
+}
+
+.helper-nav-host .surface-account-avatar {
+    display: inline-grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    object-fit: cover;
+    background: color-mix(in srgb, var(--accent) 24%, var(--panel-soft));
+    color: var(--text);
+    border: 1px solid color-mix(in srgb, var(--accent) 36%, var(--panel-border));
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
 .surface-toolbar {
     justify-content: flex-end;
     padding: 0 0.25rem;
