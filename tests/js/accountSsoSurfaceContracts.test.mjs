@@ -31,6 +31,12 @@ assert.match(
   'Shared surface login flow must suppress automatic Account redirect when a callback error is present.',
 );
 
+assert.doesNotMatch(
+  source,
+  /intentional_logout|hasIntentionalAccountLogout|setIntentionalAccountLogout/,
+  'Shared surface login flow must not persistently suppress Account SSO after logout; callback errors are the loop breaker.',
+);
+
 assert.match(
   source,
   /function\s+initAccountSessionSdk\s*\(/,

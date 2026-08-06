@@ -28,7 +28,6 @@ const OPERATOR_WORKBENCH_CALL_SESSION_KEY = 'hotline.operator.active_call_sessio
 const INCOMING_MODAL_DISMISS_PREFIX = 'hotline.operator.dismissed_incoming.';
 const TRANSFER_MODAL_DISMISS_PREFIX = 'hotline.operator.dismissed_transfer.';
 const DEVICE_PRIMER_DISMISS_PREFIX = 'hotline.device.primer.dismissed.';
-const ACCOUNT_LOGGED_OUT_STORAGE_KEY = 'hotline.account.intentional_logout';
 const SESSION_ACTIVITY_STALE_MS = 30 * 1000;
 const SESSION_KEEPALIVE_MIN_INTERVAL_MS = 15 * 1000;
 const SESSION_WATCH_INTERVAL_MS = 5 * 1000;
@@ -1200,27 +1199,6 @@ function accountAvatarMarkup(user) {
     return `<span class="surface-account-avatar is-initials" aria-hidden="true">${escapeHtml(initialsFor(name))}</span>`;
 }
 
-function hasIntentionalAccountLogout() {
-    try {
-        return sessionStorage.getItem(ACCOUNT_LOGGED_OUT_STORAGE_KEY) === '1';
-    } catch {
-        return false;
-    }
-}
-
-function setIntentionalAccountLogout(value) {
-    try {
-        if (value) {
-            sessionStorage.setItem(ACCOUNT_LOGGED_OUT_STORAGE_KEY, '1');
-            return;
-        }
-
-        sessionStorage.removeItem(ACCOUNT_LOGGED_OUT_STORAGE_KEY);
-    } catch {
-        // sessionStorage can be unavailable in restricted browser contexts.
-    }
-}
-
 function mountSurfaceChrome(root, surface, bootstrap) {
     const navHost = root.querySelector('[data-helper-navbar]');
 
@@ -1312,7 +1290,6 @@ function mountSurfaceChrome(root, surface, bootstrap) {
 async function logoutCurrentUser() {
     const accountSso = accountSsoConfig();
     if (accountSso.enabled && accountSso.logout_url) {
-        setIntentionalAccountLogout(true);
         clearClientSessionState();
         window.location.assign(accountSso.logout_url);
         return;
@@ -1322,7 +1299,6 @@ async function logoutCurrentUser() {
         const response = await fetchJson('/api/logout', { method: 'post' });
 
         setCsrfToken(response?.csrf_token);
-        setIntentionalAccountLogout(true);
         clearClientSessionState();
         showToast('Signed out.', 'success');
         window.location.assign('/');
@@ -1384,7 +1360,6 @@ async function openLoginModal(options = {}) {
                 }
 
                 applySessionPayload(response);
-                setIntentionalAccountLogout(false);
                 const target = String(response?.redirect_to ?? roleHome(response.user.role) ?? '/').trim() || '/';
 
                 showToast('Signed in successfully.', 'success');
@@ -1436,7 +1411,6 @@ function startAccountSsoLogin() {
     }
 
     accountSsoRedirectStarted = true;
-    setIntentionalAccountLogout(false);
 
     const target = new URL(loginUrl, window.location.origin);
     const returnPath = `${window.location.pathname}${window.location.search}${window.location.hash}` || '/';
@@ -1470,7 +1444,6 @@ function shouldUseAccountSsoLogin(accountSso, accountSsoError = accountSsoLoginE
         && accountSso?.ready
         && accountSso?.login_url
         && !accountSsoError
-        && !hasIntentionalAccountLogout()
         && ['public', 'citizen', 'caller'].includes(surface)
     );
 }
@@ -1498,7 +1471,6 @@ function initAccountSessionSdk() {
                 return;
             }
 
-            setIntentionalAccountLogout(false);
             void refreshAccountSessionState();
         },
         onLogout: () => {
@@ -1561,7 +1533,9 @@ async function refreshAccountSessionState() {
 }
 
 async function handleAccountSessionLogout() {
-    setIntentionalAccountLogout(true);
+    if (!appState.bootstrap?.authenticated) {
+        return;
+    }
 
     try {
         await fetchJson('/api/logout', { method: 'post' });
