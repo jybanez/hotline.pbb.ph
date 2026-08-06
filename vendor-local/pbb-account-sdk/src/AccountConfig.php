@@ -13,6 +13,7 @@ class AccountConfig
     public int $timeoutSeconds;
     public ?string $caBundle;
     public string $stateKey;
+    public string $nonceKey;
 
     public function __construct(array $config)
     {
@@ -25,6 +26,7 @@ class AccountConfig
         $this->timeoutSeconds = max(1, (int) ($config['timeout_seconds'] ?? 10));
         $this->caBundle = isset($config['ca_bundle']) ? (string) $config['ca_bundle'] : null;
         $this->stateKey = (string) ($config['state_key'] ?? '_pbb_account_oauth_state');
+        $this->nonceKey = (string) ($config['nonce_key'] ?? '_pbb_account_oauth_nonce');
     }
 
     public function scopesString(): string

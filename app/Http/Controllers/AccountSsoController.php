@@ -46,7 +46,7 @@ class AccountSsoController extends Controller
 
             Auth::guard('web')->login($user, true);
             $request->session()->regenerate();
-            $request->session()->put('pbb_account.session_id', $token->raw['account_session_id'] ?? null);
+            $request->session()->put('pbb_account.session_id', $token->accountSessionId);
             $user->forceFill(['last_login_at' => now()])->save();
 
             return redirect($this->loginDestination($user, $request->session()->pull('pbb_account.return_to', null), $roleRedirector))

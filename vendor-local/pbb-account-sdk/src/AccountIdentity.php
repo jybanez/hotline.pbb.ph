@@ -8,6 +8,7 @@ class AccountIdentity
     public string $name;
     public ?string $email;
     public ?string $mobile;
+    public ?string $avatarUrl;
     public ?string $status;
     public bool $emailVerified;
     public bool $mobileVerified;
@@ -26,6 +27,7 @@ class AccountIdentity
         $this->name = (string) ($payload['name'] ?? '');
         $this->email = $this->nullableString($payload['email'] ?? null);
         $this->mobile = $this->nullableString($payload['mobile'] ?? null);
+        $this->avatarUrl = $this->nullableString($payload['avatar_url'] ?? null);
         $this->status = $this->nullableString($payload['status'] ?? null);
         $this->emailVerified = (bool) ($payload['email_verified'] ?? $payload['email_verified_at'] ?? false);
         $this->mobileVerified = (bool) ($payload['mobile_verified'] ?? $payload['mobile_verified_at'] ?? false);
@@ -44,6 +46,7 @@ class AccountIdentity
             'name' => $this->name,
             'email' => $this->email,
             'mobile' => $this->mobile,
+            'avatar_url' => $this->avatarUrl,
             'status' => $this->status,
             'email_verified' => $this->emailVerified,
             'mobile_verified' => $this->mobileVerified,
