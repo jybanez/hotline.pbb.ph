@@ -109,7 +109,7 @@ function createStageStack(helper, container, pages) {
                     return null;
                 }
 
-                return stack.replace(page);
+                return stack.push(page);
             },
         };
     }
