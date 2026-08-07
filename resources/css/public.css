@@ -1024,7 +1024,29 @@ body.sitrep-pdf-body {
 .operator-media-test-tool {
     display: grid;
     gap: 1rem;
-    min-width: min(32rem, 80vw);
+    min-width: min(34rem, 80vw);
+}
+
+.operator-media-test-stack-host,
+.operator-media-test-stage-stack {
+    min-height: 19rem;
+}
+
+.operator-media-test-stage-stack.ui-navigation-stack,
+.operator-media-test-stage-stack.is-fallback {
+    min-height: 19rem;
+}
+
+.operator-media-test-stage {
+    display: grid;
+    gap: 1rem;
+    padding: 0.1rem 0;
+}
+
+.operator-media-test-copy {
+    color: #b9c7dd;
+    line-height: 1.55;
+    margin: 0;
 }
 
 .operator-media-test-status,
@@ -1056,6 +1078,7 @@ body.sitrep-pdf-body {
     display: flex;
     flex-wrap: wrap;
     gap: 0.65rem;
+    justify-content: flex-start;
 }
 
 .operator-media-test-metrics {

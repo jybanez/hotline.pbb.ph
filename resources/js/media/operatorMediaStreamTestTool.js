@@ -12,33 +12,24 @@ function formatElapsed(seconds) {
 }
 
 function setText(host, selector, value) {
-    const node = host?.querySelector?.(selector);
+    const nodes = host?.querySelectorAll?.(selector) ?? [];
 
-    if (node) {
+    nodes.forEach((node) => {
         node.textContent = value;
-    }
+    });
 }
 
 function setPhase(host, phase, message, tone = 'info') {
-    const status = host?.querySelector?.('[data-media-test-status]');
+    const statuses = host?.querySelectorAll?.('[data-media-test-status]') ?? [];
 
-    if (!status) {
-        return;
-    }
-
-    status.dataset.tone = tone;
-    status.textContent = `${phase}: ${message}`;
+    statuses.forEach((status) => {
+        status.dataset.tone = tone;
+        status.textContent = `${phase}: ${message}`;
+    });
 }
 
-function modalContent() {
-    const content = document.createElement('div');
-    content.className = 'operator-media-test-tool';
-    content.innerHTML = `
-        <div class="operator-media-test-status" data-media-test-status data-tone="info">Idle: ready to test microphone capture and media storage.</div>
-        <div class="operator-media-test-controls">
-            <button class="surface-button primary" type="button" data-media-test-toggle>Start</button>
-            <button class="surface-button secondary" type="button" data-media-test-reset disabled>Reset</button>
-        </div>
+function metricMarkup() {
+    return `
         <dl class="operator-media-test-metrics">
             <div>
                 <dt>Chunks</dt>
@@ -53,10 +44,127 @@ function modalContent() {
                 <dd data-media-test-finalize>Not started</dd>
             </div>
         </dl>
-        <div class="operator-media-test-error" data-media-test-error hidden></div>
-        <div class="operator-media-test-playback" data-media-test-playback></div>
     `;
+}
 
+function createStagePage(stage, innerHtml) {
+    const page = document.createElement('div');
+    page.className = `operator-media-test-stage is-${stage}`;
+    page.dataset.mediaTestStagePage = stage;
+    page.innerHTML = innerHtml;
+
+    return page;
+}
+
+function createFallbackStageStack(container, pages = []) {
+    const root = document.createElement('section');
+    root.className = 'operator-media-test-stage-stack is-fallback';
+    container.appendChild(root);
+
+    const byId = new Map(pages.map((page) => [page.id, page.content]));
+    let currentId = null;
+
+    const goTo = (id) => {
+        const nextPage = byId.get(id);
+
+        if (!nextPage || currentId === id) {
+            return null;
+        }
+
+        currentId = id;
+        root.replaceChildren(nextPage);
+        return { id };
+    };
+
+    goTo(pages[0]?.id);
+
+    return {
+        root,
+        goTo,
+        destroy() {
+            root.replaceChildren();
+            root.remove();
+        },
+    };
+}
+
+function createStageStack(helper, container, pages) {
+    const byId = new Map(pages.map((page) => [page.id, page]));
+
+    if (typeof helper?.createNavigationStack === 'function') {
+        const stack = helper.createNavigationStack(container, {
+            ariaLabel: 'Media stream storage test flow',
+            chrome: false,
+            className: 'operator-media-test-stage-stack',
+            transition: 'fade',
+            initialPages: [byId.get('ready')],
+        });
+
+        return {
+            ...stack,
+            goTo(id) {
+                const page = byId.get(id);
+
+                if (!page || stack.getState?.().currentPage?.id === id) {
+                    return null;
+                }
+
+                return stack.replace(page);
+            },
+        };
+    }
+
+    return createFallbackStageStack(container, pages);
+}
+
+function modalContent(helper) {
+    const content = document.createElement('div');
+    content.className = 'operator-media-test-tool';
+    const stackHost = document.createElement('div');
+    stackHost.className = 'operator-media-test-stack-host';
+    stackHost.dataset.mediaTestStack = '';
+
+    const readyPage = createStagePage('ready', `
+        <div class="operator-media-test-status" data-media-test-status data-tone="info">Idle: ready to test microphone capture and media storage.</div>
+        <p class="operator-media-test-copy">This diagnostic records microphone audio, sends chunks through Realtime, finalizes them in Hotline storage, and plays back the saved result.</p>
+        <div class="operator-media-test-controls">
+            <button class="surface-button primary" type="button" data-media-test-start>Start</button>
+        </div>
+    `);
+    const recordingPage = createStagePage('recording', `
+        <div class="operator-media-test-status" data-media-test-status data-tone="info">Recording: capturing microphone audio.</div>
+        ${metricMarkup()}
+        <div class="operator-media-test-controls">
+            <button class="surface-button primary" type="button" data-media-test-stop>Stop</button>
+            <button class="surface-button secondary" type="button" data-media-test-reset>Reset</button>
+        </div>
+    `);
+    const finalizedPage = createStagePage('finalized', `
+        <div class="operator-media-test-status" data-media-test-status data-tone="success">Complete: diagnostic audio finalized and ready for playback.</div>
+        ${metricMarkup()}
+        <div class="operator-media-test-playback" data-media-test-playback></div>
+        <div class="operator-media-test-controls">
+            <button class="surface-button primary" type="button" data-media-test-start>Start New</button>
+            <button class="surface-button secondary" type="button" data-media-test-reset>Reset</button>
+        </div>
+    `);
+    const errorPage = createStagePage('error', `
+        <div class="operator-media-test-status" data-media-test-status data-tone="error">Error: unable to complete media stream test.</div>
+        <div class="operator-media-test-error" data-media-test-error></div>
+        <div class="operator-media-test-controls">
+            <button class="surface-button primary" type="button" data-media-test-start>Try Again</button>
+            <button class="surface-button secondary" type="button" data-media-test-reset>Reset</button>
+        </div>
+    `);
+    const pages = [
+        { id: 'ready', title: 'Ready', content: readyPage },
+        { id: 'recording', title: 'Recording', content: recordingPage },
+        { id: 'finalized', title: 'Finalized', content: finalizedPage },
+        { id: 'error', title: 'Error', content: errorPage },
+    ];
+
+    content.appendChild(stackHost);
+    content.__mediaTestStack = createStageStack(helper, stackHost, pages);
     return content;
 }
 
@@ -72,6 +180,7 @@ function showError(content, phase, error) {
     }
 
     setPhase(content, phase, message, 'error');
+    content.__mediaTestStack?.goTo?.('error');
 }
 
 function clearError(content) {
@@ -95,14 +204,12 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
         return null;
     }
 
-    const content = modalContent();
+    const content = modalContent(helper);
     const client = options.client ?? createDiagnosticMediaClient();
     const chunkTransport = options.chunkTransport ?? createRealtimeOperatorDiagnosticMediaChunkTransport({
         mode: options.transportMode ?? 'realtime-base64',
     });
-    const toggleButton = content.querySelector('[data-media-test-toggle]');
-    const resetButton = content.querySelector('[data-media-test-reset]');
-    const playbackHost = content.querySelector('[data-media-test-playback]');
+    const stageStack = content.__mediaTestStack;
 
     let media = null;
     let record = null;
@@ -112,6 +219,16 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
     let playbackApi = null;
     let chunkCount = 0;
     let isBusy = false;
+
+    const goToStage = (stage) => {
+        stageStack?.goTo?.(stage);
+    };
+
+    const setButtonsDisabled = (selector, disabled) => {
+        content.querySelectorAll(selector).forEach((button) => {
+            button.disabled = disabled;
+        });
+    };
 
     const cancelDiagnosticMedia = async (reason) => {
         if (!isProcessingDiagnostic(media)) {
@@ -163,15 +280,13 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
         recordingStartedAt = null;
         chunkCount = 0;
         isBusy = false;
-        toggleButton.disabled = false;
-        toggleButton.textContent = 'Start';
-        resetButton.disabled = true;
+        setButtonsDisabled('[data-media-test-start], [data-media-test-stop], [data-media-test-reset]', false);
         setText(content, '[data-media-test-chunks]', '0');
         setText(content, '[data-media-test-elapsed]', '00:00');
         setText(content, '[data-media-test-finalize]', 'Not started');
         setPhase(content, 'Idle', 'ready to test microphone capture and media storage.');
         clearError(content);
-        playbackHost?.replaceChildren();
+        goToStage('ready');
     };
 
     const startRecording = async () => {
@@ -182,7 +297,7 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
         isBusy = true;
         clearError(content);
         setPhase(content, 'Create', 'creating diagnostic media record.');
-        toggleButton.disabled = true;
+        setButtonsDisabled('[data-media-test-start], [data-media-test-stop]', true);
 
         try {
             const spec = resolveAudioRecorderSpec();
@@ -239,9 +354,10 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
             await session.start();
             recordingStartedAt = Date.now();
             elapsedTimer = setInterval(updateElapsed, 500);
+            goToStage('recording');
+            setText(content, '[data-media-test-chunks]', '0');
+            setText(content, '[data-media-test-finalize]', 'Waiting for stop');
             updateElapsed();
-            toggleButton.textContent = 'Stop';
-            resetButton.disabled = false;
         } catch (error) {
             showError(content, 'Start', error);
             session?.destroy?.();
@@ -251,11 +367,9 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
             } catch (cancelError) {
                 showError(content, 'Cleanup', cancelError);
             }
-            toggleButton.textContent = 'Start';
-            resetButton.disabled = false;
         } finally {
             isBusy = false;
-            toggleButton.disabled = false;
+            setButtonsDisabled('[data-media-test-start], [data-media-test-stop]', false);
         }
     };
 
@@ -265,7 +379,8 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
         }
 
         isBusy = true;
-        toggleButton.disabled = true;
+        setButtonsDisabled('[data-media-test-start]', true);
+        setButtonsDisabled('[data-media-test-stop]', true);
         clearError(content);
         setPhase(content, 'Stop', 'flushing final media chunks.');
 
@@ -280,16 +395,17 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
                 recordingStartedAt,
             });
             chunkCount = Math.max(chunkCount, Number(stopped?.chunk_count ?? 0));
-            setText(content, '[data-media-test-chunks]', String(chunkCount));
             stopElapsedTimer();
 
             media = finalized?.media ?? media;
+            goToStage('finalized');
+            setText(content, '[data-media-test-chunks]', String(chunkCount));
+            updateElapsed();
             setText(content, '[data-media-test-finalize]', media?.discarded ? 'Discarded: no chunks captured' : 'Complete');
             setPhase(content, 'Complete', media?.discarded ? 'no audio chunks were captured.' : 'diagnostic audio finalized and ready for playback.', media?.discarded ? 'warn' : 'success');
             playbackApi?.destroy?.();
+            const playbackHost = content.querySelector('[data-media-test-playback]');
             playbackApi = mountHelperAudioPlayback(playbackHost, media, { helper });
-            toggleButton.textContent = 'Start';
-            resetButton.disabled = false;
             session = null;
         } catch (error) {
             showError(content, 'Finalize', error);
@@ -301,20 +417,31 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
             }
         } finally {
             isBusy = false;
-            toggleButton.disabled = false;
+            setButtonsDisabled('[data-media-test-start]', false);
+            setButtonsDisabled('[data-media-test-stop]', false);
         }
     };
 
-    toggleButton?.addEventListener('click', () => {
-        if (session?.getState?.() === 'recording') {
-            void stopRecording();
-        } else {
-            void startRecording();
-        }
-    });
+    content.addEventListener('click', (event) => {
+        const button = event.target?.closest?.('[data-media-test-start], [data-media-test-stop], [data-media-test-reset]');
 
-    resetButton?.addEventListener('click', () => {
-        void resetState();
+        if (!button) {
+            return;
+        }
+
+        if (button.matches('[data-media-test-start]')) {
+            void startRecording();
+            return;
+        }
+
+        if (button.matches('[data-media-test-stop]')) {
+            void stopRecording();
+            return;
+        }
+
+        if (button.matches('[data-media-test-reset]')) {
+            void resetState();
+        }
     });
 
     const modal = helper.createActionModal({
@@ -333,6 +460,7 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
         onClose() {
             session?.destroy?.();
             playbackApi?.destroy?.();
+            stageStack?.destroy?.();
             stopElapsedTimer();
             chunkTransport?.destroy?.(media?.id);
             void cancelDiagnosticMedia('modal_closed');
