@@ -200,6 +200,7 @@ assert.equal(staleConsumer.getItem().state, 'discarded');
 assert.deepEqual(deleted, ['chunks:9', 'record:9']);
 
 let helperAudioPayload = null;
+let helperAudioOptions = null;
 const playbackHost = {
     replaceChildren() {},
     appendChild() {},
@@ -216,8 +217,9 @@ const playbackApi = await mountHelperAudioPlayback(playbackHost, {
     metadata: { diagnostic: true },
 }, {
     helper: {
-        createAudioCallSession(_host, payload) {
+        createAudioCallSession(_host, payload, options) {
             helperAudioPayload = payload;
+            helperAudioOptions = options;
             return { destroy() {} };
         },
     },
@@ -232,3 +234,5 @@ assert.equal(helperAudioPayload.media[0].path, '/storage/diagnostics/operator-me
 assert.equal(helperAudioPayload.media[0].peer_role, 'operator');
 assert.equal(helperAudioPayload.media[0].metadata.peer_role, 'operator');
 assert.match(helperAudioPayload.media[0].metadata.recording_role, /^operator-91-/);
+assert.equal(helperAudioOptions.audiographStyle, 'tsunami');
+assert.equal(helperAudioOptions.transparentBackground, true);

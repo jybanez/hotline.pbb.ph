@@ -79,6 +79,8 @@ export async function mountHelperAudioPlayback(host, media = {}, options = {}) {
         }, {
             className: 'operator-media-test-audio-player',
             readonly: true,
+            audiographStyle: 'tsunami',
+            transparentBackground: true,
         });
 
         return {

@@ -398,6 +398,7 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
         try {
             setText(content, '[data-media-test-finalize]', 'Uploading final metadata...');
             setPhase(content, 'Finalize', 'assembling diagnostic audio.');
+            modal?.setBusy?.(true, { message: 'Uploading final metadata...' });
             const { stopped, finalized } = await finalizeStoppedDiagnosticRecording({
                 session,
                 client,
@@ -427,6 +428,7 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
                 showError(content, 'Cleanup', cancelError);
             }
         } finally {
+            modal?.setBusy?.(false);
             isBusy = false;
             setButtonsDisabled('[data-media-test-start]', false);
             setButtonsDisabled('[data-media-test-stop]', false);
