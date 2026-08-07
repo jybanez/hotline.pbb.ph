@@ -117,6 +117,119 @@ function createStageStack(helper, container, pages) {
     return createFallbackStageStack(container, pages);
 }
 
+function createLocalReferenceRecorder(stream, spec = {}, MediaRecorderCtor = globalThis.MediaRecorder) {
+    if (!stream || !MediaRecorderCtor) {
+        return null;
+    }
+
+    const referenceStream = typeof stream.clone === 'function' ? stream.clone() : stream;
+    const chunks = [];
+    let recorder = null;
+    let startedAt = null;
+    let stopped = false;
+    let objectUrl = '';
+
+    function stopTracks() {
+        referenceStream?.getTracks?.().forEach((track) => {
+            try {
+                track.stop?.();
+            } catch {
+                // Browser media track teardown is best-effort.
+            }
+        });
+    }
+
+    function revoke() {
+        if (objectUrl && typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
+            URL.revokeObjectURL(objectUrl);
+        }
+        objectUrl = '';
+    }
+
+    try {
+        recorder = new MediaRecorderCtor(referenceStream, spec?.mimeType ? { mimeType: spec.mimeType } : undefined);
+    } catch {
+        stopTracks();
+        return null;
+    }
+
+    recorder.addEventListener('dataavailable', (event) => {
+        const blob = event?.data;
+
+        if (blob && Number(blob.size ?? 0) > 0) {
+            chunks.push(blob);
+        }
+    });
+
+    return {
+        start() {
+            if (!recorder || recorder.state !== 'inactive') {
+                return;
+            }
+            startedAt = Date.now();
+            recorder.start();
+        },
+        async stop() {
+            if (!recorder || stopped) {
+                return null;
+            }
+
+            stopped = true;
+
+            if (recorder.state === 'recording') {
+                await new Promise((resolve) => {
+                    recorder.addEventListener('stop', resolve, { once: true });
+                    recorder.stop();
+                });
+            }
+
+            stopTracks();
+
+            if (chunks.length === 0) {
+                return null;
+            }
+
+            revoke();
+
+            const mimeType = chunks.find((chunk) => chunk?.type)?.type || spec?.mimeType || 'audio/webm';
+            const blob = new Blob(chunks, { type: mimeType });
+            objectUrl = typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function'
+                ? URL.createObjectURL(blob)
+                : '';
+
+            if (!objectUrl) {
+                return null;
+            }
+
+            return {
+                id: `local-reference-${startedAt ?? Date.now()}`,
+                type: 'local_reference_audio',
+                playback_url: objectUrl,
+                duration_seconds: startedAt ? Math.max(0, Math.round((Date.now() - startedAt) / 1000)) : null,
+                peer_label: 'Local reference',
+                created_at: startedAt ? new Date(startedAt).toISOString() : new Date().toISOString(),
+                available_at: new Date().toISOString(),
+                metadata: {
+                    diagnostic: true,
+                    diagnostic_type: 'operator_media_stream_storage',
+                    local_reference: true,
+                },
+            };
+        },
+        destroy() {
+            try {
+                if (recorder?.state === 'recording') {
+                    recorder.stop();
+                }
+            } catch {
+                // Ignore recorder shutdown races during modal close.
+            }
+            stopTracks();
+            revoke();
+        },
+    };
+}
+
 async function mountRecordingAudioGraph(host, stream, helper) {
     if (!host || !stream) {
         return { destroy() {} };
@@ -196,7 +309,16 @@ function modalContent(helper) {
     const finalizedPage = createStagePage('finalized', `
         <div class="operator-media-test-status" data-media-test-status data-tone="success">Complete: diagnostic audio finalized and ready for playback.</div>
         ${metricMarkup()}
-        <div class="operator-media-test-playback" data-media-test-playback></div>
+        <div class="operator-media-test-playback-compare">
+            <section class="operator-media-test-playback-card">
+                <h3>Local Reference</h3>
+                <div class="operator-media-test-playback" data-media-test-local-playback></div>
+            </section>
+            <section class="operator-media-test-playback-card">
+                <h3>Stored Finalized</h3>
+                <div class="operator-media-test-playback" data-media-test-playback></div>
+            </section>
+        </div>
         <footer class="operator-media-test-stage-footer operator-media-test-controls">
             <button class="surface-button primary" type="button" data-media-test-start>Start Again</button>
         </footer>
@@ -270,7 +392,10 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
     let recordingStartedAt = null;
     let elapsedTimer = null;
     let playbackApi = null;
+    let localPlaybackApi = null;
     let liveGraphApi = null;
+    let localReferenceRecorder = null;
+    let localReferenceMedia = null;
     let chunkCount = 0;
     let isBusy = false;
 
@@ -319,6 +444,10 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
         session = null;
         liveGraphApi?.destroy?.();
         liveGraphApi = null;
+        localReferenceRecorder?.destroy?.();
+        localReferenceRecorder = null;
+        localPlaybackApi?.destroy?.();
+        localPlaybackApi = null;
         playbackApi?.destroy?.();
         playbackApi = null;
         stopElapsedTimer();
@@ -333,6 +462,7 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
 
         media = null;
         record = null;
+        localReferenceMedia = null;
         recordingStartedAt = null;
         chunkCount = 0;
         isBusy = false;
@@ -352,6 +482,10 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
 
         isBusy = true;
         clearError(content);
+        localReferenceRecorder?.destroy?.();
+        localReferenceRecorder = null;
+        localPlaybackApi?.destroy?.();
+        localPlaybackApi = null;
         playbackApi?.destroy?.();
         playbackApi = null;
         stopElapsedTimer();
@@ -413,6 +547,8 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
             });
 
             await session.start();
+            localReferenceRecorder = createLocalReferenceRecorder(session.getStream?.(), spec);
+            localReferenceRecorder?.start?.();
             recordingStartedAt = Date.now();
             elapsedTimer = setInterval(updateElapsed, 500);
             goToStage('recording');
@@ -426,6 +562,8 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
             showError(content, 'Start', error);
             liveGraphApi?.destroy?.();
             liveGraphApi = null;
+            localReferenceRecorder?.destroy?.();
+            localReferenceRecorder = null;
             session?.destroy?.();
             session = null;
             try {
@@ -459,6 +597,8 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
             setText(content, '[data-media-test-finalize]', 'Uploading final metadata...');
             setPhase(content, 'Finalize', 'assembling diagnostic audio.');
             modal?.setBusy?.(true, { message: 'Uploading final metadata...' });
+            localReferenceMedia = await localReferenceRecorder?.stop?.();
+            localReferenceRecorder = null;
             const { stopped, finalized } = await finalizeStoppedDiagnosticRecording({
                 session,
                 client,
@@ -475,6 +615,9 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
             updateElapsed();
             setText(content, '[data-media-test-finalize]', media?.discarded ? 'Discarded: no chunks captured' : 'Complete');
             setPhase(content, 'Complete', media?.discarded ? 'no audio chunks were captured.' : 'diagnostic audio finalized and ready for playback.', media?.discarded ? 'warn' : 'success');
+            localPlaybackApi?.destroy?.();
+            const localPlaybackHost = content.querySelector('[data-media-test-local-playback]');
+            localPlaybackApi = await mountHelperAudioPlayback(localPlaybackHost, localReferenceMedia, { helper });
             playbackApi?.destroy?.();
             const playbackHost = content.querySelector('[data-media-test-playback]');
             playbackApi = await mountHelperAudioPlayback(playbackHost, media, { helper });
@@ -523,6 +666,8 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
         onClose() {
             session?.destroy?.();
             liveGraphApi?.destroy?.();
+            localReferenceRecorder?.destroy?.();
+            localPlaybackApi?.destroy?.();
             playbackApi?.destroy?.();
             stageStack?.destroy?.();
             stopElapsedTimer();
