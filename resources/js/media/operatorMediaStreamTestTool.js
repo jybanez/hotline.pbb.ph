@@ -4,6 +4,8 @@ import { createMediaStreamSession, resolveAudioRecorderSpec } from './mediaStrea
 import { createRealtimeOperatorDiagnosticMediaChunkTransport } from './transports/realtimeChunkTransport.js';
 import { ensureHelperUi, showToast } from '../surfaces/surfaceShared.js';
 
+const MIN_STAGE_HEIGHT_PX = 368;
+
 function formatElapsed(seconds) {
     const total = Math.max(0, Number(seconds ?? 0));
     const minutes = Math.floor(total / 60);
@@ -452,12 +454,22 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
     const goToStage = async (stage) => {
         stageStack?.goTo?.(stage);
         await waitForStagePaint();
+        syncStageHeight();
+    };
+
+    const getCurrentStage = () => content.querySelector('.operator-media-test-stage.is-active')
+            ?? content.querySelector('.ui-navigation-stack-page.is-active .operator-media-test-stage')
+            ?? content.querySelector('.operator-media-test-stage');
+
+    const syncStageHeight = () => {
+        const currentPage = getCurrentStage();
+        const nextHeight = Math.max(MIN_STAGE_HEIGHT_PX, Math.ceil(currentPage?.scrollHeight ?? 0));
+
+        stageStack?.root?.style?.setProperty('--operator-media-test-stage-height', `${nextHeight}px`);
     };
 
     const queryCurrentStage = (selector) => {
-        const currentPage = content.querySelector('.operator-media-test-stage.is-active')
-            ?? content.querySelector('.ui-navigation-stack-page.is-active .operator-media-test-stage')
-            ?? content.querySelector('.operator-media-test-stage');
+        const currentPage = getCurrentStage();
 
         return currentPage?.querySelector?.(selector) ?? content.querySelector(selector);
     };
@@ -614,6 +626,7 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
             liveGraphApi?.destroy?.();
             const graphHost = queryCurrentStage('[data-media-test-live-graph]');
             liveGraphApi = await mountRecordingAudioGraph(graphHost, session.getStream?.(), helper);
+            syncStageHeight();
             setText(content, '[data-media-test-chunks]', '0');
             setText(content, '[data-media-test-finalize]', 'Waiting for stop');
             updateElapsed();
@@ -682,6 +695,8 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
             playbackApi?.destroy?.();
             const playbackHost = queryCurrentStage('[data-media-test-playback]');
             playbackApi = await mountHelperAudioPlayback(playbackHost, media, { helper });
+            await waitForStagePaint();
+            syncStageHeight();
             session = null;
         } catch (error) {
             showError(content, 'Finalize', error);
