@@ -61,18 +61,18 @@ function createFallbackStageStack(container, pages = []) {
     root.className = 'operator-media-test-stage-stack is-fallback';
     container.appendChild(root);
 
-    const byId = new Map(pages.map((page) => [page.id, page.content]));
+    const byId = new Map(pages.map((page) => [page.id, page]));
     let currentId = null;
 
     const goTo = (id) => {
-        const nextPage = byId.get(id);
+        const page = byId.get(id);
 
-        if (!nextPage || currentId === id) {
+        if (!page || currentId === id) {
             return null;
         }
 
         currentId = id;
-        root.replaceChildren(nextPage);
+        root.replaceChildren(createStagePage(id, page.innerHtml ?? ''));
         return { id };
     };
 
@@ -97,6 +97,7 @@ function createStageStack(helper, container, pages) {
             chrome: false,
             className: 'operator-media-test-stage-stack',
             transition: 'slide',
+            duration: 260,
             initialPages: [byId.get('ready')],
         });
 
@@ -286,27 +287,27 @@ function modalContent(helper) {
     stackHost.className = 'operator-media-test-stack-host';
     stackHost.dataset.mediaTestStack = '';
 
-    const readyPage = createStagePage('ready', `
+    const readyMarkup = `
         <div class="operator-media-test-status" data-media-test-status data-tone="info">Idle: ready to test microphone capture and media storage.</div>
         <p class="operator-media-test-copy">This diagnostic records microphone audio, sends chunks through Realtime, finalizes them in Hotline storage, and plays back the saved result.</p>
         <footer class="operator-media-test-stage-footer operator-media-test-controls">
             <button class="surface-button primary" type="button" data-media-test-start>Start</button>
         </footer>
-    `);
-    const recordingPage = createStagePage('recording', `
+    `;
+    const recordingMarkup = `
         <div class="operator-media-test-status" data-media-test-status data-tone="info">Recording: capturing microphone audio.</div>
         ${metricMarkup()}
         <div class="operator-media-test-live-graph" data-media-test-live-graph></div>
         <footer class="operator-media-test-stage-footer operator-media-test-controls">
             <button class="surface-button primary" type="button" data-media-test-stop>Stop</button>
         </footer>
-    `);
-    const finalizingPage = createStagePage('finalizing', `
+    `;
+    const finalizingMarkup = `
         <div class="operator-media-test-status" data-media-test-status data-tone="info">Finalize: assembling diagnostic audio.</div>
         ${metricMarkup()}
         <footer class="operator-media-test-stage-footer operator-media-test-controls"></footer>
-    `);
-    const finalizedPage = createStagePage('finalized', `
+    `;
+    const finalizedMarkup = `
         <div class="operator-media-test-status" data-media-test-status data-tone="success">Complete: diagnostic audio finalized and ready for playback.</div>
         ${metricMarkup()}
         <div class="operator-media-test-playback-compare">
@@ -322,20 +323,20 @@ function modalContent(helper) {
         <footer class="operator-media-test-stage-footer operator-media-test-controls">
             <button class="surface-button primary" type="button" data-media-test-start>Start Again</button>
         </footer>
-    `);
-    const errorPage = createStagePage('error', `
+    `;
+    const errorMarkup = `
         <div class="operator-media-test-status" data-media-test-status data-tone="error">Error: unable to complete media stream test.</div>
         <div class="operator-media-test-error" data-media-test-error></div>
         <footer class="operator-media-test-stage-footer operator-media-test-controls">
             <button class="surface-button primary" type="button" data-media-test-start>Try Again</button>
         </footer>
-    `);
+    `;
     const pages = [
-        { id: 'ready', title: 'Ready', content: readyPage },
-        { id: 'recording', title: 'Recording', content: recordingPage },
-        { id: 'finalizing', title: 'Finalizing', content: finalizingPage },
-        { id: 'finalized', title: 'Finalized', content: finalizedPage },
-        { id: 'error', title: 'Error', content: errorPage },
+        { id: 'ready', title: 'Ready', innerHtml: readyMarkup, render: () => createStagePage('ready', readyMarkup) },
+        { id: 'recording', title: 'Recording', innerHtml: recordingMarkup, render: () => createStagePage('recording', recordingMarkup) },
+        { id: 'finalizing', title: 'Finalizing', innerHtml: finalizingMarkup, render: () => createStagePage('finalizing', finalizingMarkup) },
+        { id: 'finalized', title: 'Finalized', innerHtml: finalizedMarkup, render: () => createStagePage('finalized', finalizedMarkup) },
+        { id: 'error', title: 'Error', innerHtml: errorMarkup, render: () => createStagePage('error', errorMarkup) },
     ];
 
     content.appendChild(stackHost);
