@@ -121,6 +121,30 @@ await assert.rejects(
 );
 assert.equal(finalizeCalledAfterFailure, false);
 
+let delayedStopFinalizePayload = null;
+await finalizeStoppedDiagnosticRecording({
+    session: {
+        async stop() {
+            await new Promise((resolve) => setTimeout(resolve, 10));
+
+            return { chunk_count: 1 };
+        },
+    },
+    client: {
+        async finalize(mediaId, payload) {
+            delayedStopFinalizePayload = payload;
+
+            return { media: { id: mediaId } };
+        },
+    },
+    media: { id: 78, processing: true },
+    record: { extension: 'weba' },
+    recordingStartedAt: 1000,
+    now: () => 4000,
+});
+assert.equal(delayedStopFinalizePayload.duration_seconds, 3);
+assert.equal(delayedStopFinalizePayload.ended_at, new Date(4000).toISOString());
+
 const requests = [];
 const client = createDiagnosticMediaClient({
     async request(url, options = {}) {

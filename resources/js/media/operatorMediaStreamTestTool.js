@@ -597,6 +597,7 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
             setText(content, '[data-media-test-finalize]', 'Uploading final metadata...');
             setPhase(content, 'Finalize', 'assembling diagnostic audio.');
             modal?.setBusy?.(true, { message: 'Uploading final metadata...' });
+            const stoppedAtMs = Date.now();
             localReferenceMedia = await localReferenceRecorder?.stop?.();
             localReferenceRecorder = null;
             const { stopped, finalized } = await finalizeStoppedDiagnosticRecording({
@@ -605,6 +606,7 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
                 media,
                 record,
                 recordingStartedAt,
+                now: () => stoppedAtMs,
             });
             chunkCount = Math.max(chunkCount, Number(stopped?.chunk_count ?? 0));
             stopElapsedTimer();
