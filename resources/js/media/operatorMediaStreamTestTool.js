@@ -1,6 +1,7 @@
 import { createDiagnosticMediaClient, finalizeStoppedDiagnosticRecording } from './diagnosticMediaClient.js';
 import { mountHelperAudioPlayback } from './helperAudioPlayback.js';
 import { createMediaStreamSession, resolveAudioRecorderSpec } from './mediaStreamSession.js';
+import { createRealtimeOperatorDiagnosticMediaChunkTransport } from './transports/realtimeChunkTransport.js';
 import { ensureHelperUi, showToast } from '../surfaces/surfaceShared.js';
 
 function formatElapsed(seconds) {
@@ -96,6 +97,9 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
 
     const content = modalContent();
     const client = options.client ?? createDiagnosticMediaClient();
+    const chunkTransport = options.chunkTransport ?? createRealtimeOperatorDiagnosticMediaChunkTransport({
+        mode: options.transportMode ?? 'realtime-base64',
+    });
     const toggleButton = content.querySelector('[data-media-test-toggle]');
     const resetButton = content.querySelector('[data-media-test-reset]');
     const playbackHost = content.querySelector('[data-media-test-playback]');
@@ -182,11 +186,12 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
 
         try {
             const spec = resolveAudioRecorderSpec();
+            const segmentKey = `operator-diagnostic-${Date.now()}`;
             const response = await client.createSession({
                 mime_type: spec.mimeType,
                 extension: spec.extension,
                 track_kind: 'audio',
-                segment_key: `operator-diagnostic-${Date.now()}`,
+                segment_key: segmentKey,
             });
 
             media = response?.media;
@@ -196,6 +201,7 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
                 status: 'recording',
                 extension: spec.extension,
                 mime_type: spec.mimeType,
+                segment_key: segmentKey,
                 created_at: new Date().toISOString(),
             };
 
@@ -206,11 +212,23 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
                     }
                 },
                 async onChunk(chunk) {
-                    const uploaded = await client.uploadChunk(media.id, {
-                        ...chunk,
+                    await chunkTransport.publishChunk({
+                        media_id: media.id,
+                        incident_id: null,
+                        call_session_id: null,
+                        segment_key: media?.metadata?.segment_key ?? record?.segment_key ?? '',
+                        type: 'operator_media_stream_test',
+                        peer_user_id: media?.peer_user_id,
+                        peer_role: 'operator',
+                        track_kind: 'audio',
+                        mime_type: chunk?.mime_type ?? spec.mimeType,
+                        extension: chunk?.extension ?? spec.extension,
+                        chunk_index: chunk?.chunk_index ?? 0,
+                        chunk_total: null,
+                        total_bytes: chunk?.blob?.size ?? null,
                         chunk_blob: chunk.blob,
-                    });
-                    chunkCount = Number(uploaded?.chunk?.chunk_count ?? chunk.chunk_count ?? chunkCount + 1);
+                    }, record);
+                    chunkCount = Math.max(chunkCount, Number(chunk?.chunk_index ?? 0) + 1);
                     setText(content, '[data-media-test-chunks]', String(chunkCount));
                 },
                 onError(error, detail = {}) {
@@ -316,6 +334,7 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
             session?.destroy?.();
             playbackApi?.destroy?.();
             stopElapsedTimer();
+            chunkTransport?.destroy?.(media?.id);
             void cancelDiagnosticMedia('modal_closed');
         },
     });

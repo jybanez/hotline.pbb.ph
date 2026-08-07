@@ -122,6 +122,99 @@ class MediaChunkIngressTest extends TestCase
         $this->assertSame('wrapped chunk', Storage::disk('local')->get($chunkPath));
     }
 
+    public function test_internal_media_chunk_ingest_accepts_realtime_forwarded_diagnostic_media(): void
+    {
+        Storage::fake('local');
+        $operator = User::factory()->create([
+            'role' => UserRole::Operator,
+            'status' => UserStatus::Active,
+        ]);
+        $this->setMediaIngestSecret('test-media-secret');
+
+        $mediaId = DB::table('media')->insertGetId([
+            'incident_id' => null,
+            'call_session_id' => null,
+            'type' => 'operator_media_stream_test',
+            'peer_user_id' => $operator->id,
+            'peer_role' => 'operator',
+            'peer_label' => $operator->name,
+            'path' => '',
+            'duration_seconds' => null,
+            'metadata_json' => json_encode([
+                'diagnostic' => true,
+                'diagnostic_type' => 'operator_media_stream_storage',
+                'processing' => true,
+                'segment_key' => 'operator-diagnostic-segment',
+                'extension' => 'weba',
+                'track_kind' => 'audio',
+            ]),
+            'created_at' => now()->subMinute(),
+            'available_at' => null,
+        ]);
+
+        $response = $this->postJson('/api/internal/media/chunks', [
+            'type' => 'media.chunk.publish',
+            'room' => "hotline.media.diagnostic.{$mediaId}",
+            'client_code' => 'clt_hotline',
+            'project_code' => 'prj_01KMXG0AXVRCG0WGZMMYKTVPZV',
+            'payload' => [
+                'media_id' => $mediaId,
+                'type' => 'operator_media_stream_test',
+                'peer_user_id' => $operator->id,
+                'peer_role' => 'operator',
+                'track_kind' => 'audio',
+                'mime_type' => 'audio/webm;codecs=opus',
+                'extension' => 'weba',
+                'segment_key' => 'operator-diagnostic-segment',
+                'chunk_index' => 0,
+                'total_bytes' => 16,
+                'chunk_data' => base64_encode('diagnostic chunk'),
+            ],
+            'meta' => [
+                'sender' => [
+                    'user_id' => $operator->id,
+                    'display_name' => $operator->name,
+                    'project_code' => 'prj_01KMXG0AXVRCG0WGZMMYKTVPZV',
+                    'app_code' => 'clt_hotline',
+                ],
+            ],
+        ], [
+            'X-Realtime-Media-Ingest-Secret' => 'test-media-secret',
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('ok', true);
+
+        $chunkPath = $response->json('chunk.chunk_path');
+        $this->assertNotEmpty($chunkPath);
+        Storage::disk('local')->assertExists($chunkPath);
+        $this->assertSame('diagnostic chunk', Storage::disk('local')->get($chunkPath));
+    }
+
+    public function test_internal_media_chunk_ingest_still_requires_call_context_for_live_media(): void
+    {
+        Storage::fake('local');
+        [$operator, $mediaId] = $this->seedCallMediaFixture();
+        $this->setMediaIngestSecret('test-media-secret');
+
+        $this->postJson('/api/internal/media/chunks', [
+            'media_id' => $mediaId,
+            'type' => 'audio_peer',
+            'peer_user_id' => $operator->id,
+            'peer_role' => 'operator',
+            'track_kind' => 'audio',
+            'mime_type' => 'audio/webm;codecs=opus',
+            'extension' => 'weba',
+            'segment_key' => 'operator-audio-segment',
+            'chunk_index' => 0,
+            'chunk_data' => base64_encode('missing context chunk'),
+            'sender_user_id' => $operator->id,
+        ], [
+            'X-Hotline-Media-Ingest-Secret' => 'test-media-secret',
+        ])->assertStatus(422)
+            ->assertJsonPath('message', 'Media ingest requires incident and call session context.');
+    }
+
     public function test_internal_media_chunk_ingest_accepts_citizen_media_aliases(): void
     {
         Storage::fake('local');
