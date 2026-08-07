@@ -129,7 +129,6 @@ function modalContent(helper) {
         <p class="operator-media-test-copy">This diagnostic records microphone audio, sends chunks through Realtime, finalizes them in Hotline storage, and plays back the saved result.</p>
         <footer class="operator-media-test-stage-footer operator-media-test-controls">
             <button class="surface-button primary" type="button" data-media-test-start>Start</button>
-            <button class="surface-button secondary" type="button" data-media-test-close>Close</button>
         </footer>
     `);
     const recordingPage = createStagePage('recording', `
@@ -138,7 +137,6 @@ function modalContent(helper) {
         <footer class="operator-media-test-stage-footer operator-media-test-controls">
             <button class="surface-button primary" type="button" data-media-test-stop>Stop</button>
             <button class="surface-button secondary" type="button" data-media-test-reset>Reset</button>
-            <button class="surface-button secondary" type="button" data-media-test-close>Close</button>
         </footer>
     `);
     const finalizedPage = createStagePage('finalized', `
@@ -148,7 +146,6 @@ function modalContent(helper) {
         <footer class="operator-media-test-stage-footer operator-media-test-controls">
             <button class="surface-button primary" type="button" data-media-test-start>Start New</button>
             <button class="surface-button secondary" type="button" data-media-test-reset>Reset</button>
-            <button class="surface-button secondary" type="button" data-media-test-close>Close</button>
         </footer>
     `);
     const errorPage = createStagePage('error', `
@@ -157,7 +154,6 @@ function modalContent(helper) {
         <footer class="operator-media-test-stage-footer operator-media-test-controls">
             <button class="surface-button primary" type="button" data-media-test-start>Try Again</button>
             <button class="surface-button secondary" type="button" data-media-test-reset>Reset</button>
-            <button class="surface-button secondary" type="button" data-media-test-close>Close</button>
         </footer>
     `);
     const pages = [
@@ -426,10 +422,8 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
         }
     };
 
-    let modal = null;
-
     content.addEventListener('click', (event) => {
-        const button = event.target?.closest?.('[data-media-test-start], [data-media-test-stop], [data-media-test-reset], [data-media-test-close]');
+        const button = event.target?.closest?.('[data-media-test-start], [data-media-test-stop], [data-media-test-reset]');
 
         if (!button) {
             return;
@@ -447,15 +441,10 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
 
         if (button.matches('[data-media-test-reset]')) {
             void resetState();
-            return;
-        }
-
-        if (button.matches('[data-media-test-close]')) {
-            modal?.close?.({ reason: 'operator_closed' });
         }
     });
 
-    modal = helper.createActionModal({
+    const modal = helper.createActionModal({
         title: 'Test Media Stream Storage',
         ariaLabel: 'Test media stream storage',
         size: 'md',
