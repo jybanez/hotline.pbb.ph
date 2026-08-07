@@ -1821,12 +1821,12 @@
 
 .operator-media-test-stack-host,
 .operator-media-test-stage-stack {
-    min-height: 19rem;
+    min-height: 23rem;
 }
 
 .operator-media-test-stage-stack.ui-navigation-stack,
 .operator-media-test-stage-stack.is-fallback {
-    min-height: 19rem;
+    min-height: 23rem;
     overflow: hidden;
     position: relative;
 }
@@ -1834,7 +1834,7 @@
 .operator-media-test-stage-stack .ui-navigation-stack-viewport,
 .operator-media-test-stage-stack .ui-navigation-stack-page,
 .operator-media-test-stage-stack .ui-navigation-stack-page-body {
-    min-height: 19rem;
+    min-height: 23rem;
 }
 
 .operator-media-test-stage-stack .ui-navigation-stack-page-body {
@@ -1872,7 +1872,7 @@
     display: grid;
     gap: 1rem;
     grid-template-rows: auto auto 1fr auto;
-    min-height: 19rem;
+    min-height: 23rem;
     padding: 0.1rem 0;
     width: 100%;
 }

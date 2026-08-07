@@ -28,6 +28,14 @@ function setPhase(host, phase, message, tone = 'info') {
     });
 }
 
+function waitForStagePaint() {
+    return new Promise((resolve) => {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(resolve);
+        });
+    });
+}
+
 function metricMarkup() {
     return `
         <dl class="operator-media-test-metrics">
@@ -441,8 +449,17 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
     let chunkCount = 0;
     let isBusy = false;
 
-    const goToStage = (stage) => {
+    const goToStage = async (stage) => {
         stageStack?.goTo?.(stage);
+        await waitForStagePaint();
+    };
+
+    const queryCurrentStage = (selector) => {
+        const currentPage = content.querySelector('.operator-media-test-stage.is-active')
+            ?? content.querySelector('.ui-navigation-stack-page.is-active .operator-media-test-stage')
+            ?? content.querySelector('.operator-media-test-stage');
+
+        return currentPage?.querySelector?.(selector) ?? content.querySelector(selector);
     };
 
     const setButtonsDisabled = (selector, disabled) => {
@@ -514,7 +531,7 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
         setText(content, '[data-media-test-finalize]', 'Not started');
         setPhase(content, 'Idle', 'ready to test microphone capture and media storage.');
         clearError(content);
-        goToStage('ready');
+        await goToStage('ready');
     };
 
     const startRecording = async () => {
@@ -593,9 +610,9 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
             localReferenceRecorder?.start?.();
             recordingStartedAt = Date.now();
             elapsedTimer = setInterval(updateElapsed, 500);
-            goToStage('recording');
+            await goToStage('recording');
             liveGraphApi?.destroy?.();
-            const graphHost = content.querySelector('[data-media-test-live-graph]');
+            const graphHost = queryCurrentStage('[data-media-test-live-graph]');
             liveGraphApi = await mountRecordingAudioGraph(graphHost, session.getStream?.(), helper);
             setText(content, '[data-media-test-chunks]', '0');
             setText(content, '[data-media-test-finalize]', 'Waiting for stop');
@@ -630,7 +647,7 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
         setButtonsDisabled('[data-media-test-start]', true);
         setButtonsDisabled('[data-media-test-stop]', true);
         clearError(content);
-        goToStage('finalizing');
+        await goToStage('finalizing');
         setText(content, '[data-media-test-chunks]', String(chunkCount));
         updateElapsed();
         setPhase(content, 'Stop', 'flushing final media chunks.');
@@ -654,16 +671,16 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
             stopElapsedTimer();
 
             media = finalized?.media ?? media;
-            goToStage('finalized');
+            await goToStage('finalized');
             setText(content, '[data-media-test-chunks]', String(chunkCount));
             updateElapsed();
             setText(content, '[data-media-test-finalize]', media?.discarded ? 'Discarded: no chunks captured' : 'Complete');
             setPhase(content, 'Complete', media?.discarded ? 'no audio chunks were captured.' : 'diagnostic audio finalized and ready for playback.', media?.discarded ? 'warn' : 'success');
             localPlaybackApi?.destroy?.();
-            const localPlaybackHost = content.querySelector('[data-media-test-local-playback]');
+            const localPlaybackHost = queryCurrentStage('[data-media-test-local-playback]');
             localPlaybackApi = await mountHelperAudioPlayback(localPlaybackHost, localReferenceMedia, { helper });
             playbackApi?.destroy?.();
-            const playbackHost = content.querySelector('[data-media-test-playback]');
+            const playbackHost = queryCurrentStage('[data-media-test-playback]');
             playbackApi = await mountHelperAudioPlayback(playbackHost, media, { helper });
             session = null;
         } catch (error) {
