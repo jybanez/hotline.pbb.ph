@@ -1,4 +1,18 @@
-export function mountHelperAudioPlayback(host, media = {}, options = {}) {
+async function resolveAudioCallSession(helper) {
+    if (typeof helper?.createAudioCallSession === 'function') {
+        return helper.createAudioCallSession;
+    }
+
+    if (typeof helper?.uiLoader?.get === 'function') {
+        const createAudioCallSession = await helper.uiLoader.get('ui.audio.callSession');
+        helper.createAudioCallSession = createAudioCallSession;
+        return createAudioCallSession;
+    }
+
+    return null;
+}
+
+export async function mountHelperAudioPlayback(host, media = {}, options = {}) {
     if (!host) {
         return { destroy() {} };
     }
@@ -16,8 +30,10 @@ export function mountHelperAudioPlayback(host, media = {}, options = {}) {
         return { destroy() {} };
     }
 
-    if (typeof helper?.createAudioCallSession === 'function') {
-        const api = helper.createAudioCallSession(host, {
+    const createAudioCallSession = await resolveAudioCallSession(helper);
+
+    if (typeof createAudioCallSession === 'function') {
+        const api = createAudioCallSession(host, {
             media: [{
                 id: media.id,
                 type: media.type ?? 'operator_media_stream_test',

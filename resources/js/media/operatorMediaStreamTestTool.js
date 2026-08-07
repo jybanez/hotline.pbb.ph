@@ -136,16 +136,19 @@ function modalContent(helper) {
         ${metricMarkup()}
         <footer class="operator-media-test-stage-footer operator-media-test-controls">
             <button class="surface-button primary" type="button" data-media-test-stop>Stop</button>
-            <button class="surface-button secondary" type="button" data-media-test-reset>Reset</button>
         </footer>
+    `);
+    const finalizingPage = createStagePage('finalizing', `
+        <div class="operator-media-test-status" data-media-test-status data-tone="info">Finalize: assembling diagnostic audio.</div>
+        ${metricMarkup()}
+        <footer class="operator-media-test-stage-footer operator-media-test-controls"></footer>
     `);
     const finalizedPage = createStagePage('finalized', `
         <div class="operator-media-test-status" data-media-test-status data-tone="success">Complete: diagnostic audio finalized and ready for playback.</div>
         ${metricMarkup()}
         <div class="operator-media-test-playback" data-media-test-playback></div>
         <footer class="operator-media-test-stage-footer operator-media-test-controls">
-            <button class="surface-button primary" type="button" data-media-test-start>Start New</button>
-            <button class="surface-button secondary" type="button" data-media-test-reset>Reset</button>
+            <button class="surface-button primary" type="button" data-media-test-start>Start Again</button>
         </footer>
     `);
     const errorPage = createStagePage('error', `
@@ -153,12 +156,12 @@ function modalContent(helper) {
         <div class="operator-media-test-error" data-media-test-error></div>
         <footer class="operator-media-test-stage-footer operator-media-test-controls">
             <button class="surface-button primary" type="button" data-media-test-start>Try Again</button>
-            <button class="surface-button secondary" type="button" data-media-test-reset>Reset</button>
         </footer>
     `);
     const pages = [
         { id: 'ready', title: 'Ready', content: readyPage },
         { id: 'recording', title: 'Recording', content: recordingPage },
+        { id: 'finalizing', title: 'Finalizing', content: finalizingPage },
         { id: 'finalized', title: 'Finalized', content: finalizedPage },
         { id: 'error', title: 'Error', content: errorPage },
     ];
@@ -280,7 +283,7 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
         recordingStartedAt = null;
         chunkCount = 0;
         isBusy = false;
-        setButtonsDisabled('[data-media-test-start], [data-media-test-stop], [data-media-test-reset]', false);
+        setButtonsDisabled('[data-media-test-start], [data-media-test-stop]', false);
         setText(content, '[data-media-test-chunks]', '0');
         setText(content, '[data-media-test-elapsed]', '00:00');
         setText(content, '[data-media-test-finalize]', 'Not started');
@@ -296,6 +299,11 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
 
         isBusy = true;
         clearError(content);
+        playbackApi?.destroy?.();
+        playbackApi = null;
+        stopElapsedTimer();
+        recordingStartedAt = null;
+        chunkCount = 0;
         setPhase(content, 'Create', 'creating diagnostic media record.');
         setButtonsDisabled('[data-media-test-start], [data-media-test-stop]', true);
 
@@ -382,6 +390,9 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
         setButtonsDisabled('[data-media-test-start]', true);
         setButtonsDisabled('[data-media-test-stop]', true);
         clearError(content);
+        goToStage('finalizing');
+        setText(content, '[data-media-test-chunks]', String(chunkCount));
+        updateElapsed();
         setPhase(content, 'Stop', 'flushing final media chunks.');
 
         try {
@@ -405,7 +416,7 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
             setPhase(content, 'Complete', media?.discarded ? 'no audio chunks were captured.' : 'diagnostic audio finalized and ready for playback.', media?.discarded ? 'warn' : 'success');
             playbackApi?.destroy?.();
             const playbackHost = content.querySelector('[data-media-test-playback]');
-            playbackApi = mountHelperAudioPlayback(playbackHost, media, { helper });
+            playbackApi = await mountHelperAudioPlayback(playbackHost, media, { helper });
             session = null;
         } catch (error) {
             showError(content, 'Finalize', error);
@@ -423,7 +434,7 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
     };
 
     content.addEventListener('click', (event) => {
-        const button = event.target?.closest?.('[data-media-test-start], [data-media-test-stop], [data-media-test-reset]');
+        const button = event.target?.closest?.('[data-media-test-start], [data-media-test-stop]');
 
         if (!button) {
             return;
@@ -439,9 +450,6 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
             return;
         }
 
-        if (button.matches('[data-media-test-reset]')) {
-            void resetState();
-        }
     });
 
     const modal = helper.createActionModal({
