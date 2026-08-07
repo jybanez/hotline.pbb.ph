@@ -63,25 +63,66 @@ function createFallbackStageStack(container, pages = []) {
 
     const byId = new Map(pages.map((page) => [page.id, page]));
     let currentId = null;
+    let currentPage = null;
+    let transitionTimer = null;
 
-    const goTo = (id) => {
+    const finishTransition = (nextPage, previousPage = null) => {
+        transitionTimer = null;
+        nextPage.classList.remove('is-entering', 'is-push');
+        nextPage.classList.add('is-active');
+        previousPage?.remove();
+        currentPage = nextPage;
+    };
+
+    const goTo = (id, options = {}) => {
         const page = byId.get(id);
 
         if (!page || currentId === id) {
             return null;
         }
 
+        const previousPage = currentPage;
+        const nextPage = createStagePage(id, page.innerHtml ?? '');
+        const animate = options.animate !== false && Boolean(previousPage);
+
+        window.clearTimeout(transitionTimer);
         currentId = id;
-        root.replaceChildren(createStagePage(id, page.innerHtml ?? ''));
+
+        if (!animate) {
+            root.replaceChildren(nextPage);
+            currentPage = nextPage;
+            return { id };
+        }
+
+        previousPage.classList.remove('is-active', 'is-entering', 'is-push');
+        previousPage.classList.add('is-exiting', 'is-push');
+        nextPage.classList.add('is-entering', 'is-push');
+        root.appendChild(nextPage);
+        root.dataset.transitioning = 'true';
+
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                nextPage.classList.add('is-active');
+                nextPage.classList.remove('is-entering');
+                previousPage.classList.add('is-hidden');
+            });
+        });
+
+        transitionTimer = window.setTimeout(() => {
+            delete root.dataset.transitioning;
+            finishTransition(nextPage, previousPage);
+        }, 320);
+
         return { id };
     };
 
-    goTo(pages[0]?.id);
+    goTo(pages[0]?.id, { animate: false });
 
     return {
         root,
         goTo,
         destroy() {
+            window.clearTimeout(transitionTimer);
             root.replaceChildren();
             root.remove();
         },

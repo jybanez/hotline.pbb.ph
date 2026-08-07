@@ -1827,10 +1827,45 @@
 .operator-media-test-stage-stack.ui-navigation-stack,
 .operator-media-test-stage-stack.is-fallback {
     min-height: 19rem;
+    overflow: hidden;
+    position: relative;
+}
+
+.operator-media-test-stage-stack .ui-navigation-stack-viewport,
+.operator-media-test-stage-stack .ui-navigation-stack-page,
+.operator-media-test-stage-stack .ui-navigation-stack-page-body {
+    min-height: 19rem;
 }
 
 .operator-media-test-stage-stack .ui-navigation-stack-page-body {
     display: grid;
+}
+
+.operator-media-test-stage-stack.is-fallback {
+    display: grid;
+}
+
+.operator-media-test-stage-stack.is-fallback .operator-media-test-stage {
+    background: inherit;
+    color: inherit;
+    grid-area: 1 / 1;
+    transition:
+        transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
+        opacity 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.operator-media-test-stage-stack.is-fallback .operator-media-test-stage.is-entering.is-push {
+    opacity: 1;
+    transform: translateX(100%);
+}
+
+.operator-media-test-stage-stack.is-fallback .operator-media-test-stage.is-exiting.is-push {
+    opacity: 1;
+    transform: translateX(-24%);
+}
+
+.operator-media-test-stage-stack.is-fallback .operator-media-test-stage.is-hidden {
+    opacity: 0;
 }
 
 .operator-media-test-stage {
