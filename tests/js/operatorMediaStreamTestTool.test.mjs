@@ -4,6 +4,7 @@ import {
     finalizeStoppedDiagnosticRecording,
 } from '../../resources/js/media/diagnosticMediaClient.js';
 import { Consumer } from '../../resources/js/media/consumer.js';
+import { mountHelperAudioPlayback } from '../../resources/js/media/helperAudioPlayback.js';
 import { createMediaStreamSession, resolveAudioRecorderSpec } from '../../resources/js/media/mediaStreamSession.js';
 
 class FakeTrack {
@@ -197,3 +198,37 @@ const staleConsumer = new Consumer({
 await staleConsumer.tick();
 assert.equal(staleConsumer.getItem().state, 'discarded');
 assert.deepEqual(deleted, ['chunks:9', 'record:9']);
+
+let helperAudioPayload = null;
+const playbackHost = {
+    replaceChildren() {},
+    appendChild() {},
+};
+const playbackApi = await mountHelperAudioPlayback(playbackHost, {
+    id: 91,
+    type: 'operator_media_stream_test',
+    path: 'diagnostics/operator-media-stream-tests/91/audio.weba',
+    playback_url: '/storage/diagnostics/operator-media-stream-tests/91/audio.weba',
+    duration_seconds: 29,
+    peer_label: 'Operator diagnostic',
+    created_at: '2026-08-07T01:02:03+00:00',
+    available_at: '2026-08-07T01:02:34+00:00',
+    metadata: { diagnostic: true },
+}, {
+    helper: {
+        createAudioCallSession(_host, payload) {
+            helperAudioPayload = payload;
+            return { destroy() {} };
+        },
+    },
+});
+
+assert.equal(typeof playbackApi.destroy, 'function');
+assert.equal(helperAudioPayload.call_duration_seconds, 29);
+assert.equal(helperAudioPayload.media.length, 1);
+assert.equal(helperAudioPayload.media[0].type, 'audio');
+assert.equal(helperAudioPayload.media[0].srcUrl, '/storage/diagnostics/operator-media-stream-tests/91/audio.weba');
+assert.equal(helperAudioPayload.media[0].path, '/storage/diagnostics/operator-media-stream-tests/91/audio.weba');
+assert.equal(helperAudioPayload.media[0].peer_role, 'operator');
+assert.equal(helperAudioPayload.media[0].metadata.peer_role, 'operator');
+assert.match(helperAudioPayload.media[0].metadata.recording_role, /^operator-91-/);

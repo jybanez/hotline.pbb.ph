@@ -12,6 +12,24 @@ async function resolveAudioCallSession(helper) {
     return null;
 }
 
+function helperRecordingRole(media) {
+    const startedAt = String(
+        media?.metadata?.started_at
+        ?? media?.available_at
+        ?? media?.created_at
+        ?? ''
+    ).trim();
+    const startedMs = Date.parse(startedAt);
+    const timestampToken = Number.isFinite(startedMs)
+        ? new Date(startedMs).toISOString().replace(/\.\d{3}Z$/, 'Z').replace(/:/g, '-')
+        : '';
+    const mediaId = Number(media?.id ?? 0);
+
+    return timestampToken && mediaId
+        ? `operator-${mediaId}-${timestampToken}`
+        : '';
+}
+
 export async function mountHelperAudioPlayback(host, media = {}, options = {}) {
     if (!host) {
         return { destroy() {} };
@@ -33,16 +51,26 @@ export async function mountHelperAudioPlayback(host, media = {}, options = {}) {
     const createAudioCallSession = await resolveAudioCallSession(helper);
 
     if (typeof createAudioCallSession === 'function') {
+        const metadata = media?.metadata && typeof media.metadata === 'object' ? media.metadata : {};
+        const recordingRole = helperRecordingRole(media);
+
         const api = createAudioCallSession(host, {
+            call_duration_seconds: media.duration_seconds ?? null,
             media: [{
                 id: media.id,
-                type: media.type ?? 'operator_media_stream_test',
+                type: 'audio',
                 path: playbackUrl,
-                url: playbackUrl,
-                playback_url: playbackUrl,
+                srcUrl: playbackUrl,
                 duration_seconds: media.duration_seconds ?? null,
+                peer_role: 'operator',
                 peer_label: media.peer_label ?? 'Operator diagnostic',
+                created_at: media.created_at ?? null,
                 available_at: media.available_at ?? null,
+                metadata: {
+                    ...metadata,
+                    peer_role: 'operator',
+                    recording_role: recordingRole || metadata.recording_role || '',
+                },
             }],
             call_session: {
                 id: `diagnostic-${media.id ?? 'media'}`,
