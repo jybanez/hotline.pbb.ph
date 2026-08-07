@@ -3,6 +3,7 @@ import {
     createDiagnosticMediaClient,
     finalizeStoppedDiagnosticRecording,
 } from '../../resources/js/media/diagnosticMediaClient.js';
+import { Consumer } from '../../resources/js/media/consumer.js';
 import { createMediaStreamSession, resolveAudioRecorderSpec } from '../../resources/js/media/mediaStreamSession.js';
 
 class FakeTrack {
@@ -152,3 +153,47 @@ assert.equal(requests[2].options.data.duration_seconds, 1);
 assert.equal(requests[3].url, '/api/operator/media-tests/42');
 assert.equal(requests[3].options.method, 'delete');
 assert.equal(requests[3].options.data.reason, 'operator_reset');
+
+const deleted = [];
+const staleConsumer = new Consumer({
+    record: { media_id: 9, status: 'recording', media_type: 'operator-audio' },
+    storage: {
+        async getRecord(mediaId) {
+            return Number(mediaId) === 9
+                ? { media_id: 9, status: 'recording', media_type: 'operator-audio' }
+                : null;
+        },
+        async listChunks(mediaId) {
+            return Number(mediaId) === 9
+                ? [{
+                    media_id: 9,
+                    chunk_index: 0,
+                    payload: { media_id: 9, chunk_index: 0, chunk_blob: new Blob(['stale']) },
+                }]
+                : [];
+        },
+        async deleteChunksFor(mediaId) {
+            deleted.push(`chunks:${mediaId}`);
+        },
+        async deleteRecord(mediaId) {
+            deleted.push(`record:${mediaId}`);
+        },
+        async deleteChunk() {
+            deleted.push('chunk');
+        },
+        async updateChunkMeta() {
+            deleted.push('meta');
+        },
+    },
+    transport: {
+        async publishBootstrapChunk() {
+            const error = new Error('Media record is unavailable.');
+            error.response = { status: 404 };
+            throw error;
+        },
+    },
+});
+
+await staleConsumer.tick();
+assert.equal(staleConsumer.getItem().state, 'discarded');
+assert.deepEqual(deleted, ['chunks:9', 'record:9']);

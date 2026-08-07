@@ -1,6 +1,5 @@
 import { createDiagnosticMediaClient, finalizeStoppedDiagnosticRecording } from './diagnosticMediaClient.js';
 import { mountHelperAudioPlayback } from './helperAudioPlayback.js';
-import { createMediaQueueStorage } from './mediaQueueStorage.js';
 import { createMediaStreamSession, resolveAudioRecorderSpec } from './mediaStreamSession.js';
 import { ensureHelperUi, showToast } from '../surfaces/surfaceShared.js';
 
@@ -97,7 +96,6 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
 
     const content = modalContent();
     const client = options.client ?? createDiagnosticMediaClient();
-    const queue = options.queue ?? createMediaQueueStorage();
     const toggleButton = content.querySelector('[data-media-test-toggle]');
     const resetButton = content.querySelector('[data-media-test-reset]');
     const playbackHost = content.querySelector('[data-media-test-playback]');
@@ -123,7 +121,6 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
             processing: false,
             discarded: true,
         };
-        await queue.clearDiagnosticMedia(mediaId);
     };
 
     const updateElapsed = () => {
@@ -155,8 +152,6 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
             } catch (error) {
                 showError(content, 'Reset', error);
             }
-
-            await queue.clearDiagnosticMedia(media.id);
         }
 
         media = null;
@@ -203,7 +198,6 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
                 mime_type: spec.mimeType,
                 created_at: new Date().toISOString(),
             };
-            await queue.putRecord(record);
 
             session = createMediaStreamSession({
                 onStateChange(event) {
@@ -212,7 +206,6 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
                     }
                 },
                 async onChunk(chunk) {
-                    await queue.enqueueDiagnosticChunk(record, chunk);
                     const uploaded = await client.uploadChunk(media.id, {
                         ...chunk,
                         chunk_blob: chunk.blob,
@@ -273,7 +266,6 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
             stopElapsedTimer();
 
             media = finalized?.media ?? media;
-            await queue.clearDiagnosticMedia(media.id);
             setText(content, '[data-media-test-finalize]', media?.discarded ? 'Discarded: no chunks captured' : 'Complete');
             setPhase(content, 'Complete', media?.discarded ? 'no audio chunks were captured.' : 'diagnostic audio finalized and ready for playback.', media?.discarded ? 'warn' : 'success');
             playbackApi?.destroy?.();

@@ -198,6 +198,21 @@ export class Consumer {
             return;
         }
 
+        if (this.isRemoteMediaMissing(error)) {
+            await this.deleteRecord({
+                ...record,
+                failure_reason: 'remote_media_missing',
+            });
+            this.state = 'discarded';
+            this.debug?.('consumer-record-remote-missing-discarded', {
+                debugSource: 'Consumer',
+                mediaId: this.mediaId,
+                status: Number(error?.response?.status ?? 0),
+                source: 'consumer-manager',
+            });
+            return;
+        }
+
         const chunks = await this.storage.listChunks(this.mediaId);
         const chunk = chunks.at(0) ?? null;
 
@@ -255,6 +270,12 @@ export class Consumer {
             last_error: String(error?.message ?? error),
             updated_at: new Date().toISOString(),
         });
+    }
+
+    isRemoteMediaMissing(error) {
+        const status = Number(error?.response?.status ?? 0);
+
+        return status === 404 || status === 410;
     }
 
     async finalizeAndDelete(record) {
