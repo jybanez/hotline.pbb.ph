@@ -117,6 +117,48 @@ function createStageStack(helper, container, pages) {
     return createFallbackStageStack(container, pages);
 }
 
+async function mountRecordingAudioGraph(host, stream, helper) {
+    if (!host || !stream) {
+        return { destroy() {} };
+    }
+
+    host.replaceChildren();
+
+    const createAudioGraph = typeof helper?.createAudioGraph === 'function'
+        ? helper.createAudioGraph
+        : await helper?.uiLoader?.get?.('ui.audio.audiograph');
+
+    if (typeof createAudioGraph !== 'function') {
+        return { destroy() {} };
+    }
+
+    helper.createAudioGraph = createAudioGraph;
+
+    const api = createAudioGraph(host, {
+        role: 'operator',
+        roleLabel: 'Operator',
+        isLive: true,
+        isActive: true,
+    }, {
+        ariaLabel: 'Live microphone audio graph',
+        className: 'operator-media-test-live-audiograph',
+        style: 'tsunami',
+        transparentBackground: true,
+        showMute: false,
+        sensitivity: 3.4,
+    });
+
+    api?.attachMediaStream?.(stream);
+    api?.resume?.();
+
+    return {
+        destroy() {
+            api?.destroy?.();
+            host.replaceChildren();
+        },
+    };
+}
+
 function modalContent(helper) {
     const content = document.createElement('div');
     content.className = 'operator-media-test-tool';
@@ -134,6 +176,7 @@ function modalContent(helper) {
     const recordingPage = createStagePage('recording', `
         <div class="operator-media-test-status" data-media-test-status data-tone="info">Recording: capturing microphone audio.</div>
         ${metricMarkup()}
+        <div class="operator-media-test-live-graph" data-media-test-live-graph></div>
         <footer class="operator-media-test-stage-footer operator-media-test-controls">
             <button class="surface-button primary" type="button" data-media-test-stop>Stop</button>
         </footer>
@@ -220,6 +263,7 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
     let recordingStartedAt = null;
     let elapsedTimer = null;
     let playbackApi = null;
+    let liveGraphApi = null;
     let chunkCount = 0;
     let isBusy = false;
 
@@ -266,6 +310,8 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
     const resetState = async () => {
         session?.destroy?.();
         session = null;
+        liveGraphApi?.destroy?.();
+        liveGraphApi = null;
         playbackApi?.destroy?.();
         playbackApi = null;
         stopElapsedTimer();
@@ -363,11 +409,16 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
             recordingStartedAt = Date.now();
             elapsedTimer = setInterval(updateElapsed, 500);
             goToStage('recording');
+            liveGraphApi?.destroy?.();
+            const graphHost = content.querySelector('[data-media-test-live-graph]');
+            liveGraphApi = await mountRecordingAudioGraph(graphHost, session.getStream?.(), helper);
             setText(content, '[data-media-test-chunks]', '0');
             setText(content, '[data-media-test-finalize]', 'Waiting for stop');
             updateElapsed();
         } catch (error) {
             showError(content, 'Start', error);
+            liveGraphApi?.destroy?.();
+            liveGraphApi = null;
             session?.destroy?.();
             session = null;
             try {
@@ -387,6 +438,8 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
         }
 
         isBusy = true;
+        liveGraphApi?.destroy?.();
+        liveGraphApi = null;
         setButtonsDisabled('[data-media-test-start]', true);
         setButtonsDisabled('[data-media-test-stop]', true);
         clearError(content);
@@ -462,6 +515,7 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
         closeOnBackdrop: false,
         onClose() {
             session?.destroy?.();
+            liveGraphApi?.destroy?.();
             playbackApi?.destroy?.();
             stageStack?.destroy?.();
             stopElapsedTimer();

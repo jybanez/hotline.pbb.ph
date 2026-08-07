@@ -70,9 +70,11 @@ const session = createMediaStreamSession({
 
 await session.start();
 assert.equal(session.getState(), 'recording');
+assert.ok(session.getStream());
 assert.equal(FakeMediaRecorder.instances[0].timeslice, 250);
 await session.stop();
 assert.equal(session.getState(), 'idle');
+assert.equal(session.getStream(), null);
 assert.equal(chunks.length, 1);
 assert.equal(chunks[0].chunk_index, 0);
 assert.equal(chunks[0].extension, 'weba');

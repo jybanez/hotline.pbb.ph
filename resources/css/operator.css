@@ -1918,6 +1918,20 @@
     margin: 0;
 }
 
+.operator-media-test-live-graph {
+    align-self: stretch;
+    min-height: 5.25rem;
+}
+
+.operator-media-test-live-graph .ui-audiograph {
+    height: 100%;
+    min-height: 5.25rem;
+}
+
+.operator-media-test-live-graph .ui-audiograph-canvas {
+    min-height: 5.25rem;
+}
+
 .operator-media-test-playback audio,
 .operator-media-test-native-audio audio {
     display: block;

@@ -189,6 +189,7 @@ export function createMediaStreamSession(options = {}) {
         stop,
         destroy,
         getState: () => state,
+        getStream: () => stream,
         getChunkCount: () => chunkIndex,
         getFailedChunks: () => [...failedChunks],
         getSpec: () => spec,
