@@ -137,6 +137,7 @@ async function mountRecordingAudioGraph(host, stream, helper) {
     const api = createAudioGraph(host, {
         role: 'operator',
         roleLabel: 'Operator',
+        isPlaying: true,
         isLive: true,
         isActive: true,
     }, {
@@ -144,11 +145,17 @@ async function mountRecordingAudioGraph(host, stream, helper) {
         className: 'operator-media-test-live-audiograph',
         style: 'tsunami',
         transparentBackground: true,
+        freezeOnPause: false,
         showMute: false,
         sensitivity: 3.4,
     });
 
     api?.attachMediaStream?.(stream);
+    api?.setPlayback?.({
+        isPlaying: true,
+        isLive: true,
+        isActive: true,
+    });
     api?.resume?.();
 
     return {
