@@ -96,7 +96,7 @@ function createStageStack(helper, container, pages) {
             ariaLabel: 'Media stream storage test flow',
             chrome: false,
             className: 'operator-media-test-stage-stack',
-            transition: 'fade',
+            transition: 'slide',
             initialPages: [byId.get('ready')],
         });
 
@@ -127,34 +127,38 @@ function modalContent(helper) {
     const readyPage = createStagePage('ready', `
         <div class="operator-media-test-status" data-media-test-status data-tone="info">Idle: ready to test microphone capture and media storage.</div>
         <p class="operator-media-test-copy">This diagnostic records microphone audio, sends chunks through Realtime, finalizes them in Hotline storage, and plays back the saved result.</p>
-        <div class="operator-media-test-controls">
+        <footer class="operator-media-test-stage-footer operator-media-test-controls">
             <button class="surface-button primary" type="button" data-media-test-start>Start</button>
-        </div>
+            <button class="surface-button secondary" type="button" data-media-test-close>Close</button>
+        </footer>
     `);
     const recordingPage = createStagePage('recording', `
         <div class="operator-media-test-status" data-media-test-status data-tone="info">Recording: capturing microphone audio.</div>
         ${metricMarkup()}
-        <div class="operator-media-test-controls">
+        <footer class="operator-media-test-stage-footer operator-media-test-controls">
             <button class="surface-button primary" type="button" data-media-test-stop>Stop</button>
             <button class="surface-button secondary" type="button" data-media-test-reset>Reset</button>
-        </div>
+            <button class="surface-button secondary" type="button" data-media-test-close>Close</button>
+        </footer>
     `);
     const finalizedPage = createStagePage('finalized', `
         <div class="operator-media-test-status" data-media-test-status data-tone="success">Complete: diagnostic audio finalized and ready for playback.</div>
         ${metricMarkup()}
         <div class="operator-media-test-playback" data-media-test-playback></div>
-        <div class="operator-media-test-controls">
+        <footer class="operator-media-test-stage-footer operator-media-test-controls">
             <button class="surface-button primary" type="button" data-media-test-start>Start New</button>
             <button class="surface-button secondary" type="button" data-media-test-reset>Reset</button>
-        </div>
+            <button class="surface-button secondary" type="button" data-media-test-close>Close</button>
+        </footer>
     `);
     const errorPage = createStagePage('error', `
         <div class="operator-media-test-status" data-media-test-status data-tone="error">Error: unable to complete media stream test.</div>
         <div class="operator-media-test-error" data-media-test-error></div>
-        <div class="operator-media-test-controls">
+        <footer class="operator-media-test-stage-footer operator-media-test-controls">
             <button class="surface-button primary" type="button" data-media-test-start>Try Again</button>
             <button class="surface-button secondary" type="button" data-media-test-reset>Reset</button>
-        </div>
+            <button class="surface-button secondary" type="button" data-media-test-close>Close</button>
+        </footer>
     `);
     const pages = [
         { id: 'ready', title: 'Ready', content: readyPage },
@@ -422,8 +426,10 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
         }
     };
 
+    let modal = null;
+
     content.addEventListener('click', (event) => {
-        const button = event.target?.closest?.('[data-media-test-start], [data-media-test-stop], [data-media-test-reset]');
+        const button = event.target?.closest?.('[data-media-test-start], [data-media-test-stop], [data-media-test-reset], [data-media-test-close]');
 
         if (!button) {
             return;
@@ -441,22 +447,20 @@ export async function openOperatorMediaStreamTestTool(root, options = {}) {
 
         if (button.matches('[data-media-test-reset]')) {
             void resetState();
+            return;
+        }
+
+        if (button.matches('[data-media-test-close]')) {
+            modal?.close?.({ reason: 'operator_closed' });
         }
     });
 
-    const modal = helper.createActionModal({
+    modal = helper.createActionModal({
         title: 'Test Media Stream Storage',
         ariaLabel: 'Test media stream storage',
         size: 'md',
         content,
         closeOnBackdrop: false,
-        actions: [
-            {
-                id: 'close',
-                label: 'Close',
-                variant: 'default',
-            },
-        ],
         onClose() {
             session?.destroy?.();
             playbackApi?.destroy?.();

@@ -1040,6 +1040,8 @@ body.sitrep-pdf-body {
 .operator-media-test-stage {
     display: grid;
     gap: 1rem;
+    grid-template-rows: auto auto 1fr auto;
+    min-height: 19rem;
     padding: 0.1rem 0;
 }
 
@@ -1079,6 +1081,13 @@ body.sitrep-pdf-body {
     flex-wrap: wrap;
     gap: 0.65rem;
     justify-content: flex-start;
+}
+
+.operator-media-test-stage-footer {
+    align-self: end;
+    border-top: 1px solid rgba(130, 170, 220, 0.2);
+    margin-top: 0.15rem;
+    padding-top: 1rem;
 }
 
 .operator-media-test-metrics {
