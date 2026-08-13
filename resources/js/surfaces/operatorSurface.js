@@ -8255,6 +8255,13 @@ function mountOperatorUtilityTabs(root, dashboard) {
 
     const buildTabs = () => [
             {
+                id: 'fallback',
+                label: `Fallback (${Number(dashboard?.stat_chips?.find?.((chip) => chip?.label === 'Fallback')?.value ?? 0)})`,
+                render: (panel) => {
+                    mountOperatorFallbackDropQueue(panel, root);
+                },
+            },
+            {
                 id: 'archive',
                 label: 'Archive',
                 render: (panel) => {
@@ -8271,10 +8278,149 @@ function mountOperatorUtilityTabs(root, dashboard) {
         ];
 
     const tabs = trackSurfaceInstance(appState.helper.createTabs(tabsHost, {
-        activeId: 'archive',
+        activeId: 'fallback',
         tabs: buildTabs(),
         ariaLabel: 'Operator utility tabs',
     }));
+}
+
+function fallbackDropStatusLabel(status) {
+    const normalized = String(status ?? '').replace(/_/g, ' ').trim();
+
+    return normalized ? normalized.replace(/\b\w/g, (char) => char.toUpperCase()) : 'Unknown';
+}
+
+function fallbackDropCardMarkup(item) {
+    const displayId = item?.display_id ?? String(item?.id ?? '').padStart(6, '0');
+    const citizenName = item?.citizen?.name ?? 'Citizen';
+    const category = item?.quick_category ?? 'Emergency callback';
+    const description = item?.short_description ?? 'No details supplied.';
+    const status = fallbackDropStatusLabel(item?.status);
+    const createdAt = item?.created_at ? formatDateTime(item.created_at) : 'Time unavailable';
+    const attachmentCount = Array.isArray(item?.attachments) ? item.attachments.length : 0;
+    const claimedBy = item?.claimed_by_operator?.name ?? '';
+    const convertedIncidentId = Number(item?.converted_incident_id ?? 0);
+    const canClaim = String(item?.status ?? '') === 'new';
+    const canUpdate = ['claimed', 'callback_pending'].includes(String(item?.status ?? ''));
+    const canConvert = ['new', 'claimed', 'callback_pending'].includes(String(item?.status ?? '')) && !convertedIncidentId;
+    const canClose = ['new', 'claimed', 'callback_pending'].includes(String(item?.status ?? ''));
+
+    return `
+        <article class="operator-activity-item fallback-drop-card" data-fallback-drop-card="${escapeHtml(item?.id ?? '')}">
+            <div class="operator-activity-item-main">
+                <strong>#${escapeHtml(displayId)} · ${escapeHtml(category)}</strong>
+                <span>${escapeHtml(description)}</span>
+                <span>${escapeHtml(citizenName)} · ${escapeHtml(status)} · ${escapeHtml(createdAt)}</span>
+                ${claimedBy ? `<span>Claimed by ${escapeHtml(claimedBy)}</span>` : ''}
+                ${attachmentCount > 0 ? `<span>${attachmentCount} private photo${attachmentCount === 1 ? '' : 's'} awaiting review</span>` : ''}
+                ${convertedIncidentId > 0 ? `<span>Converted to incident #${escapeHtml(String(convertedIncidentId).padStart(6, '0'))}</span>` : ''}
+            </div>
+            <div class="operator-activity-item-actions">
+                ${canClaim ? `<button class="surface-button secondary tiny" type="button" data-fallback-action="claim" data-fallback-drop-id="${escapeHtml(item?.id ?? '')}">Claim</button>` : ''}
+                ${canUpdate ? `<button class="surface-button secondary tiny" type="button" data-fallback-action="callback" data-fallback-drop-id="${escapeHtml(item?.id ?? '')}">Callback</button>` : ''}
+                ${canConvert ? `<button class="surface-button primary tiny" type="button" data-fallback-action="convert" data-fallback-drop-id="${escapeHtml(item?.id ?? '')}">Convert</button>` : ''}
+                ${canClose ? `<button class="surface-button danger tiny" type="button" data-fallback-action="close" data-fallback-drop-id="${escapeHtml(item?.id ?? '')}">Close</button>` : ''}
+            </div>
+        </article>
+    `;
+}
+
+function mountOperatorFallbackDropQueue(panel, root) {
+    if (!panel) {
+        return;
+    }
+
+    panel.innerHTML = '<p class="surface-empty">Loading fallback callback queue...</p>';
+
+    const render = (items) => {
+        const drops = Array.isArray(items) ? items : [];
+
+        if (!drops.length) {
+            if (appState.helper.createEmptyState) {
+                panel.innerHTML = '';
+                trackSurfaceInstance(appState.helper.createEmptyState(panel, {
+                    title: 'No fallback callbacks',
+                    description: 'Citizen fallback drops will appear here when all operators were busy.',
+                }, {
+                    chrome: false,
+                    className: 'operator-activity-list-empty',
+                    ariaLabel: 'Fallback callback queue empty state',
+                }));
+            } else {
+                panel.innerHTML = '<p class="surface-empty">No fallback callbacks are waiting.</p>';
+            }
+            return;
+        }
+
+        panel.innerHTML = `
+            <div class="operator-activity-timeline-scroll fallback-drop-list">
+                ${drops.map((item) => fallbackDropCardMarkup(item)).join('')}
+            </div>
+        `;
+
+        panel.querySelectorAll('[data-fallback-action]').forEach((button) => {
+            button.addEventListener('click', async () => {
+                const action = String(button.dataset.fallbackAction ?? '');
+                const id = Number(button.dataset.fallbackDropId ?? 0);
+                if (!id || !action) {
+                    return;
+                }
+
+                button.disabled = true;
+                try {
+                    let request = null;
+                    if (action === 'claim') {
+                        request = fetchJson(`/api/operator/fallback-drops/${id}/claim`, { method: 'post' });
+                    } else if (action === 'callback') {
+                        request = fetchJson(`/api/operator/fallback-drops/${id}/callback-attempts`, { method: 'post' });
+                    } else if (action === 'convert') {
+                        request = fetchJson(`/api/operator/fallback-drops/${id}/convert`, { method: 'post' });
+                    } else if (action === 'close') {
+                        const note = window.prompt('Closure note or reason') ?? '';
+                        request = fetchJson(`/api/operator/fallback-drops/${id}/close`, {
+                            method: 'post',
+                            data: {
+                                disposition: 'other',
+                                note,
+                            },
+                        });
+                    }
+
+                    if (request) {
+                        const response = await request;
+                        showToast('Fallback drop updated.', 'success');
+                        if (action === 'convert' && response?.fallback_drop?.converted_incident_id) {
+                            await openOperatorWorkbench(root, response.fallback_drop.converted_incident_id);
+                        }
+                    }
+
+                    const refreshed = await fetchJson('/api/operator/fallback-drops?status=open');
+                    render(refreshed?.items ?? []);
+                } catch (error) {
+                    showToast(error?.response?.data?.message ?? 'Unable to update fallback drop.', 'warn');
+                    button.disabled = false;
+                }
+            });
+        });
+    };
+
+    fetchJson('/api/operator/fallback-drops?status=open')
+        .then((response) => render(response?.items ?? []))
+        .catch((error) => {
+            if (appState.helper.createEmptyState) {
+                panel.innerHTML = '';
+                trackSurfaceInstance(appState.helper.createEmptyState(panel, {
+                    title: 'Unable to load fallback queue',
+                    description: error?.response?.data?.message ?? 'Refresh the operator dashboard and try again.',
+                }, {
+                    chrome: false,
+                    className: 'operator-activity-list-empty',
+                    ariaLabel: 'Fallback callback queue load error',
+                }));
+            } else {
+                panel.innerHTML = '<p class="surface-empty">Unable to load fallback callback queue.</p>';
+            }
+        });
 }
 
 function mountOperatorAssignmentBoard(root, dashboard) {

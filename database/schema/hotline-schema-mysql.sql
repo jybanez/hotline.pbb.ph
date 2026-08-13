@@ -581,7 +581,7 @@ CREATE TABLE `migrations` (
   `migration` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `batch` int(11) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=50 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=64 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `password_reset_tokens`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -984,6 +984,88 @@ CREATE TABLE `users` (
   KEY `users_status_index` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `fallback_incident_drops`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `fallback_incident_drops` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `citizen_id` bigint(20) unsigned NOT NULL,
+  `claimed_by_operator_id` bigint(20) unsigned DEFAULT NULL,
+  `converted_incident_id` bigint(20) unsigned DEFAULT NULL,
+  `status` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'new',
+  `reason` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'all_operators_busy',
+  `citizen_latitude` decimal(10,7) DEFAULT NULL,
+  `citizen_longitude` decimal(10,7) DEFAULT NULL,
+  `citizen_location_accuracy` decimal(10,2) DEFAULT NULL,
+  `quick_category` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `short_description` text COLLATE utf8mb4_unicode_ci,
+  `callback_contact_snapshot` json DEFAULT NULL,
+  `closure_disposition` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `closure_note` text COLLATE utf8mb4_unicode_ci,
+  `claimed_at` timestamp NULL DEFAULT NULL,
+  `callback_attempted_at` timestamp NULL DEFAULT NULL,
+  `converted_at` timestamp NULL DEFAULT NULL,
+  `closed_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `fallback_incident_drops_status_index` (`status`),
+  KEY `fallback_incident_drops_reason_index` (`reason`),
+  KEY `fallback_incident_drops_citizen_id_status_index` (`citizen_id`,`status`),
+  KEY `fallback_incident_drops_claimed_by_operator_id_status_index` (`claimed_by_operator_id`,`status`),
+  KEY `fallback_incident_drops_converted_incident_id_foreign` (`converted_incident_id`),
+  CONSTRAINT `fallback_incident_drops_citizen_id_foreign` FOREIGN KEY (`citizen_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fallback_incident_drops_claimed_by_operator_id_foreign` FOREIGN KEY (`claimed_by_operator_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fallback_incident_drops_converted_incident_id_foreign` FOREIGN KEY (`converted_incident_id`) REFERENCES `incidents` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `fallback_incident_drop_attachments`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `fallback_incident_drop_attachments` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `fallback_incident_drop_id` bigint(20) unsigned NOT NULL,
+  `type` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'image',
+  `original_filename` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `original_mime_type` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `stored_mime_type` varchar(120) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'image/webp',
+  `stored_path` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `stored_filename` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `original_size_bytes` bigint(20) unsigned DEFAULT NULL,
+  `stored_size_bytes` bigint(20) unsigned NOT NULL,
+  `image_width` int(10) unsigned DEFAULT NULL,
+  `image_height` int(10) unsigned DEFAULT NULL,
+  `sha256` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `normalized_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `fallback_incident_drop_attachments_sha256_index` (`sha256`),
+  KEY `fallback_incident_drop_attachments_drop_id_type_index` (`fallback_incident_drop_id`,`type`),
+  CONSTRAINT `fallback_incident_drop_attachments_drop_id_foreign` FOREIGN KEY (`fallback_incident_drop_id`) REFERENCES `fallback_incident_drops` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `fallback_incident_drop_histories`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `fallback_incident_drop_histories` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `fallback_incident_drop_id` bigint(20) unsigned NOT NULL,
+  `actor_id` bigint(20) unsigned DEFAULT NULL,
+  `event` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `from_status` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `to_status` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `note` text COLLATE utf8mb4_unicode_ci,
+  `metadata` json DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `fallback_incident_drop_histories_drop_created_at_index` (`fallback_incident_drop_id`,`created_at`),
+  KEY `fallback_incident_drop_histories_event_created_at_index` (`event`,`created_at`),
+  KEY `fallback_incident_drop_histories_actor_id_foreign` (`actor_id`),
+  CONSTRAINT `fallback_incident_drop_histories_actor_id_foreign` FOREIGN KEY (`actor_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fallback_incident_drop_histories_drop_id_foreign` FOREIGN KEY (`fallback_incident_drop_id`) REFERENCES `fallback_incident_drops` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -1305,4 +1387,7 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES
   ('2026_07_06_000001_create_incident_relay_outbox_table', 1),
   ('2026_07_06_000002_create_incident_relay_deliveries_table', 1),
   ('2026_07_28_000001_add_normalized_image_metadata_to_message_attachments_table', 1),
-  ('2026_08_07_000001_allow_diagnostic_media_records', 1);
+  ('2026_08_07_000001_allow_diagnostic_media_records', 1),
+  ('2026_08_14_000001_create_fallback_incident_drops_table', 1),
+  ('2026_08_14_000002_create_fallback_incident_drop_attachments_table', 1),
+  ('2026_08_14_000003_create_fallback_incident_drop_histories_table', 1);

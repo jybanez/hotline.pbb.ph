@@ -1209,6 +1209,136 @@ async function showCallerOperatorUnavailableAlert(message = CALLER_OPERATOR_UNAV
     });
 }
 
+async function showCallerFallbackDropPrompt(message = CALLER_OPERATOR_UNAVAILABLE_MESSAGE) {
+    await ensureHelperUi();
+
+    if (typeof appState.helper.createActionModal !== 'function') {
+        showToast(`${message} Leave emergency details for callback from the home screen.`, 'warn', {
+            title: 'Operators Busy',
+            speak: true,
+            voiceName: preferredFemaleToastVoiceName(),
+        });
+        return;
+    }
+
+    await new Promise((resolve) => {
+        const content = document.createElement('form');
+        let modal = null;
+        let settled = false;
+
+        content.className = 'caller-fallback-form';
+        content.innerHTML = `
+            <p class="ui-dialog-message">${escapeHtml(message)}</p>
+            <p class="surface-copy">Leave emergency details for operator callback. This does not create an incident until an operator reviews and converts it.</p>
+            <label class="settings-field">
+                <span>Emergency type</span>
+                <input type="text" name="quick_category" maxlength="120" placeholder="Flood, injury, fire, rescue...">
+            </label>
+            <label class="settings-field">
+                <span>What happened?</span>
+                <textarea name="short_description" rows="5" maxlength="1500" required placeholder="Describe what needs callback and where help may be needed."></textarea>
+            </label>
+            <label class="settings-field">
+                <span>Optional photos</span>
+                <input type="file" name="photos" accept="image/*" multiple>
+                <small>Photos are private and unverified until an operator reviews them.</small>
+            </label>
+            <div class="notice" data-caller-fallback-notice hidden></div>
+        `;
+
+        const notice = content.querySelector('[data-caller-fallback-notice]');
+        const showNotice = (text, tone = 'warn') => {
+            if (!notice) {
+                return;
+            }
+
+            notice.hidden = false;
+            notice.textContent = text;
+            notice.className = `notice ${tone}`;
+        };
+
+        modal = appState.helper.createActionModal({
+            title: 'Leave Emergency Details',
+            content,
+            actions: [
+                {
+                    id: 'cancel',
+                    label: 'Cancel',
+                    variant: 'secondary',
+                },
+                {
+                    id: 'submit',
+                    label: 'Submit for Callback',
+                    variant: 'primary',
+                    autoFocus: true,
+                },
+            ],
+            size: 'md',
+            className: 'ui-dialog caller-fallback-dialog',
+            closeOnBackdrop: false,
+            onAction: async (action) => {
+                if (action?.id === 'cancel') {
+                    modal?.close?.();
+                    return;
+                }
+
+                if (action?.id !== 'submit') {
+                    return;
+                }
+
+                const description = String(content.querySelector('[name="short_description"]')?.value ?? '').trim();
+                if (description.length < 5) {
+                    showNotice('Add a short description before submitting.');
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('reason', 'all_operators_busy');
+                formData.append('short_description', description);
+                const category = String(content.querySelector('[name="quick_category"]')?.value ?? '').trim();
+                if (category) {
+                    formData.append('quick_category', category);
+                }
+
+                const latestLocation = callerLocationRuntime().lastKnownLocation ?? null;
+                if (latestLocation?.latitude != null && latestLocation?.longitude != null) {
+                    formData.append('citizen_latitude', String(latestLocation.latitude));
+                    formData.append('citizen_longitude', String(latestLocation.longitude));
+                }
+                if (latestLocation?.accuracy != null) {
+                    formData.append('citizen_location_accuracy', String(latestLocation.accuracy));
+                }
+
+                const files = content.querySelector('[name="photos"]')?.files ?? [];
+                Array.from(files).slice(0, 3).forEach((file) => formData.append('photos[]', file));
+
+                try {
+                    await fetchJson('/api/citizen/fallback-drops', {
+                        method: 'post',
+                        data: formData,
+                    });
+                    showToast('Emergency details were submitted for operator callback.', 'success');
+                    modal?.close?.();
+                } catch (error) {
+                    showNotice(error?.response?.data?.message ?? 'Unable to submit emergency details.');
+                }
+            },
+            onBeforeClose() {
+                blurFocusedElementInside(modal?.refs?.root);
+                return true;
+            },
+            onClose() {
+                modal?.destroy?.();
+                if (!settled) {
+                    settled = true;
+                    resolve(true);
+                }
+            },
+        });
+        modal.open();
+    });
+}
+
 function callerCallTimeoutMs() {
     const seconds = Number(appState.bootstrap?.settings?.call_timeout_seconds ?? CALLER_CALL_TIMEOUT_FALLBACK_SECONDS);
 
@@ -1400,6 +1530,14 @@ async function closeCallerPendingAndShowUnavailable(message = CALLER_OPERATOR_UN
     await showCallerOperatorUnavailableAlert(message);
 }
 
+async function closeCallerPendingAndShowFallbackPrompt(message = CALLER_OPERATOR_UNAVAILABLE_MESSAGE) {
+    clearCallerCallRoutingTimers();
+    await closeCallerPendingOverlay(appState.runtime.callerRoot);
+    clearCallerPendingState();
+    rerenderCallerInPlace();
+    await showCallerFallbackDropPrompt(message);
+}
+
 function publishCallerOperatorDiscoveryRequest(excludedOperatorIds = []) {
     const excluded = normalizeOperatorIdList(excludedOperatorIds);
     logCallFlow('citizen', 'operator-discovery-start', {
@@ -1411,7 +1549,7 @@ function publishCallerOperatorDiscoveryRequest(excludedOperatorIds = []) {
         logCallFlow('citizen', 'operator-discovery-exhausted', {
             excludedOperatorIds: excluded,
         });
-        void closeCallerPendingAndShowUnavailable(CALLER_OPERATOR_UNAVAILABLE_MESSAGE);
+        void closeCallerPendingAndShowFallbackPrompt(CALLER_OPERATOR_UNAVAILABLE_MESSAGE);
         return false;
     }
 
@@ -1511,7 +1649,7 @@ function retryCallerCallDiscoveryAfterMiss(pending, options = {}) {
     }
 
     if (callerCallAttemptExhausted(excluded)) {
-        void closeCallerPendingAndShowUnavailable(CALLER_OPERATOR_UNAVAILABLE_MESSAGE);
+        void closeCallerPendingAndShowFallbackPrompt(CALLER_OPERATOR_UNAVAILABLE_MESSAGE);
         return;
     }
 

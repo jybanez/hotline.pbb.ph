@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Operator;
 
 use App\Domain\Calls\Models\CallAttemptOperatorAttempt;
 use App\Domain\Calls\Models\CallSession;
+use App\Domain\Fallback\Models\FallbackIncidentDrop;
 use App\Domain\Incidents\Models\Incident;
 use App\Domain\Incidents\Models\IncidentTransfer;
 use App\Domain\Shared\Enums\TeamAssignmentStatus;
@@ -46,6 +47,10 @@ class DashboardController extends Controller
         $incomingReconnectCount = CallSession::query()
             ->where('status', 'calling')
             ->whereHas('incident', fn ($query) => $query->where('operator_id', $operator->id))
+            ->count();
+
+        $fallbackDropCount = FallbackIncidentDrop::query()
+            ->whereIn('status', ['new', 'claimed', 'callback_pending'])
             ->count();
 
         $pendingTransfers = IncidentTransfer::query()
@@ -114,6 +119,10 @@ class DashboardController extends Controller
                 [
                     'label' => 'Transfers',
                     'value' => count($pendingTransfers),
+                ],
+                [
+                    'label' => 'Fallback',
+                    'value' => $fallbackDropCount,
                 ],
                 [
                     'label' => 'Assignments',
