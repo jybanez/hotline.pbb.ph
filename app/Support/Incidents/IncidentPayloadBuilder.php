@@ -169,6 +169,8 @@ class IncidentPayloadBuilder
             'citizen',
             'caller',
             'operator',
+            'callbackCases.attempts',
+            'callbackCases.citizen',
             'callSessions.participants',
             'transfers.fromOperator',
             'transfers.toOperator',
@@ -247,6 +249,50 @@ class IncidentPayloadBuilder
             'created_at' => $incident->created_at?->toIso8601String(),
             'updated_at' => $incident->updated_at?->toIso8601String(),
             'current_call_session' => $currentCallSession ? $this->serializeCallSession($currentCallSession, $includeLegacyAliases) : null,
+            'callbacks' => $incident->callbackCases
+                ->map(fn ($case) => [
+                    'id' => $case->id,
+                    'incident_id' => $case->incident_id,
+                    'display_id' => str_pad((string) $case->incident_id, 6, '0', STR_PAD_LEFT),
+                    'citizen_id' => $case->citizen_id,
+                    'citizen' => $case->citizen ? [
+                        'id' => $case->citizen->id,
+                        'name' => $case->citizen->name,
+                        'mobile' => $case->citizen->mobile,
+                        'avatar' => $case->citizen->avatar,
+                    ] : null,
+                    'operator_id' => $case->operator_id,
+                    'source_call_session_id' => $case->source_call_session_id,
+                    'reason' => $case->reason,
+                    'priority' => $case->priority,
+                    'status' => $case->status,
+                    'due_at' => $case->due_at?->toIso8601String(),
+                    'is_overdue' => $case->due_at !== null && $case->due_at->isPast() && in_array($case->status, ['pending', 'in_progress'], true),
+                    'completed_at' => $case->completed_at?->toIso8601String(),
+                    'final_disposition' => $case->final_disposition,
+                    'attempts' => $case->attempts
+                        ->map(fn ($attempt) => [
+                            'id' => $attempt->id,
+                            'callback_case_id' => $attempt->callback_case_id,
+                            'operator_id' => $attempt->operator_id,
+                            'attempt_number' => $attempt->attempt_number,
+                            'started_at' => $attempt->started_at?->toIso8601String(),
+                            'ended_at' => $attempt->ended_at?->toIso8601String(),
+                            'channel' => $attempt->channel,
+                            'result' => $attempt->result,
+                            'call_attempt_id' => $attempt->call_attempt_id,
+                            'call_session_id' => $attempt->call_session_id,
+                            'note' => $attempt->note,
+                            'created_at' => $attempt->created_at?->toIso8601String(),
+                            'updated_at' => $attempt->updated_at?->toIso8601String(),
+                        ])
+                        ->values()
+                        ->all(),
+                    'created_at' => $case->created_at?->toIso8601String(),
+                    'updated_at' => $case->updated_at?->toIso8601String(),
+                ])
+                ->values()
+                ->all(),
             'call_history' => $sortedCallSessions
                 ->map(fn ($session) => $this->serializeCallSession($session, $includeLegacyAliases))
                 ->values()

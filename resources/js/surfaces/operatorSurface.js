@@ -4018,6 +4018,7 @@ function renderWorkbench(payload, stateOverride = null) {
                         <div class="operator-workbench-helper-host" data-workbench-incident-types></div>
                     </section>
                     <section class="operator-workbench-column operator-workbench-dispatch-column">
+                        <div class="operator-workbench-callback-host" data-workbench-callbacks></div>
                         <div class="operator-workbench-helper-host" data-workbench-team-assignments></div>
                     </section>
                     <section class="operator-workbench-column operator-workbench-media-column">
@@ -4439,6 +4440,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
     const canEditIncidentDetails = workbenchIncidentEditable(payload);
     const incidentTypesHost = overlay?.querySelector('[data-workbench-incident-types]');
     const teamAssignmentsHost = overlay?.querySelector('[data-workbench-team-assignments]');
+    const callbacksHost = overlay?.querySelector('[data-workbench-callbacks]');
     const audioHost = overlay?.querySelector('[data-workbench-audio]');
     const mediaStripHost = overlay?.querySelector('[data-workbench-media-strip]');
     const callSessionTimelineHost = overlay?.querySelector('[data-workbench-call-session-timeline]');
@@ -4469,6 +4471,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
     const incidentTypeSaveTimers = new Map();
     const incidentTypeSaveRequestIds = new Map();
     const teamAssignmentSaveTimers = new Map();
+    const callbackAbort = new AbortController();
     const callerAddressEditor = bindWorkbenchCallerAddressEditor(overlay, payload);
     if (callerAddressEditor) {
         instances.push(callerAddressEditor);
@@ -4933,6 +4936,209 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
 
         updateTeamAssignmentsView();
         syncOperatorActiveIncidentAssignments(currentOperatorRoot(), payload.id, payload.team_assignments);
+    };
+
+    const callbackReasonLabel = (reason) => ({
+        call_dropped: 'Dropped Call',
+        reconnect_required: 'Reconnect Required',
+        operator_followup: 'Operator Follow-up',
+        other: 'Other',
+    }[String(reason ?? '')] ?? formatStatusLabel(reason ?? 'Callback'));
+
+    const callbackResultLabel = (result) => ({
+        answered: 'Answered',
+        no_answer: 'No Answer',
+        declined: 'Declined',
+        unreachable: 'Unreachable',
+        wrong_contact: 'Wrong Contact',
+        technical_failure: 'Technical Failure',
+        cancelled: 'Cancelled',
+    }[String(result ?? '')] ?? 'Pending');
+
+    const openCallbacks = () => (Array.isArray(payload.callbacks) ? payload.callbacks : [])
+        .filter((item) => ['pending', 'in_progress'].includes(String(item?.status ?? '')));
+
+    const upsertCallback = (nextCallback) => {
+        if (!nextCallback || typeof nextCallback !== 'object') {
+            return;
+        }
+
+        const currentCallbacks = Array.isArray(payload.callbacks) ? payload.callbacks : [];
+        let replaced = false;
+        const nextCallbacks = currentCallbacks.map((item) => {
+            if (String(item?.id ?? '') === String(nextCallback.id ?? '')) {
+                replaced = true;
+                return cloneWorkbenchValue(nextCallback);
+            }
+
+            return item;
+        });
+
+        if (!replaced) {
+            nextCallbacks.push(cloneWorkbenchValue(nextCallback));
+        }
+
+        payload.callbacks = nextCallbacks;
+    };
+
+    const refreshCallbacks = async () => {
+        const nextPayload = await fetchJson(`/api/operator/incidents/${payload.id}`);
+
+        if (!nextPayload || typeof nextPayload !== 'object') {
+            return;
+        }
+
+        payload.callbacks = Array.isArray(nextPayload.callbacks) ? nextPayload.callbacks : [];
+        renderCallbacksPanel();
+    };
+
+    const renderCallbacksPanel = () => {
+        if (!callbacksHost) {
+            return;
+        }
+
+        const callbacks = openCallbacks();
+        const canCreate = ['Active', 'Deferred'].includes(String(payload.status ?? ''));
+
+        callbacksHost.innerHTML = `
+            <div class="operator-workbench-card operator-workbench-callback-card">
+                <div class="operator-workbench-card-head">
+                    <strong>Callbacks</strong>
+                    ${canCreate ? '<button class="surface-button secondary" type="button" data-callback-action="open">Request Callback</button>' : ''}
+                </div>
+                <div class="operator-workbench-callback-list">
+                    ${callbacks.length ? callbacks.map((item) => {
+                        const attempts = Array.isArray(item?.attempts) ? item.attempts : [];
+                        const lastAttempt = attempts.at(-1) ?? null;
+                        return `
+                            <article class="operator-workbench-callback-item${item?.is_overdue ? ' is-overdue' : ''}">
+                                <div>
+                                    <strong>${escapeHtml(callbackReasonLabel(item?.reason))}</strong>
+                                    <span>${escapeHtml(formatStatusLabel(item?.status ?? 'pending'))} · Due ${escapeHtml(formatWorkbenchDateTimeCompact(item?.due_at))}</span>
+                                    <small>${attempts.length} attempt${attempts.length === 1 ? '' : 's'}${lastAttempt?.result ? ` · Last: ${escapeHtml(callbackResultLabel(lastAttempt.result))}` : ''}</small>
+                                </div>
+                                <div class="operator-workbench-callback-actions">
+                                    <button class="surface-button secondary" type="button" data-callback-action="call" data-callback-id="${escapeHtml(item.id)}">Call Now</button>
+                                    <button class="surface-button secondary" type="button" data-callback-action="record" data-callback-id="${escapeHtml(item.id)}" data-callback-result="no_answer">No Answer</button>
+                                    <button class="surface-button secondary" type="button" data-callback-action="record" data-callback-id="${escapeHtml(item.id)}" data-callback-result="answered">Answered</button>
+                                    <button class="surface-button" type="button" data-callback-action="complete" data-callback-id="${escapeHtml(item.id)}">Complete</button>
+                                </div>
+                            </article>
+                        `;
+                    }).join('') : '<p class="operator-workbench-callback-empty">No open callbacks for this incident.</p>'}
+                </div>
+            </div>
+        `;
+    };
+
+    const callbackById = (callbackId) => openCallbacks()
+        .find((item) => String(item?.id ?? '') === String(callbackId ?? ''));
+
+    const startCallbackCall = async (callbackId) => {
+        const response = await fetchJson(`/api/operator/callbacks/${callbackId}/call`, {
+            method: 'post',
+        });
+        const callback = response?.callback ?? callbackById(callbackId) ?? {};
+        const callerId = Number(callback?.citizen_id ?? payload.citizen_id ?? payload.caller_id ?? 0);
+        const incidentId = Number(callback?.incident_id ?? payload.id ?? 0);
+        const incomingItem = {
+            id: Number(response?.operator_attempt?.id ?? 0),
+            kind: 'reconnect',
+            call_attempt_id: Number(response?.attempt?.id ?? 0),
+            call_session_id: null,
+            incident_id: incidentId,
+            display_id: String(callback?.display_id ?? payload.display_id ?? '').trim() || padIncidentId(incidentId),
+            caller_id: callerId,
+            caller_name: workbenchCallerName(payload),
+            caller_avatar: workbenchCallerAvatar(payload),
+            created_at: response?.operator_attempt?.created_at ?? response?.attempt?.created_at ?? new Date().toISOString(),
+        };
+
+        upsertCallback(callback);
+        renderCallbacksPanel();
+        upsertIncomingCallInDashboard(incomingItem);
+        publishOperatorCallFlow('citizen.reconnect.ringing', {
+            call_attempt_id: Number(response?.attempt?.id ?? 0),
+            call_attempt_operator_attempt_id: Number(response?.operator_attempt?.id ?? 0),
+            caller_id: callerId,
+            incident_id: incidentId,
+            operator_id: Number(appState.bootstrap?.user?.id ?? 0),
+            operator_name: String(appState.bootstrap?.user?.name ?? 'Operator'),
+            operator_avatar: String(appState.bootstrap?.user?.avatar ?? ''),
+            requested_at: response?.attempt?.created_at ?? new Date().toISOString(),
+        });
+        void openIncomingCallModal(currentOperatorRoot(), incomingItem, 'reconnect');
+        showToast('Callback call started.', 'success');
+    };
+
+    const bindCallbacksPanel = () => {
+        if (!callbacksHost) {
+            return;
+        }
+
+        callbacksHost.addEventListener('click', async (event) => {
+            const button = event.target?.closest?.('[data-callback-action]');
+
+            if (!button) {
+                return;
+            }
+
+            const action = String(button.dataset.callbackAction ?? '');
+            const callbackId = Number(button.dataset.callbackId ?? 0);
+
+            try {
+                if (action === 'open') {
+                    const response = await fetchJson('/api/operator/callbacks', {
+                        method: 'post',
+                        data: {
+                            incident_id: Number(payload.id ?? 0),
+                            reason: 'operator_followup',
+                        },
+                    });
+                    upsertCallback(response?.callback);
+                    renderCallbacksPanel();
+                    showToast('Callback opened.', 'success');
+                    return;
+                }
+
+                if (action === 'call' && callbackId) {
+                    await startCallbackCall(callbackId);
+                    return;
+                }
+
+                if (action === 'record' && callbackId) {
+                    await fetchJson(`/api/operator/callbacks/${callbackId}/attempts`, {
+                        method: 'post',
+                        data: {
+                            result: String(button.dataset.callbackResult ?? 'no_answer'),
+                        },
+                    });
+                    await refreshCallbacks();
+                    showToast('Callback attempt recorded.', 'success');
+                    return;
+                }
+
+                if (action === 'complete' && callbackId) {
+                    const disposition = window.prompt('Final callback disposition');
+
+                    if (!String(disposition ?? '').trim()) {
+                        return;
+                    }
+
+                    await fetchJson(`/api/operator/callbacks/${callbackId}/complete`, {
+                        method: 'post',
+                        data: {
+                            final_disposition: String(disposition).trim(),
+                        },
+                    });
+                    await refreshCallbacks();
+                    showToast('Callback completed.', 'success');
+                }
+            } catch (error) {
+                console.warn('Callback action failed.', error);
+                showToast(error?.response?.data?.message ?? 'Unable to update callback.', 'warn');
+            }
+        }, { signal: callbackAbort.signal });
     };
 
     const publishTeamAssignmentsUpdate = () => {
@@ -5599,6 +5805,9 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
         instances.push(teamAssignmentsApi);
     }
 
+    renderCallbacksPanel();
+    bindCallbacksPanel();
+
     if (audioHost) {
         if (isActive && helper.createAudioGraph) {
             audioHost.innerHTML = `
@@ -5654,6 +5863,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
         destroy() {
             clearIncidentTypeSaveTimers();
             clearTeamAssignmentSaveTimers();
+            callbackAbort.abort();
             audioCallSessionApi?.destroy?.();
             audioCallSessionApi = null;
             mediaStripApi?.destroy?.();

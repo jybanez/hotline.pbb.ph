@@ -2,6 +2,7 @@
 
 namespace App\Domain\Incidents\Models;
 
+use App\Domain\Callbacks\Models\CallbackCase;
 use App\Domain\Media\Models\Media;
 use App\Domain\Messages\Models\IncidentMessage;
 use App\Domain\Shared\Concerns\SynchronizesCitizenIdentity;
@@ -83,6 +84,11 @@ class Incident extends Model
     public function callSessions(): HasMany
     {
         return $this->hasMany(\App\Domain\Calls\Models\CallSession::class);
+    }
+
+    public function callbackCases(): HasMany
+    {
+        return $this->hasMany(CallbackCase::class)->orderBy('due_at')->orderBy('id');
     }
 
     public function transfers(): HasMany
