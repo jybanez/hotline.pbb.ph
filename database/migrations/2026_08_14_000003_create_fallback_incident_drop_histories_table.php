@@ -10,8 +10,8 @@ return new class extends Migration
     {
         Schema::create('fallback_incident_drop_histories', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('fallback_incident_drop_id')->constrained('fallback_incident_drops')->cascadeOnDelete();
-            $table->foreignId('actor_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('fallback_incident_drop_id');
+            $table->foreignId('actor_id')->nullable();
             $table->string('event', 64);
             $table->string('from_status', 32)->nullable();
             $table->string('to_status', 32)->nullable();
@@ -19,8 +19,17 @@ return new class extends Migration
             $table->json('metadata')->nullable();
             $table->timestamp('created_at')->useCurrent();
 
-            $table->index(['fallback_incident_drop_id', 'created_at']);
-            $table->index(['event', 'created_at']);
+            $table->index(['fallback_incident_drop_id', 'created_at'], 'fid_hist_drop_created_idx');
+            $table->index(['event', 'created_at'], 'fid_hist_event_created_idx');
+
+            $table->foreign('fallback_incident_drop_id', 'fid_hist_drop_fk')
+                ->references('id')
+                ->on('fallback_incident_drops')
+                ->cascadeOnDelete();
+            $table->foreign('actor_id', 'fid_hist_actor_fk')
+                ->references('id')
+                ->on('users')
+                ->nullOnDelete();
         });
     }
 
