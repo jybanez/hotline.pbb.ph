@@ -20,6 +20,7 @@ const OPERATOR_REMOTE_DISCONNECT_GRACE_MS = 10000;
 const OPERATOR_REMOTE_DISCONNECT_CLEANUP_TIMEOUT_MS = 10000;
 const OPERATOR_MEDIA_CONSUMER_ENABLED = true;
 const OPERATOR_MEDIA_CHUNK_TRANSPORT = 'realtime-binary';
+const OPERATOR_RAIL_COLLAPSED_STORAGE_KEY = 'pbb.hotline.operator.railCollapsed';
 
 function isDebugFlagEnabled(storageKey, globalKey) {
     if (typeof window === 'undefined') {
@@ -35,6 +36,50 @@ function isDebugFlagEnabled(storageKey, globalKey) {
         return ['1', 'true', 'yes', 'on'].includes(String(stored ?? '').trim().toLowerCase());
     } catch {
         return false;
+    }
+}
+
+function loadOperatorRailCollapsedState() {
+    if (appState.runtime.operatorRailCollapsed) {
+        return appState.runtime.operatorRailCollapsed;
+    }
+
+    const state = {};
+
+    if (typeof window !== 'undefined') {
+        try {
+            const parsed = JSON.parse(window.localStorage?.getItem(OPERATOR_RAIL_COLLAPSED_STORAGE_KEY) ?? '{}');
+
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                ['active', 'fallback', 'archive'].forEach((key) => {
+                    if (typeof parsed[key] === 'boolean') {
+                        state[key] = parsed[key];
+                    }
+                });
+            }
+        } catch {
+            // Ignore invalid local state; default rails stay visible.
+        }
+    }
+
+    appState.runtime.operatorRailCollapsed = state;
+
+    return state;
+}
+
+function saveOperatorRailCollapsedState(state) {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    try {
+        window.localStorage?.setItem(OPERATOR_RAIL_COLLAPSED_STORAGE_KEY, JSON.stringify({
+            active: !!state?.active,
+            fallback: !!state?.fallback,
+            archive: !!state?.archive,
+        }));
+    } catch {
+        // Local persistence is best effort only.
     }
 }
 
@@ -8987,8 +9032,7 @@ function mountOperatorRailTogglePanel(host, config) {
         return;
     }
 
-    const collapsedState = appState.runtime.operatorRailCollapsed ?? {};
-    appState.runtime.operatorRailCollapsed = collapsedState;
+    const collapsedState = loadOperatorRailCollapsedState();
     const contentId = `operator-rail-content-${railId}`;
 
     host.innerHTML = `
@@ -9012,6 +9056,7 @@ function mountOperatorRailTogglePanel(host, config) {
 
     button?.addEventListener('click', () => {
         collapsedState[railId] = !collapsedState[railId];
+        saveOperatorRailCollapsedState(collapsedState);
         apply();
     });
 
