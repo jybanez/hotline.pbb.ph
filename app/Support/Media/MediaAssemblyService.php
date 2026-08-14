@@ -271,9 +271,13 @@ class MediaAssemblyService
             }
 
             try {
+                $durationSeconds = is_numeric($media->duration_seconds) && (int) $media->duration_seconds > 0
+                    ? (int) $media->duration_seconds
+                    : $this->recoverableDurationSeconds($media, $callSession);
+
                 $this->finalizeProcessingAsset($media, [
                     'ended_at' => $callSession->ended_at?->toIso8601String(),
-                    'duration_seconds' => $media->duration_seconds ?? $this->recoverableDurationSeconds($media, $callSession),
+                    'duration_seconds' => $durationSeconds,
                     'extension' => Arr::get($media->metadata_json ?? [], 'extension'),
                 ]);
                 $summary['finalized']++;

@@ -63,9 +63,9 @@ Route::middleware(['auth', 'role:operator'])->prefix('/operator')->group(functio
     Route::post('/media/logs', [MediaLogController::class, 'store']);
     Route::post('/transfers/{transfer}/accept', [TransferController::class, 'accept']);
     Route::post('/transfers/{transfer}/reject', [TransferController::class, 'reject']);
-    Route::post('/team-assignments/{assignment}', [TeamAssignmentController::class, 'update']);
     Route::post('/team-assignments/{assignment}/notes', [TeamAssignmentController::class, 'storeNote']);
     Route::post('/team-assignments/{assignment}/notes/{note}', [TeamAssignmentController::class, 'updateNote']);
     Route::delete('/team-assignments/{assignment}/notes/{note}', [TeamAssignmentController::class, 'destroyNote']);
+    Route::post('/team-assignments/{assignment}', [TeamAssignmentController::class, 'update']);
     Route::delete('/team-assignments/{assignment}', [TeamAssignmentController::class, 'destroy']);
 });

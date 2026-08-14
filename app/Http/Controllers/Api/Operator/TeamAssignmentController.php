@@ -97,14 +97,15 @@ class TeamAssignmentController extends Controller
         ], 201);
     }
 
-    public function updateNote(Request $request, TeamAssignment $assignment, TeamAssignmentNote $note): JsonResponse
+    public function updateNote(Request $request, TeamAssignment $assignment, int $note): JsonResponse
     {
         $validated = $request->validate([
             'note' => ['required', 'string'],
         ]);
 
         try {
-            $assignment = $this->assignments->updateNote($request->user(), $assignment, $note, (string) $validated['note']);
+            $teamAssignmentNote = TeamAssignmentNote::query()->findOrFail($note);
+            $assignment = $this->assignments->updateNote($request->user(), $assignment, $teamAssignmentNote, (string) $validated['note']);
         } catch (RuntimeException $exception) {
             return response()->json([
                 'ok' => false,
@@ -118,10 +119,11 @@ class TeamAssignmentController extends Controller
         ]);
     }
 
-    public function destroyNote(Request $request, TeamAssignment $assignment, TeamAssignmentNote $note): JsonResponse
+    public function destroyNote(Request $request, TeamAssignment $assignment, int $note): JsonResponse
     {
         try {
-            $assignment = $this->assignments->deleteNote($request->user(), $assignment, $note);
+            $teamAssignmentNote = TeamAssignmentNote::query()->findOrFail($note);
+            $assignment = $this->assignments->deleteNote($request->user(), $assignment, $teamAssignmentNote);
         } catch (RuntimeException $exception) {
             return response()->json([
                 'ok' => false,
