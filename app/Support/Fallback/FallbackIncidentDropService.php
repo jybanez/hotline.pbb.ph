@@ -18,7 +18,6 @@ class FallbackIncidentDropService
 {
     public const STATUS_NEW = 'new';
     public const STATUS_CLAIMED = 'claimed';
-    public const STATUS_CALLBACK_PENDING = 'callback_pending';
     public const STATUS_CONVERTED = 'converted';
     public const STATUS_CLOSED = 'closed';
 
@@ -39,7 +38,7 @@ class FallbackIncidentDropService
     {
         $activeExists = FallbackIncidentDrop::query()
             ->where('citizen_id', $citizen->id)
-            ->whereIn('status', [self::STATUS_NEW, self::STATUS_CLAIMED, self::STATUS_CALLBACK_PENDING])
+            ->whereIn('status', [self::STATUS_NEW, self::STATUS_CLAIMED])
             ->exists();
 
         if ($activeExists) {
@@ -56,7 +55,7 @@ class FallbackIncidentDropService
                 'citizen_location_accuracy' => $data['citizen_location_accuracy'] ?? null,
                 'quick_category' => $data['quick_category'] ?? null,
                 'short_description' => $data['short_description'] ?? null,
-                'callback_contact_snapshot' => [
+                'contact_snapshot' => [
                     'user_id' => (int) $citizen->id,
                     'name' => $citizen->name,
                     'mobile' => $citizen->mobile,
@@ -104,29 +103,6 @@ class FallbackIncidentDropService
         });
 
         $this->publishDropEvent('claimed', $drop);
-
-        return $drop;
-    }
-
-    public function recordCallbackAttempt(User $operator, FallbackIncidentDrop $drop, ?string $note = null): FallbackIncidentDrop
-    {
-        $drop = DB::transaction(function () use ($operator, $drop, $note): FallbackIncidentDrop {
-            /** @var FallbackIncidentDrop $locked */
-            $locked = FallbackIncidentDrop::query()->whereKey($drop->id)->lockForUpdate()->firstOrFail();
-            $this->assertOperatorOwnsOpenDrop($operator, $locked);
-            $from = $locked->status;
-
-            $locked->forceFill([
-                'status' => self::STATUS_CALLBACK_PENDING,
-                'callback_attempted_at' => now(),
-            ])->save();
-
-            $this->recordHistory($locked, $operator, 'callback_attempted', $from, self::STATUS_CALLBACK_PENDING, $note);
-
-            return $locked->fresh(['citizen', 'claimedByOperator', 'attachments', 'histories']);
-        });
-
-        $this->publishDropEvent('callback_attempted', $drop);
 
         return $drop;
     }
@@ -243,17 +219,6 @@ class FallbackIncidentDropService
             'metadata' => $metadata,
             'created_at' => now(),
         ]);
-    }
-
-    private function assertOperatorOwnsOpenDrop(User $operator, FallbackIncidentDrop $drop): void
-    {
-        if (! in_array($drop->status, [self::STATUS_CLAIMED, self::STATUS_CALLBACK_PENDING], true)) {
-            throw new RuntimeException('This fallback drop must be claimed before callback updates.');
-        }
-
-        if ((int) $drop->claimed_by_operator_id !== (int) $operator->id) {
-            throw new RuntimeException('This fallback drop is claimed by another operator.');
-        }
     }
 
     private function incidentDetails(FallbackIncidentDrop $drop): string

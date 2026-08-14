@@ -50,7 +50,7 @@ class DashboardController extends Controller
             ->count();
 
         $fallbackDropCount = FallbackIncidentDrop::query()
-            ->whereIn('status', ['new', 'claimed', 'callback_pending'])
+            ->whereIn('status', ['new', 'claimed'])
             ->count();
 
         $pendingTransfers = IncidentTransfer::query()

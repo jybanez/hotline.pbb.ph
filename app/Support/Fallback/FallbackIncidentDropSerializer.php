@@ -40,7 +40,6 @@ class FallbackIncidentDropSerializer
             'closure_disposition' => $drop->closure_disposition,
             'closure_note' => $drop->closure_note,
             'claimed_at' => $drop->claimed_at?->toIso8601String(),
-            'callback_attempted_at' => $drop->callback_attempted_at?->toIso8601String(),
             'converted_at' => $drop->converted_at?->toIso8601String(),
             'closed_at' => $drop->closed_at?->toIso8601String(),
             'created_at' => $drop->created_at?->toIso8601String(),

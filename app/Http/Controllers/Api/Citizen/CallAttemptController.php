@@ -43,7 +43,7 @@ class CallAttemptController extends Controller
                 'fallback' => [
                     'available' => true,
                     'reason' => 'all_operators_busy',
-                    'label' => 'Leave emergency details for callback.',
+                    'label' => 'Leave emergency details.',
                     'endpoint' => '/api/citizen/fallback-drops',
                 ],
             ], 409);

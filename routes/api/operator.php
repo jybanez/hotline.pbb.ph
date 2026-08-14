@@ -18,7 +18,6 @@ Route::middleware(['auth', 'role:operator'])->prefix('/operator')->group(functio
     Route::get('/activity', [DashboardController::class, 'activity']);
     Route::get('/fallback-drops', [FallbackIncidentDropController::class, 'index']);
     Route::post('/fallback-drops/{fallbackDrop}/claim', [FallbackIncidentDropController::class, 'claim']);
-    Route::post('/fallback-drops/{fallbackDrop}/callback-attempts', [FallbackIncidentDropController::class, 'callbackAttempt']);
     Route::post('/fallback-drops/{fallbackDrop}/convert', [FallbackIncidentDropController::class, 'convert']);
     Route::post('/fallback-drops/{fallbackDrop}/close', [FallbackIncidentDropController::class, 'close']);
     Route::post('/call-attempts', [CallAttemptController::class, 'store']);

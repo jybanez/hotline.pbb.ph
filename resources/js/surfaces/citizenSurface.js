@@ -1213,7 +1213,7 @@ async function showCallerFallbackDropPrompt(message = CALLER_OPERATOR_UNAVAILABL
     await ensureHelperUi();
 
     if (typeof appState.helper.createActionModal !== 'function') {
-        showToast(`${message} Leave emergency details for callback from the home screen.`, 'warn', {
+        showToast(`${message} Leave emergency details from the home screen.`, 'warn', {
             title: 'Operators Busy',
             speak: true,
             voiceName: preferredFemaleToastVoiceName(),
@@ -1229,14 +1229,14 @@ async function showCallerFallbackDropPrompt(message = CALLER_OPERATOR_UNAVAILABL
         content.className = 'caller-fallback-form';
         content.innerHTML = `
             <p class="ui-dialog-message">${escapeHtml(message)}</p>
-            <p class="surface-copy">Leave emergency details for operator callback. This does not create an incident until an operator reviews and converts it.</p>
+            <p class="surface-copy">Leave emergency details for operator review. This does not create an incident until an operator reviews and converts it.</p>
             <label class="settings-field">
                 <span>Emergency type</span>
                 <input type="text" name="quick_category" maxlength="120" placeholder="Flood, injury, fire, rescue...">
             </label>
             <label class="settings-field">
                 <span>What happened?</span>
-                <textarea name="short_description" rows="5" maxlength="1500" required placeholder="Describe what needs callback and where help may be needed."></textarea>
+                <textarea name="short_description" rows="5" maxlength="1500" required placeholder="Describe what happened and where help may be needed."></textarea>
             </label>
             <label class="settings-field">
                 <span>Optional photos</span>
@@ -1268,7 +1268,7 @@ async function showCallerFallbackDropPrompt(message = CALLER_OPERATOR_UNAVAILABL
                 },
                 {
                     id: 'submit',
-                    label: 'Submit for Callback',
+                    label: 'Submit Emergency Details',
                     variant: 'primary',
                     autoFocus: true,
                 },
@@ -1317,7 +1317,7 @@ async function showCallerFallbackDropPrompt(message = CALLER_OPERATOR_UNAVAILABL
                         method: 'post',
                         data: formData,
                     });
-                    showToast('Emergency details were submitted for operator callback.', 'success');
+                    showToast('Emergency details were submitted for operator review.', 'success');
                     modal?.close?.();
                 } catch (error) {
                     showNotice(error?.response?.data?.message ?? 'Unable to submit emergency details.');

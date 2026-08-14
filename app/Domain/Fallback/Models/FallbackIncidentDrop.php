@@ -24,11 +24,10 @@ class FallbackIncidentDrop extends Model
         'citizen_location_accuracy',
         'quick_category',
         'short_description',
-        'callback_contact_snapshot',
+        'contact_snapshot',
         'closure_disposition',
         'closure_note',
         'claimed_at',
-        'callback_attempted_at',
         'converted_at',
         'closed_at',
     ];
@@ -39,9 +38,8 @@ class FallbackIncidentDrop extends Model
             'citizen_latitude' => 'float',
             'citizen_longitude' => 'float',
             'citizen_location_accuracy' => 'float',
-            'callback_contact_snapshot' => 'array',
+            'contact_snapshot' => 'array',
             'claimed_at' => 'datetime',
-            'callback_attempted_at' => 'datetime',
             'converted_at' => 'datetime',
             'closed_at' => 'datetime',
         ];

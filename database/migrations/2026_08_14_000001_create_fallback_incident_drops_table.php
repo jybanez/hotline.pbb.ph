@@ -20,11 +20,10 @@ return new class extends Migration
             $table->decimal('citizen_location_accuracy', 10, 2)->nullable();
             $table->string('quick_category', 120)->nullable();
             $table->text('short_description')->nullable();
-            $table->json('callback_contact_snapshot')->nullable();
+            $table->json('contact_snapshot')->nullable();
             $table->string('closure_disposition', 64)->nullable();
             $table->text('closure_note')->nullable();
             $table->timestamp('claimed_at')->nullable();
-            $table->timestamp('callback_attempted_at')->nullable();
             $table->timestamp('converted_at')->nullable();
             $table->timestamp('closed_at')->nullable();
             $table->timestamps();

@@ -30,7 +30,6 @@ class FallbackIncidentDropController extends Controller
             $query->whereIn('status', [
                 FallbackIncidentDropService::STATUS_NEW,
                 FallbackIncidentDropService::STATUS_CLAIMED,
-                FallbackIncidentDropService::STATUS_CALLBACK_PENDING,
             ]);
         } elseif ($status !== '') {
             $query->where('status', $status);
@@ -48,19 +47,6 @@ class FallbackIncidentDropController extends Controller
     public function claim(Request $request, FallbackIncidentDrop $fallbackDrop): JsonResponse
     {
         return $this->transition(fn () => $this->drops->claim($request->user(), $fallbackDrop));
-    }
-
-    public function callbackAttempt(Request $request, FallbackIncidentDrop $fallbackDrop): JsonResponse
-    {
-        $validated = $request->validate([
-            'note' => ['nullable', 'string', 'max:1000'],
-        ]);
-
-        return $this->transition(fn () => $this->drops->recordCallbackAttempt(
-            $request->user(),
-            $fallbackDrop,
-            $validated['note'] ?? null,
-        ));
     }
 
     public function convert(Request $request, FallbackIncidentDrop $fallbackDrop): JsonResponse

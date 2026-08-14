@@ -58,7 +58,7 @@ class BusyIncidentDropTest extends TestCase
             ->postJson('/api/citizen/fallback-drops', [
                 'reason' => 'all_operators_busy',
                 'quick_category' => 'Flood',
-                'short_description' => 'Water is rising near the bridge and we need a callback.',
+                'short_description' => 'Water is rising near the bridge and we need operator review.',
                 'citizen_latitude' => 10.3306796,
                 'citizen_longitude' => 123.8279630,
                 'citizen_location_accuracy' => 8.5,
@@ -90,7 +90,7 @@ class BusyIncidentDropTest extends TestCase
         $response = $this->actingAs($citizen)
             ->post('/api/citizen/fallback-drops', [
                 'reason' => 'all_operators_busy',
-                'short_description' => 'Photo evidence for blocked route callback.',
+                'short_description' => 'Photo evidence for blocked route review.',
                 'photos' => [
                     UploadedFile::fake()->image('route.jpg', 640, 480),
                 ],
@@ -120,7 +120,7 @@ class BusyIncidentDropTest extends TestCase
             'citizen_id' => $owner->id,
             'status' => 'new',
             'reason' => 'all_operators_busy',
-            'short_description' => 'Needs callback.',
+            'short_description' => 'Needs operator review.',
         ]);
 
         $this->actingAs($other)
@@ -137,7 +137,7 @@ class BusyIncidentDropTest extends TestCase
             'citizen_id' => $citizen->id,
             'status' => 'new',
             'reason' => 'all_operators_busy',
-            'short_description' => 'Needs callback.',
+            'short_description' => 'Needs operator review.',
         ]);
 
         $this->actingAs($operatorA)
