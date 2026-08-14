@@ -382,6 +382,24 @@
     min-height: 0;
 }
 
+.operator-fallback-list-host {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.operator-fallback-static-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.95rem;
+    border-radius: 999px;
+    border: 1px solid rgba(104, 147, 190, 0.54);
+    background: rgba(24, 43, 72, 0.78);
+    color: #eef6ff;
+    padding: 0.24rem 0.72rem;
+    font-size: 0.74rem;
+    line-height: 1;
+}
+
 .operator-active-virtual-list.has-overflow .ui-virtual-list-viewport,
 .operator-archive-virtual-list.has-overflow .ui-virtual-list-viewport {
     overflow-y: auto;
@@ -700,7 +718,8 @@
 }
 
 .operator-floating-rail [data-operator-tabs],
-.operator-floating-rail [data-operator-active-tabs] {
+.operator-floating-rail [data-operator-active-tabs],
+.operator-floating-rail [data-operator-fallback-tabs] {
     min-height: 0;
     width: 100%;
     min-width: 0;

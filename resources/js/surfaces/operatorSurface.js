@@ -8171,11 +8171,8 @@ function renderOperator(root, bootstrap, dashboard, primerReport) {
                             </div>
                         </section>
                         <section class="operator-left-rail-section" aria-label="Fallback intake">
-                            <div class="operator-rail-panel">
-                                <div class="operator-rail-panel-header">
-                                    <span>Fallback (${Number(dashboard?.stat_chips?.find?.((chip) => chip?.label === 'Fallback')?.value ?? 0)})</span>
-                                </div>
-                                <div class="operator-rail-panel-body" data-operator-fallback-panel></div>
+                            <div class="operator-tab-toolbar">
+                                <div data-operator-fallback-tabs></div>
                             </div>
                         </section>
                     </div>
@@ -8275,7 +8272,7 @@ function renderOperator(root, bootstrap, dashboard, primerReport) {
     });
 
     mountOperatorActiveTabs(root, dashboard);
-    mountOperatorFallbackDropQueue(root.querySelector('[data-operator-fallback-panel]'), root);
+    mountOperatorFallbackTabs(root, dashboard);
     mountOperatorUtilityTabs(root, dashboard);
     mountOperatorAssignmentBoard(root, dashboard);
     void mountOperatorAlertClock(root, bootstrap);
@@ -8963,6 +8960,39 @@ function mountOperatorActiveTabs(root, dashboard) {
                         <div data-active-items-panel></div>
                     `;
                     mountOperatorActiveList(root, dashboard, panel);
+                },
+            },
+        ],
+    }));
+}
+
+function mountOperatorFallbackTabs(root, dashboard) {
+    const tabsHost = root.querySelector('[data-operator-fallback-tabs]');
+    const count = Number(dashboard?.stat_chips?.find?.((chip) => chip?.label === 'Fallback')?.value ?? 0);
+
+    if (!tabsHost || !appState.helper.createTabs) {
+        if (tabsHost) {
+            tabsHost.innerHTML = `
+                <div class="operator-rail-toolbar">
+                    <span class="operator-fallback-static-pill">Fallback (${count})</span>
+                </div>
+                <div class="operator-fallback-list-host" data-operator-fallback-panel></div>
+            `;
+        }
+        mountOperatorFallbackDropQueue(root.querySelector('[data-operator-fallback-panel]'), root);
+        return;
+    }
+
+    trackSurfaceInstance(appState.helper.createTabs(tabsHost, {
+        activeId: 'fallback',
+        ariaLabel: 'Operator fallback intake tabs',
+        tabs: [
+            {
+                id: 'fallback',
+                label: `Fallback (${count})`,
+                render: (panel) => {
+                    panel.innerHTML = '<div class="operator-fallback-list-host" data-operator-fallback-panel></div>';
+                    mountOperatorFallbackDropQueue(panel.querySelector('[data-operator-fallback-panel]'), root);
                 },
             },
         ],
