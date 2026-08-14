@@ -9115,7 +9115,9 @@ function mountOperatorUtilityTabs(root, dashboard) {
         return;
     }
 
-    const buildTabs = () => [
+    const tabs = trackSurfaceInstance(appState.helper.createTabs(tabsHost, {
+        activeId: 'archive',
+        tabs: [
             {
                 id: 'archive',
                 label: 'Archive',
@@ -9123,18 +9125,7 @@ function mountOperatorUtilityTabs(root, dashboard) {
                     mountOperatorArchiveList(panel, root);
                 },
             },
-            {
-                id: 'activity',
-                label: 'Activity Log',
-                render: (panel) => {
-                    mountOperatorActivityLog(panel, root);
-                },
-            },
-        ];
-
-    const tabs = trackSurfaceInstance(appState.helper.createTabs(tabsHost, {
-        activeId: 'archive',
-        tabs: buildTabs(),
+        ],
         ariaLabel: 'Operator utility tabs',
     }));
 }
