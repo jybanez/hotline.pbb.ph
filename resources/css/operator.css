@@ -162,6 +162,7 @@
 
 .operator-left-rail {
     left: var(--operator-map-edge-inset, 0.85rem);
+    width: var(--operator-left-rail-width, 520px);
     grid-template-rows: auto auto auto minmax(0, 1fr);
 }
 
@@ -169,7 +170,53 @@
     height: auto;
     max-height: none;
     right: var(--operator-map-edge-inset, 0.85rem);
+    width: var(--operator-right-rail-width, 240px);
     grid-template-rows: auto minmax(0, 1fr);
+}
+
+.operator-left-rail-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 240px) minmax(0, 1fr);
+    gap: 0.75rem;
+    min-height: 0;
+    width: 100%;
+}
+
+.operator-left-rail-section {
+    min-width: 0;
+    min-height: 0;
+}
+
+.operator-rail-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    width: 100%;
+}
+
+.operator-rail-panel-header {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.05rem;
+    margin-bottom: 0.65rem;
+}
+
+.operator-rail-panel-header span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.95rem;
+    border-radius: 999px;
+    border: 1px solid rgba(104, 147, 190, 0.54);
+    background: rgba(24, 43, 72, 0.78);
+    color: #eef6ff;
+    padding: 0.24rem 0.72rem;
+    font-size: 0.74rem;
+    line-height: 1;
+}
+
+.operator-rail-panel-body {
+    min-width: 0;
+    min-height: 0;
 }
 
 .operator-column-head {
@@ -506,6 +553,8 @@
     --operator-kanban-lane-padding-y: 1.25rem;
     --operator-kanban-rail-padding-y: 0.7rem;
     --operator-kanban-scrollbar-height: 0.9rem;
+    --operator-left-rail-width: 520px;
+    --operator-right-rail-width: 240px;
     --operator-bottom-rail-height: calc(
         var(--operator-kanban-visible-card-area)
         + var(--operator-kanban-visible-card-gaps)
@@ -632,8 +681,8 @@
 
 .operator-map-bubble {
     position: absolute;
-    left: calc(240px + 1.9rem);
-    right: calc(240px + 1.9rem);
+    left: calc(var(--operator-left-rail-width, 520px) + 1.9rem);
+    right: calc(var(--operator-right-rail-width, 240px) + 1.9rem);
     bottom: 0.4rem;
     z-index: 3;
     display: grid;
@@ -1815,6 +1864,8 @@
     }
 
     .operator-map-stage {
+        --operator-left-rail-width: 450px;
+        --operator-right-rail-width: 210px;
         min-height: 22rem;
     }
 
@@ -1822,9 +1873,17 @@
         width: 210px;
     }
 
+    .operator-left-rail {
+        width: var(--operator-left-rail-width, 450px);
+    }
+
+    .operator-right-rail {
+        width: var(--operator-right-rail-width, 210px);
+    }
+
     .operator-map-bubble {
-        left: calc(210px + 1.7rem);
-        right: calc(210px + 1.7rem);
+        left: calc(var(--operator-left-rail-width, 450px) + 1.7rem);
+        right: calc(var(--operator-right-rail-width, 210px) + 1.7rem);
     }
 }
 
@@ -1880,6 +1939,11 @@
     .operator-left-rail,
     .operator-right-rail {
         grid-template-rows: auto auto auto minmax(0, 1fr);
+    }
+
+    .operator-left-rail-grid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.5rem;
     }
 
     .operator-right-rail {

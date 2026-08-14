@@ -8164,8 +8164,20 @@ function renderOperator(root, bootstrap, dashboard, primerReport) {
                 <div class="operator-map-canvas" data-operator-map-canvas></div>
                 <div data-map-marker-layer></div>
                 <aside class="panel-card operator-column operator-floating-rail operator-left-rail">
-                    <div class="operator-tab-toolbar">
-                        <div data-operator-active-tabs></div>
+                    <div class="operator-left-rail-grid">
+                        <section class="operator-left-rail-section" aria-label="Active and deferred incidents">
+                            <div class="operator-tab-toolbar">
+                                <div data-operator-active-tabs></div>
+                            </div>
+                        </section>
+                        <section class="operator-left-rail-section" aria-label="Fallback intake">
+                            <div class="operator-rail-panel">
+                                <div class="operator-rail-panel-header">
+                                    <span>Fallback (${Number(dashboard?.stat_chips?.find?.((chip) => chip?.label === 'Fallback')?.value ?? 0)})</span>
+                                </div>
+                                <div class="operator-rail-panel-body" data-operator-fallback-panel></div>
+                            </div>
+                        </section>
                     </div>
                 </aside>
                 <aside class="panel-card operator-column operator-floating-rail operator-right-rail">
@@ -8263,6 +8275,7 @@ function renderOperator(root, bootstrap, dashboard, primerReport) {
     });
 
     mountOperatorActiveTabs(root, dashboard);
+    mountOperatorFallbackDropQueue(root.querySelector('[data-operator-fallback-panel]'), root);
     mountOperatorUtilityTabs(root, dashboard);
     mountOperatorAssignmentBoard(root, dashboard);
     void mountOperatorAlertClock(root, bootstrap);
@@ -9074,13 +9087,6 @@ function mountOperatorUtilityTabs(root, dashboard) {
 
     const buildTabs = () => [
             {
-                id: 'fallback',
-                label: `Fallback (${Number(dashboard?.stat_chips?.find?.((chip) => chip?.label === 'Fallback')?.value ?? 0)})`,
-                render: (panel) => {
-                    mountOperatorFallbackDropQueue(panel, root);
-                },
-            },
-            {
                 id: 'archive',
                 label: 'Archive',
                 render: (panel) => {
@@ -9097,7 +9103,7 @@ function mountOperatorUtilityTabs(root, dashboard) {
         ];
 
     const tabs = trackSurfaceInstance(appState.helper.createTabs(tabsHost, {
-        activeId: 'fallback',
+        activeId: 'archive',
         tabs: buildTabs(),
         ariaLabel: 'Operator utility tabs',
     }));
