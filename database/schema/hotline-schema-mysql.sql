@@ -1101,9 +1101,9 @@ CREATE TABLE `fallback_incident_drop_attachments` (
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `fallback_incident_drop_attachments_sha256_index` (`sha256`),
-  KEY `fallback_incident_drop_attachments_drop_id_type_index` (`fallback_incident_drop_id`,`type`),
-  CONSTRAINT `fallback_incident_drop_attachments_drop_id_foreign` FOREIGN KEY (`fallback_incident_drop_id`) REFERENCES `fallback_incident_drops` (`id`) ON DELETE CASCADE
+  KEY `fid_attach_sha_idx` (`sha256`),
+  KEY `fid_attach_drop_type_idx` (`fallback_incident_drop_id`,`type`),
+  CONSTRAINT `fid_attach_drop_fk` FOREIGN KEY (`fallback_incident_drop_id`) REFERENCES `fallback_incident_drops` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `fallback_incident_drop_histories`;
@@ -1120,11 +1120,11 @@ CREATE TABLE `fallback_incident_drop_histories` (
   `metadata` json DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `fallback_incident_drop_histories_drop_created_at_index` (`fallback_incident_drop_id`,`created_at`),
-  KEY `fallback_incident_drop_histories_event_created_at_index` (`event`,`created_at`),
-  KEY `fallback_incident_drop_histories_actor_id_foreign` (`actor_id`),
-  CONSTRAINT `fallback_incident_drop_histories_actor_id_foreign` FOREIGN KEY (`actor_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
-  CONSTRAINT `fallback_incident_drop_histories_drop_id_foreign` FOREIGN KEY (`fallback_incident_drop_id`) REFERENCES `fallback_incident_drops` (`id`) ON DELETE CASCADE
+  KEY `fid_hist_drop_created_idx` (`fallback_incident_drop_id`,`created_at`),
+  KEY `fid_hist_event_created_idx` (`event`,`created_at`),
+  KEY `fid_hist_actor_fk` (`actor_id`),
+  CONSTRAINT `fid_hist_actor_fk` FOREIGN KEY (`actor_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fid_hist_drop_fk` FOREIGN KEY (`fallback_incident_drop_id`) REFERENCES `fallback_incident_drops` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;

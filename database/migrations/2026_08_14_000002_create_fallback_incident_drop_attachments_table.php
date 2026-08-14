@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('fallback_incident_drop_attachments', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('fallback_incident_drop_id')->constrained('fallback_incident_drops')->cascadeOnDelete();
+            $table->foreignId('fallback_incident_drop_id');
             $table->string('type', 32)->default('image');
             $table->string('original_filename')->nullable();
             $table->string('original_mime_type', 120)->nullable();
@@ -25,8 +25,13 @@ return new class extends Migration
             $table->timestamp('normalized_at')->nullable();
             $table->timestamps();
 
-            $table->index(['fallback_incident_drop_id', 'type']);
-            $table->index('sha256');
+            $table->index(['fallback_incident_drop_id', 'type'], 'fid_attach_drop_type_idx');
+            $table->index('sha256', 'fid_attach_sha_idx');
+
+            $table->foreign('fallback_incident_drop_id', 'fid_attach_drop_fk')
+                ->references('id')
+                ->on('fallback_incident_drops')
+                ->cascadeOnDelete();
         });
     }
 
