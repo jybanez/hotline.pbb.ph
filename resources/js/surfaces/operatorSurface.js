@@ -8964,6 +8964,8 @@ function mountOperatorActiveTabs(root, dashboard) {
             },
         ],
     }));
+
+    setupOperatorRailToggle(tabsHost, 'active');
 }
 
 function mountOperatorFallbackTabs(root, dashboard) {
@@ -8978,6 +8980,7 @@ function mountOperatorFallbackTabs(root, dashboard) {
                 </div>
                 <div class="operator-fallback-list-host" data-operator-fallback-panel></div>
             `;
+            setupOperatorRailToggle(tabsHost, 'fallback');
         }
         mountOperatorFallbackDropQueue(root.querySelector('[data-operator-fallback-panel]'), root);
         return;
@@ -8997,6 +9000,38 @@ function mountOperatorFallbackTabs(root, dashboard) {
             },
         ],
     }));
+
+    setupOperatorRailToggle(tabsHost, 'fallback');
+}
+
+function setupOperatorRailToggle(tabsHost, railId) {
+    if (!tabsHost || !railId) {
+        return;
+    }
+
+    const collapsedState = appState.runtime.operatorRailCollapsed ?? {};
+    appState.runtime.operatorRailCollapsed = collapsedState;
+
+    const apply = () => {
+        const collapsed = !!collapsedState[railId];
+        tabsHost.classList.toggle('is-rail-collapsed', collapsed);
+        tabsHost.querySelectorAll('.ui-tab, .operator-fallback-static-pill').forEach((tab) => {
+            tab.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+            tab.setAttribute('title', collapsed ? 'Show list' : 'Hide list');
+        });
+    };
+
+    tabsHost.addEventListener('click', (event) => {
+        const tab = event.target?.closest?.('.ui-tab, .operator-fallback-static-pill');
+        if (!tab || !tabsHost.contains(tab)) {
+            return;
+        }
+
+        collapsedState[railId] = !collapsedState[railId];
+        apply();
+    });
+
+    apply();
 }
 
 function mountOperatorArchiveList(panel, root) {
@@ -9128,6 +9163,8 @@ function mountOperatorUtilityTabs(root, dashboard) {
         ],
         ariaLabel: 'Operator utility tabs',
     }));
+
+    setupOperatorRailToggle(tabsHost, 'archive');
 }
 
 function fallbackDropStatusLabel(status) {
