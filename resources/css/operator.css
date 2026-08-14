@@ -158,10 +158,12 @@
     backdrop-filter: none;
     overflow: hidden;
     align-content: start;
+    pointer-events: none;
 }
 
 .operator-left-rail {
     left: var(--operator-map-edge-inset, 0.85rem);
+    width: var(--operator-left-rail-width, 520px);
     grid-template-rows: auto auto auto minmax(0, 1fr);
 }
 
@@ -169,7 +171,55 @@
     height: auto;
     max-height: none;
     right: var(--operator-map-edge-inset, 0.85rem);
+    width: var(--operator-right-rail-width, 240px);
     grid-template-rows: auto minmax(0, 1fr);
+}
+
+.operator-left-rail-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 240px) minmax(0, 1fr);
+    gap: 0.75rem;
+    min-height: 0;
+    width: 100%;
+    pointer-events: none;
+}
+
+.operator-left-rail-section {
+    min-width: 0;
+    min-height: 0;
+    pointer-events: none;
+}
+
+.operator-rail-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    width: 100%;
+}
+
+.operator-rail-panel-header {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.05rem;
+    margin-bottom: 0.65rem;
+}
+
+.operator-rail-panel-header span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.95rem;
+    border-radius: 999px;
+    border: 1px solid rgba(104, 147, 190, 0.54);
+    background: rgba(24, 43, 72, 0.78);
+    color: #eef6ff;
+    padding: 0.24rem 0.72rem;
+    font-size: 0.74rem;
+    line-height: 1;
+}
+
+.operator-rail-panel-body {
+    min-width: 0;
+    min-height: 0;
 }
 
 .operator-column-head {
@@ -193,6 +243,7 @@
     align-items: center;
     gap: 0.65rem;
     margin-bottom: 0.3rem;
+    pointer-events: none;
 }
 
 .operator-tab-toolbar {
@@ -333,6 +384,24 @@
 .operator-archive-list-host {
     flex: 1 1 auto;
     min-height: 0;
+}
+
+.operator-fallback-list-host {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.operator-fallback-static-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.95rem;
+    border-radius: 999px;
+    border: 1px solid rgba(104, 147, 190, 0.54);
+    background: rgba(24, 43, 72, 0.78);
+    color: #eef6ff;
+    padding: 0.24rem 0.72rem;
+    font-size: 0.74rem;
+    line-height: 1;
 }
 
 .operator-active-virtual-list.has-overflow .ui-virtual-list-viewport,
@@ -506,6 +575,8 @@
     --operator-kanban-lane-padding-y: 1.25rem;
     --operator-kanban-rail-padding-y: 0.7rem;
     --operator-kanban-scrollbar-height: 0.9rem;
+    --operator-left-rail-width: 520px;
+    --operator-right-rail-width: 240px;
     --operator-bottom-rail-height: calc(
         var(--operator-kanban-visible-card-area)
         + var(--operator-kanban-visible-card-gaps)
@@ -632,8 +703,8 @@
 
 .operator-map-bubble {
     position: absolute;
-    left: calc(240px + 1.9rem);
-    right: calc(240px + 1.9rem);
+    left: calc(var(--operator-left-rail-width, 520px) + 1.9rem);
+    right: calc(var(--operator-right-rail-width, 240px) + 1.9rem);
     bottom: 0.4rem;
     z-index: 3;
     display: grid;
@@ -651,10 +722,12 @@
 }
 
 .operator-floating-rail [data-operator-tabs],
-.operator-floating-rail [data-operator-active-tabs] {
+.operator-floating-rail [data-operator-active-tabs],
+.operator-floating-rail [data-operator-fallback-tabs] {
     min-height: 0;
     width: 100%;
     min-width: 0;
+    pointer-events: none;
 }
 
 .operator-floating-rail .ui-tabs {
@@ -663,8 +736,39 @@
     min-width: 0;
 }
 
+.operator-rail-toggle {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    min-height: 1.95rem;
+    border-radius: 999px;
+    border: 1px solid rgba(104, 147, 190, 0.54);
+    background: rgba(24, 43, 72, 0.78);
+    color: #eef6ff;
+    padding: 0.24rem 0.72rem;
+    font: inherit;
+    font-size: 0.74rem;
+    line-height: 1;
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+.operator-rail-toggle-host {
+    display: inline-flex;
+    width: fit-content;
+    pointer-events: none;
+}
+
+.operator-rail-toggle:hover,
+.operator-rail-toggle:focus-visible {
+    border-color: rgba(121, 184, 245, 0.72);
+    background: rgba(36, 67, 108, 0.82);
+}
+
+.operator-rail-content,
 .operator-floating-rail .ui-tabpanel {
     min-height: 0;
+    max-height: 520px;
     margin-top: 0.35rem;
     width: 100%;
     min-width: 0;
@@ -675,12 +779,38 @@
     border-radius: var(--ui-radius-sm);
     background: rgba(16, 28, 46, 0.5);
     backdrop-filter: none;
+    opacity: 1;
+    pointer-events: auto;
+    transition:
+        max-height 180ms ease,
+        padding 180ms ease,
+        margin 180ms ease,
+        border-color 180ms ease,
+        background-color 180ms ease,
+        opacity 140ms ease;
 }
 
+.operator-rail-content,
 .operator-floating-rail .ui-tabpanel {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+}
+
+.operator-floating-rail [data-operator-tabs].is-rail-collapsed .operator-rail-content,
+.operator-floating-rail [data-operator-active-tabs].is-rail-collapsed .operator-rail-content,
+.operator-floating-rail [data-operator-fallback-tabs].is-rail-collapsed .operator-rail-content,
+.operator-floating-rail [data-operator-tabs].is-rail-collapsed .ui-tabpanel,
+.operator-floating-rail [data-operator-active-tabs].is-rail-collapsed .ui-tabpanel,
+.operator-floating-rail [data-operator-fallback-tabs].is-rail-collapsed .ui-tabpanel {
+    max-height: 0;
+    margin-top: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-color: transparent;
+    background: transparent;
+    opacity: 0;
+    pointer-events: none;
 }
 
 .operator-activity-timeline-scroll {
@@ -1815,6 +1945,8 @@
     }
 
     .operator-map-stage {
+        --operator-left-rail-width: 450px;
+        --operator-right-rail-width: 210px;
         min-height: 22rem;
     }
 
@@ -1822,9 +1954,17 @@
         width: 210px;
     }
 
+    .operator-left-rail {
+        width: var(--operator-left-rail-width, 450px);
+    }
+
+    .operator-right-rail {
+        width: var(--operator-right-rail-width, 210px);
+    }
+
     .operator-map-bubble {
-        left: calc(210px + 1.7rem);
-        right: calc(210px + 1.7rem);
+        left: calc(var(--operator-left-rail-width, 450px) + 1.7rem);
+        right: calc(var(--operator-right-rail-width, 210px) + 1.7rem);
     }
 }
 
@@ -1880,6 +2020,11 @@
     .operator-left-rail,
     .operator-right-rail {
         grid-template-rows: auto auto auto minmax(0, 1fr);
+    }
+
+    .operator-left-rail-grid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.5rem;
     }
 
     .operator-right-rail {

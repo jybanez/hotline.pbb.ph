@@ -20,6 +20,7 @@ const OPERATOR_REMOTE_DISCONNECT_GRACE_MS = 10000;
 const OPERATOR_REMOTE_DISCONNECT_CLEANUP_TIMEOUT_MS = 10000;
 const OPERATOR_MEDIA_CONSUMER_ENABLED = true;
 const OPERATOR_MEDIA_CHUNK_TRANSPORT = 'realtime-binary';
+const OPERATOR_RAIL_COLLAPSED_STORAGE_KEY = 'pbb.hotline.operator.railCollapsed';
 
 function isDebugFlagEnabled(storageKey, globalKey) {
     if (typeof window === 'undefined') {
@@ -35,6 +36,50 @@ function isDebugFlagEnabled(storageKey, globalKey) {
         return ['1', 'true', 'yes', 'on'].includes(String(stored ?? '').trim().toLowerCase());
     } catch {
         return false;
+    }
+}
+
+function loadOperatorRailCollapsedState() {
+    if (appState.runtime.operatorRailCollapsed) {
+        return appState.runtime.operatorRailCollapsed;
+    }
+
+    const state = {};
+
+    if (typeof window !== 'undefined') {
+        try {
+            const parsed = JSON.parse(window.localStorage?.getItem(OPERATOR_RAIL_COLLAPSED_STORAGE_KEY) ?? '{}');
+
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                ['active', 'fallback', 'archive'].forEach((key) => {
+                    if (typeof parsed[key] === 'boolean') {
+                        state[key] = parsed[key];
+                    }
+                });
+            }
+        } catch {
+            // Ignore invalid local state; default rails stay visible.
+        }
+    }
+
+    appState.runtime.operatorRailCollapsed = state;
+
+    return state;
+}
+
+function saveOperatorRailCollapsedState(state) {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    try {
+        window.localStorage?.setItem(OPERATOR_RAIL_COLLAPSED_STORAGE_KEY, JSON.stringify({
+            active: !!state?.active,
+            fallback: !!state?.fallback,
+            archive: !!state?.archive,
+        }));
+    } catch {
+        // Local persistence is best effort only.
     }
 }
 
@@ -789,7 +834,12 @@ function refreshOperatorActiveRail(root) {
     const panel = panelHost?.closest?.('.ui-tabpanel') ?? panelHost?.parentElement;
 
     if (panel) {
-        mountOperatorActiveList(nextRoot, appState.operatorDashboard ?? {}, panel);
+        mountOperatorActiveList(
+            nextRoot,
+            appState.operatorDashboard ?? {},
+            panel,
+            appState.runtime.operatorRailControls?.active ?? null,
+        );
     }
 }
 
@@ -799,7 +849,7 @@ function refreshOperatorArchiveRail(root) {
     const panel = panelHost?.closest?.('.ui-tabpanel') ?? panelHost?.parentElement;
 
     if (panel) {
-        mountOperatorArchiveList(panel, nextRoot);
+        mountOperatorArchiveList(panel, nextRoot, appState.runtime.operatorRailControls?.archive ?? null);
     }
 }
 
@@ -8164,8 +8214,17 @@ function renderOperator(root, bootstrap, dashboard, primerReport) {
                 <div class="operator-map-canvas" data-operator-map-canvas></div>
                 <div data-map-marker-layer></div>
                 <aside class="panel-card operator-column operator-floating-rail operator-left-rail">
-                    <div class="operator-tab-toolbar">
-                        <div data-operator-active-tabs></div>
+                    <div class="operator-left-rail-grid">
+                        <section class="operator-left-rail-section" aria-label="Active and deferred incidents">
+                            <div class="operator-tab-toolbar">
+                                <div data-operator-active-tabs></div>
+                            </div>
+                        </section>
+                        <section class="operator-left-rail-section" aria-label="Fallback intake">
+                            <div class="operator-tab-toolbar">
+                                <div data-operator-fallback-tabs></div>
+                            </div>
+                        </section>
                     </div>
                 </aside>
                 <aside class="panel-card operator-column operator-floating-rail operator-right-rail">
@@ -8263,6 +8322,7 @@ function renderOperator(root, bootstrap, dashboard, primerReport) {
     });
 
     mountOperatorActiveTabs(root, dashboard);
+    mountOperatorFallbackTabs(root, dashboard);
     mountOperatorUtilityTabs(root, dashboard);
     mountOperatorAssignmentBoard(root, dashboard);
     void mountOperatorAlertClock(root, bootstrap);
@@ -8827,7 +8887,7 @@ function scheduleOperatorRailRender(callback) {
     window.requestAnimationFrame(callback);
 }
 
-function mountOperatorActiveList(root, dashboard, scope = root) {
+function mountOperatorActiveList(root, dashboard, scope = root, railControls = null) {
     const panelHost = scope.querySelector('[data-active-items-panel]');
     const searchInput = scope.querySelector('[data-active-search]');
 
@@ -8836,6 +8896,8 @@ function mountOperatorActiveList(root, dashboard, scope = root) {
     }
 
     const renderList = (items) => {
+        railControls?.setCount?.(Array.isArray(items) ? items.length : 0);
+        railControls?.setLoading?.(false);
         clearOperatorIncidentElapsedTimers('active');
         const filteredItems = filterOperatorItems(items, searchInput.value, [
             'display_id',
@@ -8894,6 +8956,7 @@ function mountOperatorActiveList(root, dashboard, scope = root) {
     } else {
         panelHost.innerHTML = '<p class="surface-empty">Loading active incidents...</p>';
     }
+    railControls?.setLoading?.(true);
 
     appState.runtime.operatorActiveItemsLoadPromise = fetchJson('/api/operator/incidents?status=Active,Deferred')
         .then((response) => {
@@ -8909,6 +8972,7 @@ function mountOperatorActiveList(root, dashboard, scope = root) {
             return items;
         })
         .catch((error) => {
+            railControls?.setLoading?.(false);
             panelHost.innerHTML = '';
             if (appState.helper.createEmptyState) {
                 trackSurfaceInstance(appState.helper.createEmptyState(panelHost, {
@@ -8930,33 +8994,152 @@ function mountOperatorActiveList(root, dashboard, scope = root) {
 function mountOperatorActiveTabs(root, dashboard) {
     const tabsHost = root.querySelector('[data-operator-active-tabs]');
 
-    if (!tabsHost || !appState.helper.createTabs) {
+    if (!tabsHost) {
         mountOperatorActiveList(root, dashboard);
         return;
     }
 
-    trackSurfaceInstance(appState.helper.createTabs(tabsHost, {
-        activeId: 'active',
-        ariaLabel: 'Operator active incident tabs',
-        tabs: [
-            {
-                id: 'active',
-                label: 'Active + Deferred',
-                render: (panel) => {
-                    panel.innerHTML = `
-                        <div class="operator-rail-toolbar">
-                            <input class="operator-search-input" type="search" placeholder="Search incidents..." data-active-search>
-                        </div>
-                        <div data-active-items-panel></div>
-                    `;
-                    mountOperatorActiveList(root, dashboard, panel);
-                },
-            },
-        ],
-    }));
+    mountOperatorRailTogglePanel(tabsHost, {
+        id: 'active',
+        label: 'Active + Deferred',
+        tone: 'success',
+        icon: 'data.list',
+        count: Array.isArray(dashboard?.active_items) ? dashboard.active_items.length : null,
+        loading: !Array.isArray(dashboard?.active_items),
+        ariaLabel: 'Toggle active and deferred incidents list',
+        content: `
+            <div class="operator-rail-toolbar">
+                <input class="operator-search-input" type="search" placeholder="Search incidents..." data-active-search>
+            </div>
+            <div data-active-items-panel></div>
+        `,
+        onMount(panel, controls) {
+            mountOperatorActiveList(root, dashboard, panel, controls);
+        },
+    });
 }
 
-function mountOperatorArchiveList(panel, root) {
+function mountOperatorFallbackTabs(root, dashboard) {
+    const tabsHost = root.querySelector('[data-operator-fallback-tabs]');
+    const count = Number(dashboard?.stat_chips?.find?.((chip) => chip?.label === 'Fallback')?.value ?? 0);
+
+    if (!tabsHost) {
+        mountOperatorFallbackDropQueue(root.querySelector('[data-operator-fallback-panel]'), root);
+        return;
+    }
+
+    mountOperatorRailTogglePanel(tabsHost, {
+        id: 'fallback',
+        label: 'Fallback',
+        tone: 'warning',
+        icon: 'data.list',
+        count,
+        loading: true,
+        ariaLabel: 'Toggle fallback intake list',
+        content: '<div class="operator-fallback-list-host" data-operator-fallback-panel></div>',
+        onMount(panel, controls) {
+            mountOperatorFallbackDropQueue(panel.querySelector('[data-operator-fallback-panel]'), root, controls);
+        },
+    });
+}
+
+function mountOperatorRailTogglePanel(host, config) {
+    const railId = String(config?.id ?? '').trim();
+    if (!host || !railId) {
+        return;
+    }
+
+    const collapsedState = loadOperatorRailCollapsedState();
+    const contentId = `operator-rail-content-${railId}`;
+
+    host.innerHTML = `
+        <div class="operator-rail-toggle-host" data-operator-rail-toggle></div>
+        <div class="operator-rail-content" id="${contentId}">
+            ${config?.content ?? ''}
+        </div>
+    `;
+
+    const buttonHost = host.querySelector('[data-operator-rail-toggle]');
+    const panel = host.querySelector('.operator-rail-content');
+    let toggleButton = null;
+    const toggleState = {
+        count: config?.count ?? null,
+        loading: !!config?.loading,
+    };
+
+    const toggleOptions = () => ({
+        id: `operator-rail-${railId}`,
+        label: config?.label ?? 'List',
+        pressed: !collapsedState[railId],
+        icon: config?.icon ? createIconMarkup(config.icon, { size: 14, ariaLabel: config?.label ?? 'List' }) : '',
+        variant: config?.variant ?? 'pill',
+        tone: config?.tone ?? 'neutral',
+        size: config?.size ?? 'sm',
+        leadingDot: config?.leadingDot ?? true,
+        count: toggleState.count,
+        loading: toggleState.loading,
+        className: 'operator-rail-toggle',
+        tooltip: collapsedState[railId] ? 'Show list' : 'Hide list',
+    });
+
+    const updateToggle = (next = {}) => {
+        Object.assign(toggleState, next);
+        toggleButton?.update?.(toggleOptions());
+    };
+
+    const controls = {
+        setCount(count) {
+            const nextCount = Number(count);
+            updateToggle({ count: Number.isFinite(nextCount) ? Math.max(0, nextCount) : 0 });
+        },
+        setLoading(loading) {
+            updateToggle({ loading: !!loading });
+        },
+        update: updateToggle,
+    };
+
+    const apply = () => {
+        const collapsed = !!collapsedState[railId];
+        host.classList.toggle('is-rail-collapsed', collapsed);
+        const button = buttonHost?.querySelector('button');
+        button?.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        button?.setAttribute('aria-controls', contentId);
+        button?.setAttribute('title', collapsed ? 'Show list' : 'Hide list');
+        toggleButton?.setPressed?.(!collapsed);
+    };
+
+    if (buttonHost && typeof appState.helper.createToggleButton === 'function') {
+        toggleButton = appState.helper.createToggleButton(buttonHost, {
+            ...toggleOptions(),
+            onChange({ pressed }) {
+                collapsedState[railId] = !pressed;
+                saveOperatorRailCollapsedState(collapsedState);
+                apply();
+            },
+        });
+    } else if (buttonHost) {
+        buttonHost.innerHTML = `
+            <button class="operator-rail-toggle" type="button" aria-controls="${contentId}">
+                ${escapeHtml(config?.label ?? 'List')}
+            </button>
+        `;
+        buttonHost.querySelector('button')?.addEventListener('click', () => {
+            collapsedState[railId] = !collapsedState[railId];
+            saveOperatorRailCollapsedState(collapsedState);
+            apply();
+        });
+    }
+
+    appState.runtime.operatorRailControls = {
+        ...(appState.runtime.operatorRailControls ?? {}),
+        [railId]: controls,
+    };
+
+    config?.onMount?.(panel, controls);
+    apply();
+}
+
+function mountOperatorArchiveList(panel, root, railControls = null) {
     if (!panel) {
         return;
     }
@@ -8976,6 +9159,8 @@ function mountOperatorArchiveList(panel, root) {
     }
 
     const renderList = (items) => {
+        railControls?.setCount?.(Array.isArray(items) ? items.length : 0);
+        railControls?.setLoading?.(false);
         clearOperatorIncidentElapsedTimers('archive');
         const archiveItems = filterOperatorItems(items, searchInput.value, [
             'display_id',
@@ -9034,6 +9219,7 @@ function mountOperatorArchiveList(panel, root) {
     } else {
         listHost.innerHTML = '<p class="surface-empty">Loading archived incidents...</p>';
     }
+    railControls?.setLoading?.(true);
 
     appState.runtime.operatorArchiveItemsLoadPromise = fetchJson('/api/operator/incidents?status=Resolved,Discarded')
         .then((response) => {
@@ -9047,6 +9233,7 @@ function mountOperatorArchiveList(panel, root) {
             return items;
         })
         .catch((error) => {
+            railControls?.setLoading?.(false);
             listHost.innerHTML = '';
             if (appState.helper.createEmptyState) {
                 trackSurfaceInstance(appState.helper.createEmptyState(listHost, {
@@ -9068,39 +9255,23 @@ function mountOperatorArchiveList(panel, root) {
 function mountOperatorUtilityTabs(root, dashboard) {
     const tabsHost = root.querySelector('[data-operator-tabs]');
 
-    if (!tabsHost || !appState.helper.createTabs) {
+    if (!tabsHost) {
         return;
     }
 
-    const buildTabs = () => [
-            {
-                id: 'fallback',
-                label: `Fallback (${Number(dashboard?.stat_chips?.find?.((chip) => chip?.label === 'Fallback')?.value ?? 0)})`,
-                render: (panel) => {
-                    mountOperatorFallbackDropQueue(panel, root);
-                },
-            },
-            {
-                id: 'archive',
-                label: 'Archive',
-                render: (panel) => {
-                    mountOperatorArchiveList(panel, root);
-                },
-            },
-            {
-                id: 'activity',
-                label: 'Activity Log',
-                render: (panel) => {
-                    mountOperatorActivityLog(panel, root);
-                },
-            },
-        ];
-
-    const tabs = trackSurfaceInstance(appState.helper.createTabs(tabsHost, {
-        activeId: 'fallback',
-        tabs: buildTabs(),
-        ariaLabel: 'Operator utility tabs',
-    }));
+    mountOperatorRailTogglePanel(tabsHost, {
+        id: 'archive',
+        label: 'Archive',
+        tone: 'neutral',
+        icon: 'data.list',
+        count: Array.isArray(dashboard?.archived_items) ? dashboard.archived_items.length : null,
+        loading: !Array.isArray(dashboard?.archived_items),
+        ariaLabel: 'Toggle archived incidents list',
+        content: '',
+        onMount(panel, controls) {
+            mountOperatorArchiveList(panel, root, controls);
+        },
+    });
 }
 
 function fallbackDropStatusLabel(status) {
@@ -9171,15 +9342,18 @@ function fallbackDropCardMarkup(item) {
     `;
 }
 
-function mountOperatorFallbackDropQueue(panel, root) {
+function mountOperatorFallbackDropQueue(panel, root, railControls = null) {
     if (!panel) {
         return;
     }
 
     panel.innerHTML = '<p class="surface-empty">Loading fallback intake queue...</p>';
+    railControls?.setLoading?.(true);
 
     const render = (items) => {
         const drops = Array.isArray(items) ? items : [];
+        railControls?.setCount?.(drops.length);
+        railControls?.setLoading?.(false);
 
         if (!drops.length) {
             if (appState.helper.createEmptyState) {
@@ -9251,6 +9425,7 @@ function mountOperatorFallbackDropQueue(panel, root) {
     fetchJson('/api/operator/fallback-drops?status=open')
         .then((response) => render(response?.items ?? []))
         .catch((error) => {
+            railControls?.setLoading?.(false);
             if (appState.helper.createEmptyState) {
                 panel.innerHTML = '';
                 trackSurfaceInstance(appState.helper.createEmptyState(panel, {
