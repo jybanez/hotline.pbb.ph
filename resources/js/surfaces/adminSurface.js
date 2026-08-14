@@ -3987,6 +3987,14 @@ function mountSettingsEditor(root, state) {
     });
 
     rememberAdminInstance(editor);
+    normalizeSettingsPasswordFields(host);
+}
+
+function normalizeSettingsPasswordFields(host) {
+    host.querySelectorAll('.ui-property-editor-password-host .ui-password-input').forEach((input) => {
+        input.style.paddingRight = '56px';
+        input.style.paddingInlineEnd = '56px';
+    });
 }
 
 async function ensureSettingsLoaded() {
@@ -4113,6 +4121,7 @@ async function openSettingsModal() {
         });
 
         rememberAdminInstance(editor);
+        normalizeSettingsPasswordFields(host);
     };
 
     const renderSettingsError = (message) => {
