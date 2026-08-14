@@ -834,7 +834,12 @@ function refreshOperatorActiveRail(root) {
     const panel = panelHost?.closest?.('.ui-tabpanel') ?? panelHost?.parentElement;
 
     if (panel) {
-        mountOperatorActiveList(nextRoot, appState.operatorDashboard ?? {}, panel);
+        mountOperatorActiveList(
+            nextRoot,
+            appState.operatorDashboard ?? {},
+            panel,
+            appState.runtime.operatorRailControls?.active ?? null,
+        );
     }
 }
 
@@ -844,7 +849,7 @@ function refreshOperatorArchiveRail(root) {
     const panel = panelHost?.closest?.('.ui-tabpanel') ?? panelHost?.parentElement;
 
     if (panel) {
-        mountOperatorArchiveList(panel, nextRoot);
+        mountOperatorArchiveList(panel, nextRoot, appState.runtime.operatorRailControls?.archive ?? null);
     }
 }
 
@@ -8882,7 +8887,7 @@ function scheduleOperatorRailRender(callback) {
     window.requestAnimationFrame(callback);
 }
 
-function mountOperatorActiveList(root, dashboard, scope = root) {
+function mountOperatorActiveList(root, dashboard, scope = root, railControls = null) {
     const panelHost = scope.querySelector('[data-active-items-panel]');
     const searchInput = scope.querySelector('[data-active-search]');
 
@@ -8891,6 +8896,8 @@ function mountOperatorActiveList(root, dashboard, scope = root) {
     }
 
     const renderList = (items) => {
+        railControls?.setCount?.(Array.isArray(items) ? items.length : 0);
+        railControls?.setLoading?.(false);
         clearOperatorIncidentElapsedTimers('active');
         const filteredItems = filterOperatorItems(items, searchInput.value, [
             'display_id',
@@ -8949,6 +8956,7 @@ function mountOperatorActiveList(root, dashboard, scope = root) {
     } else {
         panelHost.innerHTML = '<p class="surface-empty">Loading active incidents...</p>';
     }
+    railControls?.setLoading?.(true);
 
     appState.runtime.operatorActiveItemsLoadPromise = fetchJson('/api/operator/incidents?status=Active,Deferred')
         .then((response) => {
@@ -8964,6 +8972,7 @@ function mountOperatorActiveList(root, dashboard, scope = root) {
             return items;
         })
         .catch((error) => {
+            railControls?.setLoading?.(false);
             panelHost.innerHTML = '';
             if (appState.helper.createEmptyState) {
                 trackSurfaceInstance(appState.helper.createEmptyState(panelHost, {
@@ -8993,6 +9002,10 @@ function mountOperatorActiveTabs(root, dashboard) {
     mountOperatorRailTogglePanel(tabsHost, {
         id: 'active',
         label: 'Active + Deferred',
+        tone: 'success',
+        icon: 'data.list',
+        count: Array.isArray(dashboard?.active_items) ? dashboard.active_items.length : null,
+        loading: !Array.isArray(dashboard?.active_items),
         ariaLabel: 'Toggle active and deferred incidents list',
         content: `
             <div class="operator-rail-toolbar">
@@ -9000,8 +9013,8 @@ function mountOperatorActiveTabs(root, dashboard) {
             </div>
             <div data-active-items-panel></div>
         `,
-        onMount(panel) {
-            mountOperatorActiveList(root, dashboard, panel);
+        onMount(panel, controls) {
+            mountOperatorActiveList(root, dashboard, panel, controls);
         },
     });
 }
@@ -9017,11 +9030,15 @@ function mountOperatorFallbackTabs(root, dashboard) {
 
     mountOperatorRailTogglePanel(tabsHost, {
         id: 'fallback',
-        label: `Fallback (${count})`,
+        label: 'Fallback',
+        tone: 'warning',
+        icon: 'data.list',
+        count,
+        loading: true,
         ariaLabel: 'Toggle fallback intake list',
         content: '<div class="operator-fallback-list-host" data-operator-fallback-panel></div>',
-        onMount(panel) {
-            mountOperatorFallbackDropQueue(panel.querySelector('[data-operator-fallback-panel]'), root);
+        onMount(panel, controls) {
+            mountOperatorFallbackDropQueue(panel.querySelector('[data-operator-fallback-panel]'), root, controls);
         },
     });
 }
@@ -9045,6 +9062,41 @@ function mountOperatorRailTogglePanel(host, config) {
     const buttonHost = host.querySelector('[data-operator-rail-toggle]');
     const panel = host.querySelector('.operator-rail-content');
     let toggleButton = null;
+    const toggleState = {
+        count: config?.count ?? null,
+        loading: !!config?.loading,
+    };
+
+    const toggleOptions = () => ({
+        id: `operator-rail-${railId}`,
+        label: config?.label ?? 'List',
+        pressed: !collapsedState[railId],
+        icon: config?.icon ? createIconMarkup(config.icon, { size: 14, ariaLabel: config?.label ?? 'List' }) : '',
+        variant: config?.variant ?? 'pill',
+        tone: config?.tone ?? 'neutral',
+        size: config?.size ?? 'sm',
+        leadingDot: config?.leadingDot ?? true,
+        count: toggleState.count,
+        loading: toggleState.loading,
+        className: 'operator-rail-toggle',
+        tooltip: collapsedState[railId] ? 'Show list' : 'Hide list',
+    });
+
+    const updateToggle = (next = {}) => {
+        Object.assign(toggleState, next);
+        toggleButton?.update?.(toggleOptions());
+    };
+
+    const controls = {
+        setCount(count) {
+            const nextCount = Number(count);
+            updateToggle({ count: Number.isFinite(nextCount) ? Math.max(0, nextCount) : 0 });
+        },
+        setLoading(loading) {
+            updateToggle({ loading: !!loading });
+        },
+        update: updateToggle,
+    };
 
     const apply = () => {
         const collapsed = !!collapsedState[railId];
@@ -9058,14 +9110,7 @@ function mountOperatorRailTogglePanel(host, config) {
 
     if (buttonHost && typeof appState.helper.createToggleButton === 'function') {
         toggleButton = appState.helper.createToggleButton(buttonHost, {
-            id: `operator-rail-${railId}`,
-            label: config?.label ?? 'List',
-            pressed: !collapsedState[railId],
-            variant: 'pill',
-            tone: 'info',
-            size: 'sm',
-            className: 'operator-rail-toggle',
-            tooltip: collapsedState[railId] ? 'Show list' : 'Hide list',
+            ...toggleOptions(),
             onChange({ pressed }) {
                 collapsedState[railId] = !pressed;
                 saveOperatorRailCollapsedState(collapsedState);
@@ -9085,11 +9130,16 @@ function mountOperatorRailTogglePanel(host, config) {
         });
     }
 
-    config?.onMount?.(panel);
+    appState.runtime.operatorRailControls = {
+        ...(appState.runtime.operatorRailControls ?? {}),
+        [railId]: controls,
+    };
+
+    config?.onMount?.(panel, controls);
     apply();
 }
 
-function mountOperatorArchiveList(panel, root) {
+function mountOperatorArchiveList(panel, root, railControls = null) {
     if (!panel) {
         return;
     }
@@ -9109,6 +9159,8 @@ function mountOperatorArchiveList(panel, root) {
     }
 
     const renderList = (items) => {
+        railControls?.setCount?.(Array.isArray(items) ? items.length : 0);
+        railControls?.setLoading?.(false);
         clearOperatorIncidentElapsedTimers('archive');
         const archiveItems = filterOperatorItems(items, searchInput.value, [
             'display_id',
@@ -9167,6 +9219,7 @@ function mountOperatorArchiveList(panel, root) {
     } else {
         listHost.innerHTML = '<p class="surface-empty">Loading archived incidents...</p>';
     }
+    railControls?.setLoading?.(true);
 
     appState.runtime.operatorArchiveItemsLoadPromise = fetchJson('/api/operator/incidents?status=Resolved,Discarded')
         .then((response) => {
@@ -9180,6 +9233,7 @@ function mountOperatorArchiveList(panel, root) {
             return items;
         })
         .catch((error) => {
+            railControls?.setLoading?.(false);
             listHost.innerHTML = '';
             if (appState.helper.createEmptyState) {
                 trackSurfaceInstance(appState.helper.createEmptyState(listHost, {
@@ -9208,10 +9262,14 @@ function mountOperatorUtilityTabs(root, dashboard) {
     mountOperatorRailTogglePanel(tabsHost, {
         id: 'archive',
         label: 'Archive',
+        tone: 'neutral',
+        icon: 'data.list',
+        count: Array.isArray(dashboard?.archived_items) ? dashboard.archived_items.length : null,
+        loading: !Array.isArray(dashboard?.archived_items),
         ariaLabel: 'Toggle archived incidents list',
         content: '',
-        onMount(panel) {
-            mountOperatorArchiveList(panel, root);
+        onMount(panel, controls) {
+            mountOperatorArchiveList(panel, root, controls);
         },
     });
 }
@@ -9284,15 +9342,18 @@ function fallbackDropCardMarkup(item) {
     `;
 }
 
-function mountOperatorFallbackDropQueue(panel, root) {
+function mountOperatorFallbackDropQueue(panel, root, railControls = null) {
     if (!panel) {
         return;
     }
 
     panel.innerHTML = '<p class="surface-empty">Loading fallback intake queue...</p>';
+    railControls?.setLoading?.(true);
 
     const render = (items) => {
         const drops = Array.isArray(items) ? items : [];
+        railControls?.setCount?.(drops.length);
+        railControls?.setLoading?.(false);
 
         if (!drops.length) {
             if (appState.helper.createEmptyState) {
@@ -9364,6 +9425,7 @@ function mountOperatorFallbackDropQueue(panel, root) {
     fetchJson('/api/operator/fallback-drops?status=open')
         .then((response) => render(response?.items ?? []))
         .catch((error) => {
+            railControls?.setLoading?.(false);
             if (appState.helper.createEmptyState) {
                 panel.innerHTML = '';
                 trackSurfaceInstance(appState.helper.createEmptyState(panel, {
