@@ -1,7 +1,8 @@
 <?php
 
-use App\Http\Controllers\Api\Operator\CallAttemptOperatorAttemptController;
 use App\Http\Controllers\Api\Operator\CallAttemptController;
+use App\Http\Controllers\Api\Operator\CallAttemptOperatorAttemptController;
+use App\Http\Controllers\Api\Operator\CallbackController;
 use App\Http\Controllers\Api\Operator\CallSessionController;
 use App\Http\Controllers\Api\Operator\CallSessionMediaController;
 use App\Http\Controllers\Api\Operator\DashboardController;
@@ -23,6 +24,11 @@ Route::middleware(['auth', 'role:operator'])->prefix('/operator')->group(functio
     Route::post('/fallback-drops/{fallbackDrop}/convert', [FallbackIncidentDropController::class, 'convert']);
     Route::post('/fallback-drops/{fallbackDrop}/close', [FallbackIncidentDropController::class, 'close']);
     Route::post('/call-attempts', [CallAttemptController::class, 'store']);
+    Route::get('/callbacks', [CallbackController::class, 'index']);
+    Route::post('/callbacks', [CallbackController::class, 'store']);
+    Route::post('/callbacks/{callbackCase}/call', [CallbackController::class, 'call']);
+    Route::post('/callbacks/{callbackCase}/attempts', [CallbackController::class, 'attempts']);
+    Route::post('/callbacks/{callbackCase}/complete', [CallbackController::class, 'complete']);
     Route::get('/incidents', [IncidentController::class, 'index']);
     Route::get('/incidents/{incident}', [IncidentController::class, 'show']);
     Route::post('/incidents/{incident}/status', [IncidentController::class, 'updateStatus']);

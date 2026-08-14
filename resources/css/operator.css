@@ -1252,6 +1252,58 @@
     color: rgba(175, 198, 226, 0.66);
 }
 
+.operator-workbench-callback-card {
+    gap: 0.55rem;
+}
+
+.operator-workbench-callback-card .surface-button {
+    min-height: 2rem;
+    padding: 0.35rem 0.55rem;
+    font-size: 0.72rem;
+    white-space: nowrap;
+}
+
+.operator-workbench-callback-list,
+.operator-workbench-callback-item {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.operator-workbench-callback-item {
+    padding: 0.58rem;
+    border: 1px solid rgba(93, 142, 190, 0.28);
+    border-radius: 0.55rem;
+    background: rgba(13, 26, 40, 0.66);
+}
+
+.operator-workbench-callback-item.is-overdue {
+    border-color: rgba(249, 115, 22, 0.58);
+    background: rgba(64, 31, 14, 0.42);
+}
+
+.operator-workbench-callback-item strong,
+.operator-workbench-callback-item span,
+.operator-workbench-callback-item small {
+    display: block;
+}
+
+.operator-workbench-callback-item strong {
+    color: rgba(243, 248, 255, 0.95);
+}
+
+.operator-workbench-callback-item span,
+.operator-workbench-callback-item small,
+.operator-workbench-callback-empty {
+    margin: 0;
+    color: rgba(188, 207, 230, 0.74);
+}
+
+.operator-workbench-callback-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
 .operator-workbench-report-id strong {
     font-size: 1.55rem;
     color: #f4f7fb;
