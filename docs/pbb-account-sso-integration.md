@@ -27,7 +27,13 @@ Runtime settings:
 - `account_sso_scopes`
 - `account_sso_ca_bundle`
 
-The legacy `PBB_ACCOUNT_*` environment values remain compatibility fallbacks for source/dev work only. Fresh installs should write Account SSO values through installer/bootstrap into the app-local settings table. Rotate `account_sso_client_secret` outside development.
+The legacy `PBB_ACCOUNT_*` environment values remain compatibility fallbacks for source/dev work only. Fresh installs should write Account SSO values through installer/bootstrap into the app-local settings table so the shared WAMP/Apache/PHP runtime cannot bleed Account values between sibling PBB apps.
+
+PBB Account and Kit own the trusted-client profile: Account URL, OAuth client identifier, redirect URI, post-logout redirect URI, approved scopes, and CA bundle provisioning. Hotline stores the local DB-backed values it needs to initiate and complete SSO, preferably provisioned by Kit/bootstrap. These trusted-client details are hidden from the Admin Runtime Settings modal so day-to-day administrators do not edit Account-owned registration values.
+
+The Admin Runtime Settings modal may show `account_sso_client_secret` through the normal Helper password field. Admins who keep a trusted copy may use the password reveal control to visually verify the stored OAuth secret without rotating it.
+
+`account_sso_client_secret` is the OAuth client secret used during authorization-code token exchange. It is separate from `account_admin_api_token`, which is the Account-to-Hotline app-admin service token.
 
 Fresh install config:
 
@@ -89,6 +95,8 @@ Hotline stores Account app-admin runtime credentials in the local `settings` tab
 
 The request-time middleware reads these DB settings only. It does not read `PBB_ACCOUNT_ADMIN_API_*` from `.env`, because shared WAMP/Apache/PHP runtimes can leak generic environment names across sibling PBB apps. Installer/bootstrap tooling may receive Account app-admin values from Kit config, but must write them into the app-local settings table before the API is considered runtime-ready.
 
+The Admin Runtime Settings modal may show `account_admin_api_token` through the normal Helper password field so an administrator can visually verify the stored token against a trusted copy. This token remains separate from the Account OAuth client secret.
+
 Fresh installs can enable the service API through the installer config:
 
 ```json
@@ -100,7 +108,7 @@ Fresh installs can enable the service API through the installer config:
 }
 ```
 
-`account_admin_api_token` must be a dedicated Account app-admin service token. Do not reuse `account_sso_client_secret`.
+`account_admin_api_token` must be a dedicated Account app-admin service token. Do not reuse `account_sso_client_secret`. Account owns app-admin token issuance and rotation; Hotline owns storing the active DB-backed token used by its service middleware.
 
 Endpoints:
 
