@@ -118,6 +118,7 @@ function hotlineSettingKeys(): array
         'pbb_account_admin_api_enabled' => 'account_admin_api_enabled',
         'pbb_account_admin_api_token' => 'account_admin_api_token',
         'pbb_account_admin_api_client' => 'account_admin_api_client',
+        'media_archive_root' => 'media_archive_root',
         'map_server_url' => 'map_server_url',
     ];
 }

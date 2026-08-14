@@ -8,7 +8,9 @@ use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class IncidentPayloadAndMediaTest extends TestCase
@@ -470,6 +472,71 @@ class IncidentPayloadAndMediaTest extends TestCase
             'path' => $expectedPath,
             'duration_seconds' => 7,
         ]);
+    }
+
+    public function test_finalized_media_can_be_stored_in_configured_archive_root(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+
+        $archiveRoot = storage_path('framework/testing/finalized-media-archive-'.Str::uuid()->toString());
+        File::deleteDirectory($archiveRoot);
+
+        DB::table('settings')->updateOrInsert(
+            ['key' => 'media_archive_root'],
+            [
+                'value' => json_encode(['value' => $archiveRoot], JSON_THROW_ON_ERROR),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        );
+
+        [$caller, $operator, $otherOperator, $incidentId] = $this->seedIncidentFixture();
+
+        $createResponse = $this->actingAs($operator)
+            ->postJson('/api/operator/call-sessions/1/media', [
+                'type' => 'audio_peer',
+                'peer_user_id' => $operator->id,
+                'peer_role' => 'operator',
+                'peer_label' => $operator->name,
+                'mime_type' => 'audio/webm;codecs=opus',
+                'extension' => 'weba',
+                'track_kind' => 'audio',
+                'segment_key' => 'operator-archive',
+                'started_at' => now()->subSeconds(10)->toIso8601String(),
+            ])
+            ->assertCreated();
+
+        $mediaId = (int) $createResponse->json('media.id');
+
+        $this->actingAs($operator)
+            ->post('/api/operator/media/'.$mediaId.'/chunks', [
+                'chunk' => \Illuminate\Http\UploadedFile::fake()->createWithContent('000000.chunk', "\x1A\x45\xDF\xA3".'archived-audio-chunk'),
+                'chunk_index' => 0,
+            ])
+            ->assertCreated();
+
+        $finalizeResponse = $this->actingAs($operator)
+            ->postJson('/api/operator/media/'.$mediaId.'/finalize', [
+                'duration_seconds' => 5,
+                'ended_at' => now()->toIso8601String(),
+                'extension' => 'weba',
+            ])
+            ->assertOk()
+            ->assertJsonPath('ok', true);
+
+        $expectedPath = "incidents/{$incidentId}/media/1/{$mediaId}_audio-peer_operator-archive.weba";
+
+        $finalizeResponse->assertJsonPath('media.path', $expectedPath);
+
+        Storage::disk('local')->assertExists("media-processing/{$incidentId}/1/{$mediaId}/chunks/000000.chunk");
+        Storage::disk('public')->assertMissing($expectedPath);
+        $this->assertFileExists($archiveRoot.DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $expectedPath));
+
+        $this->get('/storage/'.$expectedPath)
+            ->assertOk();
+
+        File::deleteDirectory($archiveRoot);
     }
 
     public function test_operator_cannot_access_media_pipeline_for_another_operators_call_session(): void

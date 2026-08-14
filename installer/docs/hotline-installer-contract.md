@@ -130,6 +130,7 @@ The core installer should only make Hotline runnable:
 - seed settings only when the baseline schema is not used and a production settings seeder is packaged; baseline-schema installs must get initial settings and packaged reference data from `database/schema/hotline-schema-mysql.sql`
 - create the first admin account
 - apply Realtime, Relay, MapServer, media, and session settings
+- apply optional `hotline.media_archive_root` into DB setting `media_archive_root`; leave blank to use default public storage, or provide an absolute local/UNC path for finalized audio/video only
 - create storage links and writable directories
 - generate queue worker and scheduler service artifacts
 - run health checks
