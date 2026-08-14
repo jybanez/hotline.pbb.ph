@@ -8290,6 +8290,34 @@ function fallbackDropStatusLabel(status) {
     return normalized ? normalized.replace(/\b\w/g, (char) => char.toUpperCase()) : 'Unknown';
 }
 
+function fallbackDropAttachmentMarkup(item) {
+    const attachments = Array.isArray(item?.attachments) ? item.attachments : [];
+    const images = attachments.filter((attachment) => attachment?.type === 'image' && attachment?.view_url);
+
+    if (!images.length) {
+        return '';
+    }
+
+    return `
+        <div class="fallback-drop-attachments" aria-label="Fallback photo evidence">
+            ${images.map((attachment, index) => {
+                const label = attachment?.original_filename
+                    ? `Review ${attachment.original_filename}`
+                    : `Review fallback photo ${index + 1}`;
+                const viewUrl = escapeHtml(attachment.view_url);
+                const downloadUrl = escapeHtml(attachment.download_url ?? attachment.view_url);
+
+                return `
+                    <a class="fallback-drop-photo-link" href="${viewUrl}" target="_blank" rel="noopener" title="${escapeHtml(label)}">
+                        <img src="${viewUrl}" alt="${escapeHtml(label)}" loading="lazy">
+                    </a>
+                    <a class="fallback-drop-photo-download" href="${downloadUrl}" target="_blank" rel="noopener">Download</a>
+                `;
+            }).join('')}
+        </div>
+    `;
+}
+
 function fallbackDropCardMarkup(item) {
     const displayId = item?.display_id ?? String(item?.id ?? '').padStart(6, '0');
     const citizenName = item?.citizen?.name ?? 'Citizen';
@@ -8313,6 +8341,7 @@ function fallbackDropCardMarkup(item) {
                 ${claimedBy ? `<span>Claimed by ${escapeHtml(claimedBy)}</span>` : ''}
                 ${attachmentCount > 0 ? `<span>${attachmentCount} private photo${attachmentCount === 1 ? '' : 's'} awaiting review</span>` : ''}
                 ${convertedIncidentId > 0 ? `<span>Converted to incident #${escapeHtml(String(convertedIncidentId).padStart(6, '0'))}</span>` : ''}
+                ${fallbackDropAttachmentMarkup(item)}
             </div>
             <div class="operator-activity-item-actions">
                 ${canClaim ? `<button class="surface-button secondary tiny" type="button" data-fallback-action="claim" data-fallback-drop-id="${escapeHtml(item?.id ?? '')}">Claim</button>` : ''}

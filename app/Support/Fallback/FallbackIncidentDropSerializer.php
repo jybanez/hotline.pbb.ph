@@ -11,7 +11,7 @@ class FallbackIncidentDropSerializer
     /**
      * @return array<string, mixed>
      */
-    public function serialize(FallbackIncidentDrop $drop): array
+    public function serialize(FallbackIncidentDrop $drop, bool $includeOperatorAttachmentUrls = false): array
     {
         $drop->loadMissing(['citizen:id,name,mobile,email', 'claimedByOperator:id,name', 'convertedIncident:id', 'attachments', 'histories.actor:id,name']);
 
@@ -45,7 +45,7 @@ class FallbackIncidentDropSerializer
             'created_at' => $drop->created_at?->toIso8601String(),
             'updated_at' => $drop->updated_at?->toIso8601String(),
             'attachments' => $drop->attachments
-                ->map(fn (FallbackIncidentDropAttachment $attachment) => $this->serializeAttachment($attachment))
+                ->map(fn (FallbackIncidentDropAttachment $attachment) => $this->serializeAttachment($attachment, $drop, $includeOperatorAttachmentUrls))
                 ->values()
                 ->all(),
             'history' => $drop->histories
@@ -71,9 +71,13 @@ class FallbackIncidentDropSerializer
     /**
      * @return array<string, mixed>
      */
-    private function serializeAttachment(FallbackIncidentDropAttachment $attachment): array
+    private function serializeAttachment(
+        FallbackIncidentDropAttachment $attachment,
+        FallbackIncidentDrop $drop,
+        bool $includeOperatorAttachmentUrls,
+    ): array
     {
-        return [
+        $payload = [
             'id' => (int) $attachment->id,
             'type' => $attachment->type,
             'original_filename' => $attachment->original_filename,
@@ -87,5 +91,15 @@ class FallbackIncidentDropSerializer
             'normalized_at' => $attachment->normalized_at?->toIso8601String(),
             'created_at' => $attachment->created_at?->toIso8601String(),
         ];
+
+        if ($includeOperatorAttachmentUrls) {
+            $payload['view_url'] = route('api.operator.fallback-drops.attachments.show', [
+                'fallbackDrop' => $drop->id,
+                'attachment' => $attachment->id,
+            ], false);
+            $payload['download_url'] = $payload['view_url'] . '?download=1';
+        }
+
+        return $payload;
     }
 }

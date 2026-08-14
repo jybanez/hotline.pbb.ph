@@ -100,6 +100,8 @@ class BusyIncidentDropTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('fallback_drop.attachments.0.type', 'image')
             ->assertJsonPath('fallback_drop.attachments.0.stored_mime_type', 'image/webp')
+            ->assertJsonMissingPath('fallback_drop.attachments.0.view_url')
+            ->assertJsonMissingPath('fallback_drop.attachments.0.download_url')
             ->assertJsonMissingPath('fallback_drop.attachments.0.stored_path');
 
         $attachment = \DB::table('fallback_incident_drop_attachments')->first();
@@ -110,6 +112,84 @@ class BusyIncidentDropTest extends TestCase
         $this->assertStringStartsWith('fallback-incident-drops/', $attachment->stored_path);
         $this->assertStringNotContainsString('/storage/', $attachment->stored_path);
         Storage::disk('local')->assertExists($attachment->stored_path);
+    }
+
+    public function test_operator_can_review_private_fallback_photo_without_exposing_storage_path(): void
+    {
+        Storage::fake('local');
+        $citizen = User::factory()->create(['role' => UserRole::Citizen]);
+        $operator = User::factory()->create(['role' => UserRole::Operator]);
+
+        $created = $this->actingAs($citizen)
+            ->post('/api/citizen/fallback-drops', [
+                'reason' => 'all_operators_busy',
+                'short_description' => 'Photo evidence for review.',
+                'photos' => [
+                    UploadedFile::fake()->image('route.jpg', 640, 480),
+                ],
+            ])
+            ->assertCreated();
+
+        $dropId = (int) $created->json('fallback_drop.id');
+        $attachmentId = (int) $created->json('fallback_drop.attachments.0.id');
+
+        $this->actingAs($operator)
+            ->postJson("/api/operator/fallback-drops/{$dropId}/claim")
+            ->assertOk();
+
+        $list = $this->actingAs($operator)
+            ->getJson('/api/operator/fallback-drops?status=open')
+            ->assertOk()
+            ->assertJsonMissingPath('items.0.attachments.0.stored_path')
+            ->assertJsonPath('items.0.attachments.0.view_url', "/api/operator/fallback-drops/{$dropId}/attachments/{$attachmentId}");
+
+        $this->assertSame("/api/operator/fallback-drops/{$dropId}/attachments/{$attachmentId}?download=1", $list->json('items.0.attachments.0.download_url'));
+
+        $photo = $this->actingAs($operator)
+            ->get("/api/operator/fallback-drops/{$dropId}/attachments/{$attachmentId}")
+            ->assertOk();
+
+        $this->assertStringStartsWith('image/webp', (string) $photo->headers->get('content-type'));
+
+        $this->actingAs($operator)
+            ->get("/api/operator/fallback-drops/{$dropId}/attachments/{$attachmentId}?download=1")
+            ->assertOk()
+            ->assertHeader('content-disposition');
+    }
+
+    public function test_non_operators_and_other_citizens_cannot_access_fallback_photo(): void
+    {
+        Storage::fake('local');
+        $owner = User::factory()->create(['role' => UserRole::Citizen]);
+        $otherCitizen = User::factory()->create(['role' => UserRole::Citizen]);
+
+        $created = $this->actingAs($owner)
+            ->post('/api/citizen/fallback-drops', [
+                'reason' => 'all_operators_busy',
+                'short_description' => 'Private photo evidence for review.',
+                'photos' => [
+                    UploadedFile::fake()->image('route.jpg', 640, 480),
+                ],
+            ])
+            ->assertCreated()
+            ->assertJsonMissingPath('fallback_drop.attachments.0.view_url')
+            ->assertJsonMissingPath('fallback_drop.attachments.0.download_url')
+            ->assertJsonMissingPath('fallback_drop.attachments.0.stored_path');
+
+        $dropId = (int) $created->json('fallback_drop.id');
+        $attachmentId = (int) $created->json('fallback_drop.attachments.0.id');
+
+        $this->actingAs($owner)
+            ->getJson("/api/operator/fallback-drops/{$dropId}/attachments/{$attachmentId}")
+            ->assertRedirect('/unauthorized');
+
+        $this->actingAs($otherCitizen)
+            ->getJson("/api/operator/fallback-drops/{$dropId}/attachments/{$attachmentId}")
+            ->assertRedirect('/unauthorized');
+
+        $this->actingAs($otherCitizen)
+            ->getJson("/api/citizen/fallback-drops/{$dropId}")
+            ->assertNotFound();
     }
 
     public function test_other_citizen_cannot_read_fallback_drop(): void
