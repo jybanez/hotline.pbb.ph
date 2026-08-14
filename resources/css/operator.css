@@ -158,6 +158,7 @@
     backdrop-filter: none;
     overflow: hidden;
     align-content: start;
+    pointer-events: none;
 }
 
 .operator-left-rail {
@@ -180,11 +181,13 @@
     gap: 0.75rem;
     min-height: 0;
     width: 100%;
+    pointer-events: none;
 }
 
 .operator-left-rail-section {
     min-width: 0;
     min-height: 0;
+    pointer-events: none;
 }
 
 .operator-rail-panel {
@@ -240,6 +243,7 @@
     align-items: center;
     gap: 0.65rem;
     margin-bottom: 0.3rem;
+    pointer-events: none;
 }
 
 .operator-tab-toolbar {
@@ -723,6 +727,7 @@
     min-height: 0;
     width: 100%;
     min-width: 0;
+    pointer-events: none;
 }
 
 .operator-floating-rail .ui-tabs {
@@ -745,6 +750,7 @@
     font-size: 0.74rem;
     line-height: 1;
     cursor: pointer;
+    pointer-events: auto;
 }
 
 .operator-rail-toggle:hover,
@@ -768,6 +774,7 @@
     background: rgba(16, 28, 46, 0.5);
     backdrop-filter: none;
     opacity: 1;
+    pointer-events: auto;
     transition:
         max-height 180ms ease,
         padding 180ms ease,
