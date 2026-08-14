@@ -22,6 +22,7 @@ class MediaAssemblyService
     public function __construct(
         private readonly RealtimeEventPublishService $realtimeEvents,
         private readonly MediaBinaryResolver $mediaBinaries,
+        private readonly FinalizedMediaStorage $finalizedMedia,
     ) {}
 
     public function createProcessingAsset(CallSession $callSession, array $payload): Media
@@ -204,7 +205,7 @@ class MediaAssemblyService
         ));
 
         if (trim((string) $media->path) !== '') {
-            Storage::disk('public')->delete((string) $media->path);
+            $this->finalizedMedia->delete((string) $media->path);
         }
 
         $media->forceFill([
@@ -398,8 +399,8 @@ class MediaAssemblyService
      */
     private function mergeChunks(array $chunkPaths, string $finalPath, ?int $durationSeconds = null): void
     {
-        $publicDisk = Storage::disk('public');
-        $targetPath = $publicDisk->path($finalPath);
+        $this->finalizedMedia->assertWritable();
+        $targetPath = $this->finalizedMedia->path($finalPath);
         $targetDirectory = dirname($targetPath);
         $outputFormat = $this->outputFormatForPath($finalPath);
         $audioOnly = strtolower(pathinfo($finalPath, PATHINFO_EXTENSION)) === 'weba';
@@ -413,7 +414,7 @@ class MediaAssemblyService
 
             if (count($chunkPaths) === 1) {
                 $contents = Storage::disk('local')->get($chunkPaths[0]);
-                $publicDisk->put($finalPath, $contents);
+                $this->finalizedMedia->put($finalPath, $contents);
 
                 return;
             }
@@ -426,7 +427,7 @@ class MediaAssemblyService
 
         if (count($chunkPaths) === 1) {
             $contents = Storage::disk('local')->get($chunkPaths[0]);
-            $publicDisk->put($finalPath, $contents);
+            $this->finalizedMedia->put($finalPath, $contents);
 
             return;
         }

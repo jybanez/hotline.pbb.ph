@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Internal;
 use App\Domain\Media\Models\Media;
 use App\Domain\Messages\Models\MessageAttachment;
 use App\Http\Controllers\Controller;
+use App\Support\Media\FinalizedMediaStorage;
 use App\Support\Media\MessageAttachmentMetadata;
 use App\Support\Settings\SettingsService;
 use Illuminate\Http\JsonResponse;
@@ -21,6 +22,7 @@ class SitrepMediaController extends Controller
     public function __construct(
         private readonly SettingsService $settings,
         private readonly MessageAttachmentMetadata $attachmentMetadata,
+        private readonly FinalizedMediaStorage $finalizedMedia,
     ) {}
 
     public function manifest(Request $request): JsonResponse
@@ -134,9 +136,8 @@ class SitrepMediaController extends Controller
 
         $item = $resolved['item'];
         $path = (string) ($item['storage_key'] ?? '');
-        $disk = Storage::disk('public');
 
-        if ($path === '' || ! $disk->exists($path)) {
+        if ($path === '' || ! $this->storageExists($kind, $path)) {
             $this->logAccess('download_missing_file', $request, [
                 'kind' => $kind,
                 'id' => $id,
@@ -154,8 +155,14 @@ class SitrepMediaController extends Controller
             'incident_id' => $item['incident_id'] ?? null,
         ]);
 
-        return $disk->download(
-            $path,
+        $absolutePath = $kind === 'incident_media'
+            ? $this->finalizedMedia->path($path)
+            : Storage::disk('public')->path($path);
+
+        return response()->streamDownload(
+            static function () use ($absolutePath): void {
+                readfile($absolutePath);
+            },
             $this->downloadFilename($item),
             array_filter([
                 'Content-Type' => $item['mime_type'] ?? null,
@@ -435,12 +442,19 @@ class SitrepMediaController extends Controller
 
     private function fileSize(string $path): ?int
     {
-        return Storage::disk('public')->exists($path) ? Storage::disk('public')->size($path) : null;
+        return $this->finalizedMedia->size($path);
     }
 
     private function mimeType(string $path): ?string
     {
-        return Storage::disk('public')->exists($path) ? Storage::disk('public')->mimeType($path) : null;
+        return $this->finalizedMedia->mimeType($path);
+    }
+
+    private function storageExists(string $kind, string $path): bool
+    {
+        return $kind === 'incident_media'
+            ? $this->finalizedMedia->exists($path)
+            : Storage::disk('public')->exists($path);
     }
 
     private function text(mixed $value): ?string

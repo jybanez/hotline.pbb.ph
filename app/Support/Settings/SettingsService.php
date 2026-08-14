@@ -45,6 +45,7 @@ class SettingsService
             'incident_relay_target_systems' => 'utility.vena',
             'incident_relay_debounce_seconds' => 10,
             'sitrep_media_access_token' => '',
+            'media_archive_root' => '',
             'account_sso_enabled' => (bool) config('account.enabled', false),
             'account_sso_base_url' => (string) config('account.base_url', 'https://account.pbb.ph'),
             'account_sso_client_id' => (string) config('account.client_id', 'pbb-hotline'),

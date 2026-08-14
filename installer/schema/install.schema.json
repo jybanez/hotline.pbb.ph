@@ -102,6 +102,7 @@
         "pbb_account_admin_api_token": { "type": "string" },
         "relay_url": { "type": "string" },
         "relay_token": { "type": "string" },
+        "media_archive_root": { "type": "string" },
         "map_server_url": { "type": "string" },
         "populate": {
           "type": "object",

@@ -742,6 +742,7 @@ INSERT INTO `settings` (`key`, `value`, `created_at`, `updated_at`) VALUES
   ('incident_relay_target_systems', '{"value":"utility.vena"}', NOW(), NOW()),
   ('incident_relay_debounce_seconds', '{"value":10}', NOW(), NOW()),
   ('sitrep_media_access_token', '{"value":""}', NOW(), NOW()),
+  ('media_archive_root', '{"value":""}', NOW(), NOW()),
   ('account_admin_api_enabled', '{"value":false}', NOW(), NOW()),
   ('account_admin_api_token', '{"value":""}', NOW(), NOW()),
   ('account_admin_api_client', '{"value":"pbb-account"}', NOW(), NOW()),

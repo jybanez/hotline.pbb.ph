@@ -4,11 +4,11 @@ namespace App\Http\Controllers\Api\Operator;
 
 use App\Domain\Media\Models\Media;
 use App\Http\Controllers\Controller;
+use App\Support\Media\FinalizedMediaStorage;
 use App\Support\Media\MediaAssemblyService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
@@ -28,7 +28,10 @@ class MediaTestController extends Controller
         'ogg',
     ];
 
-    public function __construct(private readonly MediaAssemblyService $mediaAssembly)
+    public function __construct(
+        private readonly MediaAssemblyService $mediaAssembly,
+        private readonly FinalizedMediaStorage $finalizedMedia,
+    )
     {
     }
 
@@ -172,8 +175,8 @@ class MediaTestController extends Controller
             'created_at' => $media->created_at?->toIso8601String(),
             'available_at' => $media->available_at?->toIso8601String(),
             'path' => $path !== '' ? $path : null,
-            'playback_url' => $path !== '' && Storage::disk('public')->exists($path)
-                ? Storage::disk('public')->url($path)
+            'playback_url' => $path !== '' && $this->finalizedMedia->exists($path)
+                ? url('/storage/'.ltrim($path, '/'))
                 : null,
         ];
     }

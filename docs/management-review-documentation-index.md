@@ -65,6 +65,7 @@ PBB Hotline is the emergency-call and local incident operations app. Current dev
 
 - [Hotline Media SDK Manual](../packages/pbb-hotline-media-sdk/docs/developer-manual.md) - upstream media retrieval, cache ownership, Relay relationship resolution, and Landing gateway access.
 - [Media SDK Demo](../packages/pbb-hotline-media-sdk/demo/README.md) - source-only demo for dry-run and live media resolution.
+- [Finalized Media Archive Storage](finalized-media-archive-storage.md) - local/UNC archive-root setting for finalized audio/video while chunks remain in app-local processing storage.
 
 ### Cleanup And Historical Context
 
@@ -121,3 +122,4 @@ Notable historical groups:
 - SITREP, Support Request, and Incident Relay are separate message streams.
 - Support Requests are explicit tasking records; SITREPs and incident snapshots are visibility/context records.
 - Media refs are metadata only. Raw storage paths and public `/storage/...` URLs are not the integration contract.
+- Finalized media can be placed on a configured archive root while processing chunks remain local; see [Finalized Media Archive Storage](finalized-media-archive-storage.md).

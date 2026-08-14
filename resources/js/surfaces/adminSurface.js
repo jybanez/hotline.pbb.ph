@@ -1415,6 +1415,22 @@ function settingsEditorData(state) {
                 ],
             },
             {
+                id: 'media-storage',
+                title: 'Media Storage',
+                description: 'Finalized audio/video archive storage. Processing chunks remain in local app storage.',
+                properties: [
+                    {
+                        id: 'media_archive_root',
+                        kind: 'text',
+                        label: 'Finalized Media Archive Root',
+                        value: values.media_archive_root ?? '',
+                        placeholder: 'Leave blank to use default public storage',
+                        autocomplete: 'off',
+                        help: 'Optional absolute local or UNC path for finalized media files only. The database keeps logical media paths; invalid paths fail finalization loudly.',
+                    },
+                ],
+            },
+            {
                 id: 'integration-map-server',
                 title: 'Map Server',
                 description: 'Map tiles and shared map-asset delivery for operator and future command views.',
