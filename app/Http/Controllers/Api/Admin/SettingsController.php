@@ -14,12 +14,26 @@ use Illuminate\Support\Str;
 
 class SettingsController extends Controller
 {
+    /**
+     * Account/Kit-owned trusted-client values remain DB-backed for runtime use,
+     * but are intentionally excluded from the Admin Runtime Settings editor.
+     *
+     * @var array<int, string>
+     */
+    private const HIDDEN_ACCOUNT_TRUSTED_CLIENT_KEYS = [
+        'account_sso_base_url',
+        'account_sso_client_id',
+        'account_sso_redirect_uri',
+        'account_sso_post_logout_redirect_uri',
+        'account_sso_scopes',
+        'account_sso_ca_bundle',
+    ];
+
     public function __construct(
         private readonly SettingsService $settings,
         private readonly RealtimeEventPublishService $realtimeEvents,
         private readonly PeriodicSitrepSchedule $periodicSitreps,
-    ) {
-    }
+    ) {}
 
     public function show(): JsonResponse
     {
@@ -28,7 +42,7 @@ class SettingsController extends Controller
 
     public function update(Request $request): JsonResponse
     {
-        $traceId = 'hotline_settings_' . Str::lower((string) Str::ulid());
+        $traceId = 'hotline_settings_'.Str::lower((string) Str::ulid());
         $startedAt = microtime(true);
         $marks = [];
         $mark = function (string $stage, array $context = []) use (&$marks, $startedAt): void {
@@ -82,7 +96,7 @@ class SettingsController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $meta
+     * @param  array<string, mixed>  $meta
      * @return array<string, mixed>
      */
     private function payload(array $meta = []): array
@@ -90,6 +104,10 @@ class SettingsController extends Controller
         $items = [];
 
         foreach ($this->settings->defaults() as $key => $default) {
+            if (in_array($key, self::HIDDEN_ACCOUNT_TRUSTED_CLIENT_KEYS, true)) {
+                continue;
+            }
+
             $items[] = [
                 'key' => $key,
                 'value' => $this->settings->get($key, $default),
