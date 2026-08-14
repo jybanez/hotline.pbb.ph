@@ -20,6 +20,7 @@ class RealtimeEventPublishService
     public const BROADCAST_ROOM = 'hotline.broadcast.global';
     public const INCIDENT_CHAT_ROOM_PREFIX = 'chat.thread.incident.';
     public const INCIDENT_MEDIA_ROOM_PREFIX = 'hotline.media.incident.';
+    public const FALLBACK_DROP_OPERATOR_ROOM = 'hotline.fallback-drops.operator';
 
     public function __construct(
         private readonly SettingsService $settings,
@@ -90,6 +91,24 @@ class RealtimeEventPublishService
                 'source_module' => 'hotline-beta-command',
             ],
             eventId: 'evt_hotline_broadcast_' . Str::ulid(),
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    public function publishFallbackDropNotification(string $event, array $payload): array
+    {
+        return $this->publish(
+            projectCode: $this->projectCode('server', 'prj_hotline_server'),
+            room: self::FALLBACK_DROP_OPERATOR_ROOM,
+            eventType: 'hotline.fallback_drop.' . $event,
+            payload: $payload,
+            meta: [
+                'source_module' => 'hotline-fallback-drops',
+            ],
+            eventId: 'evt_hotline_fallback_' . Str::ulid(),
         );
     }
 

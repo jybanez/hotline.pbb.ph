@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Citizen\CallAttemptController;
+use App\Http\Controllers\Api\Citizen\FallbackIncidentDropController;
 use App\Http\Controllers\Api\Citizen\HomeController;
 use App\Http\Controllers\Api\Citizen\IncidentController;
 use App\Http\Controllers\Api\Citizen\ReconnectController;
@@ -11,6 +12,8 @@ Route::middleware(['auth', 'role:citizen'])->prefix('/citizen')->group(function 
     Route::post('/call-attempts', [CallAttemptController::class, 'store']);
     Route::post('/call-attempts/{attempt}/cancel', [CallAttemptController::class, 'cancel']);
     Route::post('/call-attempts/{attempt}/timeout', [CallAttemptController::class, 'timeout']);
+    Route::post('/fallback-drops', [FallbackIncidentDropController::class, 'store']);
+    Route::get('/fallback-drops/{fallbackDrop}', [FallbackIncidentDropController::class, 'show']);
     Route::post('/call-sessions/{callSession}/cancel', [ReconnectController::class, 'cancel']);
     Route::post('/call-sessions/{callSession}/hangup', [ReconnectController::class, 'hangup']);
     Route::post('/call-sessions/{callSession}/operator-disconnect', [ReconnectController::class, 'operatorDisconnect']);

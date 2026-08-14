@@ -30,7 +30,7 @@
     "requires_database_migration": true,
     "database_migration": {
       "policy": "additive",
-      "summary": "Adds the sitrep_relay_deliveries outbox table, Support Request local persistence/history tables, incident Relay outbox/delivery tables, justification fields, selected incident/request-scope context for Relay-backed operational support requests, nullable unique users.pbb_user_id for PBB Account SSO citizen provisioning, normalized chat-photo metadata on message_attachments with required existing image attachment normalization, and nullable media incident/call-session ownership for operator diagnostic media tests.",
+      "summary": "Adds the sitrep_relay_deliveries outbox table, Support Request local persistence/history tables, incident Relay outbox/delivery tables, justification fields, selected incident/request-scope context for Relay-backed operational support requests, nullable unique users.pbb_user_id for PBB Account SSO citizen provisioning, normalized chat-photo metadata on message_attachments with required existing image attachment normalization, nullable media incident/call-session ownership for operator diagnostic media tests, incident-bound callback case/attempt tracking, and busy-state fallback incident drop/photo/history tables.",
       "rollback": "app-owned; forward repair reruns Laravel migrations",
       "destructive": false,
       "drops_tables": false,
@@ -142,7 +142,7 @@
       "baseline_schema": {
         "path": "database/schema/hotline-schema-mysql.sql",
         "engine": "mysql",
-        "generated_at": "2026-08-07T04:45:00Z",
+        "generated_at": "2026-08-14T00:00:00Z",
         "source": "current-release-schema-with-reference-data"
       },
       "upgrade_strategy": "laravel_migrations",
@@ -150,7 +150,7 @@
         "path": "database/schema/hotline-schema-mysql.sql",
         "driver": "mysql",
         "fresh_install_method": "baseline_schema",
-        "migration_count": 60
+        "migration_count": 65
       }
     },
     "tools": {

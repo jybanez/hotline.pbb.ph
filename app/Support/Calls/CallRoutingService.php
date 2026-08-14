@@ -34,6 +34,13 @@ class CallRoutingService
         $availability = $this->availability->callerAvailability();
 
         if (($availability['status'] ?? 'red') !== 'green') {
+            if (
+                ($availability['call_service_ready'] ?? false)
+                && (int) ($availability['available_operator_count'] ?? 0) === 0
+            ) {
+                throw new NoAvailableOperatorException('No operator is currently available.');
+            }
+
             throw new RuntimeException('Hotline is not currently available for new calls.');
         }
 
@@ -45,7 +52,7 @@ class CallRoutingService
             ->first(fn (User $candidate) => $this->availability->operatorRuntimeState($candidate) === OperatorRuntimeState::Available->value);
 
         if (! $operator) {
-            throw new RuntimeException('No operator is currently available.');
+            throw new NoAvailableOperatorException('No operator is currently available.');
         }
 
         return DB::transaction(function () use ($caller, $latitude, $longitude, $operator) {
