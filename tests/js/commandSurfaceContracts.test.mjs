@@ -6,6 +6,7 @@ import { dirname, resolve } from 'node:path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const source = readFileSync(resolve(__dirname, '../../resources/js/surfaces/commandSurface.js'), 'utf8');
+const dashboardMapSource = readFileSync(resolve(__dirname, '../../resources/js/maps/dashboardMap.js'), 'utf8');
 
 assert.match(
   source,
@@ -53,4 +54,16 @@ assert.match(
   source,
   /Quantity remains a Command decision and will not auto-change\./,
   'Command Support Request modal must not auto-compute quantity from selected incidents.',
+);
+
+assert.match(
+  dashboardMapSource,
+  /poi:\s*false/,
+  'Dashboard map should keep POI disabled as the default stored layer-group state.',
+);
+
+assert.match(
+  dashboardMapSource,
+  /addPoiLayers\(map,\s*config\);\s*applyStoredLayerGroupVisibility\(\);/,
+  'Dashboard map must reapply stored layer visibility after POI layers are added.',
 );

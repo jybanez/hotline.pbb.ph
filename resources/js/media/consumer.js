@@ -80,12 +80,8 @@ export class Consumer {
                 return;
             }
 
-            if (
-                String(record?.status ?? '') === 'closed'
-                && !Boolean(record?.batch_flush_disabled)
-                && typeof this.transport.flushChunks === 'function'
-            ) {
-                await this.flushChunksAndFinalize(record, chunks);
+            if (String(record?.status ?? '') === 'closed') {
+                await this.finalizeAndDelete(record, { finalChunks: chunks });
                 this.state = 'idle';
                 return;
             }
@@ -134,34 +130,6 @@ export class Consumer {
             this.busy = false;
             this.updatedAt = new Date().toISOString();
         }
-    }
-
-    async flushChunksAndFinalize(record, chunks) {
-        try {
-            await this.transport.flushChunks(record, chunks);
-        } catch (error) {
-            error.batchFlush = true;
-            throw error;
-        }
-
-        await this.storage.deleteChunksFor(this.mediaId);
-        this.debug?.('consumer-batch-flushed', {
-            debugSource: 'Consumer',
-            mediaId: this.mediaId,
-            key: String(record?.key ?? ''),
-            mediaType: String(record?.media_type ?? ''),
-            trackKind: String(record?.track_kind ?? ''),
-            chunkCount: chunks.length,
-            source: 'consumer-manager',
-        });
-
-        if (Boolean(record?.skip_finalize)) {
-            await this.deleteRecord(record);
-            this.state = 'discarded';
-            return;
-        }
-
-        await this.finalizeAndDelete(record);
     }
 
     async publishAndDeleteChunk(chunk, record) {
@@ -223,29 +191,6 @@ export class Consumer {
             source: 'consumer-manager',
         });
 
-        if (Boolean(error?.batchFlush)) {
-            const retryCount = Number(record?.batch_flush_retry_count ?? 0) + 1;
-
-            await this.storage.putRecord({
-                ...record,
-                batch_flush_retry_count: retryCount,
-                batch_flush_disabled: retryCount >= 3,
-                batch_flush_last_error: String(error?.message ?? error),
-                updated_at: new Date().toISOString(),
-            });
-
-            if (retryCount >= 3) {
-                this.debug?.('consumer-batch-flush-disabled', {
-                    debugSource: 'Consumer',
-                    mediaId: this.mediaId,
-                    retryCount,
-                    source: 'consumer-manager',
-                });
-            }
-
-            return;
-        }
-
         if (!chunk) {
             return;
         }
@@ -278,14 +223,14 @@ export class Consumer {
         return status === 404 || status === 410;
     }
 
-    async finalizeAndDelete(record) {
+    async finalizeAndDelete(record, options = {}) {
         const nextMediaId = Number(record?.media_id ?? 0);
 
         if (nextMediaId <= 0) {
             return;
         }
 
-        const result = await this.finalizer.finalizeRecord?.(record);
+        const result = await this.finalizer.finalizeRecord?.(record, options);
 
         await this.storage.deleteChunksFor(nextMediaId);
         await this.storage.deleteRecord(nextMediaId);

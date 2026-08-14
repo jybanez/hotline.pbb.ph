@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Operator;
 
 use App\Domain\Incidents\Models\Incident;
 use App\Domain\Teams\Models\TeamAssignment;
+use App\Domain\Teams\Models\TeamAssignmentNote;
 use App\Http\Controllers\Controller;
 use App\Support\Teams\TeamAssignmentService;
 use Illuminate\Http\JsonResponse;
@@ -94,6 +95,44 @@ class TeamAssignmentController extends Controller
             'ok' => true,
             'assignment' => $assignment,
         ], 201);
+    }
+
+    public function updateNote(Request $request, TeamAssignment $assignment, TeamAssignmentNote $note): JsonResponse
+    {
+        $validated = $request->validate([
+            'note' => ['required', 'string'],
+        ]);
+
+        try {
+            $assignment = $this->assignments->updateNote($request->user(), $assignment, $note, (string) $validated['note']);
+        } catch (RuntimeException $exception) {
+            return response()->json([
+                'ok' => false,
+                'message' => $exception->getMessage(),
+            ], 409);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'assignment' => $assignment,
+        ]);
+    }
+
+    public function destroyNote(Request $request, TeamAssignment $assignment, TeamAssignmentNote $note): JsonResponse
+    {
+        try {
+            $assignment = $this->assignments->deleteNote($request->user(), $assignment, $note);
+        } catch (RuntimeException $exception) {
+            return response()->json([
+                'ok' => false,
+                'message' => $exception->getMessage(),
+            ], 409);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'assignment' => $assignment,
+        ]);
     }
 
     public function destroy(Request $request, TeamAssignment $assignment): JsonResponse

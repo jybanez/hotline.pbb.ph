@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Support\Realtime\RealtimeEventPublishService;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -158,7 +159,24 @@ class MediaAssemblyService
         $media = $media->fresh();
 
         if (! $this->isDiagnosticMedia($media)) {
-            $this->realtimeEvents->publishIncidentMediaAvailable($media);
+            $publishResult = $this->realtimeEvents->publishIncidentMediaAvailable($media);
+            $publishStatus = (string) ($publishResult['status'] ?? '');
+
+            if (! in_array($publishStatus, ['accepted', 'pending'], true)) {
+                Log::warning('Hotline media.available publish did not complete.', [
+                    'media_id' => $media->id,
+                    'incident_id' => $media->incident_id,
+                    'call_session_id' => $media->call_session_id,
+                    'type' => $media->type,
+                    'peer_role' => $media->peer_role,
+                    'publish_status' => $publishStatus,
+                    'publish_reason' => $publishResult['reason'] ?? null,
+                    'publish_message' => $publishResult['message'] ?? null,
+                    'hotline_trace_id' => $publishResult['hotline_trace_id'] ?? null,
+                    'realtime_trace_id' => $publishResult['realtime_trace_id'] ?? null,
+                    'http_status' => $publishResult['http_status'] ?? null,
+                ]);
+            }
         }
 
         return $media;
@@ -255,7 +273,7 @@ class MediaAssemblyService
             try {
                 $this->finalizeProcessingAsset($media, [
                     'ended_at' => $callSession->ended_at?->toIso8601String(),
-                    'duration_seconds' => $media->duration_seconds,
+                    'duration_seconds' => $media->duration_seconds ?? $this->recoverableDurationSeconds($media, $callSession),
                     'extension' => Arr::get($media->metadata_json ?? [], 'extension'),
                 ]);
                 $summary['finalized']++;
@@ -269,6 +287,25 @@ class MediaAssemblyService
         }
 
         return $summary;
+    }
+
+    private function recoverableDurationSeconds(Media $media, CallSession $callSession): ?int
+    {
+        $metadata = $media->metadata_json ?? [];
+        $startedAt = Arr::get($metadata, 'started_at');
+        $endedAt = $callSession->ended_at?->getTimestamp();
+
+        if (! is_string($startedAt) || trim($startedAt) === '' || ! $endedAt) {
+            return null;
+        }
+
+        $startedTimestamp = strtotime($startedAt);
+
+        if ($startedTimestamp === false) {
+            return null;
+        }
+
+        return max(0, $endedAt - $startedTimestamp);
     }
 
     /**

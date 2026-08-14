@@ -82,9 +82,23 @@ class CallSessionMediaController extends Controller
             'duration_seconds' => ['nullable', 'integer', 'min:0'],
             'ended_at' => ['nullable', 'date'],
             'extension' => ['nullable', 'string', 'max:16'],
+            'final_chunks' => ['nullable', 'array', 'max:256'],
+            'final_chunks.*.chunk_index' => ['required_with:final_chunks', 'integer', 'min:0'],
+            'final_chunks.*.chunk' => ['required_with:final_chunks', 'file', 'max:51200'],
         ]);
 
         try {
+            foreach ($validated['final_chunks'] ?? [] as $finalChunk) {
+                /** @var UploadedFile $chunk */
+                $chunk = $finalChunk['chunk'];
+
+                $this->mediaAssembly->storeChunk(
+                    $media,
+                    file_get_contents($chunk->getRealPath()) ?: '',
+                    (int) $finalChunk['chunk_index'],
+                );
+            }
+
             $media = $this->mediaAssembly->finalizeProcessingAsset($media, $validated);
         } catch (RuntimeException $exception) {
             return response()->json([

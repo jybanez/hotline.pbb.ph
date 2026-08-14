@@ -1002,7 +1002,7 @@ function mountCommandDashboardMapControls(root, dashboardMap) {
             ...(dashboardMap.hasBoundaryLayer?.() ? [{ id: 'boundary', label: 'Boundary', checked: true }] : []),
             { id: 'incidents', label: 'Incidents', checked: true },
             ...(dashboardMap.hasTerrainLayer?.() ? [{ id: 'terrain', label: 'Terrain', checked: true }] : []),
-            { id: 'poi', label: 'POI', checked: true },
+            { id: 'poi', label: 'POI', checked: false },
         ],
         onFit: () => {
             dashboardMap.fitIncidents?.();
@@ -1011,6 +1011,7 @@ function mountCommandDashboardMapControls(root, dashboardMap) {
             dashboardMap.setLayerGroupVisibility?.(layerId, checked);
         },
     });
+    dashboardMap.setLayerGroupVisibility?.('poi', false);
 }
 
 function focusIncidentRow(root, incidentId) {

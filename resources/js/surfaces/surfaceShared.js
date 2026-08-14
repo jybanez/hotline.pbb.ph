@@ -33,7 +33,10 @@ const SESSION_KEEPALIVE_MIN_INTERVAL_MS = 15 * 1000;
 const SESSION_WATCH_INTERVAL_MS = 5 * 1000;
 const CALL_SESSION_HEARTBEAT_MS = 2000;
 const CALL_SESSION_KEEPALIVE_MS = 60 * 1000;
-const HELPER_VENDOR_REV = '20260807-tsunami';
+const CALL_SESSION_OPERATOR_READY_RESEND_MS = 1500;
+const CALL_SESSION_OPERATOR_READY_RESEND_LIMIT = 8;
+const CALL_SESSION_QUEUED_SIGNAL_TYPES = new Set(['ready', 'offer', 'answer', 'ice-candidate', 'video-state']);
+const HELPER_VENDOR_REV = '4b3b49d';
 const realtimeCallSessionRegistry = new Map();
 let accountSsoRedirectStarted = false;
 
@@ -1223,6 +1226,7 @@ function mountSurfaceChrome(root, surface, bootstrap) {
                 label: bootstrap.user?.name ?? 'Account',
                 icon: accountAvatarMarkup(bootstrap.user),
                 iconOnly: true,
+                mobileCollapse: false,
                 className: 'surface-account-action',
                 menuItems: [
                     ...(Array.isArray(appState.runtime.navbarProfileMenuItems) ? appState.runtime.navbarProfileMenuItems : []),
@@ -1247,6 +1251,7 @@ function mountSurfaceChrome(root, surface, bootstrap) {
         contentEnd: appState.runtime.navbarContentEnd ?? null,
         statusContent: appState.runtime.navbarStatusContent ?? null,
         statusContentLabel: appState.runtime.navbarStatusContentLabel ?? 'Status',
+        mobileCollapseGroups: 'separate',
         sticky: true,
         onNavigate: (item) => {
             const target = item?.id === 'brand'
@@ -2327,6 +2332,7 @@ function normalizeChatMessages(messages, viewerRole) {
                 direction: String(message.direction ?? 'incoming'),
                 senderName: message.senderName ?? formatStatusLabel(message.senderRole ?? message.sender_role ?? 'Unknown'),
                 senderSubtitle: message.senderSubtitle ?? formatStatusLabel(message.senderRole ?? message.sender_role ?? 'message'),
+                senderAvatar: message.senderAvatar ?? message.sender_avatar ?? message.sender?.avatar ?? '',
                 text: message.text ?? message.body ?? '',
                 timestamp: message.timestamp ?? formatDateTime(message.created_at),
                 state: message.state,
@@ -2341,6 +2347,7 @@ function normalizeChatMessages(messages, viewerRole) {
                 : (message.type === 'system' ? 'system' : 'incoming'),
             senderName: message.sender_name ?? formatStatusLabel(message.sender_role ?? 'Unknown'),
             senderSubtitle: formatStatusLabel(message.sender_role ?? 'message'),
+            senderAvatar: message.sender_avatar ?? message.sender?.avatar ?? '',
             text: message.body ?? '',
             timestamp: formatDateTime(message.created_at),
             state: viewerRoleAliases.includes(message.sender_role) ? 'sent' : undefined,
@@ -2575,7 +2582,7 @@ async function mountRealtimeCallSession(options = {}) {
     const remoteUserId = String(options.remoteUserId ?? '').trim();
     const remoteAudioHost = options.remoteAudioHost ?? null;
     const incomingStreamHost = options.incomingStreamHost ?? remoteAudioHost;
-    const remoteVideoHost = options.remoteVideoHost ?? null;
+    let activeRemoteVideoHost = options.remoteVideoHost ?? null;
 
     if (
         !callSessionId
@@ -2657,6 +2664,7 @@ async function mountRealtimeCallSession(options = {}) {
         localStream: null,
         localStreamPromise: null,
         localVideoStream: options.localVideoStream instanceof MediaStream ? options.localVideoStream : null,
+        remoteStream: null,
         remoteAudioEl: null,
         remoteVideoEl: null,
         client: null,
@@ -2664,6 +2672,11 @@ async function mountRealtimeCallSession(options = {}) {
         mediaMuted: Boolean(options.startMuted),
         heartbeatTimerId: null,
         sessionKeepaliveTimerId: null,
+        deferSessionKeepalive: options.deferSessionKeepalive === true,
+        readyResendTimerId: null,
+        readyResendCount: 0,
+        peerConnected: false,
+        signalQueuesByUser: {},
     };
 
     const debugMedia = (event, detail = {}) => {
@@ -2778,7 +2791,7 @@ async function mountRealtimeCallSession(options = {}) {
     };
 
     const syncRemoteVideoStream = (stream) => {
-        if (!(remoteVideoHost instanceof Element)) {
+        if (!(activeRemoteVideoHost instanceof Element)) {
             if (typeof options.onRemoteVideoStateChange === 'function') {
                 const nextStream = stream instanceof MediaStream ? stream : null;
                 const hasVideo = nextStream instanceof MediaStream
@@ -2843,12 +2856,12 @@ async function mountRealtimeCallSession(options = {}) {
                 state.remoteVideoEl = null;
             }
 
-            resetRemoteVideoHost(remoteVideoHost);
+            resetRemoteVideoHost(activeRemoteVideoHost);
             return;
         }
 
         state.remoteVideoEl = attachRemoteVideo(
-            remoteVideoHost,
+            activeRemoteVideoHost,
             stream,
             `${viewerRole}-call-remote-video`,
             (event, detail) => {
@@ -2885,6 +2898,7 @@ async function mountRealtimeCallSession(options = {}) {
             peerConnection.ontrack = (event) => {
                 const remoteStream = ensureConferenceRemoteStream(conferenceState.remoteStreams, remoteId, () => new MediaStream());
                 const stream = remoteStream ?? new MediaStream();
+                state.remoteStream = stream;
 
                 (event.streams?.[0]?.getTracks?.() ?? [event.track]).forEach((track) => {
                     const alreadyPresent = stream.getTracks().some((item) => item.id === track.id);
@@ -2959,10 +2973,31 @@ async function mountRealtimeCallSession(options = {}) {
 
             peerConnection.onconnectionstatechange = () => {
                 const nextState = String(peerConnection.connectionState ?? '').trim();
+                state.peerConnected = ['connected', 'completed'].includes(nextState);
+
+                if (state.peerConnected) {
+                    stopOperatorReadyResend();
+                }
 
                 if (typeof options.onStateChange === 'function') {
                     options.onStateChange(nextState);
                 }
+            };
+
+            peerConnection.oniceconnectionstatechange = () => {
+                logCallFlow(viewerRole, 'peer-ice-connection-state', {
+                    callSessionId,
+                    remoteId,
+                    state: String(peerConnection.iceConnectionState ?? '').trim(),
+                });
+            };
+
+            peerConnection.onsignalingstatechange = () => {
+                logCallFlow(viewerRole, 'peer-signaling-state', {
+                    callSessionId,
+                    remoteId,
+                    state: String(peerConnection.signalingState ?? '').trim(),
+                });
             };
 
             return peerConnection;
@@ -3077,14 +3112,15 @@ async function mountRealtimeCallSession(options = {}) {
         return peerConnection;
     };
 
-    const sendReadySignal = () => {
-        if (!state.client?.isOpen?.() || !state.joinedRoom || state.sentReady || !state.callRoom) {
+    const sendReadySignal = ({ force = false } = {}) => {
+        if (!state.client?.isOpen?.() || !state.joinedRoom || (!force && state.sentReady) || !state.callRoom) {
             logCallFlow(viewerRole, 'call-session-ready-signal-skip', {
                 callSessionId,
                 callRoom: state.callRoom,
                 clientOpen: Boolean(state.client?.isOpen?.()),
                 joinedRoom: Boolean(state.joinedRoom),
                 sentReady: Boolean(state.sentReady),
+                force: Boolean(force),
             });
             return;
         }
@@ -3105,6 +3141,46 @@ async function mountRealtimeCallSession(options = {}) {
                 },
             }),
         );
+    };
+
+    const stopOperatorReadyResend = () => {
+        if (!state.readyResendTimerId) {
+            return;
+        }
+
+        window.clearInterval(state.readyResendTimerId);
+        state.readyResendTimerId = null;
+    };
+
+    const startOperatorReadyResend = () => {
+        if (viewerRole !== 'operator' || state.readyResendTimerId || state.peerConnected) {
+            return;
+        }
+
+        state.readyResendTimerId = window.setInterval(() => {
+            if (!state.active || state.peerConnected) {
+                stopOperatorReadyResend();
+                return;
+            }
+
+            if (state.readyResendCount >= CALL_SESSION_OPERATOR_READY_RESEND_LIMIT) {
+                logCallFlow(viewerRole, 'call-session-ready-resend-limit', {
+                    callSessionId,
+                    callRoom: state.callRoom,
+                    attempts: state.readyResendCount,
+                });
+                stopOperatorReadyResend();
+                return;
+            }
+
+            state.readyResendCount += 1;
+            logCallFlow(viewerRole, 'call-session-ready-resend', {
+                callSessionId,
+                callRoom: state.callRoom,
+                attempt: state.readyResendCount,
+            });
+            sendReadySignal({ force: true });
+        }, CALL_SESSION_OPERATOR_READY_RESEND_MS);
     };
 
     const sendCallSignal = (signalType, {
@@ -3345,7 +3421,7 @@ async function mountRealtimeCallSession(options = {}) {
         }
     };
 
-    const handleSignalEvent = async (envelope) => {
+    const processSignalEvent = async (envelope) => {
         const payload = envelope?.payload && typeof envelope.payload === 'object'
             ? envelope.payload
             : {};
@@ -3384,7 +3460,7 @@ async function mountRealtimeCallSession(options = {}) {
 
         if (signalType === 'ready') {
             if (isPublicViewerRole(viewerRole)) {
-                await createAndSendOffer({ force: true, resetPeer: false });
+                await createAndSendOffer({ force: false, resetPeer: false });
             } else if (viewerRole === 'operator') {
                 debugMedia('ready-echo', {
                     targetUserId: senderUserId,
@@ -3569,6 +3645,31 @@ async function mountRealtimeCallSession(options = {}) {
         }
     };
 
+    const handleSignalEvent = (envelope) => {
+        const senderUserId = extractRealtimeEnvelopeUserId(envelope);
+        const payload = envelope?.payload && typeof envelope.payload === 'object'
+            ? envelope.payload
+            : {};
+        const signalType = String(payload?.signal_type ?? '').trim();
+
+        if (!senderUserId || !CALL_SESSION_QUEUED_SIGNAL_TYPES.has(signalType)) {
+            return processSignalEvent(envelope);
+        }
+
+        const previous = state.signalQueuesByUser[senderUserId] ?? Promise.resolve();
+        const next = previous
+            .catch(() => {})
+            .then(() => processSignalEvent(envelope))
+            .finally(() => {
+                if (state.signalQueuesByUser[senderUserId] === next) {
+                    delete state.signalQueuesByUser[senderUserId];
+                }
+            });
+
+        state.signalQueuesByUser[senderUserId] = next;
+        return next;
+    };
+
     try {
         logCallFlow(viewerRole, 'call-session-admission-request', {
             callSessionId,
@@ -3603,7 +3704,7 @@ async function mountRealtimeCallSession(options = {}) {
             websocketUrl: admission.websocket_url,
         });
         state.remoteAudioEl = attachHiddenRemoteAudio(remoteAudioHost, `${viewerRole}-call-remote-audio`);
-        resetRemoteVideoHost(remoteVideoHost);
+        resetRemoteVideoHost(activeRemoteVideoHost);
 
         state.client = new RealtimeSocketClient({
             websocketUrl: admission.websocket_url,
@@ -3642,9 +3743,25 @@ async function mountRealtimeCallSession(options = {}) {
 
                     if (state.joinedRoom) {
                         sendReadySignal();
+                        startOperatorReadyResend();
                         startCallHeartbeat();
-                        startCallSessionKeepalive();
+
+                        if (!state.deferSessionKeepalive) {
+                            startCallSessionKeepalive();
+                        }
                     }
+                    return;
+                }
+
+                if (envelope?.phase === 'error') {
+                    logCallFlow(viewerRole, 'call-session-realtime-error', {
+                        callSessionId,
+                        callRoom,
+                        type: String(envelope?.type ?? ''),
+                        code: String(envelope?.payload?.code ?? ''),
+                        message: String(envelope?.payload?.message ?? ''),
+                        room: String(envelope?.room ?? ''),
+                    });
                     return;
                 }
 
@@ -3691,6 +3808,7 @@ async function mountRealtimeCallSession(options = {}) {
     const runtimeApi = {
         destroy() {
             state.active = false;
+            stopOperatorReadyResend();
             stopCallHeartbeat();
             stopCallSessionKeepalive();
 
@@ -3736,7 +3854,7 @@ async function mountRealtimeCallSession(options = {}) {
                 state.remoteVideoEl = null;
             }
 
-            resetRemoteVideoHost(remoteVideoHost);
+            resetRemoteVideoHost(activeRemoteVideoHost);
 
             state.client?.close?.();
             const currentEntry = realtimeCallSessionRegistry.get(registryKey);
@@ -3760,9 +3878,17 @@ async function mountRealtimeCallSession(options = {}) {
         sendSignal(signalType, payload = {}) {
             sendCallSignal(signalType, payload && typeof payload === 'object' ? payload : {});
         },
+        startSessionKeepalive() {
+            state.deferSessionKeepalive = false;
+            startCallSessionKeepalive();
+        },
         setMediaMuted(nextMuted) {
             state.mediaMuted = Boolean(nextMuted);
             syncMediaMuteState();
+        },
+        attachRemoteVideoHost(nextRemoteVideoHost) {
+            activeRemoteVideoHost = nextRemoteVideoHost instanceof Element ? nextRemoteVideoHost : null;
+            syncRemoteVideoStream(state.remoteStream);
         },
         updateLocalVideoStream,
         getState() {
@@ -3791,6 +3917,9 @@ async function mountRealtimeIncidentChat(options = {}) {
     const uploadQueueHost = options.uploadQueueHost ?? null;
     const roomName = incidentId > 0
         ? `chat.thread.incident.${incidentId}`
+        : '';
+    const mediaRoomName = incidentId > 0
+        ? `hotline.media.incident.${incidentId}`
         : '';
 
     if (!incidentId || !viewerRole || !admissionPath || !roomName || !threadHost) {
@@ -4227,6 +4356,18 @@ async function mountRealtimeIncidentChat(options = {}) {
         attachmentPolicy.maxAttachmentBytes = Number(admission?.session?.attachment_policy?.max_attachment_bytes ?? attachmentPolicy.maxAttachmentBytes ?? 0) || 0;
         attachmentPolicy.maxTotalBytesPerMessage = Number(admission?.session?.attachment_policy?.max_total_bytes_per_message ?? attachmentPolicy.maxTotalBytesPerMessage ?? 0) || 0;
 
+        const requestedRooms = new Set();
+        const requestRoomJoin = (targetRoom) => {
+            const normalizedRoom = String(targetRoom ?? '').trim();
+
+            if (!normalizedRoom || requestedRooms.has(normalizedRoom)) {
+                return;
+            }
+
+            requestedRooms.add(normalizedRoom);
+            client?.sendRequest?.('room.join.request', normalizedRoom, buildRoomJoinPayload());
+        };
+
         client = new RealtimeSocketClient({
             websocketUrl: admission.websocket_url,
             token: admission.token,
@@ -4245,12 +4386,17 @@ async function mountRealtimeIncidentChat(options = {}) {
                 }
 
                 if (envelope?.phase === 'ack' && envelope?.type === 'session.auth.request') {
-                    client.sendRequest('room.join.request', admissionRoom, buildRoomJoinPayload());
+                    requestRoomJoin(admissionRoom);
+                    requestRoomJoin(mediaRoomName);
                     return;
                 }
 
                 if (envelope?.phase === 'ack' && envelope?.type === 'room.join.request') {
-                    joinedRoom = String(envelope?.room ?? '') === admissionRoom;
+                    if (String(envelope?.room ?? '') !== admissionRoom) {
+                        return;
+                    }
+
+                    joinedRoom = true;
                     composerApi?.update?.({}, {
                         helperText: formatAttachmentPolicyHelperText(attachmentPolicy),
                         disabled: false,
@@ -4308,7 +4454,7 @@ async function mountRealtimeIncidentChat(options = {}) {
                 if (
                     envelope?.phase === 'event'
                     && ['media.processing', 'media.available'].includes(String(envelope?.type ?? ''))
-                    && String(envelope?.room ?? '') === admissionRoom
+                    && [admissionRoom, mediaRoomName].includes(String(envelope?.room ?? ''))
                 ) {
                     onMediaEvent?.(String(envelope.type), envelope?.payload ?? {});
                     return;
