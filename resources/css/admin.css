@@ -121,6 +121,10 @@
     width: 100%;
 }
 
+.admin-settings-modal-host .ui-property-editor-password-host .ui-password-input {
+    padding-right: 48px;
+}
+
 .admin-metrics-grid {
     display: grid;
     gap: 0.9rem;
