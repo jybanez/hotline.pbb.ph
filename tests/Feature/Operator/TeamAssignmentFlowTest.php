@@ -119,7 +119,7 @@ class TeamAssignmentFlowTest extends TestCase
             ->assertJsonPath('assignment.cancel_reason_note', 'Duplicate dispatch acknowledged by command.');
     }
 
-    public function test_operator_can_add_team_assignment_note(): void
+    public function test_operator_can_add_update_and_delete_team_assignment_note(): void
     {
         $caller = User::factory()->create([
             'role' => UserRole::Citizen,
@@ -166,17 +166,128 @@ class TeamAssignmentFlowTest extends TestCase
 
         $this->actingAs($operator)
             ->postJson("/api/operator/team-assignments/{$assignmentId}/notes", [
-                'note' => 'Team confirmed dispatch and is preparing to depart.',
+                'note' => "Team confirmed dispatch.\nPreparing to depart.",
             ])
             ->assertCreated()
             ->assertJsonPath('ok', true)
-            ->assertJsonPath('assignment.notes.0.note', 'Team confirmed dispatch and is preparing to depart.')
+            ->assertJsonPath('assignment.notes.0.note', "Team confirmed dispatch.\nPreparing to depart.")
             ->assertJsonPath('assignment.notes.0.created_by_operator_id', $operator->id);
+
+        $noteId = (int) DB::table('team_assignment_notes')
+            ->where('team_assignment_id', $assignmentId)
+            ->value('id');
 
         $this->assertDatabaseHas('team_assignment_notes', [
             'team_assignment_id' => $assignmentId,
             'created_by_operator_id' => $operator->id,
-            'note' => 'Team confirmed dispatch and is preparing to depart.',
+            'note' => "Team confirmed dispatch.\nPreparing to depart.",
+        ]);
+
+        $this->actingAs($operator)
+            ->postJson("/api/operator/team-assignments/{$assignmentId}/notes/{$noteId}", [
+                'note' => "Updated first line.\nUpdated second line.",
+            ])
+            ->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('assignment.notes.0.note', "Updated first line.\nUpdated second line.");
+
+        $this->assertDatabaseHas('team_assignment_notes', [
+            'id' => $noteId,
+            'note' => "Updated first line.\nUpdated second line.",
+        ]);
+
+        $this->actingAs($operator)
+            ->deleteJson("/api/operator/team-assignments/{$assignmentId}/notes/{$noteId}")
+            ->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('assignment.notes', []);
+
+        $this->assertDatabaseMissing('team_assignment_notes', [
+            'id' => $noteId,
+        ]);
+    }
+
+    public function test_operator_cannot_update_note_from_another_assignment(): void
+    {
+        $caller = User::factory()->create([
+            'role' => UserRole::Citizen,
+        ]);
+
+        $operator = User::factory()->create([
+            'role' => UserRole::Operator,
+        ]);
+
+        $incidentId = DB::table('incidents')->insertGetId([
+            'citizen_id' => $caller->id,
+            'actual_citizen_name' => $caller->name,
+            'operator_id' => $operator->id,
+            'status' => IncidentStatus::Active->value,
+            'alert_level' => 'Normal',
+            'called_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $teamCategoryId = DB::table('team_categories')->insertGetId([
+            'name' => 'Response',
+            'sort_order' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $firstTeamId = DB::table('teams')->insertGetId([
+            'team_category_id' => $teamCategoryId,
+            'name' => 'Rescue Team',
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $secondTeamId = DB::table('teams')->insertGetId([
+            'team_category_id' => $teamCategoryId,
+            'name' => 'EMS Team',
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $firstAssignmentId = $this->actingAs($operator)
+            ->postJson("/api/operator/incidents/{$incidentId}/team-assignments", [
+                'team_id' => $firstTeamId,
+                'resources' => [],
+            ])
+            ->assertCreated()
+            ->json('assignment.id');
+
+        $secondAssignmentId = $this->actingAs($operator)
+            ->postJson("/api/operator/incidents/{$incidentId}/team-assignments", [
+                'team_id' => $secondTeamId,
+                'resources' => [],
+            ])
+            ->assertCreated()
+            ->json('assignment.id');
+
+        $this->actingAs($operator)
+            ->postJson("/api/operator/team-assignments/{$secondAssignmentId}/notes", [
+                'note' => 'Belongs to second assignment.',
+            ])
+            ->assertCreated();
+
+        $noteId = (int) DB::table('team_assignment_notes')
+            ->where('team_assignment_id', $secondAssignmentId)
+            ->value('id');
+
+        $this->actingAs($operator)
+            ->postJson("/api/operator/team-assignments/{$firstAssignmentId}/notes/{$noteId}", [
+                'note' => 'Should not update.',
+            ])
+            ->assertStatus(409)
+            ->assertJsonPath('ok', false);
+
+        $this->assertDatabaseHas('team_assignment_notes', [
+            'id' => $noteId,
+            'team_assignment_id' => $secondAssignmentId,
+            'note' => 'Belongs to second assignment.',
         ]);
     }
 }

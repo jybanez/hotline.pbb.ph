@@ -11,7 +11,6 @@ export function createOperatorMediaManagers(services = {}) {
         transport: {
             publishChunk: services.publishChunk,
             publishBootstrapChunk: services.publishBootstrapChunk,
-            flushChunks: services.flushChunks,
         },
         finalizer: {
             finalizeRecord: services.finalizeRecord,
@@ -36,6 +35,9 @@ export function createOperatorMediaManagers(services = {}) {
         },
         scanConsumers() {
             return consumerManager.scan();
+        },
+        drainConsumers(options = {}) {
+            return consumerManager.drain(options);
         },
         getItems() {
             return {

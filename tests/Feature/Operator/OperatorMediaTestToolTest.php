@@ -120,6 +120,74 @@ class OperatorMediaTestToolTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_operator_can_request_realtime_admission_for_owned_diagnostic_media(): void
+    {
+        $operator = User::factory()->create(['role' => UserRole::Operator]);
+        $otherOperator = User::factory()->create(['role' => UserRole::Operator]);
+        $this->setRealtimeSettings();
+
+        $mediaId = DB::table('media')->insertGetId([
+            'incident_id' => null,
+            'call_session_id' => null,
+            'type' => 'operator_media_stream_test',
+            'peer_user_id' => $operator->id,
+            'peer_role' => 'operator',
+            'peer_label' => $operator->name,
+            'path' => '',
+            'duration_seconds' => null,
+            'metadata_json' => json_encode([
+                'diagnostic' => true,
+                'diagnostic_type' => 'operator_media_stream_storage',
+                'created_by_user_id' => $operator->id,
+                'processing' => true,
+            ]),
+            'created_at' => now(),
+            'available_at' => null,
+        ]);
+
+        $this->actingAs($operator)
+            ->postJson('/api/realtime/admission/operator', [
+                'context_type' => 'media_test_ingest',
+                'context_id' => $mediaId,
+            ])
+            ->assertOk()
+            ->assertJsonPath('room', "hotline.media.diagnostic.{$mediaId}")
+            ->assertJsonPath('project_code', 'prj_HOTLINE_OPERATOR')
+            ->assertJsonPath('session.allowed_rooms.0', "hotline.media.diagnostic.{$mediaId}")
+            ->assertJsonPath('session.allowed_room_prefixes.0', 'hotline.media.diagnostic.');
+
+        $this->actingAs($otherOperator)
+            ->postJson('/api/realtime/admission/operator', [
+                'context_type' => 'media_test_ingest',
+                'context_id' => $mediaId,
+            ])
+            ->assertForbidden();
+    }
+
+    private function setRealtimeSettings(): void
+    {
+        DB::table('settings')->upsert([
+            [
+                'key' => 'realtime_token_signing_secret',
+                'value' => json_encode(['value' => str_repeat('a', 64)]),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'key' => 'realtime_client_code',
+                'value' => json_encode(['value' => 'clt_PBB_HOTLINE']),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'key' => 'realtime_project_code_media_ingest',
+                'value' => json_encode(['value' => 'prj_HOTLINE_OPERATOR']),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ], ['key'], ['value', 'updated_at']);
+    }
+
     public function test_operator_can_cancel_diagnostic_media_and_cleanup_chunks(): void
     {
         Storage::fake('local');

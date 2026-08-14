@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Support\Realtime\RealtimeEventPublishService;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -21,8 +22,7 @@ class MediaAssemblyService
     public function __construct(
         private readonly RealtimeEventPublishService $realtimeEvents,
         private readonly MediaBinaryResolver $mediaBinaries,
-    ) {
-    }
+    ) {}
 
     public function createProcessingAsset(CallSession $callSession, array $payload): Media
     {
@@ -140,8 +140,10 @@ class MediaAssemblyService
         }
 
         $extension = strtolower((string) Arr::get($payload, 'extension', $metadata['extension'] ?? ''));
+        $durationSeconds = Arr::get($payload, 'duration_seconds', $media->duration_seconds);
+        $normalizedDurationSeconds = is_numeric($durationSeconds) ? max(0, (int) $durationSeconds) : null;
         $finalPath = $this->finalPathFor($media, $extension !== '' ? $extension : $this->defaultExtensionFor($media->type));
-        $this->mergeChunks($chunkPaths, $finalPath);
+        $this->mergeChunks($chunkPaths, $finalPath, $normalizedDurationSeconds);
 
         $metadata['processing'] = false;
         $metadata['merged_at'] = now()->toIso8601String();
@@ -149,7 +151,7 @@ class MediaAssemblyService
 
         $media->forceFill([
             'path' => $finalPath,
-            'duration_seconds' => Arr::get($payload, 'duration_seconds', $media->duration_seconds),
+            'duration_seconds' => $durationSeconds,
             'metadata_json' => $metadata,
             'available_at' => now(),
         ])->save();
@@ -157,7 +159,24 @@ class MediaAssemblyService
         $media = $media->fresh();
 
         if (! $this->isDiagnosticMedia($media)) {
-            $this->realtimeEvents->publishIncidentMediaAvailable($media);
+            $publishResult = $this->realtimeEvents->publishIncidentMediaAvailable($media);
+            $publishStatus = (string) ($publishResult['status'] ?? '');
+
+            if (! in_array($publishStatus, ['accepted', 'pending'], true)) {
+                Log::warning('Hotline media.available publish did not complete.', [
+                    'media_id' => $media->id,
+                    'incident_id' => $media->incident_id,
+                    'call_session_id' => $media->call_session_id,
+                    'type' => $media->type,
+                    'peer_role' => $media->peer_role,
+                    'publish_status' => $publishStatus,
+                    'publish_reason' => $publishResult['reason'] ?? null,
+                    'publish_message' => $publishResult['message'] ?? null,
+                    'hotline_trace_id' => $publishResult['hotline_trace_id'] ?? null,
+                    'realtime_trace_id' => $publishResult['realtime_trace_id'] ?? null,
+                    'http_status' => $publishResult['http_status'] ?? null,
+                ]);
+            }
         }
 
         return $media;
@@ -247,13 +266,18 @@ class MediaAssemblyService
                 || $callSession->ended_at->gt($threshold)
             ) {
                 $summary['skipped_not_ended']++;
+
                 continue;
             }
 
             try {
+                $durationSeconds = is_numeric($media->duration_seconds) && (int) $media->duration_seconds > 0
+                    ? (int) $media->duration_seconds
+                    : $this->recoverableDurationSeconds($media, $callSession);
+
                 $this->finalizeProcessingAsset($media, [
                     'ended_at' => $callSession->ended_at?->toIso8601String(),
-                    'duration_seconds' => $media->duration_seconds,
+                    'duration_seconds' => $durationSeconds,
                     'extension' => Arr::get($media->metadata_json ?? [], 'extension'),
                 ]);
                 $summary['finalized']++;
@@ -269,6 +293,25 @@ class MediaAssemblyService
         return $summary;
     }
 
+    private function recoverableDurationSeconds(Media $media, CallSession $callSession): ?int
+    {
+        $metadata = $media->metadata_json ?? [];
+        $startedAt = Arr::get($metadata, 'started_at');
+        $endedAt = $callSession->ended_at?->getTimestamp();
+
+        if (! is_string($startedAt) || trim($startedAt) === '' || ! $endedAt) {
+            return null;
+        }
+
+        $startedTimestamp = strtotime($startedAt);
+
+        if ($startedTimestamp === false) {
+            return null;
+        }
+
+        return max(0, $endedAt - $startedTimestamp);
+    }
+
     /**
      * @return array<int, string>
      */
@@ -276,6 +319,7 @@ class MediaAssemblyService
     {
         if ($this->isDiagnosticMedia($media)) {
             $base = sprintf('media-processing/diagnostics/operator-media-stream-tests/%d/chunks', $media->id);
+
             return collect(Storage::disk('local')->files($base))
                 ->filter(fn (string $path) => str_ends_with($path, '.chunk'))
                 ->sort()
@@ -352,12 +396,13 @@ class MediaAssemblyService
     /**
      * @param  array<int, string>  $chunkPaths
      */
-    private function mergeChunks(array $chunkPaths, string $finalPath): void
+    private function mergeChunks(array $chunkPaths, string $finalPath, ?int $durationSeconds = null): void
     {
         $publicDisk = Storage::disk('public');
         $targetPath = $publicDisk->path($finalPath);
         $targetDirectory = dirname($targetPath);
         $outputFormat = $this->outputFormatForPath($finalPath);
+        $audioOnly = strtolower(pathinfo($finalPath, PATHINFO_EXTENSION)) === 'weba';
 
         if (! is_dir($targetDirectory) && ! @mkdir($targetDirectory, 0777, true) && ! is_dir($targetDirectory)) {
             throw new RuntimeException('Unable to prepare media output directory.');
@@ -369,16 +414,20 @@ class MediaAssemblyService
             if (count($chunkPaths) === 1) {
                 $contents = Storage::disk('local')->get($chunkPaths[0]);
                 $publicDisk->put($finalPath, $contents);
+
                 return;
             }
 
             $this->mergeWebmStreamChunks($chunkPaths, $targetPath, $outputFormat);
+            $this->trimFinalMediaToDuration($targetPath, $outputFormat, $durationSeconds, $audioOnly);
+
             return;
         }
 
         if (count($chunkPaths) === 1) {
             $contents = Storage::disk('local')->get($chunkPaths[0]);
             $publicDisk->put($finalPath, $contents);
+
             return;
         }
 
@@ -392,10 +441,10 @@ class MediaAssemblyService
         }
 
         $manifestLines = array_map(
-            fn (string $path) => "file '" . str_replace("'", "'\\''", Storage::disk('local')->path($path)) . "'",
+            fn (string $path) => "file '".str_replace("'", "'\\''", Storage::disk('local')->path($path))."'",
             $chunkPaths
         );
-        file_put_contents($manifestPath, implode(PHP_EOL, $manifestLines) . PHP_EOL);
+        file_put_contents($manifestPath, implode(PHP_EOL, $manifestLines).PHP_EOL);
 
         $process = new Process([
             $this->mediaBinaries->ffmpeg(),
@@ -413,6 +462,46 @@ class MediaAssemblyService
 
         if (! $process->isSuccessful()) {
             throw new RuntimeException(trim($process->getErrorOutput() ?: 'Unable to merge media chunks.'));
+        }
+
+        $this->trimFinalMediaToDuration($targetPath, $outputFormat, $durationSeconds, $audioOnly);
+    }
+
+    private function trimFinalMediaToDuration(string $targetPath, string $outputFormat, ?int $durationSeconds, bool $audioOnly): void
+    {
+        if ($durationSeconds === null || $durationSeconds <= 0 || ! is_file($targetPath)) {
+            return;
+        }
+
+        $temporaryPath = sprintf('%s.trimmed.%s', $targetPath, $outputFormat);
+        $command = [
+            $this->mediaBinaries->ffmpeg(),
+            '-y',
+            '-i', $targetPath,
+            '-t', (string) $durationSeconds,
+        ];
+
+        if ($audioOnly) {
+            array_push($command, '-vn', '-c:a', 'libopus', '-b:a', '48k');
+        } else {
+            array_push($command, '-c', 'copy');
+        }
+
+        array_push($command, '-f', $outputFormat, $temporaryPath);
+
+        $process = new Process($command);
+        $process->run();
+
+        if (! $process->isSuccessful()) {
+            @unlink($temporaryPath);
+
+            throw new RuntimeException(trim($process->getErrorOutput() ?: 'Unable to trim finalized media duration.'));
+        }
+
+        if (! @rename($temporaryPath, $targetPath)) {
+            @unlink($temporaryPath);
+
+            throw new RuntimeException('Unable to replace finalized media with duration-trimmed output.');
         }
     }
 

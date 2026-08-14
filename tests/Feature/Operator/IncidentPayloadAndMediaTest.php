@@ -414,6 +414,64 @@ class IncidentPayloadAndMediaTest extends TestCase
         ]);
     }
 
+    public function test_operator_can_finalize_processing_media_with_final_drain_chunks(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+
+        [$caller, $operator, $otherOperator, $incidentId] = $this->seedIncidentFixture();
+
+        $createResponse = $this->actingAs($operator)
+            ->postJson('/api/operator/call-sessions/1/media', [
+                'type' => 'audio_peer',
+                'peer_user_id' => $operator->id,
+                'peer_role' => 'operator',
+                'peer_label' => $operator->name,
+                'mime_type' => 'audio/webm;codecs=opus',
+                'extension' => 'weba',
+                'track_kind' => 'audio',
+                'segment_key' => 'operator-final-drain',
+                'started_at' => now()->subSeconds(10)->toIso8601String(),
+            ])
+            ->assertCreated();
+
+        $mediaId = (int) $createResponse->json('media.id');
+
+        $this->actingAs($operator)
+            ->post('/api/operator/media/'.$mediaId.'/finalize', [
+                'duration_seconds' => 7,
+                'ended_at' => now()->toIso8601String(),
+                'extension' => 'weba',
+                'final_chunks' => [
+                    [
+                        'chunk_index' => 0,
+                        'chunk' => \Illuminate\Http\UploadedFile::fake()->createWithContent(
+                            'final-000000.weba',
+                            "\x1A\x45\xDF\xA3".'audio-drain-chunk'
+                        ),
+                    ],
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('media.id', $mediaId)
+            ->assertJsonPath('media.processing', false)
+            ->assertJsonPath('media.duration_seconds', 7);
+
+        $expectedPath = "incidents/{$incidentId}/media/1/{$mediaId}_audio-peer_operator-final-drain.weba";
+
+        Storage::disk('local')->assertExists("media-processing/{$incidentId}/1/{$mediaId}/chunks/000000.chunk");
+        Storage::disk('public')->assertExists($expectedPath);
+
+        $this->assertDatabaseHas('media', [
+            'id' => $mediaId,
+            'incident_id' => $incidentId,
+            'type' => 'audio_peer',
+            'path' => $expectedPath,
+            'duration_seconds' => 7,
+        ]);
+    }
+
     public function test_operator_cannot_access_media_pipeline_for_another_operators_call_session(): void
     {
         Storage::fake('local');

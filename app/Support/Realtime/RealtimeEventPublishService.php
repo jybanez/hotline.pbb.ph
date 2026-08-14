@@ -150,6 +150,13 @@ class RealtimeEventPublishService
         $backendSecret = trim((string) $this->settings->get('realtime_backend_ingress_secret', ''));
 
         if ($backendSecret === '') {
+            Log::warning('Hotline realtime publish skipped: backend ingress secret is not configured.', [
+                'hotline_trace_id' => $traceId,
+                'project_code' => trim($projectCode),
+                'room' => trim($room),
+                'event_type' => trim($eventType),
+            ]);
+
             return [
                 'status' => 'skipped',
                 'message' => 'Realtime backend ingress secret is not configured.',
@@ -160,6 +167,13 @@ class RealtimeEventPublishService
         $clientCode = trim((string) $this->settings->get('realtime_client_code'));
 
         if ($clientCode === '') {
+            Log::warning('Hotline realtime publish skipped: client code is not configured.', [
+                'hotline_trace_id' => $traceId,
+                'project_code' => trim($projectCode),
+                'room' => trim($room),
+                'event_type' => trim($eventType),
+            ]);
+
             return [
                 'status' => 'skipped',
                 'message' => 'Realtime client code is not configured.',
@@ -170,6 +184,13 @@ class RealtimeEventPublishService
         $normalizedProjectCode = trim($projectCode);
 
         if ($normalizedProjectCode === '') {
+            Log::warning('Hotline realtime publish skipped: project code is not configured.', [
+                'hotline_trace_id' => $traceId,
+                'client_code' => $clientCode,
+                'room' => trim($room),
+                'event_type' => trim($eventType),
+            ]);
+
             return [
                 'status' => 'skipped',
                 'message' => 'Realtime server project code is not configured.',

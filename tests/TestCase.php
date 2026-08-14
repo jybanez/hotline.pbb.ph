@@ -9,7 +9,7 @@ abstract class TestCase extends BaseTestCase
 {
     public function createApplication()
     {
-        $app = require dirname(__DIR__).'/bootstrap/app.php';
+        $app = require getcwd().'/bootstrap/app.php';
 
         $app->make(Kernel::class)->bootstrap();
 

@@ -507,6 +507,12 @@ export function createDashboardMap(options = {}) {
     let boundaryGeoJson = null;
     let initialBoundaryFitDone = false;
     let workbenchPulseFrame = null;
+    const layerGroupVisibility = {
+        boundary: true,
+        incidents: true,
+        terrain: true,
+        poi: false,
+    };
 
     function stopWorkbenchPulse() {
         if (workbenchPulseFrame !== null) {
@@ -543,6 +549,27 @@ export function createDashboardMap(options = {}) {
         }
 
         map.getSource(SOURCE_ID).setData(featureCollection(pendingItems, selectedIncidentId));
+    }
+
+    function applyLayerGroupVisibility(groupId, visible) {
+        if (groupId === 'incidents') {
+            setLayerVisibility(map, [WORKBENCH_PULSE_LAYER_ID, CIRCLE_LAYER_ID, LABEL_LAYER_ID], visible);
+        } else if (groupId === 'boundary') {
+            setLayerVisibility(map, [BOUNDARY_FILL_LAYER_ID, BOUNDARY_LINE_LAYER_ID], visible);
+        } else if (groupId === 'terrain') {
+            if (map?.setTerrain && terrainSpec) {
+                map.setTerrain(visible ? terrainSpec : null);
+            }
+            setLayerVisibility(map, ['terrain-hillshade'], visible);
+        } else if (groupId === 'poi') {
+            setLayerVisibility(map, [POI_CIRCLE_LAYER_ID, POI_LABEL_LAYER_ID], visible);
+        }
+    }
+
+    function applyStoredLayerGroupVisibility() {
+        Object.entries(layerGroupVisibility).forEach(([groupId, visible]) => {
+            applyLayerGroupVisibility(groupId, visible);
+        });
     }
 
     function incidentBounds() {
@@ -659,6 +686,7 @@ export function createDashboardMap(options = {}) {
             }
             addIncidentLayers(map);
             addPoiLayers(map, config);
+            applyStoredLayerGroupVisibility();
             startWorkbenchPulse();
             setSourceData();
             [CIRCLE_LAYER_ID, LABEL_LAYER_ID].forEach((layerId) => {
@@ -713,18 +741,10 @@ export function createDashboardMap(options = {}) {
             return map;
         },
         setLayerGroupVisibility(groupId, visible) {
-            if (groupId === 'incidents') {
-                setLayerVisibility(map, [WORKBENCH_PULSE_LAYER_ID, CIRCLE_LAYER_ID, LABEL_LAYER_ID], visible);
-            } else if (groupId === 'boundary') {
-                setLayerVisibility(map, [BOUNDARY_FILL_LAYER_ID, BOUNDARY_LINE_LAYER_ID], visible);
-            } else if (groupId === 'terrain') {
-                if (map?.setTerrain && terrainSpec) {
-                    map.setTerrain(visible ? terrainSpec : null);
-                }
-                setLayerVisibility(map, ['terrain-hillshade'], visible);
-            } else if (groupId === 'poi') {
-                setLayerVisibility(map, [POI_CIRCLE_LAYER_ID, POI_LABEL_LAYER_ID], visible);
+            if (Object.prototype.hasOwnProperty.call(layerGroupVisibility, groupId)) {
+                layerGroupVisibility[groupId] = Boolean(visible);
             }
+            applyLayerGroupVisibility(groupId, Boolean(visible));
         },
         hasTerrainLayer() {
             return Boolean(terrainSpec || map?.getLayer?.('terrain-hillshade'));

@@ -4,6 +4,7 @@ namespace App\Support\Realtime;
 
 use App\Domain\Calls\Models\CallSession;
 use App\Domain\Incidents\Models\Incident;
+use App\Domain\Media\Models\Media;
 use App\Domain\Shared\Enums\UserRole;
 use App\Domain\Users\Models\User;
 use App\Support\Settings\SettingsService;
@@ -152,6 +153,18 @@ class RealtimeAdmissionService
                 ],
                 allowedRoomPrefixes: [
                     'call.session.',
+                ],
+            ),
+            'media_test_ingest' => $this->buildSingleRoomAdmission(
+                user: $user,
+                projectCode: $this->realtimeProjectCode('media_ingest', 'prj_hotline_media_ingest'),
+                room: $this->diagnosticMediaRoom($this->operatorDiagnosticMedia($user, $contextId)->id),
+                capabilities: [
+                    'session.connect',
+                    'room.join',
+                ],
+                allowedRoomPrefixes: [
+                    'hotline.media.diagnostic.',
                 ],
             ),
             'call_discovery' => $this->buildPresenceAdmission(
@@ -626,6 +639,24 @@ class RealtimeAdmissionService
         return $callSession;
     }
 
+    private function operatorDiagnosticMedia(User $user, int $mediaId): Media
+    {
+        /** @var Media|null $media */
+        $media = Media::query()->find($mediaId);
+        $metadata = is_array($media?->metadata_json) ? $media->metadata_json : [];
+
+        if (
+            ! $media
+            || (bool) ($metadata['diagnostic'] ?? false) !== true
+            || ($metadata['diagnostic_type'] ?? null) !== 'operator_media_stream_storage'
+            || (int) $media->peer_user_id !== (int) $user->getKey()
+        ) {
+            throw new AuthorizationException('Diagnostic media ingest is not allowed for this operator.');
+        }
+
+        return $media;
+    }
+
     private function config(): \RealtimeConfig
     {
         $signingSecret = trim((string) $this->settings->get('realtime_token_signing_secret', ''));
@@ -686,6 +717,11 @@ class RealtimeAdmissionService
     private function callSessionRoom(int $callSessionId): string
     {
         return 'call.session.'.$callSessionId;
+    }
+
+    private function diagnosticMediaRoom(int $mediaId): string
+    {
+        return 'hotline.media.diagnostic.'.$mediaId;
     }
 
     private function normalizeRealtimeWebsocketUrl(string $value): string

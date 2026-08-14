@@ -61,6 +61,7 @@ export class ConsumerManager {
         this.initialized = false;
         this.intervalId = null;
         this.debug = null;
+        this.scanPromise = null;
         this.consumers = new Map();
 
         if (!this.storage) {
@@ -155,40 +156,84 @@ export class ConsumerManager {
             return;
         }
 
+        if (this.scanPromise) {
+            return this.scanPromise;
+        }
+
+        this.scanPromise = (async () => {
+            await this.ensureReady();
+
+            const records = await this.storage.listRecords();
+            const seen = new Set();
+            const ticks = [];
+
+            for (const record of records) {
+                const mediaId = Number(record?.media_id ?? 0);
+
+                if (mediaId <= 0) {
+                    continue;
+                }
+
+                seen.add(mediaId);
+
+                if (!this.consumers.has(mediaId)) {
+                    this.consumers.set(mediaId, new Consumer({
+                        storage: this.storage,
+                        transport: this.transport,
+                        finalizer: this.finalizer,
+                        record,
+                        debug: this.debug,
+                    }));
+                }
+
+                const consumer = this.consumers.get(mediaId);
+                consumer.updateRecord(record);
+                ticks.push(consumer.tick());
+            }
+
+            await Promise.allSettled(ticks);
+
+            for (const mediaId of Array.from(this.consumers.keys())) {
+                if (!seen.has(mediaId)) {
+                    this.consumers.delete(mediaId);
+                }
+            }
+        })().finally(() => {
+            this.scanPromise = null;
+        });
+
+        return this.scanPromise;
+    }
+
+    async drain({ maxPasses = 20, delayMs = 250 } = {}) {
+        if (!this.enabled) {
+            return true;
+        }
+
         await this.ensureReady();
 
-        const records = await this.storage.listRecords();
-        const seen = new Set();
+        for (let pass = 0; pass < maxPasses; pass += 1) {
+            await this.scan();
 
-        for (const record of records) {
-            const mediaId = Number(record?.media_id ?? 0);
+            const records = await this.storage.listRecords();
 
-            if (mediaId <= 0) {
-                continue;
+            if (records.length === 0) {
+                return true;
             }
 
-            seen.add(mediaId);
-
-            if (!this.consumers.has(mediaId)) {
-                this.consumers.set(mediaId, new Consumer({
-                    storage: this.storage,
-                    transport: this.transport,
-                    finalizer: this.finalizer,
-                    record,
-                    debug: this.debug,
-                }));
-            }
-
-            const consumer = this.consumers.get(mediaId);
-            consumer.updateRecord(record);
-            void consumer.tick();
+            await new Promise((resolve) => {
+                window.setTimeout(resolve, Math.max(50, Number(delayMs ?? 250)));
+            });
         }
 
-        for (const mediaId of Array.from(this.consumers.keys())) {
-            if (!seen.has(mediaId)) {
-                this.consumers.delete(mediaId);
-            }
-        }
+        this.debug?.('consumer-drain-timeout', {
+            debugSource: 'ConsumerManager',
+            remainingRecords: (await this.storage.listRecords()).length,
+            maxPasses,
+            source: 'consumer-manager',
+        });
+
+        return false;
     }
 
     getItems() {

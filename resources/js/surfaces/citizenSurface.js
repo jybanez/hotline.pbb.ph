@@ -25,7 +25,7 @@ const CALLER_REALTIME_RECONNECT_MIN_MS = 1000;
 const CALLER_REALTIME_RECONNECT_MAX_MS = 15000;
 const CALLER_REMOTE_DISCONNECT_GRACE_MS = 10000;
 const CALLER_REMOTE_DISCONNECT_CLEANUP_TIMEOUT_MS = 10000;
-const CALLER_REMOTE_HEARTBEAT_TIMEOUT_MS = 5000;
+const CALLER_REMOTE_HEARTBEAT_TIMEOUT_MS = 12000;
 const CALLER_RECONNECT_REQUEST_DEDUPE_MS = 1500;
 
 function normalizeHeadingDegrees(value) {
@@ -2079,7 +2079,19 @@ async function connectCallerRealtimeStream(options = {}) {
                     return;
                 }
 
-                if (String(payload?.caller_id ?? '') !== String(appState.bootstrap?.user?.id ?? '')) {
+                const currentCitizenId = String(appState.bootstrap?.user?.id ?? '');
+                const payloadCitizenId = String(payload?.citizen_id ?? '').trim();
+                const payloadCallerId = String(payload?.caller_id ?? '').trim();
+                const citizenIdentityRequiredEvents = new Set([
+                    'citizen.call.answered',
+                    'citizen.call.ready',
+                ]);
+
+                if (payloadCitizenId) {
+                    if (payloadCitizenId !== currentCitizenId) {
+                        return;
+                    }
+                } else if (citizenIdentityRequiredEvents.has(eventType) || payloadCallerId !== currentCitizenId) {
                     return;
                 }
 

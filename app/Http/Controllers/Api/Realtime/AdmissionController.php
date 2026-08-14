@@ -55,7 +55,7 @@ class AdmissionController extends Controller
     private function respond(Request $request, callable $resolver): JsonResponse
     {
         $validated = $request->validate([
-            'context_type' => ['required', 'string', 'in:surface_runtime,settings_stream,incident_chat,call_session,media_ingest,call_discovery,dashboard_presence'],
+            'context_type' => ['required', 'string', 'in:surface_runtime,settings_stream,incident_chat,call_session,media_ingest,media_test_ingest,call_discovery,dashboard_presence'],
             'context_id' => ['required', 'integer'],
         ]);
 

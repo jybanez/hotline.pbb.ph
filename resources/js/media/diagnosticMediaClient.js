@@ -107,11 +107,11 @@ export async function finalizeStoppedDiagnosticRecording({
         throw new Error('Diagnostic finalize requires an active media session.');
     }
 
-    const stopped = await session.stop();
     const endedAtMs = now();
     const durationSeconds = recordingStartedAt
         ? Math.max(0, Math.floor((endedAtMs - recordingStartedAt) / 1000))
         : 0;
+    const stopped = await session.stop();
     const finalized = await client.finalize(media.id, {
         duration_seconds: durationSeconds,
         ended_at: new Date(endedAtMs).toISOString(),

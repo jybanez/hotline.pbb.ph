@@ -36,6 +36,7 @@ class FinalizeStaleCallMediaCommandTest extends TestCase
                 'processing' => true,
                 'extension' => 'weba',
                 'segment_key' => 'operator-main',
+                'started_at' => now()->subMinutes(4)->toIso8601String(),
             ]),
             'created_at' => now()->subMinutes(2),
             'available_at' => null,
@@ -79,6 +80,14 @@ class FinalizeStaleCallMediaCommandTest extends TestCase
             'id' => $finalizableMediaId,
             'path' => $expectedPath,
         ]);
+        $this->assertGreaterThanOrEqual(
+            119,
+            (int) DB::table('media')->where('id', $finalizableMediaId)->value('duration_seconds'),
+        );
+        $this->assertLessThanOrEqual(
+            121,
+            (int) DB::table('media')->where('id', $finalizableMediaId)->value('duration_seconds'),
+        );
 
         $this->assertDatabaseHas('media', [
             'id' => $noChunkMediaId,

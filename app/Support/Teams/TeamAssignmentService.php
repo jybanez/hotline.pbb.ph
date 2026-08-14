@@ -166,6 +166,38 @@ class TeamAssignmentService
         });
     }
 
+    public function updateNote(User $operator, TeamAssignment $assignment, TeamAssignmentNote $note, string $nextNote): TeamAssignment
+    {
+        $this->assertOperatorCanManageAssignment($operator, $assignment);
+        $this->assertNoteBelongsToAssignment($assignment, $note);
+
+        $normalizedNote = trim($nextNote);
+
+        if ($normalizedNote === '') {
+            throw new RuntimeException('Note is required.');
+        }
+
+        return DB::transaction(function () use ($assignment, $note, $normalizedNote) {
+            $note->forceFill([
+                'note' => $normalizedNote,
+            ])->save();
+
+            return $assignment->fresh(['team', 'allocatedResources.resourceType', 'notes.createdByOperator']);
+        });
+    }
+
+    public function deleteNote(User $operator, TeamAssignment $assignment, TeamAssignmentNote $note): TeamAssignment
+    {
+        $this->assertOperatorCanManageAssignment($operator, $assignment);
+        $this->assertNoteBelongsToAssignment($assignment, $note);
+
+        return DB::transaction(function () use ($assignment, $note) {
+            $note->delete();
+
+            return $assignment->fresh(['team', 'allocatedResources.resourceType', 'notes.createdByOperator']);
+        });
+    }
+
     public function delete(User $operator, TeamAssignment $assignment): void
     {
         $incident = Incident::query()->findOrFail($assignment->incident_id);
@@ -179,5 +211,21 @@ class TeamAssignmentService
         }
 
         $assignment->delete();
+    }
+
+    private function assertOperatorCanManageAssignment(User $operator, TeamAssignment $assignment): void
+    {
+        $incident = Incident::query()->findOrFail($assignment->incident_id);
+
+        if ((int) $incident->operator_id !== (int) $operator->id) {
+            throw new RuntimeException('You cannot update this team assignment.');
+        }
+    }
+
+    private function assertNoteBelongsToAssignment(TeamAssignment $assignment, TeamAssignmentNote $note): void
+    {
+        if ((int) $note->team_assignment_id !== (int) $assignment->id) {
+            throw new RuntimeException('Selected note does not belong to this team assignment.');
+        }
     }
 }

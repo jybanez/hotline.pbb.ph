@@ -4,7 +4,6 @@ import { renderSurface } from './renderSurface.js';
 import { createOperatorMediaManagers } from '../media/operator.js';
 import { createOperatorMediaFinalizer } from '../media/finalizers/operatorMediaFinalizer.js';
 import { createOperatorMediaBootstrapTransport } from '../media/transports/bootstrapChunkTransport.js';
-import { createOperatorMediaBatchChunkTransport } from '../media/transports/batchChunkTransport.js';
 import { createRealtimeOperatorMediaChunkTransport } from '../media/transports/realtimeChunkTransport.js';
 import { createDashboardMap } from '../maps/dashboardMap.js';
 import { createWorkbenchLocationMap } from '../maps/workbenchLocationMap.js';
@@ -213,6 +212,57 @@ function operatorMediaRoomsRuntime() {
     return appState.runtime.operatorMediaRooms;
 }
 
+function operatorPendingMediaEventsRuntime() {
+    if (!appState.runtime.operatorPendingMediaEvents) {
+        appState.runtime.operatorPendingMediaEvents = new Map();
+    }
+
+    return appState.runtime.operatorPendingMediaEvents;
+}
+
+function rememberOperatorPendingMediaEvent(incidentId, media) {
+    const nextIncidentId = Number(incidentId ?? 0);
+
+    if (nextIncidentId <= 0 || !media || typeof media !== 'object') {
+        return;
+    }
+
+    const pending = operatorPendingMediaEventsRuntime();
+    const current = pending.get(nextIncidentId) ?? [];
+
+    pending.set(nextIncidentId, mergeIncidentMediaItems(current, media));
+    logCallFlow('operator', 'incident-media-event-buffered', {
+        incidentId: nextIncidentId,
+        mediaId: Number(media?.id ?? 0) || null,
+        mediaType: String(media?.type ?? '').trim() || null,
+        path: String(media?.path ?? '').trim() || null,
+        processing: Boolean(media?.processing),
+        pendingCount: pending.get(nextIncidentId)?.length ?? 0,
+    });
+}
+
+function consumeOperatorPendingMediaEvents(incidentId) {
+    const nextIncidentId = Number(incidentId ?? 0);
+
+    if (nextIncidentId <= 0) {
+        return [];
+    }
+
+    const pending = operatorPendingMediaEventsRuntime();
+    const items = pending.get(nextIncidentId) ?? [];
+
+    pending.delete(nextIncidentId);
+
+    if (items.length > 0) {
+        logCallFlow('operator', 'incident-media-events-consumed', {
+            incidentId: nextIncidentId,
+            pendingCount: items.length,
+        });
+    }
+
+    return items;
+}
+
 function joinOperatorIncidentMediaRoom(incidentId) {
     const room = operatorIncidentMediaRoom(incidentId);
 
@@ -334,6 +384,22 @@ async function persistOperatorCallerLocation(incidentId, locationPayload = {}) {
         return null;
     }
 
+    const deferredPersist = appState.runtime.operatorDeferredCallerLocationPersist;
+
+    if (
+        deferredPersist
+        && Number(deferredPersist.incidentId ?? 0) === nextIncidentId
+        && (
+            !Number(deferredPersist.callSessionId ?? 0)
+            || !Number(payload.call_session_id ?? 0)
+            || Number(payload.call_session_id ?? 0) === Number(deferredPersist.callSessionId ?? 0)
+        )
+    ) {
+        deferredPersist.payload = payload;
+        deferredPersist.updatedAt = Date.now();
+        return null;
+    }
+
     if (!appState.runtime.operatorCallerLocationPersistIds) {
         appState.runtime.operatorCallerLocationPersistIds = {};
     }
@@ -357,6 +423,39 @@ async function persistOperatorCallerLocation(incidentId, locationPayload = {}) {
         console.warn('Unable to persist caller location.', error);
         return null;
     }
+}
+
+async function flushDeferredOperatorCallerLocationPersist() {
+    const deferredPersist = appState.runtime.operatorDeferredCallerLocationPersist;
+
+    if (!deferredPersist?.payload || !Number(deferredPersist.incidentId ?? 0)) {
+        appState.runtime.operatorDeferredCallerLocationPersist = null;
+        return null;
+    }
+
+    appState.runtime.operatorDeferredCallerLocationPersist = null;
+
+    return persistOperatorCallerLocation(deferredPersist.incidentId, deferredPersist.payload);
+}
+
+function clearDeferredOperatorCallerLocationPersist(incidentId = null, callSessionId = null) {
+    const deferredPersist = appState.runtime.operatorDeferredCallerLocationPersist;
+
+    if (!deferredPersist) {
+        return;
+    }
+
+    const nextIncidentId = Number(incidentId ?? 0);
+    const nextCallSessionId = Number(callSessionId ?? 0);
+
+    if (
+        (nextIncidentId > 0 && Number(deferredPersist.incidentId ?? 0) !== nextIncidentId)
+        || (nextCallSessionId > 0 && Number(deferredPersist.callSessionId ?? 0) !== nextCallSessionId)
+    ) {
+        return;
+    }
+
+    appState.runtime.operatorDeferredCallerLocationPersist = null;
 }
 
 function operatorCallerLocationSignature(incidentId, location = {}) {
@@ -1268,6 +1367,19 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                         ? payload.media
                         : null;
 
+                    logCallFlow('operator', 'incident-media-event-received', {
+                        eventType,
+                        room: eventRoom,
+                        currentIncidentId: currentIncidentId || null,
+                        incidentId: nextIncidentId || null,
+                        mediaId: Number(nextMedia?.id ?? 0) || null,
+                        mediaType: String(nextMedia?.type ?? '').trim() || null,
+                        path: String(nextMedia?.path ?? '').trim() || null,
+                        processing: Boolean(nextMedia?.processing),
+                        hasWorkbench: Boolean(appState.runtime.operatorWorkbench),
+                        hasApplyMediaEvent: Boolean(appState.runtime.operatorWorkbench?.applyMediaEvent),
+                    });
+
                     if (
                         nextMedia
                         && nextIncidentId > 0
@@ -1278,10 +1390,26 @@ async function connectOperatorRealtimeStream(root, options = {}) {
 
                         if (workbench?.applyMediaEvent) {
                             workbench.applyMediaEvent(nextMedia);
+                            logCallFlow('operator', 'incident-media-event-applied', {
+                                incidentId: nextIncidentId,
+                                mediaId: Number(nextMedia?.id ?? 0) || null,
+                                path: String(nextMedia?.path ?? '').trim() || null,
+                                processing: Boolean(nextMedia?.processing),
+                            });
                         } else if (workbench?.payload) {
                             workbench.payload.media = mergeIncidentMediaItems(workbench.payload.media, nextMedia);
                             workbench.syncMediaViews?.();
+                            logCallFlow('operator', 'incident-media-event-merged', {
+                                incidentId: nextIncidentId,
+                                mediaId: Number(nextMedia?.id ?? 0) || null,
+                                path: String(nextMedia?.path ?? '').trim() || null,
+                                processing: Boolean(nextMedia?.processing),
+                            });
+                        } else {
+                            rememberOperatorPendingMediaEvent(nextIncidentId, nextMedia);
                         }
+                    } else if (nextMedia && nextIncidentId > 0) {
+                        rememberOperatorPendingMediaEvent(nextIncidentId, nextMedia);
                     }
 
                     return;
@@ -2306,7 +2434,6 @@ function createOperatorMediaTransportAdapter() {
         mode: OPERATOR_MEDIA_CHUNK_TRANSPORT,
     });
     const bootstrapTransport = createOperatorMediaBootstrapTransport();
-    const batchTransport = createOperatorMediaBatchChunkTransport();
     const finalizer = createOperatorMediaFinalizer();
 
     return {
@@ -2315,7 +2442,6 @@ function createOperatorMediaTransportAdapter() {
         pollMs: OPERATOR_MEDIA_QUEUE_CONSUMER_POLL_MS,
         publishChunk: chunkTransport.publishChunk,
         publishBootstrapChunk: bootstrapTransport.publishChunk,
-        flushChunks: batchTransport.flushChunks,
         finalizeRecord: finalizer.finalizeRecord,
         destroyCallSession(callSessionId) {
             chunkTransport.destroy?.(callSessionId);
@@ -2975,7 +3101,9 @@ function createOperatorCallCaptureManager({
                 }
 
                 state.shuttingDown = true;
+                await state.remoteVideoSyncPromise.catch(() => {});
                 await mediaManagers.producerManager.close();
+                void mediaManagers.scanConsumers?.();
                 state.finalized = true;
             })();
 
@@ -5225,6 +5353,15 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
             cancelText: 'Keep Assignment',
             busyMessage: 'Removing assignment...',
         }),
+        noteActions: true,
+        confirmNoteDelete: async () => appState.helper.uiConfirm('Delete this assignment note?', {
+            title: 'Delete Note',
+            variant: 'warning',
+            confirmText: 'Delete',
+            confirmVariant: 'danger',
+            cancelText: 'Keep Note',
+            busyMessage: 'Deleting note...',
+        }),
         onAssignTeam: async (assignment) => {
             const response = await fetchJson(`/api/operator/incidents/${payload.id}/team-assignments`, {
                 method: 'post',
@@ -5407,6 +5544,55 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
             await refreshTeamAssignments();
             publishTeamAssignmentsUpdate();
         },
+        onNoteEdit: async (assignmentId, note, nextText) => {
+            const noteId = Number(note?.id ?? note?.note_id ?? note?.assignment_note_id ?? 0);
+
+            if (!noteId) {
+                showToast('Unable to identify the assignment note to update.', 'warn');
+                await refreshTeamAssignments();
+                publishTeamAssignmentsUpdate();
+                return;
+            }
+
+            const response = await fetchJson(`/api/operator/team-assignments/${assignmentId}/notes/${noteId}`, {
+                method: 'post',
+                data: {
+                    note: String(nextText ?? '').trim(),
+                },
+            });
+
+            if (response?.assignment) {
+                upsertTeamAssignment(response.assignment);
+                publishTeamAssignmentsUpdate();
+                return;
+            }
+
+            await refreshTeamAssignments();
+            publishTeamAssignmentsUpdate();
+        },
+        onNoteDelete: async (assignmentId, note) => {
+            const noteId = Number(note?.id ?? note?.note_id ?? note?.assignment_note_id ?? 0);
+
+            if (!noteId) {
+                showToast('Unable to identify the assignment note to delete.', 'warn');
+                await refreshTeamAssignments();
+                publishTeamAssignmentsUpdate();
+                return;
+            }
+
+            const response = await fetchJson(`/api/operator/team-assignments/${assignmentId}/notes/${noteId}`, {
+                method: 'delete',
+            });
+
+            if (response?.assignment) {
+                upsertTeamAssignment(response.assignment);
+                publishTeamAssignmentsUpdate();
+                return;
+            }
+
+            await refreshTeamAssignments();
+            publishTeamAssignmentsUpdate();
+        },
     });
 
     const mediaStripOptions = () => ({
@@ -5422,6 +5608,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
         autoplay: false,
         showMute: true,
         audiographStyle: currentAudioGraphStyle(),
+        transparentBackground: true,
     });
 
     const renderMediaStrip = () => {
@@ -5586,6 +5773,10 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
             : (changedMedia && typeof changedMedia === 'object' ? [changedMedia] : []);
 
         if (!isActive) {
+            if (changedItems.length > 0) {
+                callSessionTimelineApi?.destroy?.();
+                callSessionTimelineApi = null;
+            }
             renderCallSessionTimeline();
             return;
         }
@@ -5833,6 +6024,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                 }, {
                     style: currentAudioGraphStyle(),
                     showMute: false,
+                    transparentBackground: true,
                     ariaLabel: 'Caller audiograph',
                 });
                 instances.push(callerGraphApi);
@@ -5851,6 +6043,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                 }, {
                     style: currentAudioGraphStyle(),
                     showMute: false,
+                    transparentBackground: true,
                     ariaLabel: 'Operator audiograph',
                 });
                 instances.push(operatorGraphApi);
@@ -5964,7 +6157,9 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
         }
     }
 
-    if (isActive && payload?.id && payload?.caller?.id) {
+    const activeCitizenId = operatorIncidentCitizenId(payload);
+
+    if (isActive && payload?.id && activeCitizenId) {
         const activeSessionId = Number(deriveActiveCallSessionId(payload) ?? 0);
 
         if (activeSessionId) {
@@ -6319,7 +6514,9 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
 
                 const missing = [];
 
-                if (!readiness.peerConnected) {
+                const mediaConnected = readiness.localStream && readiness.remoteStream;
+
+                if (!readiness.peerConnected && !mediaConnected) {
                     missing.push('peerConnected');
                 }
 
@@ -6337,12 +6534,14 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                         callSessionId: activeSessionId,
                         missing,
                         readiness: { ...readiness },
+                        mediaConnected,
                     });
                     debugMediaCapture('connection-gate-waiting', {
                         callSessionId: activeSessionId,
                         incidentId: Number(payload.id ?? 0),
                         missing,
                         readiness: { ...readiness },
+                        mediaConnected,
                     });
                     return;
                 }
@@ -6376,6 +6575,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                         incidentId: Number(payload.id ?? 0),
                         answeredAt,
                         readiness: { ...readiness },
+                        mediaConnected,
                     });
                     captureManager?.activateCapture?.(answeredAt);
                     callRuntime?.setMediaMuted?.(false);
@@ -6409,7 +6609,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
             const captureManager = createOperatorCallCaptureManager({
                 callSessionId: activeSessionId,
                 incidentId: Number(payload.id ?? 0),
-                caller: payload.caller ?? null,
+                caller: payload.citizen ?? payload.caller ?? null,
                 operator: appState.bootstrap?.user ?? null,
                 onMediaUpdated(nextMedia) {
                     if (!nextMedia || typeof nextMedia !== 'object') {
@@ -6464,54 +6664,85 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                 instances.push(captureManager);
             }
 
-            callRuntime = await mountRealtimeCallSession({
-                callSessionId: activeSessionId,
-                viewerRole: 'operator',
-                admissionPath: '/api/realtime/admission/operator',
-                currentUserId: String(appState.bootstrap?.user?.id ?? ''),
-                remoteUserId: String(payload.caller.id),
-                remoteAudioHost: audioHost ?? overlay,
-                remoteVideoHost: videoPreviewHost,
-                startMuted: needsConnectionGate,
-                onLocalStream(stream) {
-                    readiness.localStream = true;
-                    logCallFlow('operator', 'local-stream-observed', {
-                        incidentId: Number(payload.id ?? 0) || null,
-                        callSessionId: activeSessionId,
-                        audioTrackCount: stream instanceof MediaStream ? stream.getAudioTracks().length : 0,
+            const attachLocalStreamToWorkbench = (stream, step = 'local-stream-observed') => {
+                readiness.localStream = true;
+                logCallFlow('operator', step, {
+                    incidentId: Number(payload.id ?? 0) || null,
+                    callSessionId: activeSessionId,
+                    audioTrackCount: stream instanceof MediaStream ? stream.getAudioTracks().length : 0,
+                });
+                if (operatorGraphApi) {
+                    operatorGraphApi.update({
+                        isLive: true,
+                        isActive: true,
+                        isPlaying: true,
                     });
-                    if (operatorGraphApi) {
-                        operatorGraphApi.update({
-                            isLive: true,
-                            isActive: true,
-                            isPlaying: true,
-                        });
-                        operatorGraphApi.attachMediaStream?.(stream);
-                        operatorGraphApi.resume?.();
-                    }
-                    void captureManager?.ensureLocalAudio?.(stream);
-                    void liftConnectionGate();
-                },
-                onRemoteStream(stream) {
-                    readiness.remoteStream = true;
-                    logCallFlow('operator', 'remote-stream-observed', {
-                        incidentId: Number(payload.id ?? 0) || null,
-                        callSessionId: activeSessionId,
-                        audioTrackCount: stream instanceof MediaStream ? stream.getAudioTracks().length : 0,
-                        videoTrackCount: stream instanceof MediaStream ? stream.getVideoTracks().length : 0,
+                    operatorGraphApi.attachMediaStream?.(stream);
+                    operatorGraphApi.resume?.();
+                }
+                void captureManager?.ensureLocalAudio?.(stream);
+                void liftConnectionGate();
+            };
+
+            const attachRemoteStreamToWorkbench = (stream, step = 'remote-stream-observed') => {
+                readiness.remoteStream = true;
+                const hasRemoteVideo = stream instanceof MediaStream
+                    && stream.getVideoTracks().some((track) => track.readyState === 'live' && !track.muted);
+                logCallFlow('operator', step, {
+                    incidentId: Number(payload.id ?? 0) || null,
+                    callSessionId: activeSessionId,
+                    audioTrackCount: stream instanceof MediaStream ? stream.getAudioTracks().length : 0,
+                    videoTrackCount: stream instanceof MediaStream ? stream.getVideoTracks().length : 0,
+                    hasRemoteVideo,
+                });
+                if (callerGraphApi) {
+                    callerGraphApi.update({
+                        isLive: true,
+                        isActive: true,
+                        isPlaying: true,
                     });
-                    if (callerGraphApi) {
-                        callerGraphApi.update({
-                            isLive: true,
-                            isActive: true,
-                            isPlaying: true,
-                        });
-                        callerGraphApi.attachMediaStream?.(stream);
-                        callerGraphApi.resume?.();
-                    }
-                    void captureManager?.ensureRemoteAudio?.(stream);
-                    void liftConnectionGate();
-                },
+                    callerGraphApi.attachMediaStream?.(stream);
+                    callerGraphApi.resume?.();
+                }
+                void captureManager?.ensureRemoteAudio?.(stream);
+                void captureManager?.syncRemoteVideo?.(hasRemoteVideo, stream);
+                void liftConnectionGate();
+            };
+
+            const reusingExistingCallRuntime = options.skipCallRuntime === true && options.existingCallRuntime;
+
+            if (reusingExistingCallRuntime) {
+                callRuntime = options.existingCallRuntime;
+                const existingStreams = options.existingCallStreams ?? {};
+                callRuntime.attachRemoteVideoHost?.(videoPreviewHost);
+
+                if (existingStreams.localStream instanceof MediaStream) {
+                    attachLocalStreamToWorkbench(existingStreams.localStream, 'workbench-existing-local-stream-attached');
+                }
+
+                if (existingStreams.remoteStream instanceof MediaStream) {
+                    attachRemoteStreamToWorkbench(existingStreams.remoteStream, 'workbench-existing-remote-stream-attached');
+                    const hasExistingRemoteVideo = existingStreams.remoteStream
+                        .getVideoTracks()
+                        .some((track) => track.readyState === 'live' && !track.muted);
+                    void captureManager?.syncRemoteVideo?.(hasExistingRemoteVideo, existingStreams.remoteStream);
+                }
+            } else {
+                callRuntime = await mountRealtimeCallSession({
+                    callSessionId: activeSessionId,
+                    viewerRole: 'operator',
+                    admissionPath: '/api/realtime/admission/operator',
+                    currentUserId: String(appState.bootstrap?.user?.id ?? ''),
+                    remoteUserId: String(activeCitizenId),
+                    remoteAudioHost: audioHost ?? overlay,
+                    remoteVideoHost: videoPreviewHost,
+                    startMuted: needsConnectionGate,
+                    onLocalStream(stream) {
+                        attachLocalStreamToWorkbench(stream);
+                    },
+                    onRemoteStream(stream) {
+                        attachRemoteStreamToWorkbench(stream);
+                    },
                 onRemoteVideoStateChange(enabled, stream) {
                     debugMediaCapture('caller-video-state-change', {
                         callSessionId: activeSessionId,
@@ -6585,12 +6816,13 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                 },
                 onStateChange(nextState) {
                     const normalizedState = String(nextState ?? '').trim();
-                    readiness.peerConnected = normalizedState === 'connected';
+                    readiness.peerConnected = ['connected', 'completed'].includes(normalizedState);
                     const active = ['connected', 'connecting'].includes(normalizedState);
                     logCallFlow('operator', 'peer-connection-state', {
                         incidentId: Number(payload.id ?? 0) || null,
                         callSessionId: activeSessionId,
                         state: normalizedState,
+                        peerConnected: readiness.peerConnected,
                     });
 
                     if (normalizedState === 'connected') {
@@ -6713,7 +6945,8 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                         await refreshWorkbenchOverlay(payload, null);
                     })();
                 },
-            });
+                });
+            }
             window.addEventListener('offline', handleOperatorBrowserOffline);
             window.addEventListener('online', handleOperatorBrowserOnline);
 
@@ -6726,7 +6959,9 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
 
             if (callRuntime) {
                 appState.runtime.operatorWorkbenchCallRuntime = callRuntime;
-                instances.push(callRuntime);
+                if (!reusingExistingCallRuntime) {
+                    instances.push(callRuntime);
+                }
             }
         }
     }
@@ -6739,6 +6974,11 @@ async function presentWorkbench(root, payload, stateOverride = null, options = {
 
     const persistState = options.persistState !== false;
     const activeCallSessionId = deriveActiveCallSessionId(payload);
+    const pendingMedia = consumeOperatorPendingMediaEvents(payload?.id);
+
+    pendingMedia.forEach((media) => {
+        payload.media = mergeIncidentMediaItems(payload.media, media);
+    });
 
     if (payload?.id) {
         joinOperatorIncidentMediaRoom(payload.id);
@@ -6772,8 +7012,9 @@ async function presentWorkbench(root, payload, stateOverride = null, options = {
     if (callSummaryTimer) {
         overlayInstances.push(callSummaryTimer);
     }
+    const existingCallRuntime = options.existingCallRuntime ?? null;
     appState.runtime.operatorInitialIntakeModal?.close?.({ reason: 'workbench-replaced' });
-    appState.runtime.operatorWorkbenchCallRuntime = null;
+    appState.runtime.operatorWorkbenchCallRuntime = existingCallRuntime;
     appState.runtime.operatorWorkbenchCaptureManager = null;
     const close = () => {
         clearOperatorWorkbenchCallStatusPoll();
@@ -6800,6 +7041,10 @@ async function presentWorkbench(root, payload, stateOverride = null, options = {
         }
     };
     appState.runtime.operatorWorkbenchClose = close;
+
+    if (existingCallRuntime) {
+        overlayInstances.push(existingCallRuntime);
+    }
 
     const navbar = await mountWorkbenchNavbar(overlay, payload, stateOverride, close);
 
@@ -6848,6 +7093,265 @@ async function openOperatorWorkbench(root, incidentId, options = {}) {
     } finally {
         busyOverlay?.destroy?.();
     }
+}
+
+function ensureOperatorCallBridgeAudioHost(root) {
+    const target = root instanceof Element ? root : document.body;
+    let host = target.querySelector('[data-operator-call-bridge-audio-host]');
+
+    if (host) {
+        return host;
+    }
+
+    host = document.createElement('div');
+    host.setAttribute('data-operator-call-bridge-audio-host', '1');
+    host.hidden = true;
+    target.appendChild(host);
+
+    return host;
+}
+
+async function startOperatorAnsweredCallBridge(root, incidentPayload, callSessionPayload, options = {}) {
+    const incidentId = Number(incidentPayload?.id ?? 0);
+    const callSessionId = Number(callSessionPayload?.id ?? deriveActiveCallSessionId(incidentPayload) ?? 0);
+    const citizenId = Number(
+        incidentPayload?.citizen?.id
+        ?? incidentPayload?.citizen_id
+        ?? callSessionPayload?.citizen_id
+        ?? 0
+    );
+
+    if (!incidentId || !callSessionId || !citizenId) {
+        throw new Error('Answered call payload is missing incident, session, or citizen identity.');
+    }
+
+    const audioHost = ensureOperatorCallBridgeAudioHost(root);
+    const readiness = {
+        localStream: false,
+        remoteStream: false,
+        peerConnected: false,
+        inFlight: false,
+        completed: false,
+    };
+    let payload = incidentPayload;
+    let callRuntime = null;
+    let bridgeLocalStream = null;
+    let bridgeRemoteStream = null;
+
+    const openConnectedWorkbench = async (answeredAt) => {
+        await presentWorkbench(root, payload, 'active', {
+            initialIntake: options.initialIntake === true,
+            existingCallRuntime: callRuntime,
+            existingCallStreams: {
+                localStream: bridgeLocalStream,
+                remoteStream: bridgeRemoteStream,
+            },
+            skipCallRuntime: true,
+        });
+    };
+
+    const liftConnectionGate = async () => {
+        if (readiness.completed || readiness.inFlight) {
+            return;
+        }
+
+        const mediaConnected = readiness.localStream && readiness.remoteStream;
+
+        if (!mediaConnected && !readiness.peerConnected) {
+            logCallFlow('operator', 'answer-bridge-waiting', {
+                incidentId,
+                callSessionId,
+                readiness: { ...readiness },
+                mediaConnected,
+            });
+            return;
+        }
+
+        readiness.inFlight = true;
+
+        try {
+            const gateLiftedAt = new Date().toISOString();
+            logCallFlow('operator', 'answer-bridge-ready-api-request', {
+                incidentId,
+                callSessionId,
+                answeredAt: gateLiftedAt,
+                readiness: { ...readiness },
+                mediaConnected,
+            });
+
+            const response = await fetchJson(`/api/operator/call-sessions/${callSessionId}/ready`, {
+                method: 'post',
+                data: {
+                    answered_at: gateLiftedAt,
+                },
+            });
+            const answeredAt = response?.call_session?.answered_at ?? gateLiftedAt;
+
+            payload = patchIncidentCallSession(payload, callSessionId, {
+                answered_at: answeredAt,
+                status: 'in_progress',
+            });
+            callRuntime?.setMediaMuted?.(false);
+            callRuntime?.startSessionKeepalive?.();
+            const persistedLocationIncident = await flushDeferredOperatorCallerLocationPersist();
+
+            if (persistedLocationIncident) {
+                payload = {
+                    ...payload,
+                    latitude: persistedLocationIncident.latitude ?? payload.latitude ?? null,
+                    longitude: persistedLocationIncident.longitude ?? payload.longitude ?? null,
+                    caller_location: persistedLocationIncident.caller_location ?? payload.caller_location ?? null,
+                };
+                syncOperatorActiveIncident(currentOperatorRoot(), persistedLocationIncident);
+            }
+            appState.runtime.operatorWorkbenchCallRuntime = callRuntime;
+            appState.runtime.operatorIncomingCallPhase = null;
+            appState.runtime.operatorConnectingModalClose?.();
+            appState.runtime.operatorConnectingModalClose = null;
+
+            publishOperatorCallFlow('citizen.call.ready', {
+                incident_id: incidentId,
+                call_session_id: callSessionId,
+                citizen_id: citizenId,
+                operator_id: Number(appState.bootstrap?.user?.id ?? 0),
+                answered_at: answeredAt,
+            });
+
+            readiness.completed = true;
+            logCallFlow('operator', 'answer-bridge-ready-api-success', {
+                incidentId,
+                callSessionId,
+                answeredAt,
+            });
+
+            await openConnectedWorkbench(answeredAt);
+        } catch (error) {
+            clearDeferredOperatorCallerLocationPersist(incidentId, callSessionId);
+            logCallFlow('operator', 'answer-bridge-ready-api-error', {
+                incidentId,
+                callSessionId,
+                status: Number(error?.response?.status ?? 0) || null,
+                message: String(error?.response?.data?.message ?? error?.message ?? error ?? ''),
+            });
+            console.warn('Unable to complete answered call bridge.', error);
+            showToast(error?.response?.data?.message ?? 'Unable to complete call connection.', 'warn');
+        } finally {
+            readiness.inFlight = false;
+        }
+    };
+
+    appState.runtime.operatorDeferredCallerLocationPersist = {
+        incidentId,
+        callSessionId,
+        payload: null,
+        updatedAt: Date.now(),
+    };
+
+    callRuntime = await mountRealtimeCallSession({
+        callSessionId,
+        viewerRole: 'operator',
+        admissionPath: '/api/realtime/admission/operator',
+        currentUserId: String(appState.bootstrap?.user?.id ?? ''),
+        remoteUserId: String(citizenId),
+        remoteAudioHost: audioHost,
+        startMuted: true,
+        deferSessionKeepalive: true,
+        onLocalStream(stream) {
+            bridgeLocalStream = stream;
+            readiness.localStream = true;
+            logCallFlow('operator', 'answer-bridge-local-stream-observed', {
+                incidentId,
+                callSessionId,
+                audioTrackCount: stream instanceof MediaStream ? stream.getAudioTracks().length : 0,
+            });
+            void liftConnectionGate();
+        },
+        onRemoteStream(stream) {
+            bridgeRemoteStream = stream;
+            readiness.remoteStream = true;
+            logCallFlow('operator', 'answer-bridge-remote-stream-observed', {
+                incidentId,
+                callSessionId,
+                audioTrackCount: stream instanceof MediaStream ? stream.getAudioTracks().length : 0,
+                videoTrackCount: stream instanceof MediaStream ? stream.getVideoTracks().length : 0,
+            });
+            void liftConnectionGate();
+        },
+        onStateChange(nextState) {
+            const normalizedState = String(nextState ?? '').trim();
+            readiness.peerConnected = ['connected', 'completed'].includes(normalizedState);
+            logCallFlow('operator', 'answer-bridge-peer-connection-state', {
+                incidentId,
+                callSessionId,
+                state: normalizedState,
+                peerConnected: readiness.peerConnected,
+            });
+            void liftConnectionGate();
+        },
+        onDisconnectRequest() {
+            clearDeferredOperatorCallerLocationPersist(incidentId, callSessionId);
+            void (async () => {
+                const requestedAt = new Date().toISOString();
+                logCallFlow('operator', 'answer-bridge-citizen-hangup-request-received', {
+                    incidentId,
+                    callSessionId,
+                    requestedAt,
+                });
+                callRuntime?.sendHangupConfirm?.({
+                    requested_at: requestedAt,
+                });
+
+                try {
+                    const endedAt = new Date().toISOString();
+                    let response = null;
+
+                    try {
+                        response = await fetchJson(`/api/operator/call-sessions/${callSessionId}/hangup`, {
+                            method: 'post',
+                        });
+                    } catch (error) {
+                        if (Number(error?.response?.status ?? 0) !== 409) {
+                            throw error;
+                        }
+                    }
+
+                    const officialEndedAt = String(response?.call_session?.ended_at ?? endedAt);
+                    appState.runtime.operatorWorkbenchCaptureManager?.setOfficialEndedAt?.(officialEndedAt);
+                    void appState.runtime.operatorWorkbenchCaptureManager?.finalizeAll?.();
+                    callRuntime?.sendHangupComplete?.({
+                        reason: 'ended-by-citizen',
+                        ended_at: officialEndedAt,
+                    });
+                    payload = patchIncidentCallSession(payload, callSessionId, {
+                        status: response?.call_session?.status ?? 'ended',
+                        outcome: response?.call_session?.outcome ?? 'ended_by_citizen',
+                        ended_at: officialEndedAt,
+                        updated_at: response?.call_session?.updated_at ?? officialEndedAt,
+                    });
+                    logCallFlow('operator', 'answer-bridge-citizen-hangup-ui-refresh-start', {
+                        incidentId,
+                        callSessionId,
+                        endedAt: officialEndedAt,
+                    });
+                    await refreshWorkbenchOverlay(payload, null);
+                    logCallFlow('operator', 'answer-bridge-citizen-hangup-ui-refresh-success', {
+                        incidentId,
+                        callSessionId,
+                        endedAt: officialEndedAt,
+                    });
+                } catch (error) {
+                    console.warn('Unable to complete answered bridge caller hangup.', error);
+                }
+            })();
+        },
+    }).catch((error) => {
+        clearDeferredOperatorCallerLocationPersist(incidentId, callSessionId);
+        throw error;
+    });
+
+    appState.runtime.operatorWorkbenchCallRuntime = callRuntime;
+
+    return callRuntime;
 }
 
 function transferModalMarkup(item) {
@@ -7037,6 +7541,11 @@ function nextWorkbenchOverlayMarkup(payload, stateOverride = null) {
 
 async function refreshWorkbenchOverlay(payload, stateOverride = null, options = {}) {
     prepareOperatorWorkbenchPayload(payload);
+    const pendingMedia = consumeOperatorPendingMediaEvents(payload?.id);
+
+    pendingMedia.forEach((media) => {
+        payload.media = mergeIncidentMediaItems(payload.media, media);
+    });
 
     const overlay = appState.runtime.operatorWorkbenchOverlay;
     const root = appState.runtime.operatorWorkbenchRoot;
@@ -7176,6 +7685,9 @@ async function openIncomingCallModal(root, item, phase = 'incoming') {
     const notice = overlay?.querySelector('[data-incoming-notice]');
     const dismissKey = `${INCOMING_MODAL_DISMISS_PREFIX}${item.kind}.${item.id}`;
     let autoDeclineTimeoutId = null;
+    let incomingResolutionAction = '';
+    let incomingResolutionRequestStarted = false;
+    const originalSubtitle = overlay?.querySelector('.hero-copy')?.textContent ?? '';
     const close = () => {
         if (autoDeclineTimeoutId) {
             window.clearTimeout(autoDeclineTimeoutId);
@@ -7206,7 +7718,65 @@ async function openIncomingCallModal(root, item, phase = 'incoming') {
         notice.className = `notice ${tone}`;
         notice.textContent = message;
     };
+    const setIncomingControlsDisabled = (disabled) => {
+        overlay?.querySelectorAll('[data-answer-incoming], [data-dismiss-incoming]').forEach((button) => {
+            button.disabled = disabled;
+            button.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+            button.hidden = disabled;
+            button.style.display = disabled ? 'none' : '';
+        });
+    };
+    const beginIncomingResolution = (action, options = {}) => {
+        if (incomingResolutionAction) {
+            if (options.allowCurrent === true && incomingResolutionAction === action && !incomingResolutionRequestStarted) {
+                return true;
+            }
 
+            logCallFlow('operator', 'incoming-call-action-ignored', {
+                activeAction: incomingResolutionAction,
+                ignoredAction: action,
+                kind: String(item?.kind ?? ''),
+                itemId: String(item?.id ?? ''),
+            });
+            return false;
+        }
+
+        incomingResolutionAction = action;
+        if (autoDeclineTimeoutId) {
+            window.clearTimeout(autoDeclineTimeoutId);
+            autoDeclineTimeoutId = null;
+        }
+
+        stopOperatorIncomingRingtone();
+        overlay?.setAttribute('aria-busy', 'true');
+        setIncomingControlsDisabled(true);
+
+        const subtitle = overlay?.querySelector('.hero-copy');
+        if (subtitle) {
+            subtitle.textContent = action === 'answer'
+                ? 'Connecting...'
+                : action === 'timeout'
+                    ? 'Timing out...'
+                    : 'Declining...';
+        }
+
+        return true;
+    };
+    const clearIncomingResolution = () => {
+        incomingResolutionAction = '';
+        incomingResolutionRequestStarted = false;
+        overlay?.removeAttribute('aria-busy');
+        setIncomingControlsDisabled(false);
+
+        const subtitle = overlay?.querySelector('.hero-copy');
+        if (subtitle) {
+            subtitle.textContent = originalSubtitle;
+        }
+
+        if (!item?.demo && ['new_call', 'reconnect'].includes(String(item.kind ?? ''))) {
+            playOperatorIncomingRingtone();
+        }
+    };
     if (phase === 'reconnect') {
         speakOperatorPhrase(`${item.caller_name ?? 'Caller'} is trying to reconnect`);
     }
@@ -7236,6 +7806,11 @@ async function openIncomingCallModal(root, item, phase = 'incoming') {
             return;
         }
 
+        if (!beginIncomingResolution(timeout ? 'timeout' : 'decline', { allowCurrent: true })) {
+            return;
+        }
+
+        incomingResolutionRequestStarted = true;
         try {
             if (item.kind === 'new_call' || (item.kind === 'reconnect' && item.call_attempt_id)) {
                 await fetchJson(`/api/operator/call-attempt-operator-attempts/${item.id}/${endpointAction}`, {
@@ -7273,11 +7848,18 @@ async function openIncomingCallModal(root, item, phase = 'incoming') {
             }
             close();
         } catch (error) {
+            incomingResolutionRequestStarted = false;
+            clearIncomingResolution();
             showNotice(error.response?.data?.message ?? 'Unable to dismiss incoming call.');
         }
     };
 
-    overlay?.querySelector('[data-dismiss-incoming]')?.addEventListener('click', () => {
+    const dismissButton = overlay?.querySelector('[data-dismiss-incoming]');
+    dismissButton?.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        void dismissIncoming();
+    });
+    dismissButton?.addEventListener('click', () => {
         void dismissIncoming();
     });
 
@@ -7302,7 +7884,7 @@ async function openIncomingCallModal(root, item, phase = 'incoming') {
         }
     });
 
-    overlay?.querySelector('[data-answer-incoming]')?.addEventListener('click', async () => {
+    const answerIncoming = async () => {
         logCallFlow('operator', 'answer-click', {
             kind: String(item?.kind ?? ''),
             itemId: String(item?.id ?? ''),
@@ -7316,6 +7898,11 @@ async function openIncomingCallModal(root, item, phase = 'incoming') {
             return;
         }
 
+        if (!beginIncomingResolution('answer', { allowCurrent: true })) {
+            return;
+        }
+
+        incomingResolutionRequestStarted = true;
         try {
             if (item.kind === 'new_call') {
                 logCallFlow('operator', 'answer-api-request', {
@@ -7340,7 +7927,7 @@ async function openIncomingCallModal(root, item, phase = 'incoming') {
                     chat_room: response.incident?.id ? `chat.thread.incident.${response.incident.id}` : '',
                     call_room: response.call_session?.id ? `call.session.${response.call_session.id}` : '',
                     call_session_id: Number(response.call_session?.id ?? 0),
-                    caller_id: Number(response.incident?.caller_id ?? item.caller_id ?? 0),
+                    citizen_id: Number(response.incident?.citizen_id ?? 0),
                     operator_id: Number(appState.bootstrap?.user?.id ?? 0),
                     answered_at: response.call_session?.answered_at ?? null,
                     incident: response.incident ?? null,
@@ -7364,12 +7951,21 @@ async function openIncomingCallModal(root, item, phase = 'incoming') {
                     incidentId: Number(response.incident?.id ?? 0) || null,
                     callSessionId: Number(response.call_session?.id ?? 0) || null,
                 });
-                await openOperatorWorkbench(root, response.incident.id, {
+                void startOperatorAnsweredCallBridge(root, response.incident, response.call_session, {
                     initialIntake: true,
+                }).catch((error) => {
+                    logCallFlow('operator', 'answer-bridge-start-error', {
+                        incidentId: Number(response.incident?.id ?? 0) || null,
+                        callSessionId: Number(response.call_session?.id ?? 0) || null,
+                        message: String(error?.message ?? error ?? ''),
+                    });
+                    console.warn('Unable to start operator answered call bridge.', error);
+                    showNotice(error?.response?.data?.message ?? 'Unable to start live call connection.');
                 });
                 logCallFlow('operator', 'workbench-open-requested-after-answer', {
                     incidentId: Number(response.incident?.id ?? 0) || null,
                     callSessionId: Number(response.call_session?.id ?? 0) || null,
+                    deferredUntilConnected: true,
                 });
                 return;
             }
@@ -7378,6 +7974,7 @@ async function openIncomingCallModal(root, item, phase = 'incoming') {
                 const response = await fetchJson(`/api/operator/call-attempt-operator-attempts/${item.id}/answer`, {
                     method: 'post',
                 });
+                const reconnectCitizenId = Number(response.incident?.citizen_id ?? item.caller_id ?? 0);
 
                 publishOperatorCallFlow('citizen.reconnect.answered', {
                     call_attempt_id: Number(response.attempt?.id ?? item.call_attempt_id ?? 0),
@@ -7386,7 +7983,8 @@ async function openIncomingCallModal(root, item, phase = 'incoming') {
                     chat_room: response.incident?.id ? `chat.thread.incident.${response.incident.id}` : '',
                     call_room: response.call_session?.id ? `call.session.${response.call_session.id}` : '',
                     call_session_id: Number(response.call_session?.id ?? 0),
-                    caller_id: Number(item.caller_id ?? 0),
+                    citizen_id: reconnectCitizenId,
+                    caller_id: reconnectCitizenId,
                     operator_id: Number(appState.bootstrap?.user?.id ?? 0),
                     answered_at: null,
                     incident: response.incident ?? null,
@@ -7407,19 +8005,19 @@ async function openIncomingCallModal(root, item, phase = 'incoming') {
                 syncOperatorActiveIncident(root, response.incident);
 
                 await openIncomingCallModal(root, appState.runtime.operatorIncomingCallItem, 'connecting');
-
-                if (
-                    Number(item.incident_id ?? 0) > 0
-                    && operatorWorkbenchIncidentId() === Number(item.incident_id ?? 0)
-                    && appState.runtime.operatorWorkbenchOverlay
-                    && response?.incident
-                ) {
-                    await refreshWorkbenchOverlay(response.incident, 'active');
-                } else if (response?.incident?.id) {
-                    await openOperatorWorkbench(root, response.incident.id, {
-                        stateOverride: 'active',
+                logCallFlow('operator', 'reconnect-call-modal-connecting', {
+                    incidentId: Number(response.incident?.id ?? item.incident_id ?? 0) || null,
+                    callSessionId: Number(response.call_session?.id ?? 0) || null,
+                });
+                void startOperatorAnsweredCallBridge(root, response.incident, response.call_session).catch((error) => {
+                    logCallFlow('operator', 'reconnect-answer-bridge-start-error', {
+                        incidentId: Number(response.incident?.id ?? item.incident_id ?? 0) || null,
+                        callSessionId: Number(response.call_session?.id ?? 0) || null,
+                        message: String(error?.message ?? error ?? ''),
                     });
-                }
+                    console.warn('Unable to start operator reconnect bridge.', error);
+                    showNotice(error?.response?.data?.message ?? 'Unable to start reconnect call connection.');
+                });
                 return;
             }
 
@@ -7451,6 +8049,8 @@ async function openIncomingCallModal(root, item, phase = 'incoming') {
                 await openOperatorWorkbench(root, item.incident_id);
             }
         } catch (error) {
+            incomingResolutionRequestStarted = false;
+            clearIncomingResolution();
             logCallFlow('operator', 'answer-flow-error', {
                 kind: String(item?.kind ?? ''),
                 itemId: String(item?.id ?? ''),
@@ -7459,6 +8059,14 @@ async function openIncomingCallModal(root, item, phase = 'incoming') {
             });
             showNotice(error.response?.data?.message ?? 'Unable to answer incoming call.');
         }
+    };
+    const answerButton = overlay?.querySelector('[data-answer-incoming]');
+    answerButton?.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        void answerIncoming();
+    });
+    answerButton?.addEventListener('click', () => {
+        void answerIncoming();
     });
 }
 
@@ -7948,7 +8556,7 @@ function mountOperatorDashboardMapControls(root, dashboardMap) {
             ...(dashboardMap.hasBoundaryLayer?.() ? [{ id: 'boundary', label: 'Boundary', checked: true }] : []),
             { id: 'incidents', label: 'Incidents', checked: true },
             ...(dashboardMap.hasTerrainLayer?.() ? [{ id: 'terrain', label: 'Terrain', checked: true }] : []),
-            { id: 'poi', label: 'POI', checked: true },
+            { id: 'poi', label: 'POI', checked: false },
         ],
         onResetNorth: ({ map: controlMap }) => {
             controlMap?.easeTo?.({
@@ -7971,6 +8579,7 @@ function mountOperatorDashboardMapControls(root, dashboardMap) {
             dashboardMap.setLayerGroupVisibility?.(layerId, checked);
         },
     });
+    dashboardMap.setLayerGroupVisibility?.('poi', false);
 }
 
 function mountOperatorActivityLog(panel, root) {

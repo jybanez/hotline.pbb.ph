@@ -3,6 +3,8 @@ import {
     createDiagnosticMediaClient,
     finalizeStoppedDiagnosticRecording,
 } from '../../resources/js/media/diagnosticMediaClient.js';
+import { Consumer } from '../../resources/js/media/consumer.js';
+import { mountHelperAudioPlayback } from '../../resources/js/media/helperAudioPlayback.js';
 import { createMediaStreamSession, resolveAudioRecorderSpec } from '../../resources/js/media/mediaStreamSession.js';
 
 class FakeTrack {
@@ -68,9 +70,11 @@ const session = createMediaStreamSession({
 
 await session.start();
 assert.equal(session.getState(), 'recording');
+assert.ok(session.getStream());
 assert.equal(FakeMediaRecorder.instances[0].timeslice, 250);
 await session.stop();
 assert.equal(session.getState(), 'idle');
+assert.equal(session.getStream(), null);
 assert.equal(chunks.length, 1);
 assert.equal(chunks[0].chunk_index, 0);
 assert.equal(chunks[0].extension, 'weba');
@@ -117,6 +121,30 @@ await assert.rejects(
 );
 assert.equal(finalizeCalledAfterFailure, false);
 
+let delayedStopFinalizePayload = null;
+await finalizeStoppedDiagnosticRecording({
+    session: {
+        async stop() {
+            await new Promise((resolve) => setTimeout(resolve, 10));
+
+            return { chunk_count: 1 };
+        },
+    },
+    client: {
+        async finalize(mediaId, payload) {
+            delayedStopFinalizePayload = payload;
+
+            return { media: { id: mediaId } };
+        },
+    },
+    media: { id: 78, processing: true },
+    record: { extension: 'weba' },
+    recordingStartedAt: 1000,
+    now: () => 4000,
+});
+assert.equal(delayedStopFinalizePayload.duration_seconds, 3);
+assert.equal(delayedStopFinalizePayload.ended_at, new Date(4000).toISOString());
+
 const requests = [];
 const client = createDiagnosticMediaClient({
     async request(url, options = {}) {
@@ -152,3 +180,85 @@ assert.equal(requests[2].options.data.duration_seconds, 1);
 assert.equal(requests[3].url, '/api/operator/media-tests/42');
 assert.equal(requests[3].options.method, 'delete');
 assert.equal(requests[3].options.data.reason, 'operator_reset');
+
+const deleted = [];
+const staleConsumer = new Consumer({
+    record: { media_id: 9, status: 'recording', media_type: 'operator-audio' },
+    storage: {
+        async getRecord(mediaId) {
+            return Number(mediaId) === 9
+                ? { media_id: 9, status: 'recording', media_type: 'operator-audio' }
+                : null;
+        },
+        async listChunks(mediaId) {
+            return Number(mediaId) === 9
+                ? [{
+                    media_id: 9,
+                    chunk_index: 0,
+                    payload: { media_id: 9, chunk_index: 0, chunk_blob: new Blob(['stale']) },
+                }]
+                : [];
+        },
+        async deleteChunksFor(mediaId) {
+            deleted.push(`chunks:${mediaId}`);
+        },
+        async deleteRecord(mediaId) {
+            deleted.push(`record:${mediaId}`);
+        },
+        async deleteChunk() {
+            deleted.push('chunk');
+        },
+        async updateChunkMeta() {
+            deleted.push('meta');
+        },
+    },
+    transport: {
+        async publishBootstrapChunk() {
+            const error = new Error('Media record is unavailable.');
+            error.response = { status: 404 };
+            throw error;
+        },
+    },
+});
+
+await staleConsumer.tick();
+assert.equal(staleConsumer.getItem().state, 'discarded');
+assert.deepEqual(deleted, ['chunks:9', 'record:9']);
+
+let helperAudioPayload = null;
+let helperAudioOptions = null;
+const playbackHost = {
+    replaceChildren() {},
+    appendChild() {},
+};
+const playbackApi = await mountHelperAudioPlayback(playbackHost, {
+    id: 91,
+    type: 'operator_media_stream_test',
+    path: 'diagnostics/operator-media-stream-tests/91/audio.weba',
+    playback_url: '/storage/diagnostics/operator-media-stream-tests/91/audio.weba',
+    duration_seconds: 29,
+    peer_label: 'Operator diagnostic',
+    created_at: '2026-08-07T01:02:03+00:00',
+    available_at: '2026-08-07T01:02:34+00:00',
+    metadata: { diagnostic: true },
+}, {
+    helper: {
+        createAudioCallSession(_host, payload, options) {
+            helperAudioPayload = payload;
+            helperAudioOptions = options;
+            return { destroy() {} };
+        },
+    },
+});
+
+assert.equal(typeof playbackApi.destroy, 'function');
+assert.equal(helperAudioPayload.call_duration_seconds, 29);
+assert.equal(helperAudioPayload.media.length, 1);
+assert.equal(helperAudioPayload.media[0].type, 'audio');
+assert.equal(helperAudioPayload.media[0].srcUrl, '/storage/diagnostics/operator-media-stream-tests/91/audio.weba');
+assert.equal(helperAudioPayload.media[0].path, '/storage/diagnostics/operator-media-stream-tests/91/audio.weba');
+assert.equal(helperAudioPayload.media[0].peer_role, 'operator');
+assert.equal(helperAudioPayload.media[0].metadata.peer_role, 'operator');
+assert.match(helperAudioPayload.media[0].metadata.recording_role, /^operator-91-/);
+assert.equal(helperAudioOptions.audiographStyle, 'tsunami');
+assert.equal(helperAudioOptions.transparentBackground, true);

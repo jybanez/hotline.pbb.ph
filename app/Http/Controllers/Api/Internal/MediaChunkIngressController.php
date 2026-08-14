@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Support\Media\MediaContractNormalizer;
 use App\Support\Media\MediaAssemblyService;
 use App\Support\Settings\SettingsService;
+use Illuminate\Support\Arr;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use RuntimeException;
@@ -34,10 +35,10 @@ class MediaChunkIngressController extends Controller
         $hasChunkFile = $request->hasFile('chunk');
 
         $validated = $request->validate([
-            'incident_id' => ['required', 'integer', 'min:1'],
-            'call_session_id' => ['required', 'integer', 'min:1'],
+            'incident_id' => ['nullable', 'integer', 'min:0'],
+            'call_session_id' => ['nullable', 'integer', 'min:0'],
             'media_id' => ['required', 'integer', 'min:1'],
-            'type' => ['required', 'string', 'in:audio_peer,citizen_video'],
+            'type' => ['required', 'string', 'in:audio_peer,citizen_video,operator_media_stream_test'],
             'peer_user_id' => ['nullable', 'integer'],
             'peer_role' => ['nullable', 'string', 'in:citizen,operator'],
             'track_kind' => ['required', 'string', 'in:audio,video'],
@@ -63,6 +64,17 @@ class MediaChunkIngressController extends Controller
                 'ok' => false,
                 'message' => 'Media asset not found.',
             ], 404);
+        }
+
+        if ($this->isDiagnosticMedia($media)) {
+            return $this->storeDiagnosticChunk($request, $media, $validated);
+        }
+
+        if ((int) ($validated['incident_id'] ?? 0) <= 0 || (int) ($validated['call_session_id'] ?? 0) <= 0) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Media ingest requires incident and call session context.',
+            ], 422);
         }
 
         if ((int) $media->incident_id !== (int) $validated['incident_id'] || (int) $media->call_session_id !== (int) $validated['call_session_id']) {
@@ -144,6 +156,64 @@ class MediaChunkIngressController extends Controller
     }
 
     /**
+     * @param array<string, mixed> $validated
+     */
+    private function storeDiagnosticChunk(Request $request, Media $media, array $validated): JsonResponse
+    {
+        if ((string) $validated['type'] !== 'operator_media_stream_test') {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Diagnostic media ingest type mismatch.',
+            ], 422);
+        }
+
+        if ((int) $media->peer_user_id !== (int) $validated['sender_user_id']) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Diagnostic media ingest sender is not allowed.',
+            ], 403);
+        }
+
+        $expectedProjectCode = trim((string) $this->settings->get('realtime_project_code_media_ingest', ''));
+        $providedProjectCode = trim((string) ($validated['project_code'] ?? ''));
+
+        if ($expectedProjectCode !== '' && $providedProjectCode !== '' && $expectedProjectCode !== $providedProjectCode) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Media ingest project mismatch.',
+            ], 403);
+        }
+
+        $expectedRoom = sprintf('hotline.media.diagnostic.%d', (int) $media->id);
+        $providedRoom = trim((string) ($validated['room'] ?? ''));
+
+        if ($providedRoom !== '' && $providedRoom !== $expectedRoom) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Media ingest room mismatch.',
+            ], 403);
+        }
+
+        try {
+            $result = $this->mediaAssembly->storeChunk(
+                $media,
+                $this->resolveChunkBytes($request, $validated),
+                (int) $validated['chunk_index'],
+            );
+        } catch (RuntimeException $exception) {
+            return response()->json([
+                'ok' => false,
+                'message' => $exception->getMessage(),
+            ], str_contains($exception->getMessage(), 'Invalid media chunk payload') ? 422 : 409);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'chunk' => $result,
+        ], 201);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function normalizePayload(Request $request): array
@@ -193,6 +263,12 @@ class MediaChunkIngressController extends Controller
         }
 
         return $provided !== '' && $expected !== '' && hash_equals($expected, $provided);
+    }
+
+    private function isDiagnosticMedia(Media $media): bool
+    {
+        return (bool) Arr::get($media->metadata_json ?? [], 'diagnostic', false)
+            && Arr::get($media->metadata_json ?? [], 'diagnostic_type') === 'operator_media_stream_storage';
     }
 
     private function decodeChunkData(string $chunkData): string

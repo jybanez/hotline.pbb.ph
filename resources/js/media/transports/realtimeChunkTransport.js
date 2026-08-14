@@ -62,8 +62,13 @@ function ensureBinaryChunkPayload(payload = {}) {
     };
 }
 
-function createRealtimeMediaIngestClient({ callSessionId, mode = 'realtime-base64' }) {
-    if (!callSessionId) {
+function createRealtimeMediaIngestClient({
+    contextType = 'media_ingest',
+    contextId,
+    requestPrefix = 'operator_media_ingest',
+    mode = 'realtime-base64',
+}) {
+    if (!contextId) {
         return null;
     }
 
@@ -272,8 +277,8 @@ function createRealtimeMediaIngestClient({ callSessionId, mode = 'realtime-base6
             const admission = await fetchJson('/api/realtime/admission/operator', {
                 method: 'post',
                 data: {
-                    context_type: 'media_ingest',
-                    context_id: callSessionId,
+                    context_type: contextType,
+                    context_id: contextId,
                 },
             });
 
@@ -311,7 +316,7 @@ function createRealtimeMediaIngestClient({ callSessionId, mode = 'realtime-base6
                 const client = new RealtimeSocketClient({
                     websocketUrl: admission.websocket_url,
                     token: admission.token,
-                    requestPrefix: `operator_media_ingest_${callSessionId}`,
+                    requestPrefix: `${requestPrefix}_${contextId}`,
                     onMessage(raw) {
                         let envelope;
 
@@ -527,7 +532,9 @@ export function createRealtimeOperatorMediaChunkTransport({ mode = 'realtime-bas
 
         if (!ingestClients.has(nextCallSessionId)) {
             ingestClients.set(nextCallSessionId, createRealtimeMediaIngestClient({
-                callSessionId: nextCallSessionId,
+                contextType: 'media_ingest',
+                contextId: nextCallSessionId,
+                requestPrefix: 'operator_media_ingest',
                 mode,
             }));
         }
@@ -550,6 +557,51 @@ export function createRealtimeOperatorMediaChunkTransport({ mode = 'realtime-bas
             const nextCallSessionId = Number(callSessionId ?? 0);
             ingestClients.get(nextCallSessionId)?.destroy?.();
             ingestClients.delete(nextCallSessionId);
+        },
+        destroyAll() {
+            ingestClients.forEach((client) => client?.destroy?.());
+            ingestClients.clear();
+        },
+    };
+}
+
+export function createRealtimeOperatorDiagnosticMediaChunkTransport({ mode = 'realtime-base64' } = {}) {
+    const ingestClients = new Map();
+
+    const ingestClient = (mediaId) => {
+        const nextMediaId = Number(mediaId ?? 0);
+
+        if (nextMediaId <= 0) {
+            return null;
+        }
+
+        if (!ingestClients.has(nextMediaId)) {
+            ingestClients.set(nextMediaId, createRealtimeMediaIngestClient({
+                contextType: 'media_test_ingest',
+                contextId: nextMediaId,
+                requestPrefix: 'operator_media_test_ingest',
+                mode,
+            }));
+        }
+
+        return ingestClients.get(nextMediaId) ?? null;
+    };
+
+    return {
+        async publishChunk(payload, record) {
+            const client = ingestClient(record?.media_id ?? payload?.media_id ?? 0);
+
+            if (!client) {
+                throw new Error('Realtime diagnostic media ingest client is unavailable.');
+            }
+
+            await client.ready();
+            await client.publishChunk(payload);
+        },
+        destroy(mediaId) {
+            const nextMediaId = Number(mediaId ?? 0);
+            ingestClients.get(nextMediaId)?.destroy?.();
+            ingestClients.delete(nextMediaId);
         },
         destroyAll() {
             ingestClients.forEach((client) => client?.destroy?.());
