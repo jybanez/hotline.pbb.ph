@@ -8940,97 +8940,82 @@ function mountOperatorActiveList(root, dashboard, scope = root) {
 function mountOperatorActiveTabs(root, dashboard) {
     const tabsHost = root.querySelector('[data-operator-active-tabs]');
 
-    if (!tabsHost || !appState.helper.createTabs) {
+    if (!tabsHost) {
         mountOperatorActiveList(root, dashboard);
         return;
     }
 
-    trackSurfaceInstance(appState.helper.createTabs(tabsHost, {
-        activeId: 'active',
-        ariaLabel: 'Operator active incident tabs',
-        tabs: [
-            {
-                id: 'active',
-                label: 'Active + Deferred',
-                render: (panel) => {
-                    panel.innerHTML = `
-                        <div class="operator-rail-toolbar">
-                            <input class="operator-search-input" type="search" placeholder="Search incidents..." data-active-search>
-                        </div>
-                        <div data-active-items-panel></div>
-                    `;
-                    mountOperatorActiveList(root, dashboard, panel);
-                },
-            },
-        ],
-    }));
-
-    setupOperatorRailToggle(tabsHost, 'active');
+    mountOperatorRailTogglePanel(tabsHost, {
+        id: 'active',
+        label: 'Active + Deferred',
+        ariaLabel: 'Toggle active and deferred incidents list',
+        content: `
+            <div class="operator-rail-toolbar">
+                <input class="operator-search-input" type="search" placeholder="Search incidents..." data-active-search>
+            </div>
+            <div data-active-items-panel></div>
+        `,
+        onMount(panel) {
+            mountOperatorActiveList(root, dashboard, panel);
+        },
+    });
 }
 
 function mountOperatorFallbackTabs(root, dashboard) {
     const tabsHost = root.querySelector('[data-operator-fallback-tabs]');
     const count = Number(dashboard?.stat_chips?.find?.((chip) => chip?.label === 'Fallback')?.value ?? 0);
 
-    if (!tabsHost || !appState.helper.createTabs) {
-        if (tabsHost) {
-            tabsHost.innerHTML = `
-                <div class="operator-rail-toolbar">
-                    <span class="operator-fallback-static-pill">Fallback (${count})</span>
-                </div>
-                <div class="operator-fallback-list-host" data-operator-fallback-panel></div>
-            `;
-            setupOperatorRailToggle(tabsHost, 'fallback');
-        }
+    if (!tabsHost) {
         mountOperatorFallbackDropQueue(root.querySelector('[data-operator-fallback-panel]'), root);
         return;
     }
 
-    trackSurfaceInstance(appState.helper.createTabs(tabsHost, {
-        activeId: 'fallback',
-        ariaLabel: 'Operator fallback intake tabs',
-        tabs: [
-            {
-                id: 'fallback',
-                label: `Fallback (${count})`,
-                render: (panel) => {
-                    panel.innerHTML = '<div class="operator-fallback-list-host" data-operator-fallback-panel></div>';
-                    mountOperatorFallbackDropQueue(panel.querySelector('[data-operator-fallback-panel]'), root);
-                },
-            },
-        ],
-    }));
-
-    setupOperatorRailToggle(tabsHost, 'fallback');
+    mountOperatorRailTogglePanel(tabsHost, {
+        id: 'fallback',
+        label: `Fallback (${count})`,
+        ariaLabel: 'Toggle fallback intake list',
+        content: '<div class="operator-fallback-list-host" data-operator-fallback-panel></div>',
+        onMount(panel) {
+            mountOperatorFallbackDropQueue(panel.querySelector('[data-operator-fallback-panel]'), root);
+        },
+    });
 }
 
-function setupOperatorRailToggle(tabsHost, railId) {
-    if (!tabsHost || !railId) {
+function mountOperatorRailTogglePanel(host, config) {
+    const railId = String(config?.id ?? '').trim();
+    if (!host || !railId) {
         return;
     }
 
     const collapsedState = appState.runtime.operatorRailCollapsed ?? {};
     appState.runtime.operatorRailCollapsed = collapsedState;
+    const contentId = `operator-rail-content-${railId}`;
+
+    host.innerHTML = `
+        <button class="operator-rail-toggle" type="button" aria-controls="${contentId}">
+            ${escapeHtml(config?.label ?? 'List')}
+        </button>
+        <div class="operator-rail-content" id="${contentId}">
+            ${config?.content ?? ''}
+        </div>
+    `;
+
+    const button = host.querySelector('.operator-rail-toggle');
+    const panel = host.querySelector('.operator-rail-content');
 
     const apply = () => {
         const collapsed = !!collapsedState[railId];
-        tabsHost.classList.toggle('is-rail-collapsed', collapsed);
-        tabsHost.querySelectorAll('.ui-tab, .operator-fallback-static-pill').forEach((tab) => {
-            tab.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-            tab.setAttribute('title', collapsed ? 'Show list' : 'Hide list');
-        });
+        host.classList.toggle('is-rail-collapsed', collapsed);
+        button?.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        button?.setAttribute('title', collapsed ? 'Show list' : 'Hide list');
     };
 
-    tabsHost.addEventListener('click', (event) => {
-        const tab = event.target?.closest?.('.ui-tab, .operator-fallback-static-pill');
-        if (!tab || !tabsHost.contains(tab)) {
-            return;
-        }
-
+    button?.addEventListener('click', () => {
         collapsedState[railId] = !collapsedState[railId];
         apply();
     });
 
+    config?.onMount?.(panel);
     apply();
 }
 
@@ -9146,25 +9131,19 @@ function mountOperatorArchiveList(panel, root) {
 function mountOperatorUtilityTabs(root, dashboard) {
     const tabsHost = root.querySelector('[data-operator-tabs]');
 
-    if (!tabsHost || !appState.helper.createTabs) {
+    if (!tabsHost) {
         return;
     }
 
-    const tabs = trackSurfaceInstance(appState.helper.createTabs(tabsHost, {
-        activeId: 'archive',
-        tabs: [
-            {
-                id: 'archive',
-                label: 'Archive',
-                render: (panel) => {
-                    mountOperatorArchiveList(panel, root);
-                },
-            },
-        ],
-        ariaLabel: 'Operator utility tabs',
-    }));
-
-    setupOperatorRailToggle(tabsHost, 'archive');
+    mountOperatorRailTogglePanel(tabsHost, {
+        id: 'archive',
+        label: 'Archive',
+        ariaLabel: 'Toggle archived incidents list',
+        content: '',
+        onMount(panel) {
+            mountOperatorArchiveList(panel, root);
+        },
+    });
 }
 
 function fallbackDropStatusLabel(status) {

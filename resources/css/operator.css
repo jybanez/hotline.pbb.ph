@@ -731,6 +731,29 @@
     min-width: 0;
 }
 
+.operator-rail-toggle {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    min-height: 1.95rem;
+    border-radius: 999px;
+    border: 1px solid rgba(104, 147, 190, 0.54);
+    background: rgba(24, 43, 72, 0.78);
+    color: #eef6ff;
+    padding: 0.24rem 0.72rem;
+    font: inherit;
+    font-size: 0.74rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.operator-rail-toggle:hover,
+.operator-rail-toggle:focus-visible {
+    border-color: rgba(121, 184, 245, 0.72);
+    background: rgba(36, 67, 108, 0.82);
+}
+
+.operator-rail-content,
 .operator-floating-rail .ui-tabpanel {
     min-height: 0;
     max-height: 520px;
@@ -754,12 +777,16 @@
         opacity 140ms ease;
 }
 
+.operator-rail-content,
 .operator-floating-rail .ui-tabpanel {
     display: flex;
     flex-direction: column;
     overflow: hidden;
 }
 
+.operator-floating-rail [data-operator-tabs].is-rail-collapsed .operator-rail-content,
+.operator-floating-rail [data-operator-active-tabs].is-rail-collapsed .operator-rail-content,
+.operator-floating-rail [data-operator-fallback-tabs].is-rail-collapsed .operator-rail-content,
 .operator-floating-rail [data-operator-tabs].is-rail-collapsed .ui-tabpanel,
 .operator-floating-rail [data-operator-active-tabs].is-rail-collapsed .ui-tabpanel,
 .operator-floating-rail [data-operator-fallback-tabs].is-rail-collapsed .ui-tabpanel {
