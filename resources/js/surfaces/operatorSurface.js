@@ -9036,29 +9036,54 @@ function mountOperatorRailTogglePanel(host, config) {
     const contentId = `operator-rail-content-${railId}`;
 
     host.innerHTML = `
-        <button class="operator-rail-toggle" type="button" aria-controls="${contentId}">
-            ${escapeHtml(config?.label ?? 'List')}
-        </button>
+        <div class="operator-rail-toggle-host" data-operator-rail-toggle></div>
         <div class="operator-rail-content" id="${contentId}">
             ${config?.content ?? ''}
         </div>
     `;
 
-    const button = host.querySelector('.operator-rail-toggle');
+    const buttonHost = host.querySelector('[data-operator-rail-toggle]');
     const panel = host.querySelector('.operator-rail-content');
+    let toggleButton = null;
 
     const apply = () => {
         const collapsed = !!collapsedState[railId];
         host.classList.toggle('is-rail-collapsed', collapsed);
+        const button = buttonHost?.querySelector('button');
         button?.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        button?.setAttribute('aria-controls', contentId);
         button?.setAttribute('title', collapsed ? 'Show list' : 'Hide list');
+        toggleButton?.setPressed?.(!collapsed);
     };
 
-    button?.addEventListener('click', () => {
-        collapsedState[railId] = !collapsedState[railId];
-        saveOperatorRailCollapsedState(collapsedState);
-        apply();
-    });
+    if (buttonHost && typeof appState.helper.createToggleButton === 'function') {
+        toggleButton = appState.helper.createToggleButton(buttonHost, {
+            id: `operator-rail-${railId}`,
+            label: config?.label ?? 'List',
+            pressed: !collapsedState[railId],
+            variant: 'pill',
+            tone: 'info',
+            size: 'sm',
+            className: 'operator-rail-toggle',
+            tooltip: collapsedState[railId] ? 'Show list' : 'Hide list',
+            onChange({ pressed }) {
+                collapsedState[railId] = !pressed;
+                saveOperatorRailCollapsedState(collapsedState);
+                apply();
+            },
+        });
+    } else if (buttonHost) {
+        buttonHost.innerHTML = `
+            <button class="operator-rail-toggle" type="button" aria-controls="${contentId}">
+                ${escapeHtml(config?.label ?? 'List')}
+            </button>
+        `;
+        buttonHost.querySelector('button')?.addEventListener('click', () => {
+            collapsedState[railId] = !collapsedState[railId];
+            saveOperatorRailCollapsedState(collapsedState);
+            apply();
+        });
+    }
 
     config?.onMount?.(panel);
     apply();

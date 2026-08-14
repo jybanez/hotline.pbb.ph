@@ -753,6 +753,12 @@
     pointer-events: auto;
 }
 
+.operator-rail-toggle-host {
+    display: inline-flex;
+    width: fit-content;
+    pointer-events: none;
+}
+
 .operator-rail-toggle:hover,
 .operator-rail-toggle:focus-visible {
     border-color: rgba(121, 184, 245, 0.72);
