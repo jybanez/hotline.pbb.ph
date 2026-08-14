@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Operator\CallbackController;
 use App\Http\Controllers\Api\Operator\CallSessionController;
 use App\Http\Controllers\Api\Operator\CallSessionMediaController;
 use App\Http\Controllers\Api\Operator\DashboardController;
+use App\Http\Controllers\Api\Operator\FallbackIncidentDropController;
 use App\Http\Controllers\Api\Operator\IncidentController;
 use App\Http\Controllers\Api\Operator\MediaLogController;
 use App\Http\Controllers\Api\Operator\MediaTestController;
@@ -16,6 +17,12 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['auth', 'role:operator'])->prefix('/operator')->group(function (): void {
     Route::get('/dashboard', [DashboardController::class, 'show']);
     Route::get('/activity', [DashboardController::class, 'activity']);
+    Route::get('/fallback-drops', [FallbackIncidentDropController::class, 'index']);
+    Route::get('/fallback-drops/{fallbackDrop}/attachments/{attachment}', [FallbackIncidentDropController::class, 'attachment'])
+        ->name('api.operator.fallback-drops.attachments.show');
+    Route::post('/fallback-drops/{fallbackDrop}/claim', [FallbackIncidentDropController::class, 'claim']);
+    Route::post('/fallback-drops/{fallbackDrop}/convert', [FallbackIncidentDropController::class, 'convert']);
+    Route::post('/fallback-drops/{fallbackDrop}/close', [FallbackIncidentDropController::class, 'close']);
     Route::post('/call-attempts', [CallAttemptController::class, 'store']);
     Route::get('/callbacks', [CallbackController::class, 'index']);
     Route::post('/callbacks', [CallbackController::class, 'store']);

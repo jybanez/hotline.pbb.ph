@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Citizen;
 use App\Domain\Calls\Models\CallAttempt;
 use App\Http\Controllers\Controller;
 use App\Support\Calls\CallRoutingService;
+use App\Support\Calls\NoAvailableOperatorException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use RuntimeException;
@@ -34,10 +35,25 @@ class CallAttemptController extends Controller
                 $latitude !== null ? (float) $latitude : null,
                 $longitude !== null ? (float) $longitude : null,
             );
+        } catch (NoAvailableOperatorException $exception) {
+            return response()->json([
+                'ok' => false,
+                'message' => $exception->getMessage(),
+                'reason' => 'no_available_operator',
+                'fallback' => [
+                    'available' => true,
+                    'reason' => 'all_operators_busy',
+                    'label' => 'Leave emergency details.',
+                    'endpoint' => '/api/citizen/fallback-drops',
+                ],
+            ], 409);
         } catch (RuntimeException $exception) {
             return response()->json([
                 'ok' => false,
                 'message' => $exception->getMessage(),
+                'fallback' => [
+                    'available' => false,
+                ],
             ], 409);
         }
 
