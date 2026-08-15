@@ -1460,6 +1460,14 @@ function shouldUseAccountSsoLogin(accountSso, accountSsoError = accountSsoLoginE
     );
 }
 
+function shouldUseAccountSsoSessionRecovery(accountSso = accountSsoConfig()) {
+    return Boolean(
+        accountSso?.enabled
+        && accountSso?.ready
+        && accountSso?.login_url
+    );
+}
+
 function initAccountSessionSdk() {
     const sdk = window.PbbAccountSession;
     const accountSso = accountSsoConfig();
@@ -1564,6 +1572,13 @@ async function openReauthModal() {
     const helper = await ensureHelperUi();
 
     if (helper.reauthOpening || !appState.bootstrap?.authenticated) {
+        return;
+    }
+
+    if (shouldUseAccountSsoSessionRecovery()) {
+        appState.runtime.reauthPrompting = false;
+        helper.reauthOpening = false;
+        startAccountSsoLogin();
         return;
     }
 

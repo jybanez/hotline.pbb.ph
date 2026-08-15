@@ -27,6 +27,18 @@ assert.match(
 
 assert.match(
   source,
+  /function\s+shouldUseAccountSsoSessionRecovery\s*\(/,
+  'Shared surface must route authenticated session recovery through Account SSO when configured.',
+);
+
+assert.match(
+  source,
+  /if\s*\(\s*shouldUseAccountSsoSessionRecovery\(\)\s*\)\s*\{[\s\S]*startAccountSsoLogin\(\)/,
+  'Shared surface must not show the local password reauth modal when Account SSO owns session recovery.',
+);
+
+assert.match(
+  source,
   /&&\s*!accountSsoError[\s\S]*\['public',\s*'citizen',\s*'caller'\]\.includes\(surface\)/,
   'Shared surface login flow must suppress automatic Account redirect when a callback error is present.',
 );
