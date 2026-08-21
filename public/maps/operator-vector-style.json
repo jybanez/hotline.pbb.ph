@@ -160,6 +160,25 @@
       }
     },
     {
+      "id": "buildings-3d",
+      "type": "fill-extrusion",
+      "source": "osm",
+      "source-layer": "building",
+      "minzoom": 13,
+      "paint": {
+        "fill-extrusion-color": "#263b4b",
+        "fill-extrusion-height": [
+          "to-number",
+          [
+            "get",
+            "render_height"
+          ],
+          6
+        ],
+        "fill-extrusion-opacity": 0.88
+      }
+    },
+    {
       "id": "roads",
       "type": "line",
       "source": "osm",
