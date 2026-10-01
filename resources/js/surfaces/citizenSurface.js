@@ -3177,49 +3177,6 @@ async function openCallerCameraPicker(overlay) {
     });
 }
 
-function renderCallerIncidentTypeCards(items, emptyText) {
-    if (!Array.isArray(items) || items.length === 0) {
-        return `
-            <article class="caller-incident-type-card is-empty">
-                <span class="caller-incident-type-value">${escapeHtml(emptyText)}</span>
-            </article>
-        `;
-    }
-
-    return items.map((item) => `
-        <article class="caller-incident-type-card">
-            <span class="caller-incident-type-label">${escapeHtml(item.label ?? 'Context')}</span>
-            <strong class="caller-incident-type-value">${escapeHtml(item.value ?? 'Pending')}</strong>
-        </article>
-    `).join('');
-}
-
-function buildCallerLiveIncidentTypeCards(payload) {
-    const details = Array.isArray(payload?.incident_type_details) ? payload.incident_type_details : [];
-
-    if (details.length > 0) {
-        return details.map((item) => ({
-            label: item.label ?? item.name ?? 'Incident Detail',
-            value: item.value ?? item.display_value ?? item.text ?? 'Pending',
-        }));
-    }
-
-    return [];
-}
-
-function syncCallerLiveIncidentTypeCards(overlay, payload) {
-    const strip = overlay?.querySelector('.caller-live-incident-strip');
-
-    if (!strip) {
-        return;
-    }
-
-    strip.innerHTML = renderCallerIncidentTypeCards(
-        buildCallerLiveIncidentTypeCards(payload),
-        'Waiting for operator incident updates.',
-    );
-}
-
 function formatCallerLiveIncidentNumber(value) {
     const numeric = Number(value ?? 0);
 
@@ -3597,7 +3554,6 @@ function renderCallerIncidentContent(payload, recentIncidents) {
 
 function renderCallerLiveCallContent(payload, latestSession) {
     const operatorName = payload.operator?.name ?? 'Assigned Operator';
-    const incidentTypeCards = buildCallerLiveIncidentTypeCards(payload);
     const incidentNumber = formatCallerLiveIncidentNumber(payload.id);
     const sessionMarkup = latestSession?.id
         ? `<p class="hero-copy">Connected · Session #${escapeHtml(latestSession.id)}</p>`
@@ -3622,11 +3578,6 @@ function renderCallerLiveCallContent(payload, latestSession) {
                 </div>
                 <div class="caller-live-video-placeholder is-idle" data-caller-video-placeholder>
                     <span>Video Preview</span>
-                </div>
-            </section>
-            <section class="caller-live-incident-types">
-                <div class="caller-live-incident-strip">
-                    ${renderCallerIncidentTypeCards(incidentTypeCards, 'Waiting for operator incident updates.')}
                 </div>
             </section>
             <section class="caller-live-thread-host" data-caller-chat-thread></section>
@@ -3882,7 +3833,6 @@ function syncCallerLiveModalPayload(overlay, payload) {
         connectedText.textContent = `Connected · Session #${latestSession?.id ?? ''}`;
     }
 
-    syncCallerLiveIncidentTypeCards(overlay, payload);
     appState.runtime.callerLiveModal.threadApi = refreshCallerLiveThread(
         overlay,
         payload,

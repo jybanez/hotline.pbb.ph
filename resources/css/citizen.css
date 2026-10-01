@@ -903,8 +903,12 @@
     flex: 1 1 auto;
     display: grid;
     gap: 0.55rem;
-    grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
     align-content: stretch;
+}
+
+.caller-live-modal-panel .caller-live-layout:has(> .caller-live-network-banner:not([hidden])) {
+    grid-template-rows: auto auto minmax(0, 1fr) auto auto;
 }
 
 .caller-live-network-banner {
@@ -977,8 +981,7 @@
     min-width: 0;
 }
 
-.caller-live-operator-label,
-.caller-incident-type-label {
+.caller-live-operator-label {
     color: var(--muted);
     font-size: 0.76rem;
     letter-spacing: 0.22em;
@@ -1044,47 +1047,6 @@
 .caller-live-video-close svg {
     width: 14px;
     height: 14px;
-}
-
-.caller-live-incident-types {
-    min-height: 0;
-}
-
-.caller-live-incident-strip {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(160px, 210px);
-    gap: 0.45rem;
-    overflow-x: auto;
-    padding: 0.1rem 0 0.2rem;
-}
-
-.caller-incident-type-card {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    min-height: 38px;
-    padding: 0.35rem 0.6rem;
-    border-radius: 8px;
-    border: 1px solid rgba(88, 182, 255, 0.16);
-    background: rgba(10, 25, 38, 0.28);
-    white-space: nowrap;
-    overflow: hidden;
-}
-
-.caller-incident-type-card.is-empty {
-    border-style: dashed;
-    border-color: rgba(255, 255, 255, 0.07);
-    color: var(--muted);
-}
-
-.caller-incident-type-value {
-    font-size: 0.96rem;
-    font-weight: 400;
-    line-height: 1.3;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .caller-live-thread-host,
