@@ -19,6 +19,8 @@ const OPERATOR_REALTIME_RECONNECT_MAX_MS = 15000;
 const OPERATOR_REMOTE_DISCONNECT_GRACE_MS = 10000;
 const OPERATOR_REMOTE_DISCONNECT_CLEANUP_TIMEOUT_MS = 10000;
 const OPERATOR_MEDIA_CONSUMER_ENABLED = true;
+// Temporarily hidden for the presentation; restore when callback work is complete.
+const OPERATOR_CALLBACKS_ENABLED = false;
 const OPERATOR_MEDIA_CHUNK_TRANSPORT = 'realtime-binary';
 const OPERATOR_RAIL_COLLAPSED_STORAGE_KEY = 'pbb.hotline.operator.railCollapsed';
 
@@ -4196,7 +4198,7 @@ function renderWorkbench(payload, stateOverride = null) {
                         <div class="operator-workbench-helper-host" data-workbench-incident-types></div>
                     </section>
                     <section class="operator-workbench-column operator-workbench-dispatch-column">
-                        <div class="operator-workbench-callback-host" data-workbench-callbacks></div>
+                        ${OPERATOR_CALLBACKS_ENABLED ? '<div class="operator-workbench-callback-host" data-workbench-callbacks></div>' : ''}
                         <div class="operator-workbench-helper-host" data-workbench-team-assignments></div>
                     </section>
                     <section class="operator-workbench-column operator-workbench-media-column">
