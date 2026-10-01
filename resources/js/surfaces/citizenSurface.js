@@ -2792,6 +2792,7 @@ async function mountCallerIncidentOverlay(overlay, payload, options = {}) {
                         headerText: '',
                         categories: lookups.incidentTypeCategories,
                         incidentTypes: lookups.incidentTypeCatalog,
+                        propertyViewerOptions: { mobileLayout: 'columns' },
                         lookups: {
                             resourceTypes: lookups.resourceTypes,
                         },
