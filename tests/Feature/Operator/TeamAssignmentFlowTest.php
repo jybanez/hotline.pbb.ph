@@ -89,9 +89,23 @@ class TeamAssignmentFlowTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('ok', true)
             ->assertJsonPath('assignment.status', 'assigned')
+            ->assertJsonPath('assignment.team.category.id', $teamCategoryId)
+            ->assertJsonPath('assignment.team.category.name', 'Response')
             ->assertJsonPath('assignment.allocated_resources.0.quantity_allocated', 2);
 
         $assignmentId = $createResponse->json('assignment.id');
+
+        // This response replaces the assignment in the operator's realtime
+        // snapshot, so a contact-only edit must retain the citizen's category.
+        $this->actingAs($operator)
+            ->postJson("/api/operator/team-assignments/{$assignmentId}", [
+                'contact_person' => 'Jane Doe',
+            ])
+            ->assertOk()
+            ->assertJsonPath('assignment.contact_person', 'Jane Doe')
+            ->assertJsonPath('assignment.status', 'assigned')
+            ->assertJsonPath('assignment.team.category.id', $teamCategoryId)
+            ->assertJsonPath('assignment.team.category.name', 'Response');
 
         $this->actingAs($operator)
             ->postJson("/api/operator/team-assignments/{$assignmentId}", [
@@ -100,7 +114,9 @@ class TeamAssignmentFlowTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('ok', true)
-            ->assertJsonPath('assignment.status', 'accepted');
+            ->assertJsonPath('assignment.status', 'accepted')
+            ->assertJsonPath('assignment.team.category.id', $teamCategoryId)
+            ->assertJsonPath('assignment.team.category.name', 'Response');
 
         $this->actingAs($operator)
             ->deleteJson("/api/operator/team-assignments/{$assignmentId}")
@@ -171,6 +187,8 @@ class TeamAssignmentFlowTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('ok', true)
             ->assertJsonPath('assignment.notes.0.note', "Team confirmed dispatch.\nPreparing to depart.")
+            ->assertJsonPath('assignment.team.category.id', $teamCategoryId)
+            ->assertJsonPath('assignment.team.category.name', 'Response')
             ->assertJsonPath('assignment.notes.0.created_by_operator_id', $operator->id);
 
         $noteId = (int) DB::table('team_assignment_notes')
@@ -189,7 +207,9 @@ class TeamAssignmentFlowTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('ok', true)
-            ->assertJsonPath('assignment.notes.0.note', "Updated first line.\nUpdated second line.");
+            ->assertJsonPath('assignment.notes.0.note', "Updated first line.\nUpdated second line.")
+            ->assertJsonPath('assignment.team.category.id', $teamCategoryId)
+            ->assertJsonPath('assignment.team.category.name', 'Response');
 
         $this->assertDatabaseHas('team_assignment_notes', [
             'id' => $noteId,
@@ -200,7 +220,9 @@ class TeamAssignmentFlowTest extends TestCase
             ->deleteJson("/api/operator/team-assignments/{$assignmentId}/notes/{$noteId}")
             ->assertOk()
             ->assertJsonPath('ok', true)
-            ->assertJsonPath('assignment.notes', []);
+            ->assertJsonPath('assignment.notes', [])
+            ->assertJsonPath('assignment.team.category.id', $teamCategoryId)
+            ->assertJsonPath('assignment.team.category.name', 'Response');
 
         $this->assertDatabaseMissing('team_assignment_notes', [
             'id' => $noteId,
