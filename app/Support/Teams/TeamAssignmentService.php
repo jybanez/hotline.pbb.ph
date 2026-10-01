@@ -72,7 +72,7 @@ class TeamAssignmentService
                 ]);
             }
 
-            return $assignment->fresh(['team', 'allocatedResources.resourceType', 'notes.createdByOperator']);
+            return $assignment->fresh(['team.category', 'allocatedResources.resourceType', 'notes.createdByOperator']);
         });
     }
 
@@ -136,7 +136,7 @@ class TeamAssignmentService
                 }
             }
 
-            return $assignment->fresh(['team', 'allocatedResources.resourceType', 'notes.createdByOperator']);
+            return $assignment->fresh(['team.category', 'allocatedResources.resourceType', 'notes.createdByOperator']);
         });
     }
 
@@ -162,7 +162,7 @@ class TeamAssignmentService
                 'note' => $normalizedNote,
             ]);
 
-            return $assignment->fresh(['team', 'allocatedResources.resourceType', 'notes.createdByOperator']);
+            return $assignment->fresh(['team.category', 'allocatedResources.resourceType', 'notes.createdByOperator']);
         });
     }
 
@@ -182,7 +182,7 @@ class TeamAssignmentService
                 'note' => $normalizedNote,
             ])->save();
 
-            return $assignment->fresh(['team', 'allocatedResources.resourceType', 'notes.createdByOperator']);
+            return $assignment->fresh(['team.category', 'allocatedResources.resourceType', 'notes.createdByOperator']);
         });
     }
 
@@ -194,7 +194,7 @@ class TeamAssignmentService
         return DB::transaction(function () use ($assignment, $note) {
             $note->delete();
 
-            return $assignment->fresh(['team', 'allocatedResources.resourceType', 'notes.createdByOperator']);
+            return $assignment->fresh(['team.category', 'allocatedResources.resourceType', 'notes.createdByOperator']);
         });
     }
 

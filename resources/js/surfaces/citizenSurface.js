@@ -2487,7 +2487,7 @@ function renderCallerIncidentOverlay(payload) {
                         </div>
                         <div class="caller-incident-overlay-actions">
                             ${canReconnect
-                                ? `<button class="surface-button secondary" type="button" data-caller-reconnect="${payload.id}">Resume Call</button>`
+                                ? `<button class="surface-button secondary" type="button" data-caller-reconnect="${payload.id}">${createIconMarkup('comms.phone', { size: 16 })}<span>Resume Call</span></button>`
                                 : `
                                     <button class="caller-incident-overlay-icon" type="button" data-refresh-caller-incident="${payload.id}" aria-label="Refresh incident">
                                         ${refreshIconMarkup()}
@@ -2861,8 +2861,9 @@ async function mountCallerIncidentOverlay(overlay, payload, options = {}) {
     }
 
     runtime.tabsApi = helper.createTabs(tabsHost, {
+        variant: 'attached',
         activeId: runtime.activeTabId,
-        ariaLabel: 'Caller incident tabs',
+        ariaLabel: 'Citizen incident tabs',
         onChange: (_tab, activeId) => {
             runtime.activeTabId = String(activeId ?? runtime.activeTabId ?? 'incident-types');
         },
@@ -3566,7 +3567,7 @@ function renderCallerIncidentContent(payload, recentIncidents) {
                         <h2 class="caller-incident-title">Incident #${escapeHtml(payload.display_id)}</h2>
                         <p class="hero-copy">${escapeHtml(payload.status)} · ${formatDateTime(payload.called_at ?? payload.created_at)}</p>
                     </div>
-                    ${canReconnect ? '<button class="surface-button" type="button" data-caller-reconnect-current="1">Resume Call</button>' : ''}
+                    ${canReconnect ? `<button class="surface-button" type="button" data-caller-reconnect-current="1">${createIconMarkup('comms.phone', { size: 16 })}<span>Resume Call</span></button>` : ''}
                 </div>
             </section>
             <div class="caller-incident-grid">
