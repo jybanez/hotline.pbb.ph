@@ -789,6 +789,14 @@
     gap: 0.45rem;
 }
 
+.surface-button[data-caller-reconnect],
+.surface-button[data-caller-reconnect-current] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+}
+
 .caller-incident-overlay-icon {
     width: 34px;
     height: 34px;
@@ -808,33 +816,15 @@
 }
 
 .caller-incident-overlay-body .ui-tabs {
+    min-width: 0;
     min-height: 0;
     height: 100%;
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);
-    gap: 0.55rem;
-}
-
-.caller-incident-overlay-body .ui-tablist {
-    display: flex;
-    gap: 0.5rem;
-    overflow-x: auto;
-    padding-bottom: 0.15rem;
 }
 
 .caller-incident-overlay-body .ui-tab {
     min-height: 34px;
-    padding: 0.3rem 0.8rem;
-    border-radius: 999px;
-    border: 1px solid rgba(173, 216, 230, 0.14);
-    background: rgba(255, 255, 255, 0.04);
-    color: var(--muted);
-}
-
-.caller-incident-overlay-body .ui-tab.is-active {
-    border-color: rgba(255, 202, 40, 0.42);
-    background: rgba(255, 202, 40, 0.08);
-    color: var(--text);
 }
 
 .caller-incident-overlay-body {
@@ -843,22 +833,37 @@
 }
 
 .caller-incident-overlay-body .ui-tabpanel {
-    height: 100%;
     min-height: 0;
     overflow: auto;
+}
+
+/* The complete Helper viewers have no flat presentation option. Keep their
+   rendering and updates, with the attached panel as the single outer frame. */
+.caller-incident-overlay-body .caller-incident-overlay-helper,
+.caller-incident-overlay-helper .hh-incident-types-details-viewer,
+.caller-incident-overlay-helper .hh-incident-teams-assignments-viewer,
+.caller-incident-overlay-helper .hh-item,
+.caller-incident-overlay-helper .hh-type-section,
+.caller-incident-overlay-helper .hh-content {
     padding: 0;
-    padding-right: 0.1rem;
     border: 0;
     border-radius: 0;
     background: transparent;
     box-shadow: none;
 }
 
-.caller-incident-overlay-helper .ui-card,
-.caller-incident-overlay-helper .helper-card,
-.caller-incident-overlay-helper .incident-types-card,
-.caller-incident-overlay-helper .team-assignments-card {
-    border-radius: 10px;
+.caller-incident-overlay-helper .hh-incident-types-header[hidden],
+.caller-incident-overlay-helper .hh-team-list-header[hidden] {
+    display: none;
+}
+
+.caller-incident-overlay-helper .hh-list {
+    gap: 1rem;
+}
+
+.caller-incident-overlay-helper .hh-list > .hh-item + .hh-item {
+    border-top: 1px solid var(--hh-border);
+    padding-top: 1rem;
 }
 
 .caller-incident-overlay-media {
