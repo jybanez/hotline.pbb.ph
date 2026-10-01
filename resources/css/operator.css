@@ -1187,8 +1187,8 @@
 }
 
 .operator-workbench-navbar .ui-navbar-action .ui-nav-icon {
-    width: 0.95rem;
-    height: 0.95rem;
+    width: 1.25rem;
+    height: 1.25rem;
 }
 
 .operator-workbench-navbar .ui-navbar-action .ui-nav-icon svg {
@@ -1198,7 +1198,7 @@
 }
 
 .operator-workbench-navbar .operator-workbench-action {
-    border-color: rgba(90, 130, 178, 0.48);
+    border: 0;
     color: rgba(232, 240, 252, 0.92);
     background: rgba(21, 38, 62, 0.74);
 }
