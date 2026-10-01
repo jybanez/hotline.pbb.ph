@@ -4269,6 +4269,7 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
             messages: payload.messages ?? [],
             viewerRole: 'citizen',
             admissionPath: '/api/realtime/admission/citizen',
+            getParticipants: () => [appState.runtime.callerLiveModal?.payload?.operator ?? payload.operator],
             currentUserId: String(appState.bootstrap?.user?.id ?? ''),
             currentDisplayName: String(appState.bootstrap?.user?.name ?? 'Citizen'),
             threadHost: overlay.querySelector('[data-caller-chat-thread]'),

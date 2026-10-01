@@ -1,4 +1,5 @@
 import '../bootstrap.js';
+import { resolveChatSenderAvatar } from './chatSenderAvatar.js';
 import {
     bindMediaElementStream,
     buildCallSignalPayload,
@@ -4492,6 +4493,10 @@ async function mountRealtimeIncidentChat(options = {}) {
                     fallbackSenderName: currentDisplayName,
                     resolveAttachmentUrl,
                 });
+                nextMessage.senderAvatar = resolveChatSenderAvatar(envelope?.payload, [
+                    appState.bootstrap?.user,
+                    ...(options.getParticipants?.() ?? []),
+                ]);
                 const existingIndex = messageList.findIndex((item) => String(item?.id ?? '') === String(nextMessage.id));
 
                 if (existingIndex >= 0) {

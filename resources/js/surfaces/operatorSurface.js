@@ -6129,6 +6129,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
             messages: payload.messages ?? [],
             viewerRole: 'operator',
             admissionPath: '/api/realtime/admission/operator',
+            getParticipants: () => [payload.citizen ?? payload.caller, payload.operator],
             currentUserId: String(appState.bootstrap?.user?.id ?? ''),
             currentDisplayName: String(appState.bootstrap?.user?.name ?? 'Operator'),
             threadHost: chatThreadHost,
