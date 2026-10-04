@@ -1,0 +1,177 @@
+<?php
+
+// Standalone opt-in test: php tests/integration/answer-concurrency.php
+// Only creates/drops a randomly named disposable database on local MySQL.
+use App\Domain\Calls\Models\CallAttempt;
+use App\Domain\Calls\Models\CallAttemptOperatorAttempt;
+use App\Domain\Calls\Models\CallParticipant;
+use App\Domain\Calls\Models\CallSession;
+use App\Domain\Incidents\Models\Incident;
+use App\Domain\Shared\Enums\CallStatus;
+use App\Domain\Shared\Enums\UserRole;
+use App\Models\User;
+use App\Support\Calls\CallRoutingService;
+use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Support\Facades\DB;
+
+require dirname(__DIR__, 2).'/vendor/autoload.php';
+$worker = ($argv[1] ?? '') === 'worker';
+$database = $worker ? ($argv[2] ?? '') : 'hotline_answer_'.bin2hex(random_bytes(8)).'_test';
+if (! preg_match('/\Ahotline_answer_[a-f0-9]{16}_test\z/', $database)) {
+    throw new RuntimeException('Refusing to use a non-disposable database.');
+}
+foreach ([
+    'APP_ENV' => 'testing', 'DB_CONNECTION' => 'mysql', 'DB_HOST' => '127.0.0.1',
+    'DB_PORT' => '3306', 'DB_DATABASE' => $database, 'DB_USERNAME' => 'root', 'DB_PASSWORD' => '',
+    'DB_URL' => '', 'CACHE_STORE' => 'array', 'SESSION_DRIVER' => 'array',
+    'QUEUE_CONNECTION' => 'sync', 'BROADCAST_CONNECTION' => 'null', 'BCRYPT_ROUNDS' => '4',
+] as $key => $value) {
+    putenv("{$key}={$value}");
+    $_ENV[$key] = $_SERVER[$key] = $value;
+}
+$app = require dirname(__DIR__, 2).'/bootstrap/app.php';
+$app->make(Kernel::class)->bootstrap();
+$check = static function (bool $condition, string $message): void {
+    if (! $condition) {
+        throw new RuntimeException($message);
+    }
+};
+$check(config('database.default') === 'mysql'
+    && config('database.connections.mysql.database') === $database
+    && config('database.connections.mysql.host') === '127.0.0.1', 'Refusing cached or non-disposable database configuration.');
+if ($worker) {
+    $operator = User::query()->findOrFail((int) $argv[3]);
+    $route = CallAttemptOperatorAttempt::query()->with('callAttempt')->findOrFail((int) $argv[4]);
+    file_put_contents($argv[5], 'ready');
+    try {
+        $result = app(CallRoutingService::class)->answerNewAttempt($operator, $route);
+        echo json_encode(['status' => 'answered', 'incident' => $result['incident']->id]);
+    } catch (RuntimeException $error) {
+        if ($error->getMessage() !== 'This call attempt is no longer answerable.') {
+            throw $error;
+        }
+        echo json_encode(['status' => 'conflict']);
+    }
+    exit;
+}
+$admin = new PDO('mysql:host=127.0.0.1;port=3306', 'root', '', [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+$created = false;
+$failure = null;
+$processes = [];
+$markers = [];
+try {
+    $admin->exec("CREATE DATABASE `{$database}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+    $created = true;
+    // Use the application's relevant schema migrations. The unrelated default-resource
+    // migration currently has an overlong MySQL index name; do not alter it here.
+    foreach ([
+        '0001_01_01_000000_create_users_table.php',
+        '2026_04_04_000001_create_settings_table.php',
+        '2026_04_04_000009_create_incidents_table.php',
+        '2026_04_04_000010_create_call_attempts_table.php',
+        '2026_04_04_000011_create_call_attempt_operator_attempts_table.php',
+        '2026_04_04_000012_create_call_sessions_table.php',
+        '2026_04_04_000013_create_call_participants_table.php',
+        '2026_04_18_020000_add_fractional_precision_to_call_session_timestamps.php',
+        '2026_04_28_000001_add_live_location_fields_to_incidents_table.php',
+        '2026_04_28_000002_create_incident_caller_locations_table.php',
+        '2026_05_10_000001_add_citizen_id_columns_for_caller_compatibility.php',
+        '2026_05_11_000001_add_citizen_detail_columns_to_incidents_table.php',
+        '2026_05_11_000004_drop_caller_storage_columns.php',
+    ] as $migration) {
+        if ($migration === '2026_05_11_000004_drop_caller_storage_columns.php') {
+            // MySQL needs a separate FK-supporting index before that migration
+            // drops its composite caller index. This fixture-only index disappears
+            // with caller_id; the application migrations remain untouched.
+            DB::statement('CREATE INDEX test_caller_fk ON call_attempts (caller_id)');
+        }
+        (require dirname(__DIR__, 2).'/database/migrations/'.$migration)->up();
+    }
+    echo 'Database engine: '.$admin->query('SELECT VERSION()')->fetchColumn().PHP_EOL;
+    foreach ([false, true] as $differentOperators) {
+        $caller = User::factory()->create(['role' => UserRole::Citizen]);
+        $operator = User::factory()->create(['role' => UserRole::Operator]);
+        $attempt = CallAttempt::query()->create(['citizen_id' => $caller->id, 'status' => CallStatus::Calling, 'started_at' => now()]);
+        $route = $attempt->operatorAttempts()->create(['operator_id' => $operator->id, 'status' => CallStatus::Calling, 'started_at' => now(), 'created_at' => now()]);
+        $other = $differentOperators ? User::factory()->create(['role' => UserRole::Operator]) : $operator;
+        $otherRoute = $differentOperators ? $attempt->operatorAttempts()->create(['operator_id' => $other->id, 'status' => CallStatus::Calling, 'started_at' => now(), 'created_at' => now()]) : $route;
+        $beforeIncidents = Incident::query()->count();
+        $beforeSessions = CallSession::query()->count();
+        DB::beginTransaction();
+        CallAttempt::query()->whereKey($attempt->id)->lockForUpdate()->firstOrFail();
+        $processes = [];
+        $markers = [];
+        foreach ([[$operator, $route], [$other, $otherRoute]] as [$user, $context]) {
+            $marker = tempnam(sys_get_temp_dir(), 'hotline-answer-');
+            $markers[] = $marker;
+            $process = proc_open([PHP_BINARY, __FILE__, 'worker', $database, (string) $user->id, (string) $context->id, $marker], [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, dirname(__DIR__, 2));
+            $check(is_resource($process), 'Cannot start independent answer worker.');
+            fclose($pipes[0]);
+            $processes[] = [$process, $pipes];
+        }
+        $deadline = microtime(true) + 15;
+        while (array_filter($markers, static fn ($marker) => file_get_contents($marker) !== 'ready')) {
+            $check(microtime(true) < $deadline, 'Workers failed to preload their answer contexts.');
+            usleep(10000);
+        }
+        // Both workers enter answer transactions while the parent row remains locked.
+        usleep(200000);
+        foreach ($processes as [$process]) {
+            $check(proc_get_status($process)['running'], 'Worker must still be waiting on the parent lock.');
+        }
+        DB::commit();
+        $results = [];
+        foreach ($processes as [$process, $pipes]) {
+            $stdout = stream_get_contents($pipes[1]);
+            $stderr = stream_get_contents($pipes[2]);
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            $exit = proc_close($process);
+            $check($exit === 0 || $exit === -1, 'Answer worker failed: '.$stderr);
+            $results[] = json_decode($stdout, true, flags: JSON_THROW_ON_ERROR);
+        }
+        $processes = [];
+        foreach ($markers as $marker) {
+            unlink($marker);
+        }
+        $markers = [];
+        $statuses = array_column($results, 'status');
+        sort($statuses);
+        $check($statuses === ['answered', 'conflict'], 'Exactly one answer and one conflict required.');
+        $check(Incident::query()->count() === $beforeIncidents + 1 && CallSession::query()->count() === $beforeSessions + 1, 'Duplicate incident/session created.');
+        $session = CallSession::query()->where('citizen_id', $caller->id)->sole();
+        $winner = $attempt->fresh()->answered_by_operator_id;
+        $participants = CallParticipant::query()->where('call_session_id', $session->id)->get();
+        $check($participants->count() === 2 && $participants->contains(fn ($p) => $p->user_id === $caller->id && $p->participant_role === 'citizen') && $participants->contains(fn ($p) => $p->user_id === $winner && $p->participant_role === 'operator'), 'Incorrect participants.');
+        echo 'PASS concurrent answers ('.($differentOperators ? 'different operator routes' : 'same route').'): one incident/session, correct participants, safe conflict.'.PHP_EOL;
+    }
+} catch (Throwable $error) {
+    $failure = $error;
+} finally {
+    if (DB::transactionLevel()) {
+        DB::rollBack();
+    }
+    foreach ($processes as [$process, $pipes]) {
+        proc_terminate($process);
+        foreach ($pipes as $pipe) {
+            if (is_resource($pipe)) {
+                fclose($pipe);
+            }
+        }
+        proc_close($process);
+    }
+    foreach ($markers as $marker) {
+        if (is_file($marker)) {
+            unlink($marker);
+        }
+    }
+    DB::disconnect();
+    if ($created) {
+        $admin->exec("DROP DATABASE `{$database}`");
+        echo 'Disposable database removed.'.PHP_EOL;
+    }
+}
+if ($failure) {
+    fwrite(STDERR, 'FAIL: '.$failure->getMessage().PHP_EOL);
+    exit(1);
+}

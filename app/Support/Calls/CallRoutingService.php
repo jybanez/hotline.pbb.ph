@@ -344,18 +344,24 @@ class CallRoutingService
      */
     public function answerNewAttempt(User $operator, CallAttemptOperatorAttempt $operatorAttempt): array
     {
-        $operatorAttempt->loadMissing('callAttempt');
-        $attempt = $operatorAttempt->callAttempt;
+        $operatorAttemptId = $operatorAttempt->getKey();
 
-        if ((int) $operatorAttempt->operator_id !== (int) $operator->id) {
-            throw new RuntimeException('You cannot answer this routed call.');
-        }
+        return DB::transaction(function () use ($operator, $operatorAttemptId) {
+            // All answerers lock the parent first, including routes to different operators.
+            // Request-bound models and loaded relations may predate another answer.
+            $route = CallAttemptOperatorAttempt::query()->findOrFail($operatorAttemptId);
+            $attempt = CallAttempt::query()->whereKey($route->call_attempt_id)->lockForUpdate()->first();
+            $operatorAttempt = CallAttemptOperatorAttempt::query()->whereKey($operatorAttemptId)->lockForUpdate()->firstOrFail();
 
-        if (! $attempt || $attempt->status !== CallStatus::Calling) {
-            throw new RuntimeException('This call attempt is no longer answerable.');
-        }
+            if ((int) $operatorAttempt->operator_id !== (int) $operator->id) {
+                throw new RuntimeException('You cannot answer this routed call.');
+            }
 
-        return DB::transaction(function () use ($attempt, $operator, $operatorAttempt) {
+            if (! $attempt || (int) $operatorAttempt->call_attempt_id !== (int) $attempt->id
+                || $attempt->status !== CallStatus::Calling || $operatorAttempt->status !== CallStatus::Calling) {
+                throw new RuntimeException('This call attempt is no longer answerable.');
+            }
+
             $caller = User::query()->findOrFail($attempt->citizen_id);
             $incident = $attempt->incident_id
                 ? Incident::query()->findOrFail($attempt->incident_id)
