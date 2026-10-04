@@ -540,6 +540,23 @@ class IncidentWorkbenchTest extends TestCase
         ]);
     }
 
+    public function test_intake_accepts_the_modal_payload_with_optional_relationship_and_address_empty(): void
+    {
+        $caller = User::factory()->create(['role' => UserRole::Citizen]);
+        $operator = User::factory()->create(['role' => UserRole::Operator]);
+        $incidentId = DB::table('incidents')->insertGetId([
+            'citizen_id' => $caller->id, 'operator_id' => $operator->id,
+            'actual_citizen_name' => $caller->name, 'status' => IncidentStatus::Active->value,
+            'alert_level' => 'Normal', 'called_at' => now(), 'created_at' => now(),
+        ]);
+        $this->actingAs($operator)->postJson("/api/operator/incidents/{$incidentId}/intake", [
+            'actual_citizen_name' => 'Juan Dela Cruz', 'actual_citizen_relationship' => null,
+            'location' => null, 'location_road' => null, 'location_suburb' => null,
+            'location_barangay' => null, 'location_citymunicipality' => null, 'location_country' => null,
+        ])->assertOk()->assertJsonPath('incident.actual_citizen_name', 'Juan Dela Cruz')
+            ->assertJsonPath('incident.actual_citizen_relationship', null);
+    }
+
     public function test_intake_rejects_legacy_actual_caller_payload_fields(): void
     {
         $caller = User::factory()->create([

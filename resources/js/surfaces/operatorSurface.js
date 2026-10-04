@@ -3684,148 +3684,88 @@ function bindWorkbenchCallerAddressEditor(overlay, payload = {}) {
 }
 
 async function openWorkbenchInitialIntakeModal(overlay, payload = {}) {
-    const helper = await ensureWorkbenchAddressHelpers();
-
-    if (
-        typeof helper.createActionModal !== 'function'
-        || typeof helper.createFieldGroup !== 'function'
-        || typeof appState.helper.createSelect !== 'function'
-    ) {
+    if (appState.runtime.operatorInitialIntakeModal?.getState?.().open) return;
+    await ensureHelperUi();
+    const helper = appState.helper;
+    if (appState.runtime.operatorInitialIntakeModal?.getState?.().open) return;
+    if (typeof helper.createFormModal !== 'function' || typeof helper.uiAlert !== 'function') {
         showToast('Caller intake prompt is unavailable right now.', 'warn');
         return;
     }
 
-    const content = document.createElement('div');
-    content.className = 'operator-workbench-intake-modal';
-    content.innerHTML = `
-        <p class="operator-workbench-intake-note">Confirm these details with the caller before continuing the incident workup.</p>
-        <label class="operator-workbench-intake-field">
-            <span>Actual Caller Name</span>
-            <input class="ui-input" type="text" data-intake-caller-name placeholder="Actual caller name">
-        </label>
-        <div class="operator-workbench-intake-field">
-            <span>Actual Caller Relationship</span>
-            <div data-intake-caller-relationship></div>
-        </div>
-        <div class="operator-workbench-intake-address" data-intake-caller-address></div>
-    `;
-
-    const callerNameInput = content.querySelector('[data-intake-caller-name]');
-    const relationshipHost = content.querySelector('[data-intake-caller-relationship]');
-    const addressHost = content.querySelector('[data-intake-caller-address]');
-    callerNameInput.value = String(payload.actual_caller_name ?? payload.caller?.name ?? '').trim();
-
-    const relationshipSelect = appState.helper.createSelect(relationshipHost, workbenchRelationshipOptions(), {
-        ariaLabel: 'Actual Caller Relationship',
-        placeholder: 'Select relationship',
-        searchable: false,
-        clearable: false,
-        selected: [workbenchCallerRelationship(payload)],
+    const address = workbenchCallerAddressValue(payload);
+    const fields = [
+        { type: 'input', name: 'actual_citizen_name', label: 'Actual Caller Name', required: true, maxLength: 255 },
+        { type: 'ui.select', name: 'actual_citizen_relationship', label: 'Actual Caller Relationship', options: workbenchRelationshipOptions(), searchable: false, clearable: true },
+        ...[
+            ['road', 'Road / Landmark'], ['neighborhood', 'Neighborhood / Sitio'],
+            ['barangay', 'Barangay'], ['city', 'City / Municipality'], ['country', 'Country'],
+        ].map(([name, label]) => ({ type: 'input', name, label, maxLength: 255 })),
+    ];
+    const labels = Object.fromEntries(fields.map((field) => [field.name, field.label]));
+    const showIssues = (errors) => helper.uiAlert('Please address the following issues before continuing:', {
+        title: 'Caller intake needs attention', variant: 'error',
+        items: fields.filter((field) => errors[field.name]).map((field) => {
+            const problem = String(errors[field.name]);
+            return `${labels[field.name]} — ${/required/i.test(problem) ? 'required' : problem}`;
+        }),
     });
-
-    const addressPreset = helper.fieldGroupPresets?.address?.({
-        label: 'Caller Address',
-        fields: {
-            neighborhood: { label: 'Neighborhood / Sitio' },
-            city: { label: 'City / Municipality' },
-            state: { label: 'Province / State' },
+    let dismissed = false;
+    let modal;
+    modal = helper.createFormModal({
+        title: 'Initial Caller Intake', ariaLabel: 'Initial caller intake', size: 'md',
+        context: { summary: 'Confirm these details with the caller before continuing the incident workup.' },
+        rows: fields.map((field) => [field]),
+        initialValues: {
+            actual_citizen_name: String(payload.actual_citizen_name ?? payload.actual_caller_name ?? payload.citizen?.name ?? payload.caller?.name ?? '').trim(),
+            actual_citizen_relationship: workbenchCallerRelationship(payload),
+            ...address,
         },
-        extraFields: [
-            { key: 'road', label: 'Road / Landmark', type: 'text' },
-        ],
-    }) ?? {
-        label: 'Caller Address',
-        preset: 'address',
-    };
-
-    let addressGroup = null;
-    let modal = null;
-
-    modal = helper.createActionModal({
-        title: 'Initial Caller Intake',
-        ariaLabel: 'Initial caller intake',
-        size: 'md',
-        content,
-        closeOnBackdrop: false,
-        closeOnEscape: false,
-        actions: [
-            {
-                id: 'skip',
-                label: 'Skip for now',
-                variant: 'default',
-            },
-            {
-                id: 'save',
-                label: 'Save Intake',
-                variant: 'primary',
-                autoFocus: true,
-                busyMessage: 'Saving caller intake...',
-                closeOnClick: false,
-                async onClick() {
-                    const actualCallerName = String(callerNameInput?.value ?? '').trim();
-
-                    if (!actualCallerName) {
-                        showToast('Actual caller name is required.', 'warn');
-                        callerNameInput?.focus?.();
-                        return false;
-                    }
-
-                    const relationship = String(relationshipSelect?.getValue?.() ?? 'Self').trim() || 'Self';
-                    const addressPayload = workbenchCallerAddressPayloadFromValue(addressGroup?.getValue?.() ?? {});
-
-                    try {
-                        const intakePayload = {
-                            actual_caller_name: actualCallerName,
-                            actual_caller_relationship: relationship,
-                            ...addressPayload,
-                        };
-                        const intakeResponse = await fetchJson(`/api/operator/incidents/${payload.id}/intake`, {
-                            method: 'post',
-                            data: intakePayload,
-                        });
-
-                        applyWorkbenchIntakePayload(overlay, payload, intakeResponse?.incident);
-                        publishOperatorIncidentUpdate({
-                            incident_id: Number(payload.id ?? 0),
-                            caller_id: Number(payload.caller_id ?? 0),
-                            scope: 'intake',
-                            patch: intakePayload,
-                        });
-
-                        await modal?.close({ reason: 'submit' });
-                        showToast('Initial caller intake saved.', 'success');
-                    } catch (error) {
-                        showToast(error?.response?.data?.message ?? 'Unable to save caller intake.', 'warn');
-                    }
-
-                    return false;
-                },
-            },
-        ],
-        onClose() {
-            relationshipSelect?.destroy?.();
-            addressGroup?.destroy?.();
-            addressGroup = null;
-
-            if (appState.runtime.operatorInitialIntakeModal === modal) {
-                appState.runtime.operatorInitialIntakeModal = null;
+        cancelLabel: 'Skip for now', submitLabel: 'Save Intake',
+        closeOnBackdrop: false, closeOnEscape: false,
+        manageBusyOnSubmit: false,
+        onInvalid: ({ errors }) => showIssues(errors),
+        async onSubmit(values, context) {
+            const intakePayload = {
+                actual_citizen_name: String(values.actual_citizen_name ?? '').trim(),
+                actual_citizen_relationship: String(values.actual_citizen_relationship ?? '').trim() || null,
+                ...workbenchCallerAddressPayloadFromValue(values),
+            };
+            context.setBusy(true, { message: 'Saving caller intake...' });
+            try {
+                const response = await fetchJson(`/api/operator/incidents/${payload.id}/intake`, {
+                    method: 'post', data: intakePayload,
+                });
+                if (dismissed || !overlay?.isConnected) return false;
+                applyWorkbenchIntakePayload(overlay, payload, response?.incident);
+                publishOperatorIncidentUpdate({
+                    incident_id: Number(payload.id ?? 0), caller_id: Number(payload.citizen_id ?? payload.caller_id ?? 0),
+                    scope: 'intake', patch: intakePayload,
+                });
+                showToast('Initial caller intake saved.', 'success');
+                return true;
+            } catch (error) {
+                if (dismissed) return false;
+                const body = error?.response?.data ?? {};
+                const addressKeys = { location_road: 'road', location_suburb: 'neighborhood', location_barangay: 'barangay', location_citymunicipality: 'city', location_country: 'country' };
+                const errors = Object.fromEntries(Object.entries(body.errors ?? {}).map(([key, messages]) => [addressKeys[key] ?? key, Array.isArray(messages) ? messages[0] : messages]));
+                context.setErrors(errors);
+                context.setFormError(body.message ?? 'Unable to save caller intake. Check the incident before trying again.');
+                context.setBusy(false);
+                if (Object.keys(errors).length) await showIssues(errors);
+                return false;
+            } finally {
+                if (!dismissed) context.setBusy(false);
             }
+        },
+        onClose() {
+            dismissed = true;
+            if (appState.runtime.operatorInitialIntakeModal === modal) appState.runtime.operatorInitialIntakeModal = null;
         },
     });
     appState.runtime.operatorInitialIntakeModal = modal;
-
-    addressGroup = helper.createFieldGroup(addressHost, {
-        name: 'caller_address',
-        ...addressPreset,
-        repeatable: false,
-        required: false,
-        chrome: false,
-        value: workbenchCallerAddressValue(payload),
-    });
-
     modal.open();
 }
-
 function renderWorkbenchLocationWindowMeta(location = {}) {
     const normalized = workbenchCallerLocation(location);
 

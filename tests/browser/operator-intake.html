@@ -1,0 +1,58 @@
+<!doctype html>
+<meta charset="utf-8">
+<body data-status="pending"><pre id="result">Running</pre>
+<script type="module">
+import { createUiLoader, DEFAULT_COMPONENT_REGISTRY } from '/public/vendor/helpers.pbb.ph/js/ui/ui.loader.js';
+const assert = (value, message) => { if (!value) throw new Error(message); };
+const tick = () => new Promise(resolve => setTimeout(resolve, 350));
+try {
+    const loader = createUiLoader(DEFAULT_COMPONENT_REGISTRY, { preferBundles: new URLSearchParams(location.search).has('bundle') });
+    const helper = { createFormModal: await loader.get('ui.form.modal'), uiAlert: await loader.get('ui.dialog.alert') };
+    const source = await (await fetch('/resources/js/surfaces/operatorSurface.js')).text();
+    const extract = (name, next) => source.slice(source.indexOf(`function ${name}(`), source.indexOf(`function ${next}(`));
+    const state = { helper, runtime: {} }, requests = [], updates = [];
+    let reject = false;
+    const declarations = extract('workbenchCallerAddressPayloadFromValue', 'workbenchEditIconMarkup')
+        + 'async ' + extract('openWorkbenchInitialIntakeModal', 'renderWorkbenchLocationWindowMeta');
+    const open = new Function('appState', 'ensureHelperUi', 'workbenchCallerAddressValue', 'workbenchRelationshipOptions', 'workbenchCallerRelationship', 'normalizeWorkbenchAddressPart', 'fetchJson', 'applyWorkbenchIntakePayload', 'publishOperatorIncidentUpdate', 'showToast', declarations + ';return openWorkbenchInitialIntakeModal;')(
+        state, async () => {}, () => ({}), () => [{ label: 'Self', value: 'Self' }], () => '', value => String(value ?? '').trim(),
+        async (url, config) => {
+            requests.push({ url, data: config.data });
+            if (reject) throw { response: { data: { message: 'Validation failed', errors: { actual_citizen_name: ['Name is already invalid.'] } } } };
+            return { incident: config.data };
+        }, (...args) => updates.push(args), () => {}, () => {},
+    );
+    const overlay = document.createElement('div'); document.body.append(overlay);
+    const button = label => [...document.querySelectorAll('button')].find(el => el.textContent.trim() === label);
+    const name = () => document.querySelector('input[name="actual_citizen_name"]');
+    const fill = value => { name().value = value; name().dispatchEvent(new Event('input', { bubbles: true })); };
+    await open(overlay, { id: 31 });
+    const first = state.runtime.operatorInitialIntakeModal;
+    await open(overlay, { id: 31 });
+    assert(state.runtime.operatorInitialIntakeModal === first, 'duplicate opening is ignored');
+    button('Save Intake').click(); await tick();
+    assert(requests.length === 0, 'invalid submission makes no API request');
+    assert(!first.isBusy(), 'invalid submission stays non-busy');
+    assert(name().getAttribute('aria-invalid') === 'true', 'field has accessible invalid state');
+    assert(name().getAttribute('aria-describedby'), 'field error is associated');
+    assert(document.querySelector('li')?.textContent === 'Actual Caller Name — required', 'structured concise validation summary');
+    assert(document.querySelectorAll('[role="dialog"]').length === 2, 'canonical error alert opens');
+    button('OK').click(); await tick();
+    fill('  Juan Dela Cruz  '); button('Save Intake').click(); await tick();
+    assert(requests.length === 1 && requests[0].data.actual_citizen_name === 'Juan Dela Cruz', 'actual modal emits trimmed canonical API name');
+    assert(requests[0].data.actual_citizen_relationship === null, 'relationship remains optional');
+    assert(requests[0].data.location === null, 'address remains optional');
+    assert(!('actual_caller_name' in requests[0].data), 'legacy API name is absent');
+    assert(updates.length === 1 && !state.runtime.operatorInitialIntakeModal, 'confirmed success updates incident and closes');
+    reject = true; await open(overlay, { id: 31, actual_citizen_name: 'Preserved' });
+    const rejected = state.runtime.operatorInitialIntakeModal;
+    button('Save Intake').click(); await tick();
+    assert(!rejected.isBusy() && name().value === 'Preserved', 'server rejection preserves values and clears busy');
+    assert(name().getAttribute('aria-invalid') === 'true', 'server error attaches to field');
+    button('OK').click(); await tick(); button('Skip for now').click(); await tick();
+    assert(requests.length === 2 && !state.runtime.operatorInitialIntakeModal, 'Skip closes without a mutation');
+    document.body.dataset.status = 'pass'; document.getElementById('result').textContent = 'PASS';
+} catch (error) {
+    document.body.dataset.status = 'fail'; document.getElementById('result').textContent = error.stack ?? String(error);
+}
+</script>
