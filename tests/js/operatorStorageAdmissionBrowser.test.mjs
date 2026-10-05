@@ -10,8 +10,11 @@ try{
  }
  const context=await browser.newContext();const first=await context.newPage();await first.goto(url);await first.waitForFunction(()=>window.ready);
  if(!(await first.evaluate(()=>window.acquire())).storageAvailable)throw Error('First owner unavailable');
+ const local=await first.evaluate(()=>window.localConflict());if(local.consumer.storageAvailable||local.ownership.ownedByThisQueue||local.ownership.localPageOwnerCount!==1)throw Error('Retained same-page ownership diagnostics incorrect');
  const second=await context.newPage();await second.goto(url);await second.waitForFunction(()=>window.ready);
- const blocked=await second.evaluate(()=>window.acquire());if(blocked.storageAvailable||!blocked.lastError.includes('Another Hotline tab'))throw Error('Competing tab admitted');
+ const blocked=await second.evaluate(()=>window.acquire());if(blocked.storageAvailable||blocked.failureStage!=='queue-ownership'||!blocked.lastError.includes('Another Hotline tab'))throw Error('Competing tab admitted');
+ const denied=await second.evaluate(async()=>{try{await window.manager.recoverStorage()}catch(error){return error.recordingStorageStage}});
+ if(denied!=='queue-ownership')throw Error('Retry mislabeled ownership denial');
  await first.close();
  await second.waitForFunction(async()=>!(await navigator.locks.query()).held.some(lock=>lock.name==='hotline-operator-media-queue-owner-v1'),undefined,{timeout:15000});
  const third=await context.newPage();await third.goto(url);await third.waitForFunction(()=>window.ready);

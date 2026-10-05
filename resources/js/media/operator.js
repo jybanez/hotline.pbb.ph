@@ -92,6 +92,7 @@ export function createOperatorMediaManagers(services = {}) {
         },
         getStatus() {
             return {
+                ownership: queue.getOwnershipStatus?.() ?? null,
                 consumer: consumerManager.getStatus(),
                 producerCount: producerManager.getItems().length,
             };

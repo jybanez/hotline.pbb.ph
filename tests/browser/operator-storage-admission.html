@@ -40,5 +40,9 @@ window.newerFailure=async()=>{
  assert(error?.recordingStorageStage==='retire-recovery-marker','New generation preserved');
  assert(localStorage.getItem(key)!==null,'New failure marker not cleared');return 'pass';
 };
+window.localConflict=async()=>{
+ const manager=createOperatorMediaManagers({storage:createOperatorMediaQueueStorage(),enabled:false});
+ await manager.start();return manager.getStatus();
+};
 window.ready=true;
 </script></body></html>

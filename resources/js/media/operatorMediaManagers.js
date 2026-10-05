@@ -113,7 +113,7 @@ export class ConsumerManager {
             catch (markerError) { this.markerPersisted = false; this.markerError = String(markerError.message ?? markerError); }
         }
         this.lastError = this.lastError ?? error;
-        if (firstFailure) this.failureStage = stage;
+        if (firstFailure) this.failureStage = error.recordingStorageStage ?? stage;
         this.stop();
         if (firstFailure) this.notifyFailure();
         return false;
