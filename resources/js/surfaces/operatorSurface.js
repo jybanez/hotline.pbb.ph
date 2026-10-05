@@ -4242,7 +4242,7 @@ function workbenchCallerRelationship(payload) {
     return String(payload?.actual_caller_relationship ?? 'Self').trim() || 'Self';
 }
 
-function buildWorkbenchNavbarContent(payload) {
+function buildWorkbenchNavbarContent(payload, callState = workbenchCallState(payload)) {
     const wrapper = document.createElement('div');
     wrapper.className = 'operator-workbench-navbar-meta';
     wrapper.innerHTML = `
@@ -4254,8 +4254,42 @@ function buildWorkbenchNavbarContent(payload) {
             <small>Caller Relationship</small>
             <div data-workbench-caller-relationship></div>
         </div>
+        ${workbenchIncidentEditable(payload) && callState !== 'active'
+            ? '<button class="ui-action ui-action-borderless" type="button" data-workbench-callback>Callback</button>'
+            : ''}
     `;
     return wrapper;
+}
+
+function openCallbackAvailabilityModal(helper, payload, button) {
+    const owner = new AbortController();
+    let modal;
+    button.disabled = true;
+    modal = helper.createActionModal({
+        title: 'Callback',
+        ariaLabel: 'Check citizen availability for callback',
+        content: `<p>${escapeHtml(workbenchCallerName(payload))}</p>`,
+        size: 'sm',
+        closeOnBackdrop: false,
+        actions: [],
+        onBeforeClose() { owner.abort(); return true; },
+        onClose() { button.disabled = false; modal.destroy(); },
+    });
+    modal.open();
+    modal.setBusy(true, {
+        message: 'Checking availability...',
+        cancelBusy: {
+            label: 'Cancel check',
+            onCancel() {
+                owner.abort();
+                modal.setBusy(false);
+                void modal.close();
+                return false;
+            },
+        },
+    });
+    // This first UI increment stops here; no check request or call is initiated.
+    return { destroy() { owner.abort(); modal.setBusy(false); void modal.close(); } };
 }
 
 function workbenchNavbarIcon(name) {
@@ -4347,7 +4381,14 @@ async function mountWorkbenchNavbar(overlay, payload, stateOverride, close) {
         ? `<img class="operator-workbench-brand-avatar" src="${escapeHtml(brandAvatar)}" alt="${escapeHtml(workbenchCallerName(payload))}">`
         : `<span class="operator-workbench-brand-avatar operator-workbench-brand-avatar-fallback">${escapeHtml(workbenchCallerName(payload).slice(0, 1))}</span>`;
 
-    const contentStart = buildWorkbenchNavbarContent(payload);
+    const contentStart = buildWorkbenchNavbarContent(payload, callState);
+    const callbackButton = contentStart.querySelector('[data-workbench-callback]');
+    let callbackModal = null;
+    const handleCallback = () => {
+        if (callbackButton.disabled || !helper.createActionModal || workbenchCallState(payload, stateOverride) === 'active') return;
+        callbackModal = openCallbackAvailabilityModal(helper, payload, callbackButton);
+    };
+    callbackButton?.addEventListener('click', handleCallback);
     const callerNameInput = contentStart.querySelector('.operator-workbench-navbar-input');
     const callerRelationshipHost = contentStart.querySelector('[data-workbench-caller-relationship]');
     let callerRelationshipSelect = null;
@@ -4632,6 +4673,8 @@ async function mountWorkbenchNavbar(overlay, payload, stateOverride, close) {
     return {
         destroy() {
             clearCallerSaveTimer();
+            callbackButton?.removeEventListener('click', handleCallback);
+            callbackModal?.destroy();
             callerNameInput?.removeEventListener('input', handleCallerNameInput);
             if (callerRelationshipHost) {
                 callerRelationshipHost.__operatorCallerRelationshipSelect = null;
