@@ -51,7 +51,7 @@ export function createOperatorMediaQueueStorage() {
         ownershipPromise = new Promise((resolve, reject) => {
             if (!globalThis.navigator?.locks) { reject(new Error('Recording queue ownership is unavailable in this browser.')); return; }
             void navigator.locks.request('hotline-operator-media-queue-owner-v1', {ifAvailable:true}, async lock => {
-                if (!lock) { const error = new Error('Another Hotline tab owns recording storage. Use that tab; do not restart an active call.'); error.recordingStorageStage='queue-ownership'; reject(error); return; }
+                if (!lock) { const error = new Error('Recording queue ownership could not be acquired. The owning runtime has not been identified. Keep this page and any active call open.'); error.recordingStorageStage='queue-ownership'; reject(error); return; }
                 ownsQueue = true;
                 localOwners.add(ownerToken);
                 const lifetime = new Promise(release => { releaseLock = release; });
