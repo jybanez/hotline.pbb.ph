@@ -93,7 +93,7 @@ if ($worker) {
         $result = app(CallRoutingService::class)->answerNewAttempt($operator, $route);
         echo json_encode(['status' => 'answered', 'incident' => $result['incident']->id]);
     } catch (RuntimeException $error) {
-        if ($error->getMessage() !== 'This call attempt is no longer answerable.') {
+        if (!in_array($error->getMessage(), ['This call attempt is no longer answerable.', 'A participant already has an active or pending call.'], true)) {
             throw $error;
         }
         echo json_encode(['status' => 'conflict']);
@@ -135,17 +135,21 @@ try {
         (require dirname(__DIR__, 2).'/database/migrations/'.$migration)->up();
     }
     echo 'Database engine: '.$admin->query('SELECT VERSION()')->fetchColumn().PHP_EOL;
-    foreach ([false, true] as $differentOperators) {
+    foreach ([false, true, 'separate'] as $differentOperators) {
         $caller = User::factory()->create(['role' => UserRole::Citizen]);
         $operator = User::factory()->create(['role' => UserRole::Operator]);
         $attempt = CallAttempt::query()->create(['citizen_id' => $caller->id, 'status' => CallStatus::Calling, 'started_at' => now()]);
         $route = $attempt->operatorAttempts()->create(['operator_id' => $operator->id, 'status' => CallStatus::Calling, 'started_at' => now(), 'created_at' => now()]);
-        $other = $differentOperators ? User::factory()->create(['role' => UserRole::Operator]) : $operator;
-        $otherRoute = $differentOperators ? $attempt->operatorAttempts()->create(['operator_id' => $other->id, 'status' => CallStatus::Calling, 'started_at' => now(), 'created_at' => now()]) : $route;
+        $other = $differentOperators === true ? User::factory()->create(['role' => UserRole::Operator]) : $operator;
+        $otherRoute = $differentOperators === true ? $attempt->operatorAttempts()->create(['operator_id' => $other->id, 'status' => CallStatus::Calling, 'started_at' => now(), 'created_at' => now()]) : $route;
+        if ($differentOperators === 'separate') {
+            $otherAttempt = CallAttempt::create(['citizen_id'=>$caller->id,'status'=>CallStatus::Calling,'started_at'=>now()]);
+            $otherRoute = $otherAttempt->operatorAttempts()->create(['operator_id'=>$operator->id,'status'=>CallStatus::Calling,'started_at'=>now(),'created_at'=>now()]);
+        }
         $beforeIncidents = Incident::query()->count();
         $beforeSessions = CallSession::query()->count();
         DB::beginTransaction();
-        CallAttempt::query()->whereKey($attempt->id)->lockForUpdate()->firstOrFail();
+        User::query()->whereKey($caller->id)->lockForUpdate()->firstOrFail();
         $processes = [];
         $markers = [];
         foreach ([[$operator, $route], [$other, $otherRoute]] as [$user, $context]) {
@@ -161,10 +165,10 @@ try {
             $check(microtime(true) < $deadline, 'Workers failed to preload their answer contexts.');
             usleep(10000);
         }
-        // Both workers enter answer transactions while the parent row remains locked.
+        // Both workers enter answer transactions while the shared participant remains locked.
         usleep(200000);
         foreach ($processes as [$process]) {
-            $check(proc_get_status($process)['running'], 'Worker must still be waiting on the parent lock.');
+            $check(proc_get_status($process)['running'], 'Worker must still be waiting on the shared participant lock.');
         }
         DB::commit();
         $results = [];
@@ -187,10 +191,10 @@ try {
         $check($statuses === ['answered', 'conflict'], 'Exactly one answer and one conflict required.');
         $check(Incident::query()->count() === $beforeIncidents + 1 && CallSession::query()->count() === $beforeSessions + 1, 'Duplicate incident/session created.');
         $session = CallSession::query()->where('citizen_id', $caller->id)->sole();
-        $winner = $attempt->fresh()->answered_by_operator_id;
+        $winner = $differentOperators === 'separate' ? $operator->id : $attempt->fresh()->answered_by_operator_id;
         $participants = CallParticipant::query()->where('call_session_id', $session->id)->get();
         $check($participants->count() === 2 && $participants->contains(fn ($p) => $p->user_id === $caller->id && $p->participant_role === 'citizen') && $participants->contains(fn ($p) => $p->user_id === $winner && $p->participant_role === 'operator'), 'Incorrect participants.');
-        echo 'PASS concurrent answers ('.($differentOperators ? 'different operator routes' : 'same route').'): one incident/session, correct participants, safe conflict.'.PHP_EOL;
+        echo 'PASS concurrent answers ('.($differentOperators === 'separate' ? 'different attempts, same citizen/operator' : ($differentOperators ? 'different operator routes' : 'same route')).'): one incident/session, correct participants, safe conflict.'.PHP_EOL;
     }
     foreach ([['create','create'], ['answer','answer'], ['answer','cancel'], ['create','directed'], ['create','new'], ['create','reconnect'], ['answer','status'], ['answer','route-answer']] as $modes) {
         $citizen = User::factory()->create(['role'=>UserRole::Citizen]);

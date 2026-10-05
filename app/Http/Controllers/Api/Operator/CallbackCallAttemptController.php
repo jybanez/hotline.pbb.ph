@@ -20,8 +20,10 @@ class CallbackCallAttemptController extends Controller
     public function store(Request $request, Incident $incident)
     {
         $attempt = DB::transaction(function () use ($request, $incident) {
-            $this->reservations->lock((int) $request->user()->id, (int) $incident->citizen_id);
+            $citizenId = (int) $incident->citizen_id;
+            $this->reservations->lock((int) $request->user()->id, $citizenId);
             $incident = Incident::query()->lockForUpdate()->findOrFail($incident->id);
+            abort_unless((int) $incident->citizen_id === $citizenId, 409, 'Incident recipient changed. Reload the incident.');
             abort_unless((int) $incident->operator_id === (int) $request->user()->id, 403);
             abort_unless(in_array($incident->status, [IncidentStatus::Active, IncidentStatus::Deferred], true), 409, 'This incident is no longer open.');
             $citizen = $incident->citizen;
