@@ -7,7 +7,7 @@ export function createOperatorMediaManagers(services = {}) {
     let consumerManager;
     let producerManager;
     const storage = Object.fromEntries(Object.entries(queue).map(([name, operation]) => [name,
-        typeof operation !== 'function' ? operation : async (...args) => {
+        typeof operation !== 'function' || ['markFailure', 'releaseOwnership'].includes(name) ? operation : async (...args) => {
             try {
                 if (consumerManager?.lastError) throw consumerManager.lastError;
                 return await operation.apply(queue, args);
@@ -49,7 +49,9 @@ export function createOperatorMediaManagers(services = {}) {
                 await consumerManager.initializing;
                 await consumerManager.scanPromise;
                 await producerManager.close();
+                const generation = consumerManager.failureGeneration;
                 const health = await queue.verifyHealth();
+                if (generation !== consumerManager.failureGeneration) throw new Error('A newer recording storage failure occurred during verification.');
                 // Previous media may have an uncertain write/upload outcome. Never
                 // resume those records or stopped recording clones automatically.
                 health.records.forEach(record => consumerManager.pausedMediaIds.add(Number(record.media_id)));
@@ -71,6 +73,7 @@ export function createOperatorMediaManagers(services = {}) {
         },
         stop() {
             consumerManager.stop();
+            // Retain page ownership while paused; browser teardown releases the Web Lock.
         },
         setConsumerEnabled(enabled) {
             consumerManager.setEnabled(enabled);

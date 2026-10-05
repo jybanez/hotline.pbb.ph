@@ -57,6 +57,13 @@ try {
    await queue.verifyHealth(); // Repeated explicit verification remains safe.
   }
  }
+ // A new real failure between health completion and consumer admission must survive.
+ const late=createOperatorMediaManagers({enabled:false,storage:{...queue,async verifyHealth(){const health=await queue.verifyHealth();late.consumerManager.reportFailure(new DOMException('New failure during recovery','InternalError'),'newer-failure');return health}}});
+ await late.start();late.consumerManager.reportFailure(new DOMException('Initial recoverable failure','InternalError'));
+ let lateError;try{await late.recoverStorage()}catch(error){lateError=error}
+ assert(lateError&&!late.getStatus().consumer.storageAvailable,'New failure cannot be cleared by old verification');
+ assert(localStorage.getItem('hotline-operator-media-recovery-v1')!==null,'Newer real failure remains durably marked');
+ late.stop();
  document.querySelector('#results').dataset.status='pass';document.querySelector('#results').textContent='PASS committed native IndexedDB health, saved queue preservation, durable holds, new capture and persistent failure';
 }catch(error){document.querySelector('#results').dataset.status='fail';document.querySelector('#results').textContent=error.stack}
 </script></body></html>

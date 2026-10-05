@@ -1,0 +1,27 @@
+<!doctype html><html><body><pre id="results">Running</pre><script type="module">
+import {createUiLoader,DEFAULT_COMPONENT_REGISTRY} from '../../public/vendor/helpers.pbb.ph/js/ui/ui.loader.js';
+const assert=(ok,message)=>{if(!ok)throw Error(message)};
+const until=async predicate=>{for(let i=0;i<200;i++){if(predicate())return;await new Promise(r=>setTimeout(r,10))}throw Error('State timeout')};
+try{
+ const loader=createUiLoader(DEFAULT_COMPONENT_REGISTRY,{preferBundles:location.search.includes('bundle')});const uiAlert=await loader.get('ui.dialog.alert');
+ const source=await(await fetch('../../resources/js/surfaces/operatorSurface.js')).text();const runtimeSource=source.slice(source.indexOf('function operatorMediaManagersRuntime()'),source.indexOf('\nfunction handleOperatorCaptureFailure('));
+ for(const scenario of ['abort','replacement','newer','success','late-error']){
+  let hook,resolve,reject,toasts=0;
+  const pending=new Promise((res,rej)=>{resolve=res;reject=rej});
+  const manager={consumerManager:{failureGeneration:1},setHooks(value){hook=value},recoverStorage(){return pending}};
+  const state={runtime:{},helper:{uiAlert}};
+  const runtime=new Function('appState','createOperatorMediaTransportAdapter','createOperatorMediaManagers','debugMediaCapture','ensureHelperUi','showToast',runtimeSource+'; return operatorMediaManagersRuntime;')(state,()=>({}),()=>manager,()=>{},async()=>{},()=>{toasts++});
+  runtime();hook.onError();await until(()=>document.querySelector('.ui-modal-footer button'));
+  document.querySelector('.ui-modal-footer button').click();await until(()=>document.querySelector('.ui-modal[aria-busy="true"]'));
+  if(scenario==='abort'||scenario==='late-error')state.runtime.operatorMediaStorageAlertOwner.abort();
+  if(scenario==='replacement')state.runtime.operatorMediaManagers={};
+  if(scenario==='newer')manager.consumerManager.failureGeneration++;
+  if(scenario==='late-error')reject(Error('Late failure'));else resolve({pausedMediaCount:2});
+  await new Promise(r=>setTimeout(r,80));
+  assert(toasts===(scenario==='success'?1:0),'Only current successful operation can toast '+scenario);
+  if(scenario==='newer')assert(state.runtime.operatorMediaStorageFailureNotified,'Newer failure notification retained');
+  state.runtime.operatorMediaStorageAlertOwner?.abort();await until(()=>!document.querySelector('.ui-modal'));
+ }
+ document.querySelector('#results').dataset.status='pass';document.querySelector('#results').textContent='PASS app lifecycle source/bundle ownership, abort, replacement, newer generation and late errors';
+}catch(error){document.querySelector('#results').dataset.status='fail';document.querySelector('#results').textContent=error.stack}
+</script></body></html>

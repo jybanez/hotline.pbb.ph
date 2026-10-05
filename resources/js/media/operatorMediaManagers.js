@@ -81,6 +81,7 @@ export class ConsumerManager {
 
         this.pausedMediaIds = new Set();
         this.lastError = null;
+        this.failureGeneration = 0;
         this.onError = null;
         // Retain failure state without leaving an eager rejected promise unobserved.
         this.initializing = this.initialize().catch((error) => this.reportFailure(error));
@@ -106,6 +107,11 @@ export class ConsumerManager {
 
     reportFailure(error, stage = 'queue-initialization') {
         const firstFailure = !this.lastError;
+        if (error !== this.lastError) {
+            this.failureGeneration++;
+            try { this.markerPersisted = this.storage.markFailure?.() ?? false; }
+            catch (markerError) { this.markerPersisted = false; this.markerError = String(markerError.message ?? markerError); }
+        }
         this.lastError = this.lastError ?? error;
         if (firstFailure) this.failureStage = stage;
         this.stop();
@@ -119,7 +125,7 @@ export class ConsumerManager {
         }
 
         try {
-            await this.storage.fenceRetainedRecords?.();
+            await this.storage.prepareStartup?.();
             await this.storage.closeOpenRecords?.();
             this.initialized = true;
         } catch (error) {
@@ -293,6 +299,9 @@ export class ConsumerManager {
     getStatus() {
         return {
             storageAvailable: this.initialized && !this.lastError,
+            failureGeneration: this.failureGeneration,
+            markerPersisted: Boolean(this.markerPersisted),
+            markerError: this.markerError ?? "",
             failureStage: this.failureStage ?? '',
             errorName: this.lastError?.name ?? '',
             pausedMediaCount: this.pausedMediaIds.size,

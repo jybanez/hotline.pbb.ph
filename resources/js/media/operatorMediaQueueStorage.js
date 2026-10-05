@@ -34,6 +34,42 @@ function createMediaQueueDb() {
 
 export function createOperatorMediaQueueStorage() {
     const db = createMediaQueueDb();
+    const markerKey = 'hotline-operator-media-recovery-v1';
+    let ownsQueue = false, ownershipPromise, releaseLock;
+    const readMarker = () => {
+        const raw = localStorage.getItem(markerKey);
+        if (raw === null) return null;
+        const marker = JSON.parse(raw);
+        if (marker?.version !== 1 || typeof marker.generation !== 'string' || !marker.generation) throw new Error('Recording recovery metadata is malformed. Keep this page open and contact support.');
+        return marker;
+    };
+    const ensureOwnership = () => {
+        if (ownsQueue) return Promise.resolve();
+        if (ownershipPromise) return ownershipPromise;
+        ownershipPromise = new Promise((resolve, reject) => {
+            if (!globalThis.navigator?.locks) { reject(new Error('Recording queue ownership is unavailable in this browser.')); return; }
+            void navigator.locks.request('hotline-operator-media-queue-owner-v1', {ifAvailable:true}, async lock => {
+                if (!lock) { const error = new Error('Another Hotline tab owns recording storage. Use that tab; do not restart an active call.'); error.recordingStorageStage='queue-ownership'; reject(error); return; }
+                ownsQueue = true;
+                const lifetime = new Promise(release => { releaseLock = release; });
+                resolve();
+                await lifetime;
+                ownsQueue = false;
+                ownershipPromise = null;
+            }).catch(reject);
+        }).catch(error => { ownershipPromise = null; throw error; });
+        return ownershipPromise;
+    };
+    const markFailure = () => {
+        // Only the exclusive owner may create/retire safety metadata. It is never media storage.
+        if (!ownsQueue) return false;
+        readMarker(); // Never overwrite malformed or unreadable safety state.
+        const marker = {version:1, generation:crypto.randomUUID()};
+        const raw = JSON.stringify(marker);
+        localStorage.setItem(markerKey, raw);
+        if (localStorage.getItem(markerKey) !== raw) throw new Error('Recording recovery marker could not be verified. Keep this page open; cross-reload safety is unverified.');
+        return true;
+    };
 
     const putRecord = (record) => db.put(OPERATOR_MEDIA_RECORDS_STORE, record);
 
@@ -44,7 +80,7 @@ export function createOperatorMediaQueueStorage() {
         return chunks.sort((left, right) => Number(left?.chunk_index ?? 0) - Number(right?.chunk_index ?? 0));
     };
 
-    // A fresh manager fences every retained record before exposing any consumer.
+    // Only an actual marked failure/retry fences retained records.
     // Put all holds in one transaction: a partial hold write cannot commit.
     const fenceRetainedRecords = async () => {
         const records = await listRecords();
@@ -60,7 +96,17 @@ export function createOperatorMediaQueueStorage() {
 
     return {
         putRecord,
-        fenceRetainedRecords,
+        markFailure,
+        async prepareStartup() {
+            await ensureOwnership();
+            if (readMarker()) {
+                await fenceRetainedRecords();
+                const error = new Error('A previous recording storage failure requires explicit verification. Saved media remains paused.');
+                error.recordingStorageStage = 'recovery-required';
+                throw error;
+            }
+        },
+        releaseOwnership() { releaseLock?.(); releaseLock = null; },
         async getRecord(mediaId) {
             return (await db.get(OPERATOR_MEDIA_RECORDS_STORE, Number(mediaId))) ?? null;
         },
@@ -121,6 +167,11 @@ export function createOperatorMediaQueueStorage() {
         async verifyHealth() {
             let stage = "open-original-queue";
             try {
+            await ensureOwnership();
+            stage = 'read-recovery-marker';
+            if (!readMarker()) markFailure();
+            const marker = readMarker();
+            stage = 'open-original-queue';
             db.close();
             await db.open({ requireExisting: true });
             stage = "fence-retained-records";
@@ -156,6 +207,10 @@ export function createOperatorMediaQueueStorage() {
                 throw new Error('The saved recording queue changed during verification. Keep uploads paused for review.');
             }
             const pendingRecords = afterRecords.filter(record => Number(record.media_id) > 0);
+            stage = 'retire-recovery-marker';
+            if (readMarker()?.generation !== marker.generation) throw new Error('A newer recording failure requires another verification.');
+            localStorage.removeItem(markerKey);
+            if (localStorage.getItem(markerKey) !== null) throw new Error('Recording recovery marker remains active.');
             return { records: pendingRecords };
             } catch (error) {
                 error.recordingStorageStage = stage;
