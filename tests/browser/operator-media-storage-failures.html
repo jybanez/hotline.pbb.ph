@@ -42,12 +42,15 @@ try {
     void runtime.scanConsumers(); runtime.setConsumerEnabled(false); runtime.setConsumerEnabled(true);
     await new Promise(resolve => setTimeout(resolve, 50));
     assert(alerts === 1 && document.querySelectorAll('.ui-modal').length === 1, 'No duplicate alert');
-    [...alert.querySelectorAll('button')].find(button => button.textContent.trim() === 'OK').click();
+    [...alert.querySelectorAll('button')].find(button => button.textContent.trim() === 'Retry storage').click();
+    await until(() => !alert.querySelector('.ui-dialog-error')?.hidden && alert.querySelector('.ui-dialog-error')?.textContent.includes('Storage remains unavailable'));
+    assert(!runtime.getStatus().consumer.storageAvailable, 'Persistent failure remains unavailable');
+    alert.querySelector('.ui-modal-close').click();
     await alertSettlement;
     await until(() => !alert.isConnected);
     assert(!alert.isConnected, 'Canonical acknowledgement unmount');
     assert(!runtime.getStatus().consumer.storageAvailable, 'Acknowledging does not enable recording');
-    assert(opens === 1 && deletions === 0 && unhandled.length === 0, 'No replay, database deletion or unhandled rejection');
+    assert(opens === 2 && deletions === 0 && unhandled.length === 0, 'Only the explicit health check reopens storage; no deletion or unhandled rejection');
     document.querySelector('#results').dataset.status = 'pass';
     document.querySelector('#results').textContent = 'PASS actual app storage alert, canonical Helper lifecycle and IndexedDB failure';
 } catch (error) {

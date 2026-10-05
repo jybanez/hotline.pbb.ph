@@ -2512,10 +2512,46 @@ function operatorMediaManagersRuntime() {
             onError: () => {
                 if (appState.runtime.operatorMediaStorageFailureNotified) return;
                 appState.runtime.operatorMediaStorageFailureNotified = true;
-                void ensureHelperUi().then(() => appState.helper.uiAlert(
+                const manager = appState.runtime.operatorMediaManagers;
+                const owner = new AbortController();
+                const path = window.location.pathname;
+                appState.runtime.operatorMediaStorageAlertOwner?.abort();
+                appState.runtime.operatorMediaStorageAlertOwner = owner;
+                void ensureHelperUi().then(() => {
+                    if (owner.signal.aborted || appState.runtime.operatorMediaManagers !== manager || window.location.pathname !== path) return;
+                    return appState.helper.uiAlert(
                     'Local recording storage is unavailable. Recording and queued uploads are paused. Previously saved media remains in the queue; new call media cannot be reliably saved. Keep this page open and contact support. Do not clear site data.',
-                    { title: 'Recording storage unavailable', variant: 'error', okText: 'OK', onAcknowledge: () => true },
-                )).catch((error) => {
+                    {
+                        signal: owner.signal,
+                        onClose: () => {
+                            if (appState.runtime.operatorMediaStorageAlertOwner === owner) {
+                                appState.runtime.operatorMediaStorageAlertOwner = null;
+                                appState.runtime.operatorMediaStorageFailureNotified = false;
+                            }
+                        },
+                        title: 'Recording storage unavailable', variant: 'error', okText: 'Retry storage',
+                        showCloseButton: true, okBusyMessage: 'Checking durable recording storage...',
+                        onAcknowledge: async (_value, lifecycle) => {
+                            const generation = manager.consumerManager.failureGeneration;
+                            const ownsContext = () => lifecycle.isActive() && !owner.signal.aborted
+                                && appState.runtime.operatorMediaStorageAlertOwner === owner
+                                && appState.runtime.operatorMediaManagers === manager && window.location.pathname === path;
+                            try {
+                                const result = await manager.recoverStorage();
+                                if (!ownsContext()) return false;
+                                if (manager.consumerManager.failureGeneration !== generation) throw new Error('A newer storage failure occurred. Verify again.');
+                                appState.runtime.operatorMediaStorageFailureNotified = false;
+                                showToast(`Recording storage check passed. New recordings are available; ${result.pausedMediaCount} previous media items remain paused for review.`, 'success');
+                                return true;
+                            } catch (error) {
+                                if (!ownsContext()) return false;
+                                throw new Error(`Storage remains unavailable during ${error?.recordingStorageStage ?? 'durable verification'} (${error?.name ?? 'Error'}: ${error?.message ?? 'verification failed'}). Keep this page open and contact support; do not clear site data.`);
+                            }
+                        },
+                    },
+                );
+                }).catch((error) => {
+                    if (owner.signal.aborted || appState.runtime.operatorMediaManagers !== manager) return;
                     console.warn('Unable to show recording storage alert.', error);
                     showToast('Recording storage unavailable. Recording and queued uploads are paused.', 'warn');
                 });
@@ -9506,6 +9542,7 @@ function mountOperatorAssignmentBoard(root, dashboard) {
 
 
 export async function renderOperatorSurface(root, bootstrap) {
+    appState.runtime.operatorMediaStorageAlertOwner?.abort();
     clearOperatorIncidentElapsedTimers();
     ensureOperatorBrowserOnlineRefreshListener();
     const primerReport = evaluateDevicePrimer('operator');

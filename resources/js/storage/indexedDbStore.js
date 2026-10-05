@@ -1,4 +1,4 @@
-export function createIndexedDbStore({ name, version, upgrade, unavailableMessage, blockedMessage, openErrorMessage } = {}) {
+export function createIndexedDbStore({ name, version, upgrade, unavailableMessage, blockedMessage, openErrorMessage, operationTimeoutMs = 15000 } = {}) {
     const runtime = {
         openPromise: null,
         db: null,
@@ -16,85 +16,92 @@ export function createIndexedDbStore({ name, version, upgrade, unavailableMessag
         request.addEventListener('error', () => reject(request.error ?? new Error(fallbackMessage)));
     });
 
-    const open = () => {
-        if (runtime.db) {
-            return Promise.resolve(runtime.db);
-        }
-
-        if (runtime.openPromise) {
-            return runtime.openPromise;
-        }
-
-        runtime.openPromise = new Promise((resolve, reject) => {
+    const open = ({ requireExisting = false } = {}) => {
+        if (runtime.db) return Promise.resolve(runtime.db);
+        if (runtime.openPromise) return runtime.openPromise;
+        let abandoned = false;
+        let pending;
+        let timeout;
+        pending = new Promise((resolve, reject) => {
             if (typeof indexedDB === 'undefined') {
                 reject(new Error(unavailableMessage ?? 'IndexedDB is unavailable.'));
                 return;
             }
-
+            // Synchronous open errors reject this promise too; the shared catch below
+            // clears its handle only when this attempt still owns it.
+            timeout = setTimeout(() => { abandoned = true; reject(new DOMException(`Timed out opening ${name}.`, 'TimeoutError')); }, operationTimeoutMs);
             const request = indexedDB.open(name, version);
-
+            const fail = (error) => { clearTimeout(timeout); abandoned = true; reject(error); };
             request.addEventListener('upgradeneeded', (event) => {
-                upgrade?.(request.result, event);
+                if (abandoned || (requireExisting && event.oldVersion === 0)) {
+                    request.transaction.abort();
+                    fail(new Error('Original recording queue is missing. Recovery cannot replace it.'));
+                    return;
+                }
+                try { upgrade?.(request.result, event); }
+                catch (error) { request.transaction.abort(); fail(error); }
             });
-
             request.addEventListener('success', () => {
+                clearTimeout(timeout);
                 const db = request.result;
-                db.addEventListener('close', () => {
-                    console.warn(`${name} database connection closed.`);
-                    resetHandle(db);
-                });
-                db.addEventListener('versionchange', () => {
-                    console.warn(`${name} database version changed; refreshing handle.`);
-                    resetHandle(db);
-                    db.close();
-                });
+                if (abandoned) { db.close(); return; }
+                db.addEventListener('close', () => resetHandle(db));
+                db.addEventListener('versionchange', () => { resetHandle(db); db.close(); });
                 runtime.db = db;
-                runtime.openPromise = null;
+                if (runtime.openPromise === pending) runtime.openPromise = null;
                 resolve(db);
             });
-            request.addEventListener('error', () => {
-                resetHandle();
-                reject(request.error ?? new Error(openErrorMessage ?? `Unable to open ${name} database.`));
-            });
-            request.addEventListener('blocked', () => {
-                resetHandle();
-                reject(new Error(blockedMessage ?? `${name} database open is blocked.`));
-            });
+            request.addEventListener('error', () => fail(request.error ?? new Error(openErrorMessage ?? `Unable to open ${name} database.`)));
+            request.addEventListener('blocked', () => fail(new Error(blockedMessage ?? `${name} database open is blocked.`)));
         });
-
-        return runtime.openPromise;
+        runtime.openPromise = pending;
+        // Keep rejection observable to callers without permanently caching it.
+        void pending.catch(() => { clearTimeout(timeout); if (runtime.openPromise === pending) runtime.openPromise = null; });
+        return pending;
     };
 
     const transaction = async (storeName, mode, action, attempt = 0) => {
         const db = await open();
 
+        let actionStarted = false;
         try {
             return await new Promise((resolve, reject) => {
                 const tx = db.transaction(storeName, mode);
                 const store = tx.objectStore(storeName);
                 let settled = false;
+                let resultValue;
+                const timeout = setTimeout(() => {
+                    try { tx.abort(); } catch (_error) {}
+                    finishReject(new DOMException(`Timed out committing ${name} ${storeName}.`, 'TimeoutError'));
+                }, operationTimeoutMs);
 
-                const finishResolve = (value) => {
-                    if (!settled) {
-                        settled = true;
-                        resolve(value);
-                    }
-                };
+                const finishResolve = (value) => { resultValue = value; };
 
                 const finishReject = (error) => {
                     if (!settled) {
+                        clearTimeout(timeout);
                         settled = true;
                         reject(error);
                     }
                 };
 
-                tx.addEventListener('complete', () => finishResolve(undefined));
+                tx.addEventListener('complete', () => {
+                    if (!settled) { clearTimeout(timeout); settled = true; resolve(resultValue); }
+                });
                 tx.addEventListener('abort', () => finishReject(tx.error ?? new Error(`${name} transaction aborted for ${storeName}.`)));
                 tx.addEventListener('error', () => finishReject(tx.error ?? new Error(`${name} transaction failed for ${storeName}.`)));
 
                 Promise.resolve()
-                    .then(() => action(store, tx, finishResolve))
-                    .catch(finishReject);
+                    .then(() => {
+                        if (settled) return;
+                        actionStarted = true;
+                        return action(store, tx, finishResolve);
+                    })
+                    .catch(error => {
+                        // An action failure must abort all earlier writes in this transaction.
+                        try { tx.abort(); } catch (_error) {}
+                        finishReject(error);
+                    });
             });
         } catch (error) {
             const message = String(error?.message ?? error);
@@ -102,7 +109,7 @@ export function createIndexedDbStore({ name, version, upgrade, unavailableMessag
                 || message.includes('connection is closing')
                 || message.includes('database connection is closing');
 
-            if (!recoverable || attempt >= 1) {
+            if (!recoverable || attempt >= 1 || (mode === 'readwrite' && actionStarted)) {
                 throw error;
             }
 

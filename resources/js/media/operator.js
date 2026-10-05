@@ -7,14 +7,14 @@ export function createOperatorMediaManagers(services = {}) {
     let consumerManager;
     let producerManager;
     const storage = Object.fromEntries(Object.entries(queue).map(([name, operation]) => [name,
-        typeof operation !== 'function' ? operation : async (...args) => {
+        typeof operation !== 'function' || ['markFailure', 'releaseOwnership'].includes(name) ? operation : async (...args) => {
             try {
                 if (consumerManager?.lastError) throw consumerManager.lastError;
                 return await operation.apply(queue, args);
             } catch (error) {
                 if (error && typeof error === 'object') storageErrors.add(error);
                 producerManager?.getProducers().forEach((producer) => producer.pauseForStorageFailure());
-                consumerManager?.reportFailure(error);
+                consumerManager?.reportFailure(error, name);
                 throw error;
             }
         },
@@ -43,11 +43,37 @@ export function createOperatorMediaManagers(services = {}) {
             producerManager.setHooks(hooks);
             consumerManager.setHooks(hooks);
         },
+        async recoverStorage() {
+            if (this.recoveryPromise) return this.recoveryPromise;
+            this.recoveryPromise = (async () => {
+                await consumerManager.initializing;
+                await consumerManager.scanPromise;
+                await producerManager.close();
+                const generation = consumerManager.failureGeneration;
+                const health = await queue.verifyHealth();
+                if (generation !== consumerManager.failureGeneration) throw new Error('A newer recording storage failure occurred during verification.');
+                // Previous media may have an uncertain write/upload outcome. Never
+                // resume those records or stopped recording clones automatically.
+                health.records.forEach(record => consumerManager.pausedMediaIds.add(Number(record.media_id)));
+                consumerManager.lastError = null;
+                consumerManager.failureStage = '';
+                consumerManager.initialized = true;
+                await consumerManager.start();
+                await consumerManager.scanPromise;
+                await consumerManager.ensureReady();
+                return { pausedMediaCount: consumerManager.pausedMediaIds.size };
+            })().catch(error => {
+                consumerManager.reportFailure(error, error.recordingStorageStage ?? 'durable-health-verification');
+                throw error;
+            }).finally(() => { this.recoveryPromise = null; });
+            return this.recoveryPromise;
+        },
         start() {
             return consumerManager.start();
         },
         stop() {
             consumerManager.stop();
+            // Retain page ownership while paused; browser teardown releases the Web Lock.
         },
         setConsumerEnabled(enabled) {
             consumerManager.setEnabled(enabled);

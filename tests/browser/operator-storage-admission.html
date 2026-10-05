@@ -1,0 +1,44 @@
+<!doctype html><html><body><script type="module">
+import {createOperatorMediaManagers} from '../../resources/js/media/operator.js';
+import {createOperatorMediaQueueStorage} from '../../resources/js/media/operatorMediaQueueStorage.js';
+const assert=(ok,message)=>{if(!ok)throw Error(message)};
+const key='hotline-operator-media-recovery-v1';
+window.run=async scenario=>{
+ const queue=createOperatorMediaQueueStorage();let finalized=0;
+ await queue.putRecord({media_id:41,status:'closed',sentinel:'original'});
+ await queue.putChunk({media_id:41,chunk_index:0,chunk_blob:new Blob(['original bytes'])});
+ if(scenario==='malformed')localStorage.setItem(key,'bad-json');
+ let originalGet;
+ if(scenario==='unreadable'){originalGet=Storage.prototype.getItem;Storage.prototype.getItem=function(k){if(k===key)throw new DOMException('Denied','SecurityError');return originalGet.call(this,k)}}
+ const manager=createOperatorMediaManagers({storage:queue,enabled:true,finalizeRecord:async()=>{finalized++;return{};}});
+ await manager.start();await manager.scanConsumers();
+ if(originalGet)Storage.prototype.getItem=originalGet;
+ if(['malformed','unreadable'].includes(scenario)){
+  assert(!manager.getStatus().consumer.storageAvailable&&finalized===0,'Metadata must fail closed');
+  assert(await(await queue.listChunks(41))[0].payload.chunk_blob.text()==='original bytes','Bytes preserved');
+ }else assert(finalized===1&&!(await queue.getRecord(41)),'Healthy retained queue drains normally');
+ manager.stop();window.queue=queue;window.manager=manager;
+ return 'pass';
+};
+window.acquire=async()=>{
+ const queue=createOperatorMediaQueueStorage();const manager=createOperatorMediaManagers({storage:queue,enabled:false});
+ await manager.start();window.queue=queue;window.manager=manager;return manager.getStatus().consumer;
+};
+window.markerFault=async scenario=>{
+ await window.acquire();const queue=window.queue;const key='hotline-operator-media-recovery-v1';
+ let original;
+ if(scenario==='unavailable'){original=Storage.prototype.setItem;Storage.prototype.setItem=function(){throw new DOMException('Denied','SecurityError')}}
+ if(scenario==='readback'){original=Storage.prototype.getItem;let reads=0;Storage.prototype.getItem=function(k){const result=original.call(this,k);return k===key&&++reads===2?'different':result}}
+ let error;try{queue.markFailure()}catch(e){error=e}finally{if(original)Storage.prototype[scenario==='unavailable'?'setItem':'getItem']=original}
+ assert(error,'Marker fault reported');return 'pass';
+};
+window.newerFailure=async()=>{
+ await window.acquire();const queue=window.queue;await queue.putRecord({media_id:42,status:'closed'});queue.markFailure();
+ const original=IDBObjectStore.prototype.delete;let injected=false;
+ IDBObjectStore.prototype.delete=function(...args){if(!injected){injected=true;queue.markFailure()}return original.apply(this,args)};
+ let error;try{await queue.verifyHealth()}catch(e){error=e}finally{IDBObjectStore.prototype.delete=original}
+ assert(error?.recordingStorageStage==='retire-recovery-marker','New generation preserved');
+ assert(localStorage.getItem(key)!==null,'New failure marker not cleared');return 'pass';
+};
+window.ready=true;
+</script></body></html>

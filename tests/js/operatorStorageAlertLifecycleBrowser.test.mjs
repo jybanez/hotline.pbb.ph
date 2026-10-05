@@ -5,10 +5,10 @@ const browser=await chromium.launch({channel:'chrome',headless:true,timeout:2000
 try{
  for(const suffix of ['', '?bundle']){
   const page=await browser.newPage();
-  await page.goto(server.origin+'/tests/browser/operator-media-storage-failures.html'+suffix);
+  await page.goto(server.origin+'/tests/browser/operator-storage-alert-lifecycle.html'+suffix);
   await page.locator('#results[data-status]').waitFor({timeout:20000});
   if(await page.locator('#results').getAttribute('data-status')!=='pass')throw new Error(await page.locator('#results').textContent());
-  console.log(`Media storage recovery canonical alert regression passed (${suffix?'bundle':'source'}).`);
+  console.log(`App storage alert lifecycle passed (${suffix?'bundle':'source'}).`);
   await page.close();
  }
 }finally{await browser.close();await server.close()}

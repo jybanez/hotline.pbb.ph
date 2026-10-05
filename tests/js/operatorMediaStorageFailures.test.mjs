@@ -3,6 +3,10 @@ import { createOperatorMediaManagers } from '../../resources/js/media/operator.j
 import { ConsumerManager } from '../../resources/js/media/operatorMediaManagers.js';
 import { readFile } from 'node:fs/promises';
 
+// Browser safety metadata/ownership stand-ins; queue database faults remain injected.
+const metadata = new Map();
+globalThis.localStorage = {getItem:key=>metadata.get(key)??null,setItem:(key,value)=>metadata.set(key,value),removeItem:key=>metadata.delete(key)};
+Object.defineProperty(globalThis, 'navigator', {configurable:true,value:{locks:{request:async (_name,_options,callback)=>callback({})}}});
 const unhandled = [];
 process.on('unhandledRejection', (error) => unhandled.push(error));
 const settle = () => new Promise((resolve) => setImmediate(resolve));
@@ -12,6 +16,7 @@ globalThis.window = {
     setInterval(callback) { timers.set(++timerId, callback); return timerId; },
     clearInterval(id) { timers.delete(id); },
     setTimeout,
+    location: {pathname:"/operator"},
 };
 const internalError = () => new DOMException('Internal error opening backing store', 'InternalError');
 let opens = 0;
