@@ -1,0 +1,43 @@
+<!doctype html><html><body class="ui-actions-borderless"><pre id="results">Running</pre><script type="module">
+import { createOperatorMediaManagers } from '../../resources/js/media/operator.js';
+import { createOperatorMediaQueueStorage } from '../../resources/js/media/operatorMediaQueueStorage.js';
+const assert = (ok, message) => {if (!ok) throw new Error(message)};
+try {
+ const queue = createOperatorMediaQueueStorage();
+ const record = {media_id: 12, status:'open', sentinel:'original'};
+ document.querySelector('#results').textContent='Seeding original queue';
+ await queue.putRecord(record);
+ await queue.putChunk({media_id:12,chunk_index:0,chunk_blob:new Blob(['saved recording'])});
+ let unavailable = true, finalized = 0, uploaded = 0;
+ const managers = createOperatorMediaManagers({enabled:true, storage:{...queue,async closeOpenRecords(){if(unavailable)throw new DOMException('Temporary initialization failure','InternalError');return queue.closeOpenRecords()}},
+   publishBootstrapChunk:async()=>{uploaded++},publishChunk:async()=>{uploaded++},finalizeRecord:async()=>{finalized++}});
+ await managers.start();
+ assert(!managers.getStatus().consumer.storageAvailable,'Initial failure visible');
+ unavailable = false;
+ document.querySelector('#results').textContent='Checking committed health and queue holds';
+ const [result, concurrent] = await Promise.all([managers.recoverStorage(),managers.recoverStorage()]);
+ assert(result.pausedMediaCount === 1 && concurrent.pausedMediaCount === 1,'One serialized health recovery with saved-media hold');
+ assert(managers.getStatus().consumer.storageAvailable,'Committed original-database health verification enables new capture');
+ assert((await queue.getRecord(12)).sentinel==='original' && (await queue.getRecord(12)).status==='open','Original record preserved');
+ assert(await (await queue.listChunks(12))[0].payload.chunk_blob.text()==='saved recording','Saved chunk bytes preserved');
+ assert((await queue.listRecords()).some(r=>r.status==='recovery-hold'&&r.held_media_id===12),'Reconciliation hold is durable');
+ await managers.scanConsumers();
+ assert(uploaded===0&&finalized===0,'Old media never replayed');
+ document.querySelector('#results').textContent='Checking hold persistence across reload';
+ managers.stop();
+ const reloaded=createOperatorMediaManagers({storage:queue,enabled:true,publishBootstrapChunk:async()=>{uploaded++},finalizeRecord:async()=>{finalized++}});
+ await reloaded.start(); await reloaded.scanConsumers();
+ assert(uploaded===0&&finalized===0,'Hold survives manager reload');
+ assert((await queue.getRecord(12)).status==='open','Held record not automatically closed during initialization');
+ reloaded.stop();
+ const recorder=new EventTarget();recorder.state='inactive';recorder.start=()=>{recorder.state='recording'};
+ const producer=await managers.producerManager.create(recorder,{media_id:13,status:'open'},{state:{},showToast(){}});
+ assert(producer.start(),'New durable recording is enabled');
+ // Force a persistent verification error and ensure no false recovery success.
+ const persistent=createOperatorMediaManagers({storage:{...queue,async closeOpenRecords(){throw new DOMException('Unavailable','InternalError')},async verifyHealth(){throw new DOMException('Persistent backing-store error','InternalError')}}});
+ await persistent.start();
+ try{await persistent.recoverStorage();throw new Error('False recovery')}catch(error){assert(error.name==='InternalError','Exact persistent error preserved')}
+ assert(!persistent.getStatus().consumer.storageAvailable,'Persistent failure remains unavailable');
+ document.querySelector('#results').dataset.status='pass';document.querySelector('#results').textContent='PASS committed native IndexedDB health, saved queue preservation, durable holds, new capture and persistent failure';
+}catch(error){document.querySelector('#results').dataset.status='fail';document.querySelector('#results').textContent=error.stack}
+</script></body></html>

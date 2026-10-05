@@ -14,7 +14,7 @@ export function createOperatorMediaManagers(services = {}) {
             } catch (error) {
                 if (error && typeof error === 'object') storageErrors.add(error);
                 producerManager?.getProducers().forEach((producer) => producer.pauseForStorageFailure());
-                consumerManager?.reportFailure(error);
+                consumerManager?.reportFailure(error, name);
                 throw error;
             }
         },
@@ -42,6 +42,29 @@ export function createOperatorMediaManagers(services = {}) {
         setHooks(hooks = {}) {
             producerManager.setHooks(hooks);
             consumerManager.setHooks(hooks);
+        },
+        async recoverStorage() {
+            if (this.recoveryPromise) return this.recoveryPromise;
+            this.recoveryPromise = (async () => {
+                await consumerManager.initializing;
+                await consumerManager.scanPromise;
+                await producerManager.close();
+                const health = await queue.verifyHealth();
+                // Previous media may have an uncertain write/upload outcome. Never
+                // resume those records or stopped recording clones automatically.
+                health.records.forEach(record => consumerManager.pausedMediaIds.add(Number(record.media_id)));
+                consumerManager.lastError = null;
+                consumerManager.failureStage = '';
+                consumerManager.initialized = true;
+                await consumerManager.start();
+                await consumerManager.scanPromise;
+                await consumerManager.ensureReady();
+                return { pausedMediaCount: consumerManager.pausedMediaIds.size };
+            })().catch(error => {
+                consumerManager.reportFailure(error, 'durable-health-verification');
+                throw error;
+            }).finally(() => { this.recoveryPromise = null; });
+            return this.recoveryPromise;
         },
         start() {
             return consumerManager.start();

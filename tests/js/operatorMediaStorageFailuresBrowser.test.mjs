@@ -1,14 +1,14 @@
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
-import fs from 'node:fs';
-import { startStaticServer } from '../../public/vendor/helpers.pbb.ph/tests/_support/static-server.mjs';
-const browser = ['C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'].find(fs.existsSync);
-if (!browser) throw new Error('Chrome or Edge is required for media storage feedback regression.');
-const server = await startStaticServer({ rootDir: process.cwd(), port: 0 });
-try {
-    for (const suffix of ['', '?bundle']) {
-        const { stdout } = await promisify(execFile)(browser, ['--headless=new', '--disable-gpu', '--virtual-time-budget=10000', '--dump-dom', `${server.origin}/tests/browser/operator-media-storage-failures.html${suffix}`], { timeout: 60000, maxBuffer: 4 * 1024 * 1024 });
-        if (!stdout.includes('data-status="pass"')) throw new Error(stdout);
-        console.log(`Media storage canonical alert regression passed (${suffix ? 'bundle' : 'source'}).`);
-    }
-} finally { await server.close(); }
+import {chromium} from 'playwright';
+import {startStaticServer} from '../../public/vendor/helpers.pbb.ph/tests/_support/static-server.mjs';
+const server=await startStaticServer({rootDir:process.cwd(),port:0});
+const browser=await chromium.launch({channel:'chrome',headless:true,timeout:20000});
+try{
+ for(const suffix of ['', '?bundle']){
+  const page=await browser.newPage();
+  await page.goto(server.origin+'/tests/browser/operator-media-storage-failures.html'+suffix);
+  await page.locator('#results[data-status]').waitFor({timeout:20000});
+  if(await page.locator('#results').getAttribute('data-status')!=='pass')throw new Error(await page.locator('#results').textContent());
+  console.log(`Media storage recovery canonical alert regression passed (${suffix?'bundle':'source'}).`);
+  await page.close();
+ }
+}finally{await browser.close();await server.close()}

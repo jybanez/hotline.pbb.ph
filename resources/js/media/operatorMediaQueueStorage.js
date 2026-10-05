@@ -103,9 +103,44 @@ export function createOperatorMediaQueueStorage() {
                 }
             });
         },
+        async verifyHealth() {
+            db.close();
+            await db.open({ requireExisting: true });
+            const records = await listRecords();
+            const savedChunks = await db.getAll(OPERATOR_MEDIA_CHUNKS_STORE);
+            const key = `__hotline_health__${crypto.randomUUID()}`;
+            const probe = { media_id: key, status: 'health-check', token: key };
+            const chunkProbe = { chunk_key: key, media_id: 0, token: key };
+            // Each write must commit before a separate transaction reads it.
+            // Unique reserved keys never overwrite queue items or replay a failed write.
+            await db.put(OPERATOR_MEDIA_RECORDS_STORE, probe);
+            await db.put(OPERATOR_MEDIA_CHUNKS_STORE, chunkProbe);
+            const readRecord = await db.get(OPERATOR_MEDIA_RECORDS_STORE, key);
+            const readChunk = await db.get(OPERATOR_MEDIA_CHUNKS_STORE, key);
+            if (readRecord?.token !== key || readChunk?.token !== key) throw new Error('Recording storage verification failed.');
+            await db.delete(OPERATOR_MEDIA_RECORDS_STORE, key);
+            await db.delete(OPERATOR_MEDIA_CHUNKS_STORE, key);
+            const afterRecords = await listRecords();
+            const afterChunks = await db.getAll(OPERATOR_MEDIA_CHUNKS_STORE);
+            if (records.some(record => !afterRecords.some(item => item.media_id === record.media_id))
+                || savedChunks.some(chunk => !afterChunks.some(item => item.chunk_key === chunk.chunk_key))) {
+                throw new Error('The saved recording queue changed during verification. Keep uploads paused for review.');
+            }
+            const pendingRecords = afterRecords.filter(record => Number(record.media_id) > 0);
+            for (const record of pendingRecords) {
+                const holdKey = `__hotline_recovery_hold__:${record.media_id}`;
+                if (afterRecords.some(item => item.media_id === holdKey)) continue;
+                // Persist reconciliation holds separately, without changing original media.
+                await db.put(OPERATOR_MEDIA_RECORDS_STORE, {
+                    media_id: holdKey, status: 'recovery-hold', held_media_id: Number(record.media_id),
+                });
+            }
+            return { records: pendingRecords };
+        },
         async closeOpenRecords() {
             const records = await listRecords();
-            const openRecords = records.filter((record) => ['open', 'closing'].includes(String(record?.status ?? '')));
+            const heldIds = new Set(records.filter(record => record.status === 'recovery-hold').map(record => Number(record.held_media_id)));
+            const openRecords = records.filter((record) => !heldIds.has(Number(record.media_id)) && ['open', 'closing'].includes(String(record?.status ?? '')));
 
             await Promise.all(openRecords.map((record) => putRecord({
                 ...record,

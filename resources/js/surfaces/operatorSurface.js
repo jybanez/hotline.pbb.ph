@@ -2514,7 +2514,20 @@ function operatorMediaManagersRuntime() {
                 appState.runtime.operatorMediaStorageFailureNotified = true;
                 void ensureHelperUi().then(() => appState.helper.uiAlert(
                     'Local recording storage is unavailable. Recording and queued uploads are paused. Previously saved media remains in the queue; new call media cannot be reliably saved. Keep this page open and contact support. Do not clear site data.',
-                    { title: 'Recording storage unavailable', variant: 'error', okText: 'OK', onAcknowledge: () => true },
+                    {
+                        title: 'Recording storage unavailable', variant: 'error', okText: 'Retry storage',
+                        showCloseButton: true, okBusyMessage: 'Checking durable recording storage…',
+                        onAcknowledge: async () => {
+                            try {
+                                const result = await appState.runtime.operatorMediaManagers.recoverStorage();
+                                appState.runtime.operatorMediaStorageFailureNotified = false;
+                                showToast(`Recording storage check passed. New recordings are available; ${result.pausedMediaCount} previous media items remain paused for review.`, 'success');
+                                return true;
+                            } catch (error) {
+                                throw new Error(`Storage remains unavailable during durable verification (${error?.name ?? 'Error'}: ${error?.message ?? 'verification failed'}). Keep this page open and contact support; do not clear site data.`);
+                            }
+                        },
+                    },
                 )).catch((error) => {
                     console.warn('Unable to show recording storage alert.', error);
                     showToast('Recording storage unavailable. Recording and queued uploads are paused.', 'warn');

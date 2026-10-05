@@ -79,6 +79,7 @@ export class ConsumerManager {
             throw new Error('ConsumerManager requires storage.');
         }
 
+        this.pausedMediaIds = new Set();
         this.lastError = null;
         this.onError = null;
         // Retain failure state without leaving an eager rejected promise unobserved.
@@ -103,9 +104,10 @@ export class ConsumerManager {
         }
     }
 
-    reportFailure(error) {
+    reportFailure(error, stage = 'queue-initialization') {
         const firstFailure = !this.lastError;
         this.lastError = this.lastError ?? error;
+        if (firstFailure) this.failureStage = stage;
         this.stop();
         if (firstFailure) this.notifyFailure();
         return false;
@@ -204,13 +206,14 @@ export class ConsumerManager {
             await this.ensureReady();
 
             const records = await this.storage.listRecords();
+            records.filter(record => record.status === 'recovery-hold').forEach(record => this.pausedMediaIds.add(Number(record.held_media_id)));
             const seen = new Set();
             const ticks = [];
 
             for (const record of records) {
                 const mediaId = Number(record?.media_id ?? 0);
 
-                if (mediaId <= 0) {
+                if (!Number.isFinite(mediaId) || mediaId <= 0 || this.pausedMediaIds.has(mediaId)) {
                     continue;
                 }
 
@@ -289,6 +292,9 @@ export class ConsumerManager {
     getStatus() {
         return {
             storageAvailable: this.initialized && !this.lastError,
+            failureStage: this.failureStage ?? '',
+            errorName: this.lastError?.name ?? '',
+            pausedMediaCount: this.pausedMediaIds.size,
             lastError: this.lastError ? String(this.lastError.message ?? this.lastError) : '',
             enabled: this.enabled,
             started: this.started,
