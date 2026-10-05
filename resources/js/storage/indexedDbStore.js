@@ -97,7 +97,11 @@ export function createIndexedDbStore({ name, version, upgrade, unavailableMessag
                         actionStarted = true;
                         return action(store, tx, finishResolve);
                     })
-                    .catch(finishReject);
+                    .catch(error => {
+                        // An action failure must abort all earlier writes in this transaction.
+                        try { tx.abort(); } catch (_error) {}
+                        finishReject(error);
+                    });
             });
         } catch (error) {
             const message = String(error?.message ?? error);

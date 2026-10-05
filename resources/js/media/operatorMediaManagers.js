@@ -119,6 +119,7 @@ export class ConsumerManager {
         }
 
         try {
+            await this.storage.fenceRetainedRecords?.();
             await this.storage.closeOpenRecords?.();
             this.initialized = true;
         } catch (error) {

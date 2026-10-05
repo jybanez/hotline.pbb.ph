@@ -44,8 +44,23 @@ export function createOperatorMediaQueueStorage() {
         return chunks.sort((left, right) => Number(left?.chunk_index ?? 0) - Number(right?.chunk_index ?? 0));
     };
 
+    // A fresh manager fences every retained record before exposing any consumer.
+    // Put all holds in one transaction: a partial hold write cannot commit.
+    const fenceRetainedRecords = async () => {
+        const records = await listRecords();
+        const pending = records.filter(record => Number.isFinite(Number(record.media_id)) && Number(record.media_id) > 0);
+        await db.transaction(OPERATOR_MEDIA_RECORDS_STORE, 'readwrite', async store => {
+            for (const record of pending) {
+                const key = `__hotline_recovery_hold__:${record.media_id}`;
+                await db.requestToPromise(store.put({media_id: key, status: 'recovery-hold', held_media_id: Number(record.media_id)}));
+            }
+        });
+        return pending;
+    };
+
     return {
         putRecord,
+        fenceRetainedRecords,
         async getRecord(mediaId) {
             return (await db.get(OPERATOR_MEDIA_RECORDS_STORE, Number(mediaId))) ?? null;
         },
@@ -104,38 +119,48 @@ export function createOperatorMediaQueueStorage() {
             });
         },
         async verifyHealth() {
+            let stage = "open-original-queue";
+            try {
             db.close();
             await db.open({ requireExisting: true });
+            stage = "fence-retained-records";
+            await fenceRetainedRecords();
+            stage = "read-original-records";
             const records = await listRecords();
+            stage = "read-original-chunks";
             const savedChunks = await db.getAll(OPERATOR_MEDIA_CHUNKS_STORE);
             const key = `__hotline_health__${crypto.randomUUID()}`;
             const probe = { media_id: key, status: 'health-check', token: key };
             const chunkProbe = { chunk_key: key, media_id: 0, token: key };
             // Each write must commit before a separate transaction reads it.
             // Unique reserved keys never overwrite queue items or replay a failed write.
+            stage = "write-record-probe";
             await db.put(OPERATOR_MEDIA_RECORDS_STORE, probe);
+            stage = "write-chunk-probe";
             await db.put(OPERATOR_MEDIA_CHUNKS_STORE, chunkProbe);
+            stage = "read-record-probe";
             const readRecord = await db.get(OPERATOR_MEDIA_RECORDS_STORE, key);
+            stage = "read-chunk-probe";
             const readChunk = await db.get(OPERATOR_MEDIA_CHUNKS_STORE, key);
             if (readRecord?.token !== key || readChunk?.token !== key) throw new Error('Recording storage verification failed.');
+            stage = "delete-record-probe";
             await db.delete(OPERATOR_MEDIA_RECORDS_STORE, key);
+            stage = "delete-chunk-probe";
             await db.delete(OPERATOR_MEDIA_CHUNKS_STORE, key);
+            stage = "verify-original-records";
             const afterRecords = await listRecords();
+            stage = "verify-original-chunks";
             const afterChunks = await db.getAll(OPERATOR_MEDIA_CHUNKS_STORE);
             if (records.some(record => !afterRecords.some(item => item.media_id === record.media_id))
                 || savedChunks.some(chunk => !afterChunks.some(item => item.chunk_key === chunk.chunk_key))) {
                 throw new Error('The saved recording queue changed during verification. Keep uploads paused for review.');
             }
             const pendingRecords = afterRecords.filter(record => Number(record.media_id) > 0);
-            for (const record of pendingRecords) {
-                const holdKey = `__hotline_recovery_hold__:${record.media_id}`;
-                if (afterRecords.some(item => item.media_id === holdKey)) continue;
-                // Persist reconciliation holds separately, without changing original media.
-                await db.put(OPERATOR_MEDIA_RECORDS_STORE, {
-                    media_id: holdKey, status: 'recovery-hold', held_media_id: Number(record.media_id),
-                });
-            }
             return { records: pendingRecords };
+            } catch (error) {
+                error.recordingStorageStage = stage;
+                throw error;
+            }
         },
         async closeOpenRecords() {
             const records = await listRecords();

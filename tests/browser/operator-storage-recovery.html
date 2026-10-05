@@ -8,6 +8,8 @@ try {
  document.querySelector('#results').textContent='Seeding original queue';
  await queue.putRecord(record);
  await queue.putChunk({media_id:12,chunk_index:0,chunk_blob:new Blob(['saved recording'])});
+ await queue.putRecord({media_id:14,status:"closed",sentinel:"second original"});
+ await queue.putChunk({media_id:14,chunk_index:0,chunk_blob:new Blob(["second saved recording"])});
  let unavailable = true, finalized = 0, uploaded = 0;
  const managers = createOperatorMediaManagers({enabled:true, storage:{...queue,async closeOpenRecords(){if(unavailable)throw new DOMException('Temporary initialization failure','InternalError');return queue.closeOpenRecords()}},
    publishBootstrapChunk:async()=>{uploaded++},publishChunk:async()=>{uploaded++},finalizeRecord:async()=>{finalized++}});
@@ -16,7 +18,7 @@ try {
  unavailable = false;
  document.querySelector('#results').textContent='Checking committed health and queue holds';
  const [result, concurrent] = await Promise.all([managers.recoverStorage(),managers.recoverStorage()]);
- assert(result.pausedMediaCount === 1 && concurrent.pausedMediaCount === 1,'One serialized health recovery with saved-media hold');
+ assert(result.pausedMediaCount === 2 && concurrent.pausedMediaCount === 2,'One serialized health recovery with saved-media hold');
  assert(managers.getStatus().consumer.storageAvailable,'Committed original-database health verification enables new capture');
  assert((await queue.getRecord(12)).sentinel==='original' && (await queue.getRecord(12)).status==='open','Original record preserved');
  assert(await (await queue.listChunks(12))[0].payload.chunk_blob.text()==='saved recording','Saved chunk bytes preserved');
@@ -38,6 +40,23 @@ try {
  await persistent.start();
  try{await persistent.recoverStorage();throw new Error('False recovery')}catch(error){assert(error.name==='InternalError','Exact persistent error preserved')}
  assert(!persistent.getStatus().consumer.storageAvailable,'Persistent failure remains unavailable');
+ // Fail every atomic hold/probe write, read, deletion and preservation read.
+ // Fresh initialization must fence all retained media after every failed retry.
+ for (const [method, count] of [['put',4],['get',2],['delete',2],['getAll',5]]) {
+  for(let failAt=1; failAt<=count; failAt++) {
+   const original=IDBObjectStore.prototype[method];let calls=0;
+   IDBObjectStore.prototype[method]=function(...args){if(++calls===failAt)throw new DOMException('Injected '+method+' '+failAt,'AbortError');return original.apply(this,args)};
+   let error;
+   try{await queue.verifyHealth()}catch(e){error=e}finally{IDBObjectStore.prototype[method]=original}
+   assert(error?.name==='AbortError'&&error.recordingStorageStage,'Concrete failing stage retained');
+   const fresh=createOperatorMediaManagers({storage:queue,enabled:true,publishChunk:async()=>{uploaded++},publishBootstrapChunk:async()=>{uploaded++},finalizeRecord:async()=>{finalized++}});
+   await fresh.start();await fresh.scanConsumers();fresh.stop();
+   assert(uploaded===0&&finalized===0,'No old-media replay after failure and reload '+method+' '+failAt);
+   assert((await queue.getRecord(12)).status==='open'&&(await queue.getRecord(14)).sentinel==='second original','Original records preserved');
+   assert(await (await queue.listChunks(14))[0].payload.chunk_blob.text()==='second saved recording','Original chunk bytes preserved');
+   await queue.verifyHealth(); // Repeated explicit verification remains safe.
+  }
+ }
  document.querySelector('#results').dataset.status='pass';document.querySelector('#results').textContent='PASS committed native IndexedDB health, saved queue preservation, durable holds, new capture and persistent failure';
 }catch(error){document.querySelector('#results').dataset.status='fail';document.querySelector('#results').textContent=error.stack}
 </script></body></html>

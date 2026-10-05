@@ -2524,7 +2524,7 @@ function operatorMediaManagersRuntime() {
                                 showToast(`Recording storage check passed. New recordings are available; ${result.pausedMediaCount} previous media items remain paused for review.`, 'success');
                                 return true;
                             } catch (error) {
-                                throw new Error(`Storage remains unavailable during durable verification (${error?.name ?? 'Error'}: ${error?.message ?? 'verification failed'}). Keep this page open and contact support; do not clear site data.`);
+                                throw new Error(`Storage remains unavailable during ${error?.recordingStorageStage ?? 'durable verification'} (${error?.name ?? 'Error'}: ${error?.message ?? 'verification failed'}). Keep this page open and contact support; do not clear site data.`);
                             }
                         },
                     },

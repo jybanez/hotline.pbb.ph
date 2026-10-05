@@ -61,7 +61,7 @@ export function createOperatorMediaManagers(services = {}) {
                 await consumerManager.ensureReady();
                 return { pausedMediaCount: consumerManager.pausedMediaIds.size };
             })().catch(error => {
-                consumerManager.reportFailure(error, 'durable-health-verification');
+                consumerManager.reportFailure(error, error.recordingStorageStage ?? 'durable-health-verification');
                 throw error;
             }).finally(() => { this.recoveryPromise = null; });
             return this.recoveryPromise;
