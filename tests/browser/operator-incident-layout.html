@@ -40,11 +40,15 @@ try {
     assert(rows.length >= 6, 'Actual Vehicle Involved preset rendered');
     const pairs = rows.map(row => ({label: row.querySelector('label')?.textContent, width: row.parentElement.clientWidth, columns: getComputedStyle(row).gridTemplateColumns.split(' ').length}));
     for (const row of rows) {
-        assert(getComputedStyle(row).gridTemplateColumns.split(' ').length === (row.parentElement.clientWidth >= 240 ? 2 : 1), 'Canonical container fallback');
+        assert(getComputedStyle(row).gridTemplateColumns.split(' ').length === 2, 'Target desktop labels beside controls');
         const label = row.querySelector('label');
         assert(label?.control, 'Accessible label association');
         assert(row.getBoundingClientRect().right <= host.getBoundingClientRect().right + 1, 'Row within incident host');
     }
+    for (const control of host.querySelectorAll('input,select,.ui-number-stepper')) {
+        assert(control.getBoundingClientRect().right <= host.getBoundingClientRect().right + 1, 'Control within incident host');
+    }
+    assert(host.querySelector('.ui-number-stepper-input').getBoundingClientRect().width >= 30, 'Stepper value remains usable');
     const input = [...host.querySelectorAll('input')].find(input => input.id === rows.find(row => row.textContent.includes('Plate number'))?.querySelector('label')?.htmlFor);
     assert(input, 'Plate input found');
     input.value = 'TEST123'; input.dispatchEvent(new Event('input', {bubbles: true})); input.dispatchEvent(new Event('change', {bubbles: true}));
