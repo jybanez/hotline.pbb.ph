@@ -13,13 +13,13 @@ try{
  const second=await context.newPage();await second.goto(url);await second.waitForFunction(()=>window.ready);
  const blocked=await second.evaluate(()=>window.acquire());if(blocked.storageAvailable||!blocked.lastError.includes('Another Hotline tab'))throw Error('Competing tab admitted');
  await first.close();
- await second.waitForFunction(async()=>!(await navigator.locks.query()).held.some(lock=>lock.name==='hotline-operator-media-queue-owner-v1'),{timeout:5000});
+ await second.waitForFunction(async()=>!(await navigator.locks.query()).held.some(lock=>lock.name==='hotline-operator-media-queue-owner-v1'),undefined,{timeout:15000});
  const third=await context.newPage();await third.goto(url);await third.waitForFunction(()=>window.ready);
  const handed=await third.evaluate(()=>window.acquire());
  if(!handed.storageAvailable){
   // Browser teardown and lock-service admission may complete on different tasks.
   // Retry only the denied ownership admission; it has performed no queue writes.
-  await third.evaluate(async()=>{for(let i=0;i<100;i++){try{await window.queue.prepareStartup();return}catch(error){if(!error.message.includes('Another Hotline tab'))throw error;await new Promise(r=>setTimeout(r,10))}}throw Error('Owner handoff timed out')});
+  await third.evaluate(async()=>{for(const deadline=Date.now()+15000;Date.now()<deadline;){try{await window.queue.prepareStartup();return}catch(error){if(!error.message.includes('Another Hotline tab'))throw error;await new Promise(r=>setTimeout(r,25))}}throw Error('Owner handoff timed out')});
   await third.evaluate(()=>window.manager.recoverStorage());
   if(!(await third.evaluate(()=>window.manager.getStatus().consumer)).storageAvailable)throw Error('Explicit owner handoff failed');
  }await context.close();
