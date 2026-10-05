@@ -9,6 +9,7 @@ import { createDashboardMap } from '../maps/dashboardMap.js';
 import { createWorkbenchLocationMap } from '../maps/workbenchLocationMap.js';
 import { buildAppEventPublishPayload, buildPresencePublishPayload, buildPresenceSubscribePayload, buildRoomJoinPayload, listPresenceRosterItems, parseRealtimeEnvelope, reducePresenceRosterEvent, RealtimeSocketClient } from '../vendor/pbb-realtime-sdk/index.js';
 import { citizenEventType, withCitizenRealtimePayloadAliases } from '../realtime/citizenEvents.js';
+import { incidentStatusErrorMessage } from './incidentStatusFeedback.js';
 
 const CALL_DISCOVERY_ROOM = 'presence.global.hotline';
 const INCIDENT_MEDIA_ROOM_PREFIX = 'hotline.media.incident.';
@@ -4477,15 +4478,23 @@ async function mountWorkbenchNavbar(overlay, payload, stateOverride, close) {
                 busyMessage: `${label}...`,
                 onConfirm: async () => {
                     if (!targetStatus || !payload?.id) {
-                        return true;
+                        throw new Error('The incident is unavailable. Close this confirmation and reopen the incident before trying again.');
                     }
 
-                    statusResponse = await fetchJson(`/api/operator/incidents/${payload.id}/status`, {
-                        method: 'post',
-                        data: {
-                            status: targetStatus,
-                        },
-                    });
+                    try {
+                        statusResponse = await fetchJson(`/api/operator/incidents/${payload.id}/status`, {
+                            method: 'post',
+                            data: {
+                                status: targetStatus,
+                            },
+                        });
+                    } catch (error) {
+                        throw new Error(incidentStatusErrorMessage(error, targetStatus));
+                    }
+
+                    if (!statusResponse?.incident?.id || statusResponse.incident.status !== targetStatus) {
+                        throw new Error('The status change could not be confirmed. Check the current incident status before trying again.');
+                    }
 
                     return true;
                 },
