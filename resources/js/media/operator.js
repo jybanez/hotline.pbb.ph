@@ -2,9 +2,26 @@ import { ConsumerManager, ProducerManager } from './operatorMediaManagers.js';
 import { createOperatorMediaQueueStorage } from './operatorMediaQueueStorage.js';
 
 export function createOperatorMediaManagers(services = {}) {
-    const storage = createOperatorMediaQueueStorage();
-    const producerManager = new ProducerManager({ storage });
-    const consumerManager = new ConsumerManager({
+    const queue = services.storage ?? createOperatorMediaQueueStorage();
+    const storageErrors = new WeakSet();
+    let consumerManager;
+    let producerManager;
+    const storage = Object.fromEntries(Object.entries(queue).map(([name, operation]) => [name,
+        typeof operation !== 'function' ? operation : async (...args) => {
+            try {
+                if (consumerManager?.lastError) throw consumerManager.lastError;
+                return await operation.apply(queue, args);
+            } catch (error) {
+                if (error && typeof error === 'object') storageErrors.add(error);
+                producerManager?.getProducers().forEach((producer) => producer.pauseForStorageFailure());
+                consumerManager?.reportFailure(error);
+                throw error;
+            }
+        },
+    ]));
+    storage.isStorageFailure = (error) => error && typeof error === 'object' && storageErrors.has(error);
+    producerManager = new ProducerManager({ storage });
+    consumerManager = new ConsumerManager({
         storage,
         enabled: services.enabled,
         pollMs: services.pollMs,
@@ -16,6 +33,8 @@ export function createOperatorMediaManagers(services = {}) {
             finalizeRecord: services.finalizeRecord,
         },
     });
+
+    producerManager.readinessCheck = () => consumerManager.ensureReady();
 
     return {
         producerManager,

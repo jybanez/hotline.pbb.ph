@@ -21,12 +21,19 @@ export class ProducerManager {
 
     async ensureReady() {
         await this.readyPromise;
+        await this.readinessCheck?.();
     }
 
     async create(mediaRecorder, mediaRecord, options = {}) {
         await this.ensureReady();
         const producer = new Producer(this, mediaRecorder, mediaRecord, options);
         await producer.initialize();
+        try {
+            await this.ensureReady();
+        } catch (error) {
+            producer.pauseForStorageFailure();
+            throw error;
+        }
         this.producers.set(producer.mediaId, producer);
 
         return producer;
@@ -39,6 +46,10 @@ export class ProducerManager {
     remove(mediaId) {
         const nextMediaId = Number(mediaId ?? 0);
         this.producers.delete(nextMediaId);
+    }
+
+    getProducers() {
+        return Array.from(this.producers.values());
     }
 
     getItems() {
@@ -68,13 +79,36 @@ export class ConsumerManager {
             throw new Error('ConsumerManager requires storage.');
         }
 
-        this.initializing = this.initialize();
+        this.lastError = null;
+        this.onError = null;
+        // Retain failure state without leaving an eager rejected promise unobserved.
+        this.initializing = this.initialize().catch((error) => this.reportFailure(error));
     }
 
-    setHooks({ debug } = {}) {
+    setHooks({ debug, onError } = {}) {
         if (typeof debug === 'function') {
             this.debug = debug;
         }
+        if (typeof onError === 'function') {
+            this.onError = onError;
+            if (this.lastError) this.notifyFailure();
+        }
+    }
+
+    notifyFailure() {
+        try {
+            Promise.resolve(this.onError?.(this.lastError)).catch(() => {});
+        } catch (_error) {
+            // Feedback cannot turn a handled storage failure into a rejection.
+        }
+    }
+
+    reportFailure(error) {
+        const firstFailure = !this.lastError;
+        this.lastError = this.lastError ?? error;
+        this.stop();
+        if (firstFailure) this.notifyFailure();
+        return false;
     }
 
     async initialize() {
@@ -100,7 +134,12 @@ export class ConsumerManager {
             return;
         }
 
-        await this.initializing;
+        try {
+            await this.ensureReady();
+        } catch (error) {
+            return this.reportFailure(error);
+        }
+        if (this.started) return;
         this.started = true;
 
         if (!this.enabled) {
@@ -120,6 +159,7 @@ export class ConsumerManager {
 
     async ensureReady() {
         await this.initializing;
+        if (this.lastError) throw this.lastError;
     }
 
     stop() {
@@ -152,8 +192,8 @@ export class ConsumerManager {
     }
 
     async scan() {
-        if (!this.enabled) {
-            return;
+        if (!this.enabled || this.lastError) {
+            return false;
         }
 
         if (this.scanPromise) {
@@ -191,14 +231,16 @@ export class ConsumerManager {
                 ticks.push(consumer.tick());
             }
 
-            await Promise.allSettled(ticks);
+            const results = await Promise.allSettled(ticks);
+            const failure = results.find((result) => result.status === 'rejected');
+            if (failure) throw failure.reason;
 
             for (const mediaId of Array.from(this.consumers.keys())) {
                 if (!seen.has(mediaId)) {
                     this.consumers.delete(mediaId);
                 }
             }
-        })().finally(() => {
+        })().catch((error) => this.reportFailure(error)).finally(() => {
             this.scanPromise = null;
         });
 
@@ -206,14 +248,18 @@ export class ConsumerManager {
     }
 
     async drain({ maxPasses = 20, delayMs = 250 } = {}) {
+        try {
+            await this.ensureReady();
+        } catch (error) {
+            return this.reportFailure(error);
+        }
         if (!this.enabled) {
             return true;
         }
 
-        await this.ensureReady();
-
         for (let pass = 0; pass < maxPasses; pass += 1) {
             await this.scan();
+            if (this.lastError) return false;
 
             const records = await this.storage.listRecords();
 
@@ -242,6 +288,8 @@ export class ConsumerManager {
 
     getStatus() {
         return {
+            storageAvailable: this.initialized && !this.lastError,
+            lastError: this.lastError ? String(this.lastError.message ?? this.lastError) : '',
             enabled: this.enabled,
             started: this.started,
             pollMs: this.pollMs,

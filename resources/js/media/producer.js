@@ -153,7 +153,20 @@ export class Producer {
         this.postUnmuteChunkSamples = 0;
     }
 
+    pauseForStorageFailure() {
+        this.storageFailed = true;
+        this.recorderStarted = false;
+        this.updateItem({ status: 'storage-unavailable' });
+        // Stop only recording clones; the live call tracks belong to the call.
+        this.clonedTracks.forEach((track) => track?.stop?.());
+        try {
+            if (this.mediaRecorder.state !== 'inactive') this.mediaRecorder.stop();
+        } catch (_error) {
+        }
+    }
+
     start(timesliceMs = this.timesliceMs) {
+        if (this.storageFailed) return false;
         const nextTimesliceMs = Math.max(250, Number(timesliceMs ?? this.timesliceMs));
 
         if (this.recorderStarted) {
@@ -231,6 +244,7 @@ export class Producer {
     }
 
     handleDataAvailable(event) {
+        if (this.storageFailed) return;
         const {
             callSessionId,
             incidentId,
@@ -332,7 +346,6 @@ export class Producer {
 
                 markInitial = true;
                 this.hasQueuedInitialChunk = true;
-                this.hasAcceptedInitialChunk = true;
             }
 
             const currentChunkIndex = this.nextChunkIndex;
@@ -404,6 +417,7 @@ export class Producer {
         const { callSessionId, onRecorderPrimed, showToast, state } = this.options;
         const persistPromise = this.storage.putChunk(payload)
             .then(() => {
+                if (this.storageFailed) return;
                 if (markInitial) {
                     this.hasAcceptedInitialChunk = true;
                     if (typeof onRecorderPrimed === 'function') {
@@ -423,6 +437,7 @@ export class Producer {
                 });
             })
             .catch((error) => {
+                this.pauseForStorageFailure();
                 if (!state.shuttingDown) {
                     console.warn('Persisting operator media chunk failed.', error);
                 }
@@ -501,6 +516,9 @@ export class Producer {
                         await Promise.allSettled(Array.from(this.pendingPersists));
                     }
 
+                    // Leave saved records/chunks pending when storage is unavailable.
+                    if (this.storageFailed) return;
+
                     const stoppedAt = this.stopRequestedAt ?? Date.now();
                     const recordingStartedAt = this.recordingStartedAt ?? this.captureReadyAt ?? new Date(this.startedAt).getTime();
                     const durationSeconds = Math.max(0, Math.round((stoppedAt - recordingStartedAt) / 1000));
@@ -513,6 +531,7 @@ export class Producer {
                     };
 
                     await this.storage.putRecord(closedRecord);
+                    if (this.storageFailed) return;
                     this.mediaRecord = closedRecord;
                     this.updateItem({
                         status: 'closed',

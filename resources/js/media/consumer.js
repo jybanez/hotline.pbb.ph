@@ -125,6 +125,8 @@ export class Consumer {
         } catch (error) {
             this.state = 'failed';
             this.lastError = String(error?.message ?? error);
+            // Storage failures must not enter transport retry/discard policy.
+            if (this.storage.isStorageFailure?.(error)) throw error;
             await this.handleFailure(error);
         } finally {
             this.busy = false;

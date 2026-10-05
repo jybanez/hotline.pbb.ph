@@ -2509,10 +2509,27 @@ function operatorMediaManagersRuntime() {
 
         appState.runtime.operatorMediaManagers.setHooks({
             debug: debugMediaCapture,
+            onError: () => {
+                if (appState.runtime.operatorMediaStorageFailureNotified) return;
+                appState.runtime.operatorMediaStorageFailureNotified = true;
+                void ensureHelperUi().then(() => appState.helper.uiAlert(
+                    'Local recording storage is unavailable. Recording and queued uploads are paused. Previously saved media remains in the queue; new call media cannot be reliably saved. Keep this page open and contact support. Do not clear site data.',
+                    { title: 'Recording storage unavailable', variant: 'error', okText: 'OK', onAcknowledge: () => true },
+                )).catch((error) => {
+                    console.warn('Unable to show recording storage alert.', error);
+                    showToast('Recording storage unavailable. Recording and queued uploads are paused.', 'warn');
+                });
+            },
         });
     }
 
     return appState.runtime.operatorMediaManagers;
+}
+
+function handleOperatorCaptureFailure(error) {
+    debugMediaCapture('operator-capture-fail', { message: String(error?.message ?? error) });
+    if (!operatorMediaManagersRuntime().getStatus().consumer.storageAvailable) return;
+    showToast('Call recording could not be completed. Check recording availability.', 'warn');
 }
 
 function operatorMediaTransportRuntime() {
@@ -2638,6 +2655,8 @@ function createOperatorCallCaptureManager({
             return null;
         }
 
+        await mediaManagers.producerManager.ensureReady();
+
         const clonedTrack = track.clone();
         clonedTrack.enabled = track.enabled;
         const clonedTracks = [clonedTrack];
@@ -2716,18 +2735,24 @@ function createOperatorCallCaptureManager({
             updated_at: new Date().toISOString(),
         };
 
-        const producer = await mediaManagers.producerManager.create(recorder, mediaRecord, {
-            state,
-            callSessionId,
-            incidentId,
-            onRecorderPrimed,
-            showToast,
-            captureReadyAt: runtime.captureReadyAt,
-            timesliceMs: runtime.timesliceMs,
-            sourceTrack: runtime.sourceTrack,
-            clonedTrack: runtime.clonedTrack,
-            clonedTracks: runtime.clonedTracks,
-        });
+        let producer;
+        try {
+            producer = await mediaManagers.producerManager.create(recorder, mediaRecord, {
+                state,
+                callSessionId,
+                incidentId,
+                onRecorderPrimed,
+                showToast,
+                captureReadyAt: runtime.captureReadyAt,
+                timesliceMs: runtime.timesliceMs,
+                sourceTrack: runtime.sourceTrack,
+                clonedTrack: runtime.clonedTrack,
+                clonedTracks: runtime.clonedTracks,
+            });
+        } catch (error) {
+            clonedTracks.forEach((cloned) => cloned.stop());
+            throw error;
+        }
         producer.attachHandle(runtime);
 
         debugMediaCapture('recorder-created', {
@@ -3163,7 +3188,7 @@ function createOperatorCallCaptureManager({
             return state.finalizePromise;
         },
         destroy() {
-            void this.finalizeAll();
+            void this.finalizeAll().catch(handleOperatorCaptureFailure);
         },
     };
 }
@@ -4424,7 +4449,7 @@ async function mountWorkbenchNavbar(overlay, payload, stateOverride, close) {
 
                     const officialEndedAt = response?.call_session?.ended_at ?? endedAt;
                     appState.runtime.operatorWorkbenchCaptureManager?.setOfficialEndedAt?.(officialEndedAt);
-                    void appState.runtime.operatorWorkbenchCaptureManager?.finalizeAll?.();
+                    void appState.runtime.operatorWorkbenchCaptureManager?.finalizeAll?.()?.catch(handleOperatorCaptureFailure);
 
                     logCallFlow('operator', 'operator-hangup-signal-send', {
                         incidentId: Number(payload.id ?? 0) || null,
@@ -6338,7 +6363,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                     void appState.runtime.operatorInitialIntakeModal?.close?.({ reason: 'remote-disconnect' });
                     dismissConnectionOverlay();
                     captureManager?.setOfficialEndedAt?.(officialEndedAt);
-                    void captureManager?.finalizeAll?.();
+                    void captureManager?.finalizeAll?.()?.catch(handleOperatorCaptureFailure);
                     callRuntime?.sendHangupComplete?.({
                         reason: 'citizen-disconnected',
                         ended_at: officialEndedAt,
@@ -6418,7 +6443,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                     dismissConnectionOverlay();
                     void appState.runtime.operatorInitialIntakeModal?.close?.({ reason: 'operator-browser-offline' });
                     captureManager?.setOfficialEndedAt?.(endedAt);
-                    void captureManager?.finalizeAll?.();
+                    void captureManager?.finalizeAll?.()?.catch(handleOperatorCaptureFailure);
                     callRuntime?.destroy?.();
                     if (appState.runtime.operatorWorkbenchCallRuntime === callRuntime) {
                         appState.runtime.operatorWorkbenchCallRuntime = null;
@@ -6699,7 +6724,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                     operatorGraphApi.attachMediaStream?.(stream);
                     operatorGraphApi.resume?.();
                 }
-                void captureManager?.ensureLocalAudio?.(stream);
+                void captureManager?.ensureLocalAudio?.(stream)?.catch(handleOperatorCaptureFailure);
                 void liftConnectionGate();
             };
 
@@ -6723,8 +6748,8 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                     callerGraphApi.attachMediaStream?.(stream);
                     callerGraphApi.resume?.();
                 }
-                void captureManager?.ensureRemoteAudio?.(stream);
-                void captureManager?.syncRemoteVideo?.(hasRemoteVideo, stream);
+                void captureManager?.ensureRemoteAudio?.(stream)?.catch(handleOperatorCaptureFailure);
+                void captureManager?.syncRemoteVideo?.(hasRemoteVideo, stream)?.catch(handleOperatorCaptureFailure);
                 void liftConnectionGate();
             };
 
@@ -6744,7 +6769,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                     const hasExistingRemoteVideo = existingStreams.remoteStream
                         .getVideoTracks()
                         .some((track) => track.readyState === 'live' && !track.muted);
-                    void captureManager?.syncRemoteVideo?.(hasExistingRemoteVideo, existingStreams.remoteStream);
+                    void captureManager?.syncRemoteVideo?.(hasExistingRemoteVideo, existingStreams.remoteStream)?.catch(handleOperatorCaptureFailure);
                 }
             } else {
                 callRuntime = await mountRealtimeCallSession({
@@ -6784,7 +6809,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                             }))
                             : [],
                     });
-                    void captureManager?.syncRemoteVideo?.(enabled, stream);
+                    void captureManager?.syncRemoteVideo?.(enabled, stream)?.catch(handleOperatorCaptureFailure);
                 },
                 onCallerLocation(locationPayload) {
                     const location = normalizeCallerLocationPayload(locationPayload);
@@ -6909,7 +6934,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
 
                             const officialEndedAt = String(response?.call_session?.ended_at ?? endedAt);
                             captureManager?.setOfficialEndedAt?.(officialEndedAt);
-                            void captureManager?.finalizeAll?.();
+                            void captureManager?.finalizeAll?.()?.catch(handleOperatorCaptureFailure);
                             payload = patchIncidentCallSession(payload, activeSessionId, {
                                 status: response?.call_session?.status ?? 'ended',
                                 outcome: response?.call_session?.outcome ?? 'ended_by_citizen',
@@ -6954,7 +6979,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                             console.warn('Unable to dismiss operator connection overlays during hangup cleanup.', error);
                         }
                         captureManager?.setOfficialEndedAt?.(endedAt);
-                        void captureManager?.finalizeAll?.();
+                        void captureManager?.finalizeAll?.()?.catch(handleOperatorCaptureFailure);
                         payload = patchIncidentCallSession(payload, activeSessionId, {
                             status: 'ended',
                             outcome: 'ended_by_citizen',
@@ -7336,7 +7361,7 @@ async function startOperatorAnsweredCallBridge(root, incidentPayload, callSessio
 
                     const officialEndedAt = String(response?.call_session?.ended_at ?? endedAt);
                     appState.runtime.operatorWorkbenchCaptureManager?.setOfficialEndedAt?.(officialEndedAt);
-                    void appState.runtime.operatorWorkbenchCaptureManager?.finalizeAll?.();
+                    void appState.runtime.operatorWorkbenchCaptureManager?.finalizeAll?.()?.catch(handleOperatorCaptureFailure);
                     callRuntime?.sendHangupComplete?.({
                         reason: 'ended-by-citizen',
                         ended_at: officialEndedAt,
