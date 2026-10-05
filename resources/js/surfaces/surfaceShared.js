@@ -246,6 +246,7 @@ async function fetchJson(url, options = {}) {
         url,
         method: options.method ?? 'get',
         data: options.data,
+        timeout: options.timeout,
         headers: {
             Accept: 'application/json',
             ...(options.headers ?? {}),

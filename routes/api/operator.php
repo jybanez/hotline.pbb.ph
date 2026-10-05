@@ -71,6 +71,7 @@ Route::middleware(['auth', 'role:operator'])->prefix('/operator')->group(functio
 });
 Route::middleware(['auth', 'role:operator'])->prefix('/operator')->group(function (): void {
     Route::post('/incidents/{incident}/callback-call', [\App\Http\Controllers\Api\Operator\CallbackCallAttemptController::class, 'store']);
+    Route::get('/callback-call-attempts/{attempt}', [\App\Http\Controllers\Api\Operator\CallbackCallAttemptController::class, 'status']);
     Route::post('/callback-call-attempts/{attempt}/cancel', [\App\Http\Controllers\Api\Operator\CallbackCallAttemptController::class, 'cancel']);
 });
 Route::middleware(['auth', 'role:operator'])->post('/operator/callback-call-attempts/{attempt}/answer', [\App\Http\Controllers\Api\Operator\CallbackCallAttemptController::class, 'answer']);

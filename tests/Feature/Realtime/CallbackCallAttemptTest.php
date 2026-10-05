@@ -108,6 +108,50 @@ class CallbackCallAttemptTest extends TestCase
         $this->assertDatabaseCount('call_attempts', 1);
     }
 
+    public function test_abandoned_callback_expires_and_late_answer_cannot_create_session(): void
+    {
+        [$operator, , $incident] = $this->callbackFixture();
+        $id = $this->actingAs($operator)->postJson('/api/operator/incidents/'.$incident->id.'/callback-call')->assertCreated()->json('attempt.id');
+        $this->travel(61)->seconds();
+        $this->postJson('/api/operator/callback-call-attempts/'.$id.'/answer')->assertConflict();
+        $this->assertSame('timed_out', CallAttempt::findOrFail($id)->outcome->value);
+        $this->getJson('/api/operator/callback-call-attempts/'.$id)->assertOk()->assertJsonPath('attempt.status', 'ended');
+        $this->postJson('/api/operator/incidents/'.$incident->id.'/callback-call')->assertCreated();
+        $this->assertDatabaseCount('call_sessions', 0);
+    }
+
+    public function test_expiry_recovers_lost_page_and_preserves_answered_session(): void
+    {
+        [$operator, , $incident] = $this->callbackFixture();
+        $id = $this->actingAs($operator)->postJson('/api/operator/incidents/'.$incident->id.'/callback-call')->assertCreated()->json('attempt.id');
+        $this->travel(61)->seconds();
+        $next = $this->postJson('/api/operator/incidents/'.$incident->id.'/callback-call')->assertCreated()->json('attempt.id');
+        $this->assertSame('timed_out', CallAttempt::findOrFail($id)->outcome->value);
+        $session = $this->postJson('/api/operator/callback-call-attempts/'.$next.'/answer')->assertOk()->json('call_session.id');
+        $this->travel(61)->seconds();
+        $this->getJson('/api/operator/callback-call-attempts/'.$next)->assertOk()->assertJsonPath('attempt.outcome', 'answered')->assertJsonPath('call_session.id', $session);
+        $this->postJson('/api/operator/callback-call-attempts/'.$next.'/cancel')->assertOk()->assertJsonPath('attempt.outcome', 'answered');
+        $this->assertDatabaseCount('call_sessions', 1);
+    }
+
+    public function test_callback_reservation_blocks_directed_and_reconnect_routes_for_either_person(): void
+    {
+        [$operator, $citizen, $incident] = $this->callbackFixture();
+        $this->actingAs($operator)->postJson('/api/operator/incidents/'.$incident->id.'/callback-call')->assertCreated();
+        $routing = app(\App\Support\Calls\CallRoutingService::class);
+        $otherCitizen = User::factory()->create(['role' => UserRole::Citizen, 'status' => UserStatus::Active]);
+        $otherOperator = User::factory()->create(['role' => UserRole::Operator, 'status' => UserStatus::Active]);
+        foreach ([[$operator, $otherCitizen], [$otherOperator, $citizen]] as [$receiver, $caller]) {
+            try {
+                $routing->startDirectedAttempt($receiver, $caller);
+                $this->fail('Reserved participant accepted another route.');
+            } catch (\RuntimeException $error) {
+                $this->assertSame('A participant already has an active or pending call.', $error->getMessage());
+            }
+        }
+        $this->assertDatabaseCount('call_attempts', 1);
+    }
+
     private function callbackFixture(): array
     {
         $this->withoutMiddleware(\Illuminate\Auth\Middleware\VerifyCsrfToken::class);

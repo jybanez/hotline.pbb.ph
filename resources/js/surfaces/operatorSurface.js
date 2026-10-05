@@ -4287,18 +4287,55 @@ function openCallbackAvailabilityModal(helper, payload, button) {
     let callbackAccepted = false;
     let callbackAnswerPending = false;
     let cancellationOutcome = 'cancelled_by_operator';
-    const cancelCallbackAttempt = () => {
-        if (callbackAttemptId) void fetchJson(`/api/operator/callback-call-attempts/${callbackAttemptId}/cancel`, { method: 'post', body: { outcome: cancellationOutcome } }).catch(() => showToast('Callback cancellation could not be confirmed. Check the incident before trying again.', 'warn'));
+    let cancellationPending = false;
+    let cancellationUncertain = false;
+    let cancellationConfirmed = false;
+    let callbackDeadline = null;
+    let stopMessage = '';
+    const cancelCallbackAttempt = async (readOnly = false) => {
+        if (!callbackAttemptId || cancellationPending || callbackAccepted) return;
+        const wasDisposed = owner.signal.aborted;
+        cancellationPending = true;
+        callingStarted = false;
+        modal.setBusy(true, { message: readOnly ? 'Checking callback status...' : 'Stopping callback...', cancelBusy: null });
+        try {
+            const response = await fetchJson(`/api/operator/callback-call-attempts/${callbackAttemptId}${readOnly ? '' : '/cancel'}`,
+                readOnly ? { method: 'get', timeout: 15000 } : { method: 'post', data: { outcome: cancellationOutcome }, timeout: 15000 });
+            if (!response?.attempt || response.attempt.status !== 'ended') {
+                cancellationUncertain = false;
+                throw new Error('The callback is still pending. Hang up to stop it.');
+            }
+            cancellationConfirmed = response.attempt.outcome !== 'answered';
+            cancellationUncertain = false;
+            if (!cancellationConfirmed) callbackAccepted = true;
+            cancellationPending = false;
+            owner.abort();
+            if (cancellationConfirmed) publishOperatorCallFlow('operator.callback.cancelled', {
+                call_attempt_id: callbackAttemptId, citizen_id: operatorIncidentCitizenId(payload), incident_id: Number(payload.id),
+            });
+            modal.setBusy(false);
+            await modal.close();
+            if (!wasDisposed && (stopMessage || callbackAccepted)) await helper.uiAlert(callbackAccepted
+                ? 'The citizen answered before cancellation was confirmed. Check the incident to manage the active call.'
+                : stopMessage, { title: callbackAccepted ? 'Call answered' : 'Callback stopped', variant: 'warning', okText: 'OK', onAcknowledge: () => true });
+        } catch (error) {
+            // A lost mutation response must be reconciled by GET, never auto-replayed.
+            cancellationUncertain = readOnly ? cancellationUncertain : true;
+            modal.setBusy(true, { message: cancellationUncertain
+                ? 'Callback cancellation is unconfirmed. Check status before trying again.'
+                : 'Callback is still pending. Hang up to stop it.',
+                cancelBusy: { label: cancellationUncertain ? 'Check status' : 'Hang up', onCancel() { void cancelCallbackAttempt(cancellationUncertain); return false; } } });
+            modal.refs.busyCancelButton.setAttribute('aria-label', cancellationUncertain ? 'Check callback status' : 'Hang up');
+            modal.refs.busyCancelButton.innerHTML = createIconMarkup('comms.phone', { size: 22 });
+        } finally {
+            cancellationPending = false;
+        }
     };
     owner.signal.addEventListener('abort', () => {
-        if (callbackAccepted) return;
-        cancelCallbackAttempt();
-        if (callbackAttemptId) publishOperatorCallFlow('operator.callback.cancelled', {
-            call_attempt_id: callbackAttemptId, citizen_id: operatorIncidentCitizenId(payload), incident_id: Number(payload.id),
-        });
+        if (!callbackAccepted && !cancellationConfirmed && !cancellationPending) void cancelCallbackAttempt();
     }, { once: true });
     const onCitizenAnswer = async (event) => {
-        if (owner.signal.aborted || callbackAnswerPending || Number(event.detail?.payload?.call_attempt_id) !== callbackAttemptId
+        if (owner.signal.aborted || cancellationPending || cancellationUncertain || callbackAnswerPending || Number(event.detail?.payload?.call_attempt_id) !== callbackAttemptId
             || Number(event.detail?.sender?.user_id) !== operatorIncidentCitizenId(payload)) return;
         callbackAnswerPending = true;
         callingStarted = false;
@@ -4350,14 +4387,11 @@ function openCallbackAvailabilityModal(helper, payload, button) {
     window.addEventListener('hotline:callback-answer', onCitizenAnswer);
     owner.signal.addEventListener('abort', () => window.removeEventListener('hotline:callback-answer', onCitizenAnswer), { once: true });
     const onCitizenDeclined = (event) => {
-        if (owner.signal.aborted || callbackAnswerPending || Number(event.detail?.payload?.call_attempt_id) !== callbackAttemptId
+        if (owner.signal.aborted || cancellationPending || cancellationUncertain || callbackAnswerPending || Number(event.detail?.payload?.call_attempt_id) !== callbackAttemptId
             || Number(event.detail?.sender?.user_id) !== operatorIncidentCitizenId(payload)) return;
         cancellationOutcome = 'declined_by_citizen';
-        modal.setBusy(false);
-        void modal.close().then(() => helper.uiAlert(
-            `${workbenchCallerName(payload)} has declined the call.`,
-            { title: 'Call declined', variant: 'info', okText: 'OK', onAcknowledge: () => true },
-        ));
+        stopMessage = `${workbenchCallerName(payload)} has declined the call.`;
+        void cancelCallbackAttempt();
     };
     window.addEventListener('hotline:callback-declined', onCitizenDeclined);
     owner.signal.addEventListener('abort', () => window.removeEventListener('hotline:callback-declined', onCitizenDeclined), { once: true });
@@ -4373,8 +4407,16 @@ function openCallbackAvailabilityModal(helper, payload, button) {
         size: 'sm',
         closeOnBackdrop: false,
         actions: [],
-        onBeforeClose() { if (callbackAnswerPending && !callbackAccepted) return false; owner.abort(); return true; },
-        onClose() { button.disabled = false; modal.destroy(); },
+        onBeforeClose() {
+            if (callbackAttemptId && !callbackAccepted && !cancellationConfirmed) {
+                if (!cancellationPending && !cancellationUncertain && !callbackAnswerPending) void cancelCallbackAttempt();
+                return false;
+            }
+            if ((callbackAnswerPending || cancellationPending || cancellationUncertain) && !callbackAccepted && !cancellationConfirmed) return false;
+            owner.abort();
+            return true;
+        },
+        onClose() { button.disabled = callbackAccepted || cancellationUncertain || cancellationPending; modal.destroy(); },
     });
     const citizenName = String(payload.citizen?.name ?? payload.caller?.name ?? workbenchCallerName(payload));
     const avatar = workbenchCallerAvatar(payload);
@@ -4393,9 +4435,8 @@ function openCallbackAvailabilityModal(helper, payload, button) {
         cancelBusy: {
             label: 'Hang up',
             onCancel() {
-                owner.abort();
-                modal.setBusy(false);
-                void modal.close();
+                if (callbackAttemptId) void cancelCallbackAttempt(cancellationUncertain);
+                else { owner.abort(); modal.setBusy(false); void modal.close(); }
                 return false;
             },
         },
@@ -4431,8 +4472,9 @@ function openCallbackAvailabilityModal(helper, payload, button) {
             try {
                 const response = await fetchJson(`/api/operator/incidents/${payload.id}/callback-call`, { method: 'post' });
                 callbackAttemptId = Number(response?.attempt?.id) || null;
+                callbackDeadline = Date.parse(response?.expires_at) || Date.now() + 60000;
                 if (!callbackAttemptId) throw new Error('Callback creation could not be confirmed.');
-                if (owner.signal.aborted) { cancelCallbackAttempt(); return; }
+                if (owner.signal.aborted) { await cancelCallbackAttempt(); return; }
                 if (!callbackCitizenIsOnline(payload)) {
                     callingStarted = true;
                     discontinueIfUnreachable();
@@ -4470,15 +4512,17 @@ function openCallbackAvailabilityModal(helper, payload, button) {
     const discontinueIfUnreachable = () => {
         if (owner.signal.aborted || stopping || !callingStarted) return;
         const connected = appState.runtime.operatorRealtimeStream?.client?.isOpen?.() === true;
+        if (callbackDeadline && Date.now() >= callbackDeadline) {
+            stopping = true;
+            stopMessage = 'The callback expired before the citizen answered.';
+            void cancelCallbackAttempt(true);
+            return;
+        }
         if (connected && callbackCitizenIsOnline(payload)) return;
         stopping = true;
-        modal.setBusy(false);
-        void modal.close().then(() => helper.uiAlert(
-            connected
-                ? `${citizenName} is now unreachable. The callback has been discontinued.`
-                : 'Realtime disconnected. The callback has been discontinued because citizen availability can no longer be confirmed.',
-            { title: 'Callback discontinued', variant: 'warning', okText: 'OK', onAcknowledge: () => true },
-        ));
+        stopMessage = connected ? `${citizenName} is now unreachable. The callback has been discontinued.`
+            : 'Realtime disconnected. The callback has been discontinued because citizen availability can no longer be confirmed.';
+        void cancelCallbackAttempt();
     };
     window.addEventListener('hotline:callback-presence-changed', discontinueIfUnreachable);
     const presenceWatchTimer = window.setInterval(discontinueIfUnreachable, 1000);

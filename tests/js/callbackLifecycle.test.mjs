@@ -9,18 +9,19 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
 function harness() {
     const events = new EventTarget();
     const frames = [];
+    let interval;
     const requests = [];
     const signals = [];
     const alerts = [];
     let online = true;
-    let response = async url => url.endsWith('/callback-call') ? {attempt:{id:12}} : {ok:true};
+    let response = async url => url.endsWith('/callback-call') ? {attempt:{id:12}} : {attempt:{id:12,status:'ended',outcome:'cancelled_by_operator'}};
     const element = () => ({classList:{add(){}}, setAttribute(){}, prepend(){}, innerHTML:''});
     let options, modal;
     const helper = {
         createActionModal(opts) {
             options = opts;
             modal = {refs:{busyLayer:element(),busyMessage:element(),busyCancelButton:element()},
-                open(){this.opened=true;}, setBusy(busy, config){this.busy=busy;this.config=config;},
+                open(){this.opened=true;}, setBusy(busy, config){this.busy=busy;this.config={...this.config,...config};},
                 async close(){if(options.onBeforeClose()===false)return;this.closed=true;options.onClose();}, destroy(){this.destroyed=true;}};
             return modal;
         },
@@ -29,7 +30,7 @@ function harness() {
     const context = vm.createContext({
         AbortController, Date, Number, String, console:{info(){},table(){}},
         window:{addEventListener:events.addEventListener.bind(events), removeEventListener:events.removeEventListener.bind(events),
-            requestAnimationFrame:fn=>frames.push(fn),setInterval:()=>1,clearInterval(){}},
+            requestAnimationFrame:fn=>frames.push(fn),setInterval:fn=>{interval=fn;return 1;},clearInterval(){}},
         document:{createElement:element}, escapeHtml:String, createIconMarkup:()=>'<svg/>',
         workbenchCallerName:()=> 'Citizen',workbenchCallerAvatar:()=>'',operatorIncidentCitizenId:()=>5,
         operatorTransferPresenceRuntime:()=>({roster:{}}),operatorDiscoveryPresenceRuntime:()=>({joined:true}),
@@ -45,7 +46,7 @@ function harness() {
     const button = {};
     const owner = context.openCallbackAvailabilityModal(helper,{id:31,citizen:{name:'Citizen'}},button);
     const dispatch = (type,userId=5) => {const event=new Event(type);event.detail={payload:{call_attempt_id:12},sender:{user_id:userId}};events.dispatchEvent(event);};
-    return {requests,signals,alerts,owner,dispatch,get modal(){return modal;},setOnline:value=>online=value,
+    return {requests,signals,alerts,owner,dispatch,button,watch:()=>interval(),get modal(){return modal;},setOnline:value=>online=value,
         respond:fn=>response=fn,paint:async()=>{while(frames.length)await frames.shift()();await tick();}};
 }
 {
@@ -58,12 +59,12 @@ function harness() {
     h.dispatch('hotline:callback-declined',99); await tick();
     assert.equal(h.modal.closed,undefined,'Another sender cannot decline this call');
     h.dispatch('hotline:callback-declined'); await tick();
-    assert.equal(h.requests.at(-1).opts.body.outcome,'declined_by_citizen');
+    assert.equal(h.requests.at(-1).opts.data.outcome,'declined_by_citizen');
     assert.match(h.alerts[0],/declined/);
 }
 {
     const h=harness(); await h.paint(); let resolve;
-    h.respond(url=>url.endsWith('/answer') ? new Promise(done=>resolve=done) : Promise.resolve({ok:true}));
+    h.respond(url=>url.endsWith('/answer') ? new Promise(done=>resolve=done) : Promise.resolve({attempt:{id:12,status:'ended',outcome:'cancelled_by_operator'}}));
     h.dispatch('hotline:callback-answer'); await tick(); h.owner.destroy();
     resolve({call_session:{id:44},incident:{id:31}}); await tick();
     assert.equal(h.modal.destroyed,true);
@@ -73,9 +74,40 @@ function harness() {
 }
 {
     const h=harness(); let resolve;
-    h.respond(url=>url.endsWith('/callback-call') ? new Promise(done=>resolve=done) : Promise.resolve({ok:true}));
+    h.respond(url=>url.endsWith('/callback-call') ? new Promise(done=>resolve=done) : Promise.resolve({attempt:{id:12,status:'ended',outcome:'cancelled_by_operator'}}));
     const painting=h.paint(); await tick(); h.owner.destroy(); resolve({attempt:{id:12}}); await painting;
     assert.equal(h.requests.at(-1).url,'/api/operator/callback-call-attempts/12/cancel');
     assert.equal(h.signals.some(item=>item.type==='operator.callback.request'),false,'Cancelled initialization cannot dial');
 }
-console.log('PASS callback lifecycle: offline, trusted decline, disposed answer, late creation cleanup');
+{
+    const h=harness(); await h.paint();
+    h.respond(async url=>{if(url.endsWith('/cancel'))throw Error('Lost response');return {attempt:{id:12,status:'ended',outcome:'cancelled_by_operator'}};});
+    h.modal.config.cancelBusy.onCancel(); await tick();
+    assert.equal(h.modal.closed,undefined,'Uncertain cancellation keeps modal visible');
+    assert.equal(h.button.disabled,true,'Uncertain cancellation retains reservation UI');
+    assert.equal(h.signals.some(item=>item.type==='operator.callback.cancelled'),false);
+    assert.equal(h.alerts.length,0,'No confirmed termination claim on failed cancel');
+    h.modal.config.cancelBusy.onCancel(); await tick();
+    assert.equal(h.requests.at(-1).opts.method,'get','Reconcile uncertainty without replaying mutation');
+    assert.equal(h.modal.closed,true);
+    assert.equal(h.button.disabled,false);
+    assert.equal(h.requests.filter(item=>item.url.endsWith('/cancel')).length,1);
+}
+{
+    const h=harness();
+    h.respond(async url=>url.endsWith('/callback-call') ? {attempt:{id:12},expires_at:new Date(Date.now()-1000).toISOString()}
+        : {attempt:{id:12,status:'ended',outcome:'timed_out'}});
+    await h.paint(); h.watch(); await tick();
+    assert.equal(h.requests.at(-1).opts.method,'get','Deadline is reconciled by server read');
+    assert.equal(h.modal.closed,true);
+    assert.match(h.alerts[0],/expired/);
+}
+{
+    const h=harness(); await h.paint();
+    h.respond(async()=>({attempt:{id:12,status:'ended',outcome:'answered'},call_session:{id:44}}));
+    h.modal.config.cancelBusy.onCancel(); await tick();
+    assert.equal(h.signals.some(item=>item.type==='operator.callback.cancelled'),false,'An answered session is never reported cancelled');
+    assert.match(h.alerts[0],/answered before cancellation/);
+    assert.equal(h.button.disabled,true,'Active-call reconciliation cannot enable another callback');
+}
+console.log('PASS callback lifecycle: offline, trusted decline, disposed answer, late creation cleanup, uncertain cancellation reconciliation');

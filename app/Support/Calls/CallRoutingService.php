@@ -24,6 +24,7 @@ class CallRoutingService
     public function __construct(
         private readonly AvailabilityService $availability,
         private readonly SettingsService $settings,
+        private readonly CallParticipantReservation $reservations,
     ) {}
 
     /**
@@ -56,6 +57,9 @@ class CallRoutingService
         }
 
         return DB::transaction(function () use ($caller, $latitude, $longitude, $operator) {
+            $this->reservations->lock((int) $operator->id, (int) $caller->id);
+            $this->reservations->expire((int) $operator->id, (int) $caller->id);
+            $this->reservations->assertAvailable((int) $operator->id, (int) $caller->id, callbacksOnly: true);
             $attempt = CallAttempt::query()->create([
                 'citizen_id' => $caller->id,
                 'status' => CallStatus::Calling,
@@ -92,6 +96,9 @@ class CallRoutingService
         }
 
         return DB::transaction(function () use ($caller, $latitude, $longitude, $operator) {
+            $this->reservations->lock((int) $operator->id, (int) $caller->id);
+            $this->reservations->expire((int) $operator->id, (int) $caller->id);
+            $this->reservations->assertAvailable((int) $operator->id, (int) $caller->id, callbacksOnly: true);
             $attempt = CallAttempt::query()->create([
                 'citizen_id' => $caller->id,
                 'status' => CallStatus::Calling,
@@ -120,6 +127,9 @@ class CallRoutingService
     public function startReconnectAttempt(User $operator, User $caller, Incident $incident): array
     {
         return DB::transaction(function () use ($caller, $incident, $operator) {
+            $this->reservations->lock((int) $operator->id, (int) $caller->id);
+            $this->reservations->expire((int) $operator->id, (int) $caller->id);
+            $this->reservations->assertAvailable((int) $operator->id, (int) $caller->id, callbacksOnly: true);
             // Re-read and serialize eligibility with attempt creation. A caller's
             // previously loaded incident cannot authorize after reassignment.
             $operator = User::query()->findOrFail($operator->id);
@@ -352,9 +362,12 @@ class CallRoutingService
         $operatorAttemptId = $operatorAttempt->getKey();
 
         return DB::transaction(function () use ($operator, $operatorAttemptId) {
-            // All answerers lock the parent first, including routes to different operators.
+            // All answerers lock participants, then the parent, including different operator routes.
             // Request-bound models and loaded relations may predate another answer.
             $route = CallAttemptOperatorAttempt::query()->findOrFail($operatorAttemptId);
+            $snapshot = CallAttempt::query()->findOrFail($route->call_attempt_id);
+            $this->reservations->lock((int) $operator->id, (int) $snapshot->citizen_id);
+            $this->reservations->expire((int) $operator->id, (int) $snapshot->citizen_id);
             $attempt = CallAttempt::query()->whereKey($route->call_attempt_id)->lockForUpdate()->first();
             $operatorAttempt = CallAttemptOperatorAttempt::query()->whereKey($operatorAttemptId)->lockForUpdate()->firstOrFail();
 
@@ -367,6 +380,7 @@ class CallRoutingService
                 throw new RuntimeException('This call attempt is no longer answerable.');
             }
 
+            $this->reservations->assertAvailable((int) $operator->id, (int) $attempt->citizen_id, (int) $attempt->id, callbacksOnly: true);
             $caller = User::query()->findOrFail($attempt->citizen_id);
             $incident = $attempt->incident_id
                 ? Incident::query()->findOrFail($attempt->incident_id)
