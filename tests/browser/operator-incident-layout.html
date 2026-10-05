@@ -1,0 +1,75 @@
+<!doctype html><meta charset="utf-8">
+<link rel="stylesheet" href="../../resources/css/shared.css">
+<link rel="stylesheet" href="../../resources/css/operator.css">
+<body><pre id="results">Running</pre><script type="module">
+import { createUiLoader, DEFAULT_COMPONENT_REGISTRY } from '../../public/vendor/helpers.pbb.ph/js/ui/ui.loader.js';
+const assert = (value, message) => { if (!value) throw new Error(message); };
+try {
+    const source = (await (await fetch('../../resources/js/surfaces/operatorSurface.js')).text()).replace(/\r\n/g, '\n');
+    const markupStart = source.indexOf('    return `\n        <div class="overlay-backdrop operator-workbench-backdrop"');
+    const markupEnd = source.indexOf('    `;', markupStart) + 6;
+    assert(markupStart >= 0 && markupEnd > markupStart, 'Actual workbench markup located');
+    const payload = {id: 31, caller_id: 9};
+    const markupContext = {
+        payload, callState: 'ended', isActive: false, callerMobile: 'Synthetic', calledAt: '-', endedAtMarkup: '', duration: '-',
+        locationMarkup: {text: 'Synthetic fixture', address: '', placeholder: ''}, OPERATOR_CALLBACKS_ENABLED: false,
+        escapeHtml: value => String(value), padIncidentId: value => String(value), workbenchEditIconMarkup: () => '', renderWorkbenchMediaColumnMarkup: () => '',
+    };
+    document.body.insertAdjacentHTML('beforeend', new Function('context', `with(context) { ${source.slice(markupStart, markupEnd)} }`)(markupContext));
+    const loader = createUiLoader(DEFAULT_COMPONENT_REGISTRY, {preferBundles: location.search.includes('bundle')});
+    const create = await loader.get('incident.types');
+    const presets = await loader.get('ui.field.group.presets');
+    const optionsStart = source.indexOf('    const buildIncidentTypesOptions = () => ({');
+    const optionsEnd = source.indexOf('\n    if (incidentTypesHost', optionsStart);
+    assert(optionsStart >= 0 && optionsEnd > optionsStart, 'Actual options located');
+    let requests = [], published = 0, queued = [];
+    const context = {
+        payload, canEditIncidentDetails: true, incidentTypeCategories: [], incidentTypeCatalog: [], lookups: {resourceTypes: []},
+        appState: {helper: {uiConfirm: async () => false}}, cloneWorkbenchValue: value => structuredClone(value),
+        upsertIncidentTypeItem: () => {}, syncIncidentTypesPayload: () => {},
+        queueIncidentTypeSave: (key, action) => queued.push(action),
+        fetchJson: async (url, config) => { requests.push({url, config}); return {detail: {field_key: 'vehicles'}}; },
+        upsertIncidentTypeDetailEntry: () => {}, publishOperatorIncidentUpdate: () => published++,
+    };
+    const buildOptions = new Function('context', `with(context) { ${source.slice(optionsStart, optionsEnd)} return buildIncidentTypesOptions; }`)(context);
+    const host = document.querySelector('[data-workbench-incident-types]');
+    const data = [{incident_type_id: 8, name: 'Road Accident', fields: [{field_key: 'location', field_label: 'Location', input_type: 'text', required: true}, {field_key: 'vehicles', field_label: 'Vehicles Involved', input_type: 'group', ...presets.vehicleInvolved()}]}];
+    const api = create(host, structuredClone(data), buildOptions());
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const rows = [...host.querySelectorAll('.ui-field-group-child')];
+    assert(rows.length >= 6, 'Actual Vehicle Involved preset rendered');
+    const pairs = rows.map(row => ({label: row.querySelector('label')?.textContent, width: row.parentElement.clientWidth, columns: getComputedStyle(row).gridTemplateColumns.split(' ').length}));
+    for (const row of rows) {
+        assert(getComputedStyle(row).gridTemplateColumns.split(' ').length === (row.parentElement.clientWidth >= 240 ? 2 : 1), 'Canonical container fallback');
+        const label = row.querySelector('label');
+        assert(label?.control, 'Accessible label association');
+        assert(row.getBoundingClientRect().right <= host.getBoundingClientRect().right + 1, 'Row within incident host');
+    }
+    const input = [...host.querySelectorAll('input')].find(input => input.id === rows.find(row => row.textContent.includes('Plate number'))?.querySelector('label')?.htmlFor);
+    assert(input, 'Plate input found');
+    input.value = 'TEST123'; input.dispatchEvent(new Event('input', {bubbles: true})); input.dispatchEvent(new Event('change', {bubbles: true}));
+    assert(queued.length > 0, 'Actual application field autosave callback retained');
+    await queued.at(-1)(() => true);
+    assert(requests.length === 1 && requests[0].url.endsWith('/incident-types/8/details'), 'Canonical details endpoint');
+    assert(requests[0].config.data.field_key === 'vehicles' && JSON.stringify(requests[0].config.data.field_value).includes('TEST123'), 'Repeat value retained in payload');
+    assert(published === 1, 'Confirmed save publishes once');
+    const locationInput = host.querySelector('.hh-field-row[data-field-key="location"] input');
+    assert(locationInput?.getAttribute('aria-invalid') === 'true' && document.getElementById(locationInput.getAttribute('aria-describedby'))?.textContent, 'Canonical required error remains associated');
+    locationInput.value = 'Synthetic road'; locationInput.dispatchEvent(new Event('input', {bubbles: true}));
+    assert(!locationInput.hasAttribute('aria-invalid'), 'Correction clears stale error');
+    const saved = JSON.stringify(api.getData());
+    api.update(api.getData(), buildOptions());
+    assert(JSON.stringify(api.getData()) === saved, 'Application update preserves repeated values');
+    const measured = {viewport: innerWidth, column: document.querySelector('.operator-workbench-incident-column').clientWidth, host: host.clientWidth, pairs};
+    api.destroy(); context.canEditIncidentDetails = false;
+    const readOnly = create(host, structuredClone(data), buildOptions());
+    assert(!host.querySelector('input:not([disabled]),select:not([disabled])'), 'Existing edit permission respected');
+    readOnly.destroy();
+    const narrowHost = document.createElement('div'); narrowHost.style.width = '270px'; document.body.append(narrowHost);
+    const narrow = create(narrowHost, structuredClone(data), {...buildOptions(), editable: true});
+    assert([...narrowHost.querySelectorAll('.ui-field-group-child')].every(row => getComputedStyle(row).gridTemplateColumns.split(' ').length === 1), 'Local width fallback stacks');
+    narrow.destroy();
+    document.querySelector('[data-workbench-overlay]').remove();
+    document.body.dataset.status = 'pass'; document.getElementById('results').textContent = 'PASS ' + JSON.stringify(measured);
+} catch(error) { document.body.dataset.status = 'fail'; document.getElementById('results').textContent = error.stack; }
+</script>
