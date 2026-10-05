@@ -1,6 +1,6 @@
 <!doctype html>
 <html><body><pre id="results">Running</pre><script type="module">
-import { incidentStatusErrorMessage } from '../../resources/js/surfaces/incidentStatusFeedback.js';
+import { incidentStatusErrorMessage, isIncidentResolutionBlocker } from '../../resources/js/surfaces/incidentStatusFeedback.js';
 import { createUiLoader, DEFAULT_COMPONENT_REGISTRY } from '../../public/vendor/helpers.pbb.ph/js/ui/ui.loader.js';
 const assert = (condition, message) => { if (!condition) throw new Error(message); };
 const until = async predicate => {
@@ -10,6 +10,7 @@ const until = async predicate => {
 try {
     const loader = createUiLoader(DEFAULT_COMPONENT_REGISTRY, { preferBundles: location.search.includes('bundle') });
     const uiConfirm = await loader.get('ui.dialog.confirm');
+    const uiAlert = await loader.get('ui.dialog.alert');
     const source = (await (await fetch('../../resources/js/surfaces/operatorSurface.js')).text()).replace(/\r\n/g, '\n');
     const start = source.indexOf('            const statusMap = {');
     const end = source.indexOf('        },\n    });\n\n    applyWorkbenchNavbarActionClasses', start);
@@ -17,13 +18,14 @@ try {
     const run = new Function('context', `return (async () => {
         const {action, appState, fetchJson, formatStatusLabel, prepareOperatorWorkbenchPayload,
         syncOperatorIncidentRails, currentOperatorRoot, operatorIncidentCitizenId,
-        publishOperatorIncidentUpdate, close, incidentStatusErrorMessage} = context;
+        publishOperatorIncidentUpdate, close, incidentStatusErrorMessage, isIncidentResolutionBlocker} = context;
         let payload = context.payload;
         ${source.slice(start, end)}
         return payload;
     })()`);
     const blocker = 'Resolve is blocked until all team assignments are completed or cancelled.';
     const scenarios = [
+        {cancel: true},
         {error: {response: {status: 409, data: {message: blocker}}}, text: blocker, guidance: true},
         {error: {response: {status: 403, data: {message: 'You cannot update this incident.'}}}, text: 'You cannot update this incident.'},
         {error: {response: {status: 409, data: {message: '<img src=x onerror="window.bad=true">'}}}, text: '<img src=x onerror="window.bad=true">'},
@@ -38,7 +40,11 @@ try {
         const original = {id: 31, status: 'Deferred'};
         const pending = run({
             action: {id: 'resolved', label: 'Resolved'}, payload: original,
-            appState: {helper: {uiConfirm}}, incidentStatusErrorMessage,
+            appState: {helper: {uiConfirm, uiAlert: async (message, options) => {
+                assert(!document.querySelector('.ui-modal'), 'Confirmation fully unmounted before alert');
+                assert(options.title === 'Cannot resolve incident', 'Blocker title');
+                return uiAlert(message, options);
+            }}}, incidentStatusErrorMessage, isIncidentResolutionBlocker,
             fetchJson: async (url, options) => {
                 requests++;
                 assert(url === '/api/operator/incidents/31/status' && options.data.status === 'Resolved', 'Canonical request');
@@ -55,11 +61,28 @@ try {
         const confirm = buttons.find(button => button.textContent.trim() === 'Resolved');
         const cancel = buttons.find(button => button.textContent.trim() === 'Cancel');
         assert(confirm && cancel, 'Canonical confirm and cancellation actions');
-        confirm.click();
-        if (scenario.success) {
+        if (scenario.cancel) {
+            cancel.click();
+            await pending;
+            assert(requests === 0 && published === 0 && closed === 0 && synced === 0, 'Initial cancel makes no request');
+        } else if (scenario.guidance) {
+            confirm.click();
+            await until(() => document.querySelector('.ui-modal') !== modal && document.querySelector('.ui-modal'));
+            const alert = document.querySelector('.ui-modal');
+            assert(!modal.isConnected && !settled && document.querySelectorAll('.ui-modal').length === 1, 'One alert after full confirmation close');
+            assert(alert.textContent.includes(blocker) && alert.textContent.includes('In Dispatch, complete or cancel'), 'Actual blocker and corrective guidance');
+            assert(alert.querySelector('.is-draggable'), 'Canonical alert is draggable');
+            assert(![...alert.querySelectorAll('button')].some(button => button.textContent.trim() === 'Resolved'), 'No misleading Resolve action');
+            assert(requests === 1 && published === 0 && synced === 0 && closed === 0, 'Blocker has no success effects or replay');
+            [...alert.querySelectorAll('button')].find(button => button.textContent.trim() === 'OK').click();
+            await pending;
+            assert(original.status === 'Deferred' && requests === 1 && closed === 0, 'Alert acknowledgement preserves workbench');
+        } else if (scenario.success) {
+            confirm.click();
             const result = await pending;
             assert(result.status === 'Resolved' && requests === 1 && published === 1 && synced === 1 && closed === 1, 'Confirmed success only');
         } else {
+            confirm.click();
             await until(() => !modal.querySelector('.ui-dialog-error')?.hidden && !confirm.disabled && !cancel.disabled);
             const error = modal.querySelector('.ui-dialog-error');
             assert(error.textContent.includes(scenario.text), 'Actual reason or useful fallback');
