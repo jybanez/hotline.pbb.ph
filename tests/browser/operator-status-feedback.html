@@ -1,0 +1,82 @@
+<!doctype html>
+<html><body><pre id="results">Running</pre><script type="module">
+import { incidentStatusErrorMessage } from '../../resources/js/surfaces/incidentStatusFeedback.js';
+import { createUiLoader, DEFAULT_COMPONENT_REGISTRY } from '../../public/vendor/helpers.pbb.ph/js/ui/ui.loader.js';
+const assert = (condition, message) => { if (!condition) throw new Error(message); };
+const until = async predicate => {
+    for (let i = 0; i < 150; i++) { if (predicate()) return; await new Promise(resolve => setTimeout(resolve, 10)); }
+    throw new Error('Timed out waiting for modal state');
+};
+try {
+    const loader = createUiLoader(DEFAULT_COMPONENT_REGISTRY, { preferBundles: location.search.includes('bundle') });
+    const uiConfirm = await loader.get('ui.dialog.confirm');
+    const source = (await (await fetch('../../resources/js/surfaces/operatorSurface.js')).text()).replace(/\r\n/g, '\n');
+    const start = source.indexOf('            const statusMap = {');
+    const end = source.indexOf('        },\n    });\n\n    applyWorkbenchNavbarActionClasses', start);
+    assert(start >= 0 && end > start, 'Actual status action found');
+    const run = new Function('context', `return (async () => {
+        const {action, appState, fetchJson, formatStatusLabel, prepareOperatorWorkbenchPayload,
+        syncOperatorIncidentRails, currentOperatorRoot, operatorIncidentCitizenId,
+        publishOperatorIncidentUpdate, close, incidentStatusErrorMessage} = context;
+        let payload = context.payload;
+        ${source.slice(start, end)}
+        return payload;
+    })()`);
+    const blocker = 'Resolve is blocked until all team assignments are completed or cancelled.';
+    const scenarios = [
+        {error: {response: {status: 409, data: {message: blocker}}}, text: blocker, guidance: true},
+        {error: {response: {status: 403, data: {message: 'You cannot update this incident.'}}}, text: 'You cannot update this incident.'},
+        {error: {response: {status: 409, data: {message: '<img src=x onerror="window.bad=true">'}}}, text: '<img src=x onerror="window.bad=true">'},
+        ...[undefined, null, '', '  ', {}, [], 7].map(message => ({error: {response: {status: 409, data: {message}}}, text: 'Unable to change the incident status.'})),
+        {error: {message: 'Request failed with status code 409'}, text: 'Unable to change the incident status.'},
+        {response: {}, text: 'The status change could not be confirmed.'},
+        {response: {incident: {id: 31, status: 'Deferred'}}, text: 'The status change could not be confirmed.'},
+        {response: {incident: {id: 31, status: 'Resolved'}}, success: true},
+    ];
+    for (const scenario of scenarios) {
+        let requests = 0, published = 0, closed = 0, synced = 0, settled = false;
+        const original = {id: 31, status: 'Deferred'};
+        const pending = run({
+            action: {id: 'resolved', label: 'Resolved'}, payload: original,
+            appState: {helper: {uiConfirm}}, incidentStatusErrorMessage,
+            fetchJson: async (url, options) => {
+                requests++;
+                assert(url === '/api/operator/incidents/31/status' && options.data.status === 'Resolved', 'Canonical request');
+                if (scenario.error) throw scenario.error;
+                return scenario.response;
+            },
+            formatStatusLabel: value => value, prepareOperatorWorkbenchPayload: value => value,
+            syncOperatorIncidentRails: () => synced++, currentOperatorRoot: () => document.body,
+            operatorIncidentCitizenId: () => 9, publishOperatorIncidentUpdate: () => published++, close: () => closed++,
+        }).then(value => { settled = true; return value; });
+        await until(() => document.querySelector('.ui-modal'));
+        const modal = document.querySelector('.ui-modal');
+        const buttons = [...modal.querySelectorAll('button')];
+        const confirm = buttons.find(button => button.textContent.trim() === 'Resolved');
+        const cancel = buttons.find(button => button.textContent.trim() === 'Cancel');
+        assert(confirm && cancel, 'Canonical confirm and cancellation actions');
+        confirm.click();
+        if (scenario.success) {
+            const result = await pending;
+            assert(result.status === 'Resolved' && requests === 1 && published === 1 && synced === 1 && closed === 1, 'Confirmed success only');
+        } else {
+            await until(() => !modal.querySelector('.ui-dialog-error')?.hidden && !confirm.disabled && !cancel.disabled);
+            const error = modal.querySelector('.ui-dialog-error');
+            assert(error.textContent.includes(scenario.text), 'Actual reason or useful fallback');
+            if (scenario.guidance) assert(error.textContent.includes('In Dispatch, complete or cancel'), 'Actionable assignment guidance');
+            assert(!error.querySelector('img') && !window.bad, 'Server message rendered as text');
+            assert(modal.isConnected && !settled && !modal.classList.contains('is-busy'), 'Rejection stays open and nonbusy');
+            assert(requests === 1 && published === 0 && synced === 0 && closed === 0 && original.status === 'Deferred', 'No replay or false success');
+            cancel.click();
+            await pending;
+            assert(closed === 0 && requests === 1, 'Dismissal preserves incident');
+        }
+        await until(() => !document.querySelector('.ui-modal'));
+    }
+    document.body.dataset.status = 'pass';
+    document.getElementById('results').textContent = 'PASS: actual status action, canonical confirm, actionable 409, safe text, malformed fallback, success, cancellation and no replay';
+} catch (error) {
+    document.body.dataset.status = 'fail';
+    document.getElementById('results').textContent = error.stack;
+}
+</script></body></html>
