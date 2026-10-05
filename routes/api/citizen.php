@@ -22,3 +22,6 @@ Route::middleware(['auth', 'role:citizen'])->prefix('/citizen')->group(function 
     Route::get('/incidents/{incident}', [IncidentController::class, 'show']);
     Route::post('/incidents/{incident}/reconnect', [ReconnectController::class, 'store']);
 });
+Route::middleware(['auth', 'role:citizen'])->prefix('/citizen')->group(function (): void {
+    Route::get('/callback-call-attempts/{attempt}', [\App\Http\Controllers\Api\Operator\CallbackCallAttemptController::class, 'show']);
+});

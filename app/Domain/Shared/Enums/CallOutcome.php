@@ -5,6 +5,8 @@ namespace App\Domain\Shared\Enums;
 enum CallOutcome: string
 {
     case Answered = 'answered';
+    case CancelledByOperator = 'cancelled_by_operator';
+    case DeclinedByCitizen = 'declined_by_citizen';
     case TimedOut = 'timed_out';
     case DeclinedByOperator = 'declined_by_operator';
     case CancelledByCitizen = 'cancelled_by_citizen';

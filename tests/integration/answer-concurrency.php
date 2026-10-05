@@ -41,6 +41,27 @@ $check(config('database.default') === 'mysql'
     && config('database.connections.mysql.host') === '127.0.0.1', 'Refusing cached or non-disposable database configuration.');
 if ($worker) {
     $operator = User::query()->findOrFail((int) $argv[3]);
+    $mode = $argv[6] ?? 'incoming';
+    if ($mode !== 'incoming') {
+        $request = \Illuminate\Http\Request::create('/', 'POST');
+        $request->setUserResolver(fn () => $operator);
+        $controller = app(\App\Http\Controllers\Api\Operator\CallbackCallAttemptController::class);
+        // The disposable schema tests state transitions, not workbench serialization.
+        app()->instance(\App\Support\Incidents\IncidentPayloadBuilder::class, new class extends \App\Support\Incidents\IncidentPayloadBuilder {
+            public function __construct() {}
+            public function buildWorkbenchPayload(Incident $incident, ?\App\Domain\Users\Models\User $viewer = null, bool $includeLegacyAliases = true): array { return $incident->toArray(); }
+        });
+        $context = $mode === 'create' ? Incident::findOrFail((int) $argv[4]) : CallAttempt::findOrFail((int) $argv[4]);
+        file_put_contents($argv[5], 'ready');
+        try {
+            $controller->{$mode === 'create' ? 'store' : $mode}($request, $context);
+            echo json_encode(['status' => ['create'=>'created','answer'=>'answered','cancel'=>'cancelled'][$mode]]);
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $error) {
+            if ($error->getStatusCode() !== 409) throw $error;
+            echo json_encode(['status'=>'conflict']);
+        }
+        exit;
+    }
     $route = CallAttemptOperatorAttempt::query()->with('callAttempt')->findOrFail((int) $argv[4]);
     file_put_contents($argv[5], 'ready');
     try {
@@ -78,6 +99,7 @@ try {
         '2026_05_10_000001_add_citizen_id_columns_for_caller_compatibility.php',
         '2026_05_11_000001_add_citizen_detail_columns_to_incidents_table.php',
         '2026_05_11_000004_drop_caller_storage_columns.php',
+        '2026_10_06_000001_add_callback_to_call_attempts.php',
     ] as $migration) {
         if ($migration === '2026_05_11_000004_drop_caller_storage_columns.php') {
             // MySQL needs a separate FK-supporting index before that migration
@@ -144,6 +166,59 @@ try {
         $participants = CallParticipant::query()->where('call_session_id', $session->id)->get();
         $check($participants->count() === 2 && $participants->contains(fn ($p) => $p->user_id === $caller->id && $p->participant_role === 'citizen') && $participants->contains(fn ($p) => $p->user_id === $winner && $p->participant_role === 'operator'), 'Incorrect participants.');
         echo 'PASS concurrent answers ('.($differentOperators ? 'different operator routes' : 'same route').'): one incident/session, correct participants, safe conflict.'.PHP_EOL;
+    }
+    foreach ([['create','create'], ['answer','answer'], ['answer','cancel']] as $modes) {
+        $citizen = User::factory()->create(['role'=>UserRole::Citizen]);
+        $operator = User::factory()->create(['role'=>UserRole::Operator]);
+        $incident = Incident::create(['citizen_id'=>$citizen->id,'operator_id'=>$operator->id,
+            'status'=>\App\Domain\Shared\Enums\IncidentStatus::Deferred,
+            'alert_level'=>\App\Domain\Shared\Enums\AlertLevel::Normal,'called_at'=>now()]);
+        $contextId = $incident->id;
+        if ($modes[0] !== 'create') {
+            $contextId = CallAttempt::create(['incident_id'=>$incident->id,'citizen_id'=>$citizen->id,
+                'callback'=>true,'status'=>CallStatus::Calling,'started_at'=>now()])->id;
+        }
+        DB::beginTransaction();
+        Incident::whereKey($incident->id)->lockForUpdate()->firstOrFail();
+        $processes = [];
+        $markers = [];
+        foreach ($modes as $mode) {
+            $marker = tempnam(sys_get_temp_dir(), 'hotline-callback-');
+            $markers[] = $marker;
+            $process = proc_open([PHP_BINARY,__FILE__,'worker',$database,(string)$operator->id,(string)$contextId,$marker,$mode],
+                [0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$pipes,dirname(__DIR__,2));
+            $check(is_resource($process),'Cannot start callback worker.');
+            fclose($pipes[0]);
+            $processes[] = [$process,$pipes];
+        }
+        $deadline = microtime(true)+15;
+        while (array_filter($markers,static fn ($marker)=>file_get_contents($marker)!=='ready')) {
+            $check(microtime(true)<$deadline,'Callback workers did not preload contexts.');
+            usleep(10000);
+        }
+        usleep(200000);
+        foreach ($processes as [$process]) $check(proc_get_status($process)['running'],'Callback worker must wait on incident lock.');
+        DB::commit();
+        $statuses = [];
+        foreach ($processes as [$process,$pipes]) {
+            $stdout = stream_get_contents($pipes[1]); $stderr = stream_get_contents($pipes[2]);
+            fclose($pipes[1]); fclose($pipes[2]);
+            $exit = proc_close($process);
+            $check($exit===0 || $exit===-1,'Callback worker failed: '.$stderr);
+            $statuses[] = json_decode($stdout,true,flags:JSON_THROW_ON_ERROR)['status'];
+        }
+        $processes = [];
+        foreach ($markers as $marker) unlink($marker);
+        $markers = [];
+        sort($statuses);
+        $attempt = CallAttempt::where('incident_id',$incident->id)->sole();
+        $sessions = CallSession::where('incident_id',$incident->id)->count();
+        if ($modes[0]==='create') $check($statuses===['conflict','created'] && $sessions===0,'Concurrent callback creates must make one attempt.');
+        elseif ($modes[1]==='answer') $check($statuses===['answered','conflict'] && $sessions===1,'Concurrent callback answers must make one session.');
+        else $check(($statuses===['answered','cancelled'] && $sessions===1 && $attempt->outcome->value==='answered')
+            || ($statuses===['cancelled','conflict'] && $sessions===0 && $attempt->outcome->value==='cancelled_by_operator'), 'Answer/cancel must have one consistent winner.');
+        $check($incident->fresh()->status===\App\Domain\Shared\Enums\IncidentStatus::Deferred,'Callback race changed incident disposition.');
+        echo 'PASS callback race '.implode('/', $modes).': serialized state, no duplicate session, unchanged incident.'.PHP_EOL;
     }
 } catch (Throwable $error) {
     $failure = $error;

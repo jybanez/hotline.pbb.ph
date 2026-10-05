@@ -18,6 +18,8 @@ class CallAttempt extends Model
 
     protected $fillable = [
         'citizen_id',
+        'callback',
+        'answered_at',
         'incident_id',
         'answered_by_operator_id',
         'status',
@@ -31,6 +33,8 @@ class CallAttempt extends Model
     protected function casts(): array
     {
         return [
+            'callback' => 'boolean',
+            'answered_at' => 'datetime',
             'status' => CallStatus::class,
             'outcome' => CallOutcome::class,
             'caller_latitude' => 'decimal:7',
@@ -38,6 +42,11 @@ class CallAttempt extends Model
             'started_at' => 'datetime',
             'ended_at' => 'datetime',
         ];
+    }
+
+    public function incident(): BelongsTo
+    {
+        return $this->belongsTo(\App\Domain\Incidents\Models\Incident::class);
     }
 
     public function operatorAttempts(): HasMany

@@ -1,6 +1,6 @@
 import { appState, availabilityPillClass, clearCallerPendingState, createIconMarkup, ensureHelperUi, escapeHtml, evaluateDevicePrimer, fetchJson, formatDateTime, formatIncidentStatusHeading, formatStatusLabel, getCallerPendingState, handleCommandBroadcastEnvelope, latestCallSession, logCallFlow, mergeIncidentMediaItems, mountChatComposer, mountChatThread, mountRealtimeCallSession, mountRealtimeIncidentChat, mountSurfaceChrome, primerStatusButton, setCallerPendingState, sharedShell, showToast, trackSurfaceInstance, wirePrimer } from './surfaceShared.js';
 import { renderSurface } from './renderSurface.js';
-import { buildAppEventPublishPayload, buildPresenceSubscribePayload, buildRoomJoinPayload, listPresenceRosterItems, parseRealtimeEnvelope, reducePresenceRosterEvent, RealtimeSocketClient } from '../vendor/pbb-realtime-sdk/index.js';
+import { buildAppEventPublishPayload, buildPresencePublishPayload, buildPresenceSubscribePayload, buildRoomJoinPayload, listPresenceRosterItems, parseRealtimeEnvelope, reducePresenceRosterEvent, RealtimeSocketClient } from '../vendor/pbb-realtime-sdk/index.js';
 import { mountRealtimeSignalStrength } from '../features/realtimeSignalStrength.js';
 import { citizenEventType, withCitizenRealtimePayloadAliases } from '../realtime/citizenEvents.js';
 
@@ -1815,6 +1815,7 @@ function refreshCallerAvailabilityFromPresence({ rerender = true } = {}) {
     const currentUserId = String(appState.bootstrap?.user?.id ?? '').trim();
     const discoveryEntries = rosterItems.filter((entry) => (
         String(entry?.userId ?? '').trim() !== currentUserId
+        && (entry.meta?.role === 'operator' || (entry.meta?.role == null && Number(entry.meta?.operator_id ?? 0) === Number(entry.userId)))
     ));
     const availableOperatorCount = discoveryEntries.filter((entry) => (
         String(entry?.state ?? '').trim() === 'online'
@@ -1841,6 +1842,18 @@ function refreshCallerAvailabilityFromPresence({ rerender = true } = {}) {
     }, { rerender });
 }
 
+function publishCallerDiscoveryPresence(client) {
+    const runtime = callerPresenceRuntime();
+    if (!runtime.subscribed || !client?.isOpen?.()) return;
+    client.sendRequest('presence.publish', CALL_DISCOVERY_ROOM,
+        buildPresencePublishPayload(CALL_DISCOVERY_ROOM, 'online', 'online', { role: 'citizen' }));
+    if (runtime.heartbeatTimeoutId) window.clearTimeout(runtime.heartbeatTimeoutId);
+    runtime.heartbeatTimeoutId = window.setTimeout(() => {
+        runtime.heartbeatTimeoutId = null;
+        publishCallerDiscoveryPresence(client);
+    }, 60000);
+}
+
 function subscribeCallerDiscoveryPresence(client) {
     const runtime = callerPresenceRuntime();
 
@@ -1850,6 +1863,7 @@ function subscribeCallerDiscoveryPresence(client) {
 
     client.sendRequest('presence.subscribe', CALL_DISCOVERY_ROOM, buildPresenceSubscribePayload(CALL_DISCOVERY_ROOM));
     runtime.subscribed = true;
+    publishCallerDiscoveryPresence(client);
 }
 
 function resetCallerDiscoveryPresence() {
@@ -1859,6 +1873,8 @@ function resetCallerDiscoveryPresence() {
         return;
     }
 
+    if (runtime.heartbeatTimeoutId) window.clearTimeout(runtime.heartbeatTimeoutId);
+    runtime.heartbeatTimeoutId = null;
     runtime.subscribed = false;
     runtime.roster = {};
 }
@@ -2039,6 +2055,60 @@ async function connectCallerRealtimeStream(options = {}) {
                     return;
                 }
 
+                if (eventType === 'operator.callback.cancelled') {
+                    const incident = appState.runtime.callerHome?.current_open_incident;
+                    const overlay = appState.runtime.callerRoot?.querySelector('[data-caller-pending-overlay]');
+                    if (Number(envelope?.meta?.sender?.user_id) === Number(incident?.operator_id ?? incident?.operator?.id)
+                        && Number(payload?.citizen_id) === Number(appState.bootstrap?.user?.id)
+                        && Number(overlay?.dataset.callbackAttemptId) === Number(payload?.call_attempt_id)) {
+                        void closeCallerPendingOverlay(appState.runtime.callerRoot);
+                    }
+                    return;
+                }
+                if (eventType === 'operator.callback.request') {
+                    const attemptId = Number(payload?.call_attempt_id ?? 0);
+                    const incident = appState.runtime.callerHome?.current_open_incident;
+                    const sender = envelope?.meta?.sender;
+                    const assignedOperatorId = Number(incident?.operator_id ?? incident?.operator?.id ?? 0);
+                    if (eventRoom !== CALL_DISCOVERY_ROOM
+                        || Number(payload?.citizen_id) !== Number(appState.bootstrap?.user?.id)
+                        || !Number.isSafeInteger(attemptId) || attemptId <= 0
+                        || !assignedOperatorId
+                        || Number(payload?.incident_id) !== Number(incident?.id)
+                        || Number(sender?.user_id) !== assignedOperatorId
+                        || Number(payload?.operator_id) !== assignedOperatorId) return;
+                    const seen = appState.runtime.citizenCallbackSignals ??= new Set();
+                    if (seen.has(attemptId)) return;
+                    seen.add(attemptId);
+                    const root = appState.runtime.callerRoot;
+                    if (!root || root.querySelector('[data-caller-pending-overlay]')) return;
+                    const pending = {
+                        kind: 'callback', phase: 'incoming_callback', attempt_id: attemptId,
+                        operator_id: assignedOperatorId,
+                        operator_name: String(sender?.display_name ?? incident?.operator?.name ?? 'Operator'),
+                        operator_avatar: String(incident?.operator?.avatar ?? ''),
+                    };
+                    showCallerPendingOverlay(root, pending, incident);
+                    const overlay = root.querySelector('[data-caller-pending-overlay]');
+                    overlay.dataset.callbackAttemptId = String(attemptId);
+                    overlay.querySelector('[data-answer-callback]')?.addEventListener('click', () => {
+                        setCallerPendingState({ ...pending, kind: 'reconnect', callback: true,
+                            incident_id: Number(incident.id), phase: 'connecting' });
+                        showCallerPendingOverlay(root, { ...pending, phase: 'connecting' }, incident);
+                        publishCallerCallFlow('citizen.callback.answer', {
+                            citizen_id: Number(appState.bootstrap?.user?.id), operator_id: assignedOperatorId,
+                            incident_id: Number(incident.id), call_attempt_id: attemptId,
+                        });
+                    }, { once: true });
+                    overlay.querySelector('[data-decline-callback]')?.addEventListener('click', () => {
+                        publishCallerCallFlow('citizen.callback.declined', {
+                            citizen_id: Number(appState.bootstrap?.user?.id), operator_id: assignedOperatorId,
+                            incident_id: Number(incident.id), call_attempt_id: attemptId,
+                        });
+                        void closeCallerPendingOverlay(root);
+                    }, { once: true });
+                    return;
+                }
                 if (eventType === 'product.query.response') {
                     handleCallerProductQueryResponse(payload);
                     return;
@@ -2279,7 +2349,8 @@ async function connectCallerRealtimeStream(options = {}) {
                     return;
                 }
 
-                if (eventType === 'citizen.reconnect.answered') {
+                if (eventType === 'citizen.reconnect.answered' || eventType === 'operator.callback.accepted') {
+                    if (eventType === 'operator.callback.accepted' && (Number(envelope?.meta?.sender?.user_id) !== Number(pendingState?.operator_id) || Number(payload?.call_attempt_id) !== Number(pendingState?.attempt_id))) return;
                     if (
                         !pendingState
                         || pendingState.kind !== 'reconnect'
@@ -3476,7 +3547,9 @@ function callerNavbarStatusContent(primerReport) {
 function renderCallerPendingContent(pending, incident = null) {
     const operator = pendingOperatorIdentity(pending, incident);
     const phase = String(pending?.phase ?? '').trim();
-    const statusText = phase === 'network_offline'
+    const statusText = phase === 'incoming_callback'
+        ? 'Incoming call'
+        : phase === 'network_offline'
         ? 'Waiting for network ...'
         : phase === 'connecting'
             ? 'Connecting ...'
@@ -3493,9 +3566,17 @@ function renderCallerPendingContent(pending, incident = null) {
                 </div>
                 <div class="caller-pending-status">${escapeHtml(statusText)}</div>
                 <div class="caller-pending-actions">
+                    ${phase === 'incoming_callback' ? `
+                        <button class="ui-button caller-live-action-button caller-callback-answer" type="button" data-answer-callback aria-label="Answer call" title="Answer"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M6.6 4.8c.3-.3.8-.4 1.2-.2l2.6 1.3c.5.2.7.8.5 1.3l-.8 2a1 1 0 0 0 .2 1.1l3.6 3.6a1 1 0 0 0 1.1.2l2-.8c.5-.2 1.1 0 1.3.5l1.3 2.6c.2.4.1.9-.2 1.2l-1.7 1.7c-.8.8-2 1.1-3.1.8-2.6-.7-5.1-2.2-7.2-4.3S4.6 11 3.9 8.4c-.3-1.1 0-2.3.8-3.1l1.9-1.7Z" fill="currentColor"></path>
+        </svg></button>
+                        <button class="ui-action-borderless caller-live-action-button danger" type="button" data-decline-callback aria-label="Decline call"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M7.8 6.4a1 1 0 0 1 1.4 0L12 9.2l2.8-2.8a1 1 0 1 1 1.4 1.4L13.4 10.6l2.8 2.8a1 1 0 0 1-1.4 1.4L12 12l-2.8 2.8a1 1 0 1 1-1.4-1.4l2.8-2.8-2.8-2.8a1 1 0 0 1 0-1.4Z" fill="currentColor"></path>
+        </svg></button>
+                    ` : `
                     <button class="ui-action-borderless caller-live-action-button danger" type="button" data-cancel-caller-pending="1" aria-label="Hang up">
                         ${hangupIconMarkup()}
-                    </button>
+                    </button>`}
                 </div>
             </div>
         </section>
@@ -4640,11 +4721,6 @@ async function showCallerIncidentOverlay(root, payload) {
             showToast(error.response?.data?.message ?? 'Unable to refresh incident.');
         }
     });
-    overlay?.addEventListener('click', (event) => {
-        if (event.target === overlay) {
-            close();
-        }
-    });
 
     overlay?.querySelectorAll('[data-caller-reconnect]').forEach((button) => {
         button.addEventListener('click', async () => {
@@ -4855,7 +4931,13 @@ function renderCaller(root, bootstrap, home, primerReport) {
         const pending = activePendingState ?? pendingState;
 
         try {
-            if (pending?.kind === 'new_call' && pending.operator_attempt_id && pending.operator_id) {
+            if (pending?.callback && !pending.call_session_id) {
+                publishCallerCallFlow('citizen.callback.declined', {
+                    citizen_id: Number(appState.bootstrap?.user?.id), operator_id: pending.operator_id,
+                    incident_id: pending.incident_id, call_attempt_id: pending.attempt_id,
+                });
+            }
+            else if (pending?.kind === 'new_call' && pending.operator_attempt_id && pending.operator_id) {
                 publishCallerCallFlow('citizen.call.cancel', {
                     call_attempt_id: Number(pending.attempt_id ?? 0),
                     call_attempt_operator_attempt_id: Number(pending.operator_attempt_id),

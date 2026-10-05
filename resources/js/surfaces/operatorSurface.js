@@ -726,6 +726,7 @@ function syncOperatorTransferPresenceRoster(envelope) {
 
     const runtime = operatorTransferPresenceRuntime();
     runtime.roster = reducePresenceRosterEvent(runtime.roster, envelope.payload);
+    window.dispatchEvent(new Event('hotline:callback-presence-changed'));
     refreshOutboundTransferModalTargets();
 }
 
@@ -1405,6 +1406,14 @@ async function connectOperatorRealtimeStream(root, options = {}) {
                 const eventRoom = String(envelope?.room ?? '').trim();
                 const payload = withCitizenRealtimePayloadAliases(envelope?.payload);
 
+                if (eventRoom === CALL_DISCOVERY_ROOM && eventType === 'citizen.callback.answer') {
+                    window.dispatchEvent(new CustomEvent('hotline:callback-answer', { detail: { payload, sender: envelope?.meta?.sender } }));
+                    return;
+                }
+                if (eventRoom === CALL_DISCOVERY_ROOM && eventType === 'citizen.callback.declined') {
+                    window.dispatchEvent(new CustomEvent('hotline:callback-declined', { detail: { payload, sender: envelope?.meta?.sender } }));
+                    return;
+                }
                 if (eventRoom === CALL_DISCOVERY_ROOM && eventType === 'presence.state.event') {
                     syncOperatorTransferPresenceRoster(envelope);
                     return;
@@ -1917,6 +1926,7 @@ function publishOperatorDiscoveryPresence(force = false) {
     const nextStatusText = available ? 'available' : 'busy';
     const activeIncidentId = Number(operatorWorkbenchIncidentId() ?? 0);
     const nextMeta = {
+        role: 'operator',
         operator_id: Number(appState.bootstrap?.user?.id ?? 0) || null,
         operator_name: String(appState.bootstrap?.user?.name ?? 'Operator'),
         operator_avatar: String(appState.bootstrap?.user?.avatar ?? ''),
@@ -4254,32 +4264,134 @@ function buildWorkbenchNavbarContent(payload, callState = workbenchCallState(pay
             <small>Caller Relationship</small>
             <div data-workbench-caller-relationship></div>
         </div>
-        ${workbenchIncidentEditable(payload) && callState !== 'active'
-            ? '<button class="ui-action ui-action-borderless" type="button" data-workbench-callback>Callback</button>'
-            : ''}
+
     `;
     return wrapper;
 }
 
+function callbackCitizenIsOnline(payload, now = Date.now()) {
+    const citizenId = operatorIncidentCitizenId(payload);
+    if (!citizenId) return false;
+    return listPresenceRosterItems(operatorTransferPresenceRuntime().roster).some((entry) => {
+        if (Number(entry.userId) !== citizenId || entry.meta?.role !== 'citizen' || String(entry.state).toLowerCase() !== 'online') return false;
+        const expiresAt = Date.parse(entry.expiresAt);
+        if (Number.isFinite(expiresAt)) return expiresAt > now;
+        const updatedAt = Date.parse(entry.updatedAt);
+        return Number.isFinite(updatedAt) && now - updatedAt <= OPERATOR_DISCOVERY_PRESENCE_HEARTBEAT_MS * 2.5;
+    });
+}
+
 function openCallbackAvailabilityModal(helper, payload, button) {
     const owner = new AbortController();
+    let callbackAttemptId = null;
+    let callbackAccepted = false;
+    let callbackAnswerPending = false;
+    let cancellationOutcome = 'cancelled_by_operator';
+    const cancelCallbackAttempt = () => {
+        if (callbackAttemptId) void fetchJson(`/api/operator/callback-call-attempts/${callbackAttemptId}/cancel`, { method: 'post', body: { outcome: cancellationOutcome } }).catch(() => showToast('Callback cancellation could not be confirmed. Check the incident before trying again.', 'warn'));
+    };
+    owner.signal.addEventListener('abort', () => {
+        if (callbackAccepted) return;
+        cancelCallbackAttempt();
+        if (callbackAttemptId) publishOperatorCallFlow('operator.callback.cancelled', {
+            call_attempt_id: callbackAttemptId, citizen_id: operatorIncidentCitizenId(payload), incident_id: Number(payload.id),
+        });
+    }, { once: true });
+    const onCitizenAnswer = async (event) => {
+        if (owner.signal.aborted || callbackAnswerPending || Number(event.detail?.payload?.call_attempt_id) !== callbackAttemptId
+            || Number(event.detail?.sender?.user_id) !== operatorIncidentCitizenId(payload)) return;
+        callbackAnswerPending = true;
+        callingStarted = false;
+        modal.setBusy(true, { message: 'Connecting...', cancelBusy: null });
+        modal.refs.busyCancelButton.innerHTML = createIconMarkup('comms.phone', { size: 22 });
+        try {
+            const response = await fetchJson(`/api/operator/callback-call-attempts/${callbackAttemptId}/answer`, { method: 'post' });
+            callbackAccepted = true;
+            if (owner.signal.aborted) {
+                // Disposal may race a committed answer. End that session once,
+                // without replaying answer or opening media in a different context.
+                await fetchJson(`/api/operator/call-sessions/${response.call_session.id}/hangup`, { method: 'post' });
+                callbackAnswerPending = false;
+                modal.setBusy(false);
+                await modal.close();
+                return;
+            }
+            publishOperatorCallFlow('operator.callback.accepted', {
+                call_attempt_id: callbackAttemptId, incident_id: Number(payload.id),
+                citizen_id: operatorIncidentCitizenId(payload), operator_id: Number(appState.bootstrap?.user?.id),
+                call_session_id: response.call_session.id, incident: response.incident, call_session: response.call_session,
+            });
+            modal.setBusy(false);
+            await modal.close();
+            const root = currentOperatorRoot();
+            appState.runtime.operatorIncomingCallItem = {
+                kind: 'callback', incident_id: Number(payload.id), call_session_id: response.call_session.id,
+                caller_id: operatorIncidentCitizenId(payload), caller_name: workbenchCallerName(payload),
+                caller_avatar: workbenchCallerAvatar(payload),
+            };
+            appState.runtime.operatorIncomingCallPhase = 'connecting';
+            syncOperatorActiveIncident(root, response.incident);
+            await openIncomingCallModal(root, appState.runtime.operatorIncomingCallItem, 'connecting');
+            await startOperatorAnsweredCallBridge(root, response.incident, response.call_session);
+        } catch (error) {
+            callbackAnswerPending = false;
+            if (owner.signal.aborted && !callbackAccepted) {
+                modal.setBusy(false);
+                await modal.close();
+                return;
+            }
+            modal.setBusy(false);
+            await modal.close();
+            await helper.uiAlert(error?.response?.data?.message ?? 'Callback connection could not be confirmed. Check the incident before trying again.', {
+                title: 'Callback connection', variant: 'warning', okText: 'OK', onAcknowledge: () => true,
+            });
+        }
+    };
+    window.addEventListener('hotline:callback-answer', onCitizenAnswer);
+    owner.signal.addEventListener('abort', () => window.removeEventListener('hotline:callback-answer', onCitizenAnswer), { once: true });
+    const onCitizenDeclined = (event) => {
+        if (owner.signal.aborted || callbackAnswerPending || Number(event.detail?.payload?.call_attempt_id) !== callbackAttemptId
+            || Number(event.detail?.sender?.user_id) !== operatorIncidentCitizenId(payload)) return;
+        cancellationOutcome = 'declined_by_citizen';
+        modal.setBusy(false);
+        void modal.close().then(() => helper.uiAlert(
+            `${workbenchCallerName(payload)} has declined the call.`,
+            { title: 'Call declined', variant: 'info', okText: 'OK', onAcknowledge: () => true },
+        ));
+    };
+    window.addEventListener('hotline:callback-declined', onCitizenDeclined);
+    owner.signal.addEventListener('abort', () => window.removeEventListener('hotline:callback-declined', onCitizenDeclined), { once: true });
     let modal;
     button.disabled = true;
     modal = helper.createActionModal({
-        title: 'Callback',
+        title: 'Call back',
+        className: 'operator-callback-modal',
+        showHeader: false,
+        showCloseButton: false,
         ariaLabel: 'Check citizen availability for callback',
         content: `<p>${escapeHtml(workbenchCallerName(payload))}</p>`,
         size: 'sm',
         closeOnBackdrop: false,
         actions: [],
-        onBeforeClose() { owner.abort(); return true; },
+        onBeforeClose() { if (callbackAnswerPending && !callbackAccepted) return false; owner.abort(); return true; },
         onClose() { button.disabled = false; modal.destroy(); },
     });
+    const citizenName = String(payload.citizen?.name ?? payload.caller?.name ?? workbenchCallerName(payload));
+    const avatar = workbenchCallerAvatar(payload);
+    const identity = document.createElement('div');
+    identity.className = 'operator-callback-identity operator-incoming-modal';
+    identity.innerHTML = `<div class="ringing-visual" aria-hidden="true"><span class="ring ring-a"></span><span class="ring ring-b"></span><span class="ring ring-c"></span><span class="operator-incoming-avatar-shell">${avatar
+        ? `<img class="operator-incoming-avatar" src="${escapeHtml(avatar)}" alt="">`
+        : `<span class="operator-incoming-avatar-fallback" aria-hidden="true">${escapeHtml(citizenName.slice(0, 1))}</span>`}
+        </span></div><strong>${escapeHtml(citizenName)}</strong>`;
+    modal.refs.busyLayer.prepend(identity);
+    modal.refs.busyMessage.setAttribute('role', 'status');
+    modal.refs.busyMessage.setAttribute('aria-live', 'polite');
     modal.open();
     modal.setBusy(true, {
         message: 'Checking availability...',
         cancelBusy: {
-            label: 'Cancel check',
+            label: 'Hang up',
             onCancel() {
                 owner.abort();
                 modal.setBusy(false);
@@ -4288,7 +4400,92 @@ function openCallbackAvailabilityModal(helper, payload, button) {
             },
         },
     });
-    // This first UI increment stops here; no check request or call is initiated.
+    modal.refs.busyCancelButton.classList.add('operator-call-action', 'dismiss', 'ui-action-borderless');
+    modal.refs.busyCancelButton.setAttribute('aria-label', 'Hang up');
+    modal.refs.busyCancelButton.title = 'Hang up';
+    modal.refs.busyCancelButton.innerHTML = createIconMarkup('comms.phone', { size: 22 });
+    // Allow the canonical checking state to paint before evaluating the live roster.
+    window.requestAnimationFrame(() => window.requestAnimationFrame(async () => {
+        if (owner.signal.aborted) return;
+        const realtimeConnected = appState.runtime.operatorRealtimeStream?.client?.isOpen?.() === true;
+        const presenceIdentities = listPresenceRosterItems(operatorTransferPresenceRuntime().roster).map((entry) => ({
+            userId: entry.userId,
+            sessionId: entry.sessionId,
+            state: entry.state,
+            appCode: entry.appCode,
+            projectCode: entry.projectCode,
+            updatedAt: entry.updatedAt,
+            expiresAt: entry.expiresAt,
+        }));
+        console.info('[Hotline callback presence]', {
+            incidentId: payload.id,
+            citizenId: operatorIncidentCitizenId(payload),
+            realtimeConnected,
+            discoveryJoined: operatorDiscoveryPresenceRuntime().joined,
+            room: CALL_DISCOVERY_ROOM,
+            identityCount: presenceIdentities.length,
+            citizenOnline: callbackCitizenIsOnline(payload),
+        });
+        console.table(presenceIdentities);
+        if (realtimeConnected && callbackCitizenIsOnline(payload)) {
+            try {
+                const response = await fetchJson(`/api/operator/incidents/${payload.id}/callback-call`, { method: 'post' });
+                callbackAttemptId = Number(response?.attempt?.id) || null;
+                if (!callbackAttemptId) throw new Error('Callback creation could not be confirmed.');
+                if (owner.signal.aborted) { cancelCallbackAttempt(); return; }
+                if (!callbackCitizenIsOnline(payload)) {
+                    callingStarted = true;
+                    discontinueIfUnreachable();
+                    return;
+                }
+                const sent = publishOperatorCallFlow('operator.callback.request', {
+                    incident_id: Number(payload.id), citizen_id: operatorIncidentCitizenId(payload),
+                    operator_id: Number(appState.bootstrap?.user?.id), call_attempt_id: callbackAttemptId,
+                });
+                if (!sent) throw new Error('Realtime callback signal could not be sent.');
+            } catch (error) {
+                if (owner.signal.aborted) return;
+                modal.setBusy(false);
+                await modal.close();
+                await helper.uiAlert(error?.response?.data?.message ?? 'The callback attempt could not be confirmed. Check the incident before trying again.', {
+                    title: 'Call back unavailable', variant: 'warning', okText: 'OK', onAcknowledge: () => true,
+                });
+                return;
+            }
+            callingStarted = true;
+            modal.setBusy(true, { message: 'Calling...' });
+            modal.refs.busyCancelButton.innerHTML = createIconMarkup('comms.phone', { size: 22 });
+            return;
+        }
+        modal.setBusy(false);
+        void modal.close().then(() => helper.uiAlert(
+            realtimeConnected
+                ? `${citizenName} is not currently reachable. Please try again when the citizen is online.`
+                : 'Unable to check citizen availability because Realtime is disconnected. Reconnect and try again.',
+            { title: 'Call back unavailable', variant: 'warning', okText: 'OK', onAcknowledge: () => true },
+        ));
+    }));
+    let stopping = false;
+    let callingStarted = false;
+    const discontinueIfUnreachable = () => {
+        if (owner.signal.aborted || stopping || !callingStarted) return;
+        const connected = appState.runtime.operatorRealtimeStream?.client?.isOpen?.() === true;
+        if (connected && callbackCitizenIsOnline(payload)) return;
+        stopping = true;
+        modal.setBusy(false);
+        void modal.close().then(() => helper.uiAlert(
+            connected
+                ? `${citizenName} is now unreachable. The callback has been discontinued.`
+                : 'Realtime disconnected. The callback has been discontinued because citizen availability can no longer be confirmed.',
+            { title: 'Callback discontinued', variant: 'warning', okText: 'OK', onAcknowledge: () => true },
+        ));
+    };
+    window.addEventListener('hotline:callback-presence-changed', discontinueIfUnreachable);
+    const presenceWatchTimer = window.setInterval(discontinueIfUnreachable, 1000);
+    owner.signal.addEventListener('abort', () => {
+        window.removeEventListener('hotline:callback-presence-changed', discontinueIfUnreachable);
+        window.clearInterval(presenceWatchTimer);
+    }, { once: true });
     return { destroy() { owner.abort(); modal.setBusy(false); void modal.close(); } };
 }
 
@@ -4382,13 +4579,19 @@ async function mountWorkbenchNavbar(overlay, payload, stateOverride, close) {
         : `<span class="operator-workbench-brand-avatar operator-workbench-brand-avatar-fallback">${escapeHtml(workbenchCallerName(payload).slice(0, 1))}</span>`;
 
     const contentStart = buildWorkbenchNavbarContent(payload, callState);
-    const callbackButton = contentStart.querySelector('[data-workbench-callback]');
+    let callbackButton = null;
+    if (workbenchIncidentEditable(payload) && !isActive) {
+        const closeIndex = actions.findIndex((action) => action.id === 'close');
+        actions.splice(closeIndex < 0 ? actions.length : closeIndex, 0, {
+            id: 'callback', label: 'Call back', tone: 'callback',
+            className: 'ui-button-borderless', icon: createIconMarkup('comms.phone', { size: 20 }),
+        });
+    }
     let callbackModal = null;
     const handleCallback = () => {
         if (callbackButton.disabled || !helper.createActionModal || workbenchCallState(payload, stateOverride) === 'active') return;
         callbackModal = openCallbackAvailabilityModal(helper, payload, callbackButton);
     };
-    callbackButton?.addEventListener('click', handleCallback);
     const callerNameInput = contentStart.querySelector('.operator-workbench-navbar-input');
     const callerRelationshipHost = contentStart.querySelector('[data-workbench-caller-relationship]');
     let callerRelationshipSelect = null;
@@ -4482,6 +4685,10 @@ async function mountWorkbenchNavbar(overlay, payload, stateOverride, close) {
         actions,
         onNavigate: () => {},
         onAction: async (action) => {
+            if (action?.id === 'callback') {
+                handleCallback();
+                return;
+            }
             if (action?.id === 'close') {
                 close();
                 return;
@@ -4646,6 +4853,7 @@ async function mountWorkbenchNavbar(overlay, payload, stateOverride, close) {
     });
 
     applyWorkbenchNavbarActionClasses(host, actions);
+    callbackButton = host.querySelector('[data-workbench-action="callback"]');
 
     const handleCallerNameInput = (event) => {
         payload.actual_caller_name = String(event?.target?.value ?? '').trimStart();
@@ -5731,6 +5939,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
 
     const audioCallSessionOptions = () => ({
         className: 'operator-workbench-audio-session',
+        chrome: false,
         autoplay: false,
         showMute: true,
         audiographStyle: currentAudioGraphStyle(),

@@ -1333,3 +1333,29 @@
     }
 
 }
+.caller-live-action-button.caller-callback-answer {
+    background: #159455;
+    color: #fff;
+}
+.caller-live-action-button.caller-callback-answer:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.caller-pending-actions:has([data-decline-callback]) { gap: 18px; }
+.caller-ringing-stage .caller-pending-actions:has([data-decline-callback]) .caller-live-action-button {
+    width: 52px;
+    height: 52px;
+    min-width: 52px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    color: #fff;
+}
+.caller-ringing-stage .caller-pending-actions .caller-callback-answer,
+.caller-ringing-stage .caller-pending-actions .caller-callback-answer:disabled {
+    background: linear-gradient(180deg, rgba(40, 170, 108, 0.95), rgba(18, 120, 70, 0.96));
+    box-shadow: 0 12px 28px rgba(17, 111, 66, 0.24);
+    opacity: 1;
+}
+.caller-ringing-stage .caller-pending-actions [data-decline-callback] {
+    background: linear-gradient(180deg, rgba(198, 66, 66, 0.95), rgba(145, 32, 32, 0.96));
+    box-shadow: 0 12px 28px rgba(118, 27, 27, 0.24);
+}

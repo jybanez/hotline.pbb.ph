@@ -69,3 +69,8 @@ Route::middleware(['auth', 'role:operator'])->prefix('/operator')->group(functio
     Route::post('/team-assignments/{assignment}', [TeamAssignmentController::class, 'update']);
     Route::delete('/team-assignments/{assignment}', [TeamAssignmentController::class, 'destroy']);
 });
+Route::middleware(['auth', 'role:operator'])->prefix('/operator')->group(function (): void {
+    Route::post('/incidents/{incident}/callback-call', [\App\Http\Controllers\Api\Operator\CallbackCallAttemptController::class, 'store']);
+    Route::post('/callback-call-attempts/{attempt}/cancel', [\App\Http\Controllers\Api\Operator\CallbackCallAttemptController::class, 'cancel']);
+});
+Route::middleware(['auth', 'role:operator'])->post('/operator/callback-call-attempts/{attempt}/answer', [\App\Http\Controllers\Api\Operator\CallbackCallAttemptController::class, 'answer']);
