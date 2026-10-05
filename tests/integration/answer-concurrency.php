@@ -212,10 +212,11 @@ try {
             $legacy->operatorAttempts()->create(['operator_id'=>$operator->id,'status'=>CallStatus::Calling,'started_at'=>now(),'created_at'=>now()]);
         }
         DB::beginTransaction();
-        Incident::whereKey($incident->id)->lockForUpdate()->firstOrFail();
+        // Every contender locks these participants; new-call routes need not lock an incident.
+        User::whereIn('id', [$operator->id, $citizen->id])->orderBy('id')->lockForUpdate()->get();
         $processes = [];
         $markers = [];
-        foreach ($modes as $mode) {
+        foreach (getenv('HOTLINE_RACE_REVERSE') === '1' ? array_reverse($modes) : $modes as $mode) {
             $marker = tempnam(sys_get_temp_dir(), 'hotline-callback-');
             $markers[] = $marker;
             $process = proc_open([PHP_BINARY,__FILE__,'worker',$database,(string)$operator->id,(string)(in_array($mode, ['directed','new','reconnect','route-answer'],true) ? $incident->id : $contextId),$marker,$mode],
@@ -230,14 +231,20 @@ try {
             usleep(10000);
         }
         usleep(200000);
-        foreach ($processes as [$process]) $check(proc_get_status($process)['running'],'Callback worker must wait on incident lock.');
+        foreach ($processes as [$process, $pipes]) {
+            if (!proc_get_status($process)['running']) {
+                $stdout = stream_get_contents($pipes[1]);
+                $stderr = stream_get_contents($pipes[2]);
+                throw new RuntimeException('Worker finished before shared participant barrier release: stdout='.$stdout.' stderr='.$stderr);
+            }
+        }
         DB::commit();
         $statuses = [];
         foreach ($processes as [$process,$pipes]) {
             $stdout = stream_get_contents($pipes[1]); $stderr = stream_get_contents($pipes[2]);
             fclose($pipes[1]); fclose($pipes[2]);
             $exit = proc_close($process);
-            $check($exit===0 || $exit===-1,'Callback worker failed: '.$stderr);
+            $check($exit===0 || $exit===-1,'Callback worker failed: stdout='.$stdout.' stderr='.$stderr);
             $statuses[] = json_decode($stdout,true,flags:JSON_THROW_ON_ERROR)['status'];
         }
         $processes = [];

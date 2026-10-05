@@ -34,3 +34,11 @@ Cancellation returns server attempt state. The modal remains visible and the Cal
 Concrete human instructions retained: Jonathan selected callback=1 versus normal=0 on the existing attempt table, defining started_at as operator initiation and answered_at as citizen answer; requested zero citizen HTTP verification on receipt of an authenticated assigned-operator signal; requested presence loss cancellation, citizen-decline alerts and reuse of existing incoming-call/modal/reconnect bridges. These later choices supersede the older callback-case proposal.
 
 Revised evidence: callback 8 tests/72 assertions; related tests 28/150; actual-function JS lifecycle includes uncertain cancellation GET recovery, expiry and answered/cancel reconciliation. Complete Helper action-modal browser tests also pass source/bundle for a failed cancellation followed by GET reconciliation. Independent MySQL 5.7 processes test callback-vs-directed, stale-green inbound, reconnect creation, expired answer/status, and conflicting legacy callback/inbound answers, in addition to the prior answer races. No additional database column is introduced by these revisions.
+
+## Deterministic race barrier correction (Alfred 7424)
+
+Reproduced the original incident-lock barrier failure by starting the stale-green new-call worker first: its exact stdout was {"status":"created"}, stderr empty, and the disposable database was removed. This is a legitimate new-call completion: that path acquires participant locks, not an incident lock. The harness incorrectly required it to remain blocked behind an incident it never locks.
+
+The race barrier now acquires both shared participant User rows in ascending ID order before launching either contender, matching every tested creation/answer path. Both workers must remain running until that common barrier is released. Unexpected early completion reports exact stdout/stderr; normal worker failures now include both streams. No production code change accompanies this test correction.
+
+After correction, all 11 independent-process MySQL 5.7 scenarios pass in both normal and reversed callback-worker launch order (`HOTLINE_RACE_REVERSE=1`). This includes the previously incomplete stale-green new, reconnect, expiry/late-answer and legacy-conflict cases. Both disposable databases were removed.
