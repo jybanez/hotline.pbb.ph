@@ -1414,7 +1414,7 @@ function renderCurrentSnapshot(root, targetHost = null) {
                     <p class="ui-eyebrow">Current SITREP</p>
                     <p class="command-current-sitrep-toolbar-copy">${latest ? 'Official section rendering from the SITREP Viewer SDK.' : 'No current SITREP is available yet.'}</p>
                 </div>
-                <button class="surface-button secondary tiny" type="button" data-command-generate-current-sitrep>
+                <button class="ui-action-borderless surface-button secondary tiny" type="button" data-command-generate-current-sitrep>
                     ${isGeneratingSitrep ? 'Generating...' : 'Generate Today'}
                 </button>
             </div>
@@ -1424,7 +1424,7 @@ function renderCurrentSnapshot(root, targetHost = null) {
                     : `
                         <div class="surface-empty command-current-sitrep-empty">
                             <p>Generate a SITREP to view official section tabs.</p>
-                            <button class="surface-button primary tiny" type="button" data-command-generate-current-sitrep>
+                            <button class="ui-action-borderless surface-button primary tiny" type="button" data-command-generate-current-sitrep>
                                 ${isGeneratingSitrep ? 'Generating...' : 'Generate Today'}
                             </button>
                         </div>
@@ -2595,7 +2595,7 @@ function renderCommandIncidentFilterFallback(root) {
                     `).join('')}
                 </select>
             </label>
-            <button class="surface-button secondary tiny command-incident-refresh command-icon-button" type="button" aria-label="Refresh incidents" title="Refresh incidents" data-command-refresh-incidents>
+            <button class="ui-action-borderless surface-button secondary tiny command-incident-refresh command-icon-button" type="button" aria-label="Refresh incidents" title="Refresh incidents" data-command-refresh-incidents>
                 ${appState.helper.createIcon?.('actions.refresh', { size: 15, ariaLabel: 'Refresh incidents' })?.outerHTML ?? 'Refresh'}
             </button>
         </div>
@@ -3114,7 +3114,7 @@ function renderFallbackList(items) {
                     <strong>${escapeHtml(item.title ?? 'Untitled SITREP')}</strong>
                     <span>${escapeHtml(formatSitrepNumber(item.sequence_number ?? item.id))} · ${escapeHtml(item.coverage_area ?? 'All coverage areas')}</span>
                     <small>${escapeHtml(formatPeriod(item.period_started_at, item.period_ended_at))}</small>
-                    <a class="surface-button secondary tiny" href="${escapeHtml(item.preview_url)}">Preview</a>
+                    <a class="ui-action-borderless surface-button secondary tiny" href="${escapeHtml(item.preview_url)}">Preview</a>
                 </article>
             `).join('')}
         </div>

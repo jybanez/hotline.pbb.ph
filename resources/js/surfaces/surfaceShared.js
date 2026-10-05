@@ -37,7 +37,7 @@ const CALL_SESSION_KEEPALIVE_MS = 60 * 1000;
 const CALL_SESSION_OPERATOR_READY_RESEND_MS = 1500;
 const CALL_SESSION_OPERATOR_READY_RESEND_LIMIT = 8;
 const CALL_SESSION_QUEUED_SIGNAL_TYPES = new Set(['ready', 'offer', 'answer', 'ice-candidate', 'video-state']);
-const HELPER_VENDOR_REV = 'd1ed803';
+const HELPER_VENDOR_REV = '064bb88';
 const realtimeCallSessionRegistry = new Map();
 let accountSsoRedirectStarted = false;
 
@@ -2247,12 +2247,12 @@ function renderAssignments(items) {
                             : '<p class="hero-copy">No specific resources allocated.</p>'
                     }
                     <div class="button-row compact">
-                        <button class="surface-button secondary tiny" type="button" data-assignment-status="${assignment.id}:Accepted">Accept</button>
-                        <button class="surface-button secondary tiny" type="button" data-assignment-status="${assignment.id}:En-route">En-route</button>
-                        <button class="surface-button secondary tiny" type="button" data-assignment-status="${assignment.id}:On-Scene">On-scene</button>
-                        <button class="surface-button secondary tiny" type="button" data-assignment-status="${assignment.id}:Completed">Complete</button>
-                        <button class="surface-button secondary tiny" type="button" data-assignment-status="${assignment.id}:Cancelled">Cancel</button>
-                        <button class="surface-button secondary tiny" type="button" data-delete-assignment="${assignment.id}">Delete</button>
+                        <button class="ui-action-borderless surface-button secondary tiny" type="button" data-assignment-status="${assignment.id}:Accepted">Accept</button>
+                        <button class="ui-action-borderless surface-button secondary tiny" type="button" data-assignment-status="${assignment.id}:En-route">En-route</button>
+                        <button class="ui-action-borderless surface-button secondary tiny" type="button" data-assignment-status="${assignment.id}:On-Scene">On-scene</button>
+                        <button class="ui-action-borderless surface-button secondary tiny" type="button" data-assignment-status="${assignment.id}:Completed">Complete</button>
+                        <button class="ui-action-borderless surface-button secondary tiny" type="button" data-assignment-status="${assignment.id}:Cancelled">Cancel</button>
+                        <button class="ui-action-borderless surface-button secondary tiny" type="button" data-delete-assignment="${assignment.id}">Delete</button>
                     </div>
                 </article>
             `).join('')}

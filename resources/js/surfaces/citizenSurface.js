@@ -2487,12 +2487,12 @@ function renderCallerIncidentOverlay(payload) {
                         </div>
                         <div class="caller-incident-overlay-actions">
                             ${canReconnect
-                                ? `<button class="surface-button secondary" type="button" data-caller-reconnect="${payload.id}">${createIconMarkup('comms.phone', { size: 16 })}<span>Resume Call</span></button>`
+                                ? `<button class="ui-action-borderless surface-button secondary" type="button" data-caller-reconnect="${payload.id}">${createIconMarkup('comms.phone', { size: 16 })}<span>Resume Call</span></button>`
                                 : `
-                                    <button class="caller-incident-overlay-icon" type="button" data-refresh-caller-incident="${payload.id}" aria-label="Refresh incident">
+                                    <button class="ui-action-borderless caller-incident-overlay-icon" type="button" data-refresh-caller-incident="${payload.id}" aria-label="Refresh incident">
                                         ${refreshIconMarkup()}
                                     </button>
-                                    <button class="caller-incident-overlay-icon" type="button" data-close-caller-incident="1" aria-label="Close incident">
+                                    <button class="ui-action-borderless caller-incident-overlay-icon" type="button" data-close-caller-incident="1" aria-label="Close incident">
                                         ${createIconMarkup('actions.close', { fallback: closeIconMarkup() })}
                                     </button>
                                 `}
@@ -3021,7 +3021,7 @@ function mountCallerVideoPreview(overlay, stream) {
     video.srcObject = stream;
 
     const closeButton = document.createElement('button');
-    closeButton.className = 'caller-live-video-close';
+    closeButton.className = 'ui-action-borderless caller-live-video-close';
     closeButton.type = 'button';
     closeButton.setAttribute('aria-label', 'Turn off camera');
     closeButton.innerHTML = createIconMarkup('actions.close', {
@@ -3108,7 +3108,7 @@ function renderCallerCameraPicker(devices, selectedDeviceId) {
         const isActive = String(device.deviceId) === String(selectedDeviceId ?? '');
 
         return `
-            <button class="caller-camera-picker-option${isActive ? ' is-active' : ''}" type="button" data-caller-camera-device="${escapeHtml(device.deviceId)}">
+            <button class="ui-action-borderless caller-camera-picker-option${isActive ? ' is-active' : ''}" type="button" data-caller-camera-device="${escapeHtml(device.deviceId)}">
                 ${escapeHtml(device.label)}
             </button>
         `;
@@ -3121,7 +3121,7 @@ function renderCallerCameraPicker(devices, selectedDeviceId) {
                 <div class="caller-camera-picker-list">
                     ${items}
                 </div>
-                <button class="caller-camera-picker-close" type="button" data-close-caller-camera-picker="1">Close</button>
+                <button class="ui-action-borderless caller-camera-picker-close" type="button" data-close-caller-camera-picker="1">Close</button>
             </div>
         </div>
     `;
@@ -3414,7 +3414,7 @@ function renderCallerHomeContent(home, primerReport, alertLevel) {
     const alertToneClass = callerAlertToneClass(alertLevel);
     const layoutClass = ['caller-home-layout', alertToneClass].filter(Boolean).join(' ');
     const heroClass = ['caller-call-hero', alertToneClass].filter(Boolean).join(' ');
-    const buttonClass = ['caller-call-button', `is-${availability.status}`, alertToneClass].filter(Boolean).join(' ');
+    const buttonClass = ['ui-action-borderless', 'caller-call-button', `is-${availability.status}`, alertToneClass].filter(Boolean).join(' ');
 
     return `
         <div class="${layoutClass}">
@@ -3437,7 +3437,7 @@ function renderCallerHomeContent(home, primerReport, alertLevel) {
                             ${renderCallerHistoryList(home.recent_incidents)}
                         </div>
                     </div>
-                    <button class="caller-home-utility-button" type="button" data-toggle-home-panel="history" aria-expanded="false" aria-label="Show incident history">
+                    <button class="ui-action-borderless caller-home-utility-button" type="button" data-toggle-home-panel="history" aria-expanded="false" aria-label="Show incident history">
                         ${listIconMarkup()}
                     </button>
                 </div>
@@ -3448,7 +3448,7 @@ function renderCallerHomeContent(home, primerReport, alertLevel) {
                             ${renderCallerAvailabilityDropup(home, availability)}
                         </div>
                     </div>
-                    <button class="caller-home-utility-button is-${availability.status}" type="button" data-toggle-home-panel="availability" aria-expanded="false" aria-label="Show availability and connectivity status">
+                    <button class="ui-action-borderless caller-home-utility-button is-${availability.status}" type="button" data-toggle-home-panel="availability" aria-expanded="false" aria-label="Show availability and connectivity status">
                         ${usersIconMarkup()}
                     </button>
                 </div>
@@ -3461,7 +3461,7 @@ function callerNavbarStatusContent(primerReport) {
     const wrapper = document.createElement('div');
     wrapper.className = 'caller-navbar-status';
     wrapper.innerHTML = `
-        <button class="caller-realtime-signal-button caller-navbar-signal-button" type="button" data-caller-signal-help aria-label="Hotline signal. Tap for connection help.">
+        <button class="ui-action-borderless caller-realtime-signal-button caller-navbar-signal-button" type="button" data-caller-signal-help aria-label="Hotline signal. Tap for connection help.">
             <span class="caller-realtime-signal-inline" data-caller-inline-realtime-signal></span>
             <span class="caller-realtime-signal-help-icon" aria-hidden="true">
                 ${createIconMarkup('status.info', { size: 14, fallback: '<span class="caller-realtime-signal-help-fallback">i</span>' })}
@@ -3493,7 +3493,7 @@ function renderCallerPendingContent(pending, incident = null) {
                 </div>
                 <div class="caller-pending-status">${escapeHtml(statusText)}</div>
                 <div class="caller-pending-actions">
-                    <button class="caller-live-action-button danger" type="button" data-cancel-caller-pending="1" aria-label="Hang up">
+                    <button class="ui-action-borderless caller-live-action-button danger" type="button" data-cancel-caller-pending="1" aria-label="Hang up">
                         ${hangupIconMarkup()}
                     </button>
                 </div>
@@ -3525,7 +3525,7 @@ function renderCallerIncidentContent(payload, recentIncidents) {
                         <h2 class="caller-incident-title">Incident #${escapeHtml(payload.display_id)}</h2>
                         <p class="hero-copy">${escapeHtml(payload.status)} · ${formatDateTime(payload.called_at ?? payload.created_at)}</p>
                     </div>
-                    ${canReconnect ? `<button class="surface-button" type="button" data-caller-reconnect-current="1">${createIconMarkup('comms.phone', { size: 16 })}<span>Resume Call</span></button>` : ''}
+                    ${canReconnect ? `<button class="ui-action-borderless surface-button" type="button" data-caller-reconnect-current="1">${createIconMarkup('comms.phone', { size: 16 })}<span>Resume Call</span></button>` : ''}
                 </div>
             </section>
             <div class="caller-incident-grid">
@@ -3586,13 +3586,13 @@ function renderCallerLiveCallContent(payload, latestSession) {
                 <div data-caller-chat-composer></div>
             </section>
             <footer class="caller-live-actions">
-                <button class="caller-live-action-button" type="button" data-caller-live-video-toggle="1" aria-label="Show camera">
+                <button class="ui-action-borderless caller-live-action-button" type="button" data-caller-live-video-toggle="1" aria-label="Show camera">
                     ${cameraIconMarkup()}
                 </button>
-                <button class="caller-live-action-button is-hidden" type="button" data-caller-live-camera-picker="1" aria-label="Select camera" hidden>
+                <button class="ui-action-borderless caller-live-action-button is-hidden" type="button" data-caller-live-camera-picker="1" aria-label="Select camera" hidden>
                     ${switchCameraIconMarkup()}
                 </button>
-                <button class="caller-live-action-button danger" type="button" data-caller-live-hangup="1" aria-label="Hang up">
+                <button class="ui-action-borderless caller-live-action-button danger" type="button" data-caller-live-hangup="1" aria-label="Hang up">
                     ${hangupIconMarkup()}
                 </button>
             </footer>

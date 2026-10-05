@@ -8,7 +8,7 @@
     @yield('head')
     @vite($vite)
 </head>
-<body @hasSection('body_class') class="@yield('body_class')" @endif>
+<body class="ui-actions-borderless @yield('body_class')">
     @yield('body')
 </body>
 </html>
