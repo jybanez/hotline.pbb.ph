@@ -361,13 +361,15 @@ class CallRoutingService
     {
         $operatorAttemptId = $operatorAttempt->getKey();
 
-        return DB::transaction(function () use ($operator, $operatorAttemptId) {
-            // All answerers lock participants, then the parent, including different operator routes.
-            // Request-bound models and loaded relations may predate another answer.
+        // Resolve immutable routing IDs outside the transaction so a MySQL snapshot
+        // cannot predate waiting for the shared participant locks.
+        $route = CallAttemptOperatorAttempt::query()->findOrFail($operatorAttemptId);
+        $citizenId = (int) CallAttempt::query()->findOrFail($route->call_attempt_id)->citizen_id;
+
+        return DB::transaction(function () use ($operator, $operatorAttemptId, $citizenId) {
+            $this->reservations->lock((int) $operator->id, $citizenId);
+            $this->reservations->expire((int) $operator->id, $citizenId);
             $route = CallAttemptOperatorAttempt::query()->findOrFail($operatorAttemptId);
-            $snapshot = CallAttempt::query()->findOrFail($route->call_attempt_id);
-            $this->reservations->lock((int) $operator->id, (int) $snapshot->citizen_id);
-            $this->reservations->expire((int) $operator->id, (int) $snapshot->citizen_id);
             $attempt = CallAttempt::query()->whereKey($route->call_attempt_id)->lockForUpdate()->first();
             $operatorAttempt = CallAttemptOperatorAttempt::query()->whereKey($operatorAttemptId)->lockForUpdate()->firstOrFail();
 
