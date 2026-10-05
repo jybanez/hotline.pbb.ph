@@ -69,7 +69,8 @@ try {
     const narrow = create(narrowHost, structuredClone(data), {...buildOptions(), editable: true});
     assert([...narrowHost.querySelectorAll('.ui-field-group-child')].every(row => getComputedStyle(row).gridTemplateColumns.split(' ').length === 1), 'Local width fallback stacks');
     narrow.destroy();
-    document.querySelector('[data-workbench-overlay]').remove();
+    context.canEditIncidentDetails = true;
+    create(host, JSON.parse(saved), buildOptions());
     document.body.dataset.status = 'pass'; document.getElementById('results').textContent = 'PASS ' + JSON.stringify(measured);
 } catch(error) { document.body.dataset.status = 'fail'; document.getElementById('results').textContent = error.stack; }
 </script>
