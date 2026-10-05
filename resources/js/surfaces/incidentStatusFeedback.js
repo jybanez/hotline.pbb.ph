@@ -1,3 +1,9 @@
+export function isIncidentResolutionBlocker(error, targetStatus) {
+    return targetStatus === 'Resolved'
+        && Number(error?.response?.status) === 409
+        && error?.response?.data?.message === 'Resolve is blocked until all team assignments are completed or cancelled.';
+}
+
 export function incidentStatusErrorMessage(error, targetStatus) {
     const message = error?.response?.data?.message;
     const reason = typeof message === 'string' ? message.trim() : '';

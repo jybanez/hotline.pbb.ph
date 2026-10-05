@@ -9,7 +9,7 @@ import { createDashboardMap } from '../maps/dashboardMap.js';
 import { createWorkbenchLocationMap } from '../maps/workbenchLocationMap.js';
 import { buildAppEventPublishPayload, buildPresencePublishPayload, buildPresenceSubscribePayload, buildRoomJoinPayload, listPresenceRosterItems, parseRealtimeEnvelope, reducePresenceRosterEvent, RealtimeSocketClient } from '../vendor/pbb-realtime-sdk/index.js';
 import { citizenEventType, withCitizenRealtimePayloadAliases } from '../realtime/citizenEvents.js';
-import { incidentStatusErrorMessage } from './incidentStatusFeedback.js';
+import { incidentStatusErrorMessage, isIncidentResolutionBlocker } from './incidentStatusFeedback.js';
 
 const CALL_DISCOVERY_ROOM = 'presence.global.hotline';
 const INCIDENT_MEDIA_ROOM_PREFIX = 'hotline.media.incident.';
@@ -4470,6 +4470,7 @@ async function mountWorkbenchNavbar(overlay, payload, stateOverride, close) {
             const targetStatus = statusMap[action?.id] ?? null;
             const label = String(action?.label ?? formatStatusLabel(action?.id ?? 'Action'));
             let statusResponse = null;
+            let resolutionBlocker = null;
             const confirmed = await appState.helper.uiConfirm(`Change incident to ${label}?`, {
                 title: label,
                 variant: action?.id === 'discard' ? 'warning' : 'info',
@@ -4489,6 +4490,10 @@ async function mountWorkbenchNavbar(overlay, payload, stateOverride, close) {
                             },
                         });
                     } catch (error) {
+                        if (isIncidentResolutionBlocker(error, targetStatus)) {
+                            resolutionBlocker = incidentStatusErrorMessage(error, targetStatus);
+                            return { close: true, value: false };
+                        }
                         throw new Error(incidentStatusErrorMessage(error, targetStatus));
                     }
 
@@ -4499,6 +4504,16 @@ async function mountWorkbenchNavbar(overlay, payload, stateOverride, close) {
                     return true;
                 },
             });
+
+            if (resolutionBlocker) {
+                await appState.helper.uiAlert(resolutionBlocker, {
+                    title: 'Cannot resolve incident',
+                    variant: 'warning',
+                    okText: 'OK',
+                    onAcknowledge: () => true,
+                });
+                return;
+            }
 
             if (confirmed) {
                 if (statusResponse?.incident) {
