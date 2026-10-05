@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'citizen-pwa-v2';
+const CACHE_VERSION = 'citizen-pwa-v3';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 
 const STATIC_PATHS = [
@@ -21,20 +21,24 @@ const NEVER_CACHE_PREFIXES = [
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
-        caches.open(STATIC_CACHE).then((cache) => cache.addAll(STATIC_PATHS)),
+        Promise.all([
+            bestEffort(async () => (await caches.open(STATIC_CACHE)).addAll(STATIC_PATHS)),
+            self.skipWaiting(),
+        ]),
     );
-    self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
     event.waitUntil(
-        caches.keys().then((keys) => Promise.all(
+        Promise.all([bestEffort(async () => {
+            const keys = await caches.keys();
+            await Promise.all(
             keys
                 .filter((key) => (key.startsWith('caller-pwa-') || key.startsWith('citizen-pwa-')) && key !== STATIC_CACHE)
-                .map((key) => caches.delete(key)),
-        )),
+                .map((key) => bestEffort(() => caches.delete(key))),
+            );
+        }), self.clients.claim()]),
     );
-    self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
@@ -68,7 +72,7 @@ async function networkFirstNavigation(request) {
     try {
         return await fetch(request);
     } catch (error) {
-        const cached = await caches.match('/citizen/offline');
+        const cached = await bestEffort(() => caches.match('/citizen/offline'));
 
         if (cached) {
             return cached;
@@ -79,22 +83,33 @@ async function networkFirstNavigation(request) {
 }
 
 async function networkFirst(request) {
+    let response;
     try {
-        const response = await fetch(request);
-
-        if (response.ok) {
-            const cache = await caches.open(STATIC_CACHE);
-            cache.put(request, response.clone());
-        }
-
-        return response;
+        response = await fetch(request);
     } catch (error) {
-        const cached = await caches.match(request);
+        const cached = await bestEffort(() => caches.match(request));
 
         if (cached) {
             return cached;
         }
 
         throw error;
+    }
+
+    if (response.ok) {
+        await bestEffort(async () => {
+            const cache = await caches.open(STATIC_CACHE);
+            await cache.put(request, response.clone());
+        });
+    }
+    return response;
+}
+
+async function bestEffort(operation) {
+    try {
+        return await operation();
+    } catch {
+        // Offline storage is optional; never replace a network response/error with a cache error.
+        return undefined;
     }
 }
