@@ -1992,7 +1992,7 @@ function renderTransferRequestSection(dashboard) {
                     ${buildOptions(dashboard.available_transfer_targets, 'No available operators')}
                 </select>
                 <textarea name="transfer_reason" placeholder="Transfer reason"></textarea>
-                <button class="surface-button secondary" type="button" data-request-transfer="1">Request transfer</button>
+                <button class="ui-action-borderless surface-button secondary" type="button" data-request-transfer="1">Request transfer</button>
             </div>
         </section>
     `;
@@ -2029,7 +2029,7 @@ function renderTeamComposerSection(dashboard) {
                     ${buildOptions(lookups.resourceTypes, 'No resource types', (item) => `${item.name}${item.unit_label ? ` (${item.unit_label})` : ''}`)}
                 </select>
                 <input type="number" min="1" step="1" name="resource_quantity" value="1" placeholder="Quantity">
-                <button class="surface-button secondary" type="button" data-create-assignment="1">Create team assignment</button>
+                <button class="ui-action-borderless surface-button secondary" type="button" data-create-assignment="1">Create team assignment</button>
             </div>
         </section>
     `;
@@ -2081,10 +2081,10 @@ function incomingCallModalMarkup(item, phase = 'incoming') {
                         ? '<span class="operator-incoming-status">&nbsp;</span>'
                     : hasActionButtons
                         ? `
-                        <button class="operator-call-action answer" type="button" data-answer-incoming="1" aria-label="Answer call" title="Answer">
+                        <button class="ui-action-borderless operator-call-action answer" type="button" data-answer-incoming="1" aria-label="Answer call" title="Answer">
                             ${answerIcon}
                         </button>
-                        <button class="operator-call-action dismiss" type="button" data-dismiss-incoming="1" aria-label="Dismiss call" title="Dismiss">
+                        <button class="ui-action-borderless operator-call-action dismiss" type="button" data-dismiss-incoming="1" aria-label="Dismiss call" title="Dismiss">
                             ${dismissIcon}
                         </button>
                         `
@@ -4126,7 +4126,7 @@ function renderWorkbench(payload, stateOverride = null) {
                         <div class="operator-workbench-card operator-workbench-location-card">
                             <div class="operator-workbench-card-head">
                                 <strong>Caller Location</strong>
-                                <button class="operator-workbench-icon-button" type="button" data-edit-workbench-caller-address aria-label="Edit caller address" title="Edit caller address">
+                                <button class="ui-action-borderless operator-workbench-icon-button" type="button" data-edit-workbench-caller-address aria-label="Edit caller address" title="Edit caller address">
                                     ${workbenchEditIconMarkup()}
                                 </button>
                             </div>
@@ -5148,7 +5148,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
             <div class="operator-workbench-card operator-workbench-callback-card">
                 <div class="operator-workbench-card-head">
                     <strong>Callbacks</strong>
-                    ${canCreate ? '<button class="surface-button secondary" type="button" data-callback-action="open">Request Callback</button>' : ''}
+                    ${canCreate ? '<button class="ui-action-borderless surface-button secondary" type="button" data-callback-action="open">Request Callback</button>' : ''}
                 </div>
                 <div class="operator-workbench-callback-list">
                     ${callbacks.length ? callbacks.map((item) => {
@@ -5162,10 +5162,10 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                                     <small>${attempts.length} attempt${attempts.length === 1 ? '' : 's'}${lastAttempt?.result ? ` · Last: ${escapeHtml(callbackResultLabel(lastAttempt.result))}` : ''}</small>
                                 </div>
                                 <div class="operator-workbench-callback-actions">
-                                    <button class="surface-button secondary" type="button" data-callback-action="call" data-callback-id="${escapeHtml(item.id)}">Call Now</button>
-                                    <button class="surface-button secondary" type="button" data-callback-action="record" data-callback-id="${escapeHtml(item.id)}" data-callback-result="no_answer">No Answer</button>
-                                    <button class="surface-button secondary" type="button" data-callback-action="record" data-callback-id="${escapeHtml(item.id)}" data-callback-result="answered">Answered</button>
-                                    <button class="surface-button" type="button" data-callback-action="complete" data-callback-id="${escapeHtml(item.id)}">Complete</button>
+                                    <button class="ui-action-borderless surface-button secondary" type="button" data-callback-action="call" data-callback-id="${escapeHtml(item.id)}">Call Now</button>
+                                    <button class="ui-action-borderless surface-button secondary" type="button" data-callback-action="record" data-callback-id="${escapeHtml(item.id)}" data-callback-result="no_answer">No Answer</button>
+                                    <button class="ui-action-borderless surface-button secondary" type="button" data-callback-action="record" data-callback-id="${escapeHtml(item.id)}" data-callback-result="answered">Answered</button>
+                                    <button class="ui-action-borderless surface-button" type="button" data-callback-action="complete" data-callback-id="${escapeHtml(item.id)}">Complete</button>
                                 </div>
                             </article>
                         `;
@@ -7382,12 +7382,12 @@ function transferModalMarkup(item) {
                         <h2 class="overlay-title">Transfer Request</h2>
                         <p class="hero-copy">Incident ${escapeHtml(item.display_id)} from ${escapeHtml(item.from_operator?.name ?? 'Unknown operator')}</p>
                     </div>
-                    <button class="overlay-close" type="button" data-dismiss-transfer="1">Close</button>
+                    <button class="ui-action-borderless overlay-close" type="button" data-dismiss-transfer="1">Close</button>
                 </div>
                 <p class="hero-copy">${escapeHtml(item.reason ?? 'No transfer reason provided.')}</p>
                 <div class="button-row">
-                    <button class="surface-button" type="button" data-accept-transfer="1">Accept</button>
-                    <button class="surface-button secondary" type="button" data-reject-transfer="1">Reject</button>
+                    <button class="ui-action-borderless surface-button" type="button" data-accept-transfer="1">Accept</button>
+                    <button class="ui-action-borderless surface-button secondary" type="button" data-reject-transfer="1">Reject</button>
                 </div>
                 <div class="notice" data-transfer-notice hidden></div>
             </section>
@@ -7420,7 +7420,7 @@ function outboundTransferModalMarkup(payload, candidates = []) {
                         <h2 class="overlay-title">Transfer Incident</h2>
                         <p class="hero-copy">Incident ${escapeHtml(displayId)} can only be sent to online available operators.</p>
                     </div>
-                    <button class="overlay-close" type="button" data-dismiss-outbound-transfer="1">Close</button>
+                    <button class="ui-action-borderless overlay-close" type="button" data-dismiss-outbound-transfer="1">Close</button>
                 </div>
                 <form class="modal-form operator-transfer-create-form" data-outbound-transfer-form>
                     <label class="field">
@@ -7440,8 +7440,8 @@ function outboundTransferModalMarkup(payload, candidates = []) {
                     </p>
                     <div class="notice" data-outbound-transfer-notice hidden></div>
                     <div class="button-row">
-                        <button class="surface-button" type="submit" data-submit-outbound-transfer ${hasTargets ? '' : 'disabled'}>Send transfer request</button>
-                        <button class="surface-button secondary" type="button" data-dismiss-outbound-transfer="1">Cancel</button>
+                        <button class="ui-action-borderless surface-button" type="submit" data-submit-outbound-transfer ${hasTargets ? '' : 'disabled'}>Send transfer request</button>
+                        <button class="ui-action-borderless surface-button secondary" type="button" data-dismiss-outbound-transfer="1">Cancel</button>
                     </div>
                 </form>
             </section>
@@ -8200,7 +8200,7 @@ function renderOperator(root, bootstrap, dashboard, primerReport) {
                     <div class="operator-tab-toolbar">
                         <div data-operator-tabs></div>
                         ${Array.isArray(dashboard.pending_transfer_requests) && dashboard.pending_transfer_requests.length > 0
-                            ? `<button class="surface-button secondary tiny" type="button" data-open-transfer-request="${dashboard.pending_transfer_requests[0].id}">Transfers (${dashboard.pending_transfer_requests.length})</button>`
+                            ? `<button class="ui-action-borderless surface-button secondary tiny" type="button" data-open-transfer-request="${dashboard.pending_transfer_requests[0].id}">Transfers (${dashboard.pending_transfer_requests.length})</button>`
                             : ''}
                     </div>
                 </aside>
@@ -9303,9 +9303,9 @@ function fallbackDropCardMarkup(item) {
                 ${fallbackDropAttachmentMarkup(item)}
             </div>
             <div class="operator-activity-item-actions">
-                ${canClaim ? `<button class="surface-button secondary tiny" type="button" data-fallback-action="claim" data-fallback-drop-id="${escapeHtml(item?.id ?? '')}">Claim</button>` : ''}
-                ${canConvert ? `<button class="surface-button primary tiny" type="button" data-fallback-action="convert" data-fallback-drop-id="${escapeHtml(item?.id ?? '')}">Convert</button>` : ''}
-                ${canClose ? `<button class="surface-button danger tiny" type="button" data-fallback-action="close" data-fallback-drop-id="${escapeHtml(item?.id ?? '')}">Close</button>` : ''}
+                ${canClaim ? `<button class="ui-action-borderless surface-button secondary tiny" type="button" data-fallback-action="claim" data-fallback-drop-id="${escapeHtml(item?.id ?? '')}">Claim</button>` : ''}
+                ${canConvert ? `<button class="ui-action-borderless surface-button primary tiny" type="button" data-fallback-action="convert" data-fallback-drop-id="${escapeHtml(item?.id ?? '')}">Convert</button>` : ''}
+                ${canClose ? `<button class="ui-action-borderless surface-button danger tiny" type="button" data-fallback-action="close" data-fallback-drop-id="${escapeHtml(item?.id ?? '')}">Close</button>` : ''}
             </div>
         </article>
     `;

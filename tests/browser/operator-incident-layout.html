@@ -1,7 +1,7 @@
 <!doctype html><meta charset="utf-8">
 <link rel="stylesheet" href="../../resources/css/shared.css">
 <link rel="stylesheet" href="../../resources/css/operator.css">
-<body><pre id="results">Running</pre><script type="module">
+<body class="ui-actions-borderless"><pre id="results">Running</pre><script type="module">
 import { createUiLoader, DEFAULT_COMPONENT_REGISTRY } from '../../public/vendor/helpers.pbb.ph/js/ui/ui.loader.js';
 const assert = (value, message) => { if (!value) throw new Error(message); };
 try {
@@ -75,6 +75,11 @@ try {
     narrow.destroy();
     context.canEditIncidentDetails = true;
     create(host, JSON.parse(saved), buildOptions());
+    const actionButtons = [...host.querySelectorAll('.hh-button,.hh-remove,.ui-field-group-add,.ui-field-group-remove')];
+    assert(actionButtons.length > 0 && actionButtons.every(button => getComputedStyle(button).borderTopColor === 'rgba(0, 0, 0, 0)'), 'Complete incident actions borderless');
+    const addressAction = document.querySelector('.operator-workbench-icon-button');
+    assert(addressAction.classList.contains('ui-action-borderless') && getComputedStyle(addressAction).borderTopColor === 'rgba(0, 0, 0, 0)', 'Actual custom address action borderless');
+    assert([...host.querySelectorAll('input,select')].some(input => getComputedStyle(input).borderTopStyle !== 'none' && getComputedStyle(input).borderTopColor !== 'rgba(0, 0, 0, 0)'), 'Input outlines preserved');
     document.body.dataset.status = 'pass'; document.getElementById('results').textContent = 'PASS ' + JSON.stringify(measured);
 } catch(error) { document.body.dataset.status = 'fail'; document.getElementById('results').textContent = error.stack; }
 </script>

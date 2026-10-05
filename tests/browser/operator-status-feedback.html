@@ -1,5 +1,5 @@
 <!doctype html>
-<html><body><pre id="results">Running</pre><script type="module">
+<html><body class="ui-actions-borderless"><pre id="results">Running</pre><script type="module">
 import { incidentStatusErrorMessage, isIncidentResolutionBlocker } from '../../resources/js/surfaces/incidentStatusFeedback.js';
 import { createUiLoader, DEFAULT_COMPONENT_REGISTRY } from '../../public/vendor/helpers.pbb.ph/js/ui/ui.loader.js';
 const assert = (condition, message) => { if (!condition) throw new Error(message); };
@@ -61,6 +61,7 @@ try {
         const confirm = buttons.find(button => button.textContent.trim() === 'Resolved');
         const cancel = buttons.find(button => button.textContent.trim() === 'Cancel');
         assert(confirm && cancel, 'Canonical confirm and cancellation actions');
+        assert([confirm,cancel].every(button => getComputedStyle(button).borderTopColor === 'rgba(0, 0, 0, 0)'), 'Portalled confirmation actions borderless');
         if (scenario.cancel) {
             cancel.click();
             await pending;
@@ -72,6 +73,7 @@ try {
             assert(!modal.isConnected && !settled && document.querySelectorAll('.ui-modal').length === 1, 'One alert after full confirmation close');
             assert(alert.textContent.includes(blocker) && alert.textContent.includes('In Dispatch, complete or cancel'), 'Actual blocker and corrective guidance');
             assert(alert.querySelector('.is-draggable'), 'Canonical alert is draggable');
+            assert([...alert.querySelectorAll('.ui-button')].every(button => getComputedStyle(button).borderTopColor === 'rgba(0, 0, 0, 0)'), 'Portalled alert action borderless');
             assert(![...alert.querySelectorAll('button')].some(button => button.textContent.trim() === 'Resolved'), 'No misleading Resolve action');
             assert(requests === 1 && published === 0 && synced === 0 && closed === 0, 'Blocker has no success effects or replay');
             [...alert.querySelectorAll('button')].find(button => button.textContent.trim() === 'OK').click();
