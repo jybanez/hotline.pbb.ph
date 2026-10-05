@@ -1,0 +1,57 @@
+<!doctype html>
+<html><body class="ui-actions-borderless"><pre id="results">Running</pre><script type="module">
+import { createOperatorMediaManagers } from '../../resources/js/media/operator.js';
+import { createUiLoader, DEFAULT_COMPONENT_REGISTRY } from '../../public/vendor/helpers.pbb.ph/js/ui/ui.loader.js';
+const assert = (condition, message) => { if (!condition) throw new Error(message); };
+const until = async predicate => {
+    for (let i = 0; i < 150; i++) { if (predicate()) return; await new Promise(resolve => setTimeout(resolve, 10)); }
+    throw new Error('Timed out waiting for state');
+};
+const unhandled = [];
+window.addEventListener('unhandledrejection', event => unhandled.push(String(event.reason)));
+try {
+    const loader = createUiLoader(DEFAULT_COMPONENT_REGISTRY, { preferBundles: location.search.includes('bundle') });
+    const uiAlert = await loader.get('ui.dialog.alert');
+    const source = (await (await fetch('../../resources/js/surfaces/operatorSurface.js')).text()).replace(/\r\n/g, '\n');
+    const runtimeSource = source.slice(source.indexOf('function operatorMediaManagersRuntime()'), source.indexOf('\nfunction handleOperatorCaptureFailure('));
+    let opens = 0, deletions = 0, alerts = 0, alertSettlement;
+    Object.defineProperty(window, 'indexedDB', { configurable: true, value: {
+        open() {
+            opens++;
+            const request = new EventTarget();
+            request.error = new DOMException('Injected backing store InternalError', 'InternalError');
+            queueMicrotask(() => request.dispatchEvent(new Event('error')));
+            return request;
+        },
+        deleteDatabase() { deletions++; throw new Error('Queue deletion prohibited'); },
+    } });
+    const appState = { runtime: {}, helper: { uiAlert(message, options) {
+        alerts++; alertSettlement = uiAlert(message, options); return alertSettlement;
+    } } };
+    const runtime = new Function('appState', 'createOperatorMediaTransportAdapter', 'createOperatorMediaManagers', 'debugMediaCapture', 'ensureHelperUi', 'showToast', `${runtimeSource}; return operatorMediaManagersRuntime;`)(
+        appState, () => ({ enabled: true }), createOperatorMediaManagers, () => {}, async () => {}, () => { throw new Error('Unexpected fallback'); },
+    )();
+    void runtime.start();
+    await until(() => document.querySelector('.ui-modal'));
+    const alert = document.querySelector('.ui-modal');
+    assert(alert.textContent.includes('Recording storage unavailable'), 'Visible title');
+    assert(alert.textContent.includes('Recording and queued uploads are paused'), 'Truthful recording and queue status');
+    assert(alert.textContent.includes('new call media cannot be reliably saved'), 'No recording success claim');
+    assert(alert.querySelector('.is-draggable'), 'Canonical draggable alert');
+    assert(runtime.getStatus().consumer.storageAvailable === false && !runtime.getStatus().consumer.started, 'Failed readiness and polling');
+    void runtime.scanConsumers(); runtime.setConsumerEnabled(false); runtime.setConsumerEnabled(true);
+    await new Promise(resolve => setTimeout(resolve, 50));
+    assert(alerts === 1 && document.querySelectorAll('.ui-modal').length === 1, 'No duplicate alert');
+    [...alert.querySelectorAll('button')].find(button => button.textContent.trim() === 'OK').click();
+    await alertSettlement;
+    await until(() => !alert.isConnected);
+    assert(!alert.isConnected, 'Canonical acknowledgement unmount');
+    assert(!runtime.getStatus().consumer.storageAvailable, 'Acknowledging does not enable recording');
+    assert(opens === 1 && deletions === 0 && unhandled.length === 0, 'No replay, database deletion or unhandled rejection');
+    document.querySelector('#results').dataset.status = 'pass';
+    document.querySelector('#results').textContent = 'PASS actual app storage alert, canonical Helper lifecycle and IndexedDB failure';
+} catch (error) {
+    document.querySelector('#results').dataset.status = 'fail';
+    document.querySelector('#results').textContent = error.stack;
+}
+</script></body></html>

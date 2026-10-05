@@ -66,9 +66,9 @@ assert.match(operatorSurface, /callRuntime\.attachRemoteVideoHost\?\.\(videoPrev
 assert.match(operatorSurface, /captureManager\?\.syncRemoteVideo\?\.\(hasExistingRemoteVideo,\s*existingStreams\.remoteStream\)/);
 assert.match(operatorSurface, /const hasRemoteVideo = stream instanceof MediaStream[\s\S]+captureManager\?\.syncRemoteVideo\?\.\(hasRemoteVideo,\s*stream\)/);
 assert.match(operatorSurface, /await state\.remoteVideoSyncPromise\.catch\(\(\) => \{\}\);[\s\S]+await mediaManagers\.producerManager\.close\(\)/);
-assert.match(operatorSurface, /void appState\.runtime\.operatorWorkbenchCaptureManager\?\.finalizeAll\?\.\(\);[\s\S]+operator-hangup-ui-refresh-start/);
-assert.match(operatorSurface, /void captureManager\?\.finalizeAll\?\.\(\);[\s\S]+remote-disconnect-cleanup-ui-refresh-start/);
-assert.match(operatorSurface, /void captureManager\?\.finalizeAll\?\.\(\);[\s\S]+citizen-hangup-ui-refresh-start/);
+assert.match(operatorSurface, /void appState\.runtime\.operatorWorkbenchCaptureManager\?\.finalizeAll\?\.\(\)\?\.catch\(handleOperatorCaptureFailure\);[\s\S]+operator-hangup-ui-refresh-start/);
+assert.match(operatorSurface, /void captureManager\?\.finalizeAll\?\.\(\)\?\.catch\(handleOperatorCaptureFailure\);[\s\S]+remote-disconnect-cleanup-ui-refresh-start/);
+assert.match(operatorSurface, /void captureManager\?\.finalizeAll\?\.\(\)\?\.catch\(handleOperatorCaptureFailure\);[\s\S]+citizen-hangup-ui-refresh-start/);
 assert.doesNotMatch(operatorSurface, /await finalizePromise;[\s\S]+operator-hangup-ui-refresh-start/);
 assert.match(operatorSurface, /answer-bridge-citizen-hangup-ui-refresh-start/);
 assert.match(operatorSurface, /operatorWorkbenchCaptureManager\?\.finalizeAll\?\.\(\)/);
