@@ -5804,6 +5804,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
 
     const buildIncidentTypesOptions = () => ({
         editable: canEditIncidentDetails,
+        fieldLayout: 'horizontal',
         headerText: 'Incident Types',
         categories: incidentTypeCategories,
         incidentTypes: incidentTypeCatalog,
