@@ -21,3 +21,7 @@ The complete Helper alert supplies signal, onClose and isActive. The app capture
 ## Verification
 
 Native Chrome fixtures cover multi-record preservation with hold/probe read/write/delete failures and reloads; healthy drain; malformed/unreadable metadata; unavailable marker storage and failed read-back; newer failure during marker retirement; competing tabs and clean ownership handoff. Actual app hook with canonical Helper runs in source and bundle modes for abort, replacement, newer generation, success and late rejection. Adapter and existing capture/chat regressions remain required. Test profiles/queues are isolated; the affected user's Chrome profile remains unverified until user-assisted diagnosis and post-integration checks.
+
+## Harness timing qualification
+
+Independent review of de57cb7 initially timed out on owner handoff under parallel browser-suite load. Standalone rerun and three sequential repetitions passed. The earlier admission retry budget was about one second (100 retries separated by 10 ms), which coupled ownership teardown timing to host load. The harness now uses a bounded 15-second wall-clock deadline and 25 ms polling; it retries only denied ownership admission, before any queue write, then explicitly verifies recovery before reporting readiness. This is a harness tolerance change, not production automatic recovery. Passing isolated/sequential runs do not establish stress-load coverage.
