@@ -13,7 +13,7 @@ try{
  const second=await context.newPage();await second.goto(url);await second.waitForFunction(()=>window.ready);
  const blocked=await second.evaluate(()=>window.acquire());if(blocked.storageAvailable||!blocked.lastError.includes('Another Hotline tab'))throw Error('Competing tab admitted');
  await first.close();
- await second.waitForFunction(async()=>!(await navigator.locks.query()).held.some(lock=>lock.name==='hotline-operator-media-queue-owner-v1'),{timeout:15000});
+ await second.waitForFunction(async()=>!(await navigator.locks.query()).held.some(lock=>lock.name==='hotline-operator-media-queue-owner-v1'),undefined,{timeout:15000});
  const third=await context.newPage();await third.goto(url);await third.waitForFunction(()=>window.ready);
  const handed=await third.evaluate(()=>window.acquire());
  if(!handed.storageAvailable){
