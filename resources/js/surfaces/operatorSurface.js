@@ -2509,10 +2509,11 @@ function operatorMediaManagersRuntime() {
 
         appState.runtime.operatorMediaManagers.setHooks({
             debug: debugMediaCapture,
-            onError: () => {
+            onError: (failure) => {
                 if (appState.runtime.operatorMediaStorageFailureNotified) return;
                 appState.runtime.operatorMediaStorageFailureNotified = true;
                 const manager = appState.runtime.operatorMediaManagers;
+                const ownershipConflict = failure?.recordingStorageStage === 'queue-ownership';
                 const owner = new AbortController();
                 const path = window.location.pathname;
                 appState.runtime.operatorMediaStorageAlertOwner?.abort();
@@ -2520,7 +2521,9 @@ function operatorMediaManagersRuntime() {
                 void ensureHelperUi().then(() => {
                     if (owner.signal.aborted || appState.runtime.operatorMediaManagers !== manager || window.location.pathname !== path) return;
                     return appState.helper.uiAlert(
-                    'Local recording storage is unavailable. Recording and queued uploads are paused. Previously saved media remains in the queue; new call media cannot be reliably saved. Keep this page open and contact support. Do not clear site data.',
+                    ownershipConflict
+                        ? 'Recording queue ownership could not be acquired. Recording and queued uploads are paused on this page. The owning runtime has not been identified; this can require investigation even with one operator tab. Keep this page and any active call open and contact support. No database verification occurred. Do not clear site data.'
+                        : 'Local recording storage is unavailable. Recording and queued uploads are paused. Previously saved media remains in the queue; new call media cannot be reliably saved. Keep this page open and contact support. Do not clear site data.',
                     {
                         signal: owner.signal,
                         onClose: () => {
@@ -2529,7 +2532,7 @@ function operatorMediaManagersRuntime() {
                                 appState.runtime.operatorMediaStorageFailureNotified = false;
                             }
                         },
-                        title: 'Recording storage unavailable', variant: 'error', okText: 'Retry storage',
+                        title: ownershipConflict ? 'Recording storage is in use' : 'Recording storage unavailable', variant: 'error', okText: 'Retry storage',
                         showCloseButton: true, okBusyMessage: 'Checking durable recording storage...',
                         onAcknowledge: async (_value, lifecycle) => {
                             const generation = manager.consumerManager.failureGeneration;
@@ -2545,6 +2548,9 @@ function operatorMediaManagersRuntime() {
                                 return true;
                             } catch (error) {
                                 if (!ownsContext()) return false;
+                                if (error?.recordingStorageStage === 'queue-ownership') {
+                                    throw new Error('Recording queue ownership is still unavailable (queue-ownership). The owning runtime has not been identified. Keep this page and any active call open and contact support to investigate the owner lifecycle. No database verification occurred. Do not clear site data.');
+                                }
                                 throw new Error(`Storage remains unavailable during ${error?.recordingStorageStage ?? 'durable verification'} (${error?.name ?? 'Error'}: ${error?.message ?? 'verification failed'}). Keep this page open and contact support; do not clear site data.`);
                             }
                         },
