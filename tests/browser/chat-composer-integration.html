@@ -1,0 +1,47 @@
+<!doctype html><meta charset="utf-8">
+<link rel="stylesheet" href="../../resources/css/shared.css">
+<body><div id="thread"></div><div id="queue"></div><div id="composer"></div><script type="module">
+import {createUiLoader,DEFAULT_COMPONENT_REGISTRY} from '../../public/vendor/helpers.pbb.ph/js/ui/ui.loader.js';
+import * as attachments from '../../resources/js/vendor/pbb-realtime-sdk/attachments/realtime-attachments.js';
+import {buildChatPublishPayload} from '../../resources/js/vendor/pbb-realtime-sdk/chat/realtime-chat.js';
+const loader=createUiLoader(DEFAULT_COMPONENT_REGISTRY,{preferBundles:location.search.includes('bundle')});
+const createChatComposer=await loader.get('ui.chat.composer');
+const createChatUploadQueue=await loader.get('ui.chat.upload.queue');
+window.toasts=[];window.createdUrls=[];window.revokedUrls=[];window.mediaTracks=[];
+const originalCreate=URL.createObjectURL.bind(URL),originalRevoke=URL.revokeObjectURL.bind(URL);
+URL.createObjectURL=blob=>{const url=originalCreate(blob);createdUrls.push(url);return url;};
+URL.revokeObjectURL=url=>{revokedUrls.push(url);originalRevoke(url);};
+const getMedia=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+navigator.mediaDevices.getUserMedia=async constraints=>{const stream=await getMedia(constraints);mediaTracks.push(...stream.getTracks());return stream;};
+window.delayRead=false;window.failChunk=false;
+const source=await(await fetch('../../resources/js/surfaces/surfaceShared.js')).text();
+const composerSource=source.slice(source.indexOf('function mountChatComposer('),source.indexOf('function extractRealtimeEnvelopeUserId('));
+const mountSource=source.slice(source.indexOf('async function mountRealtimeIncidentChat('),source.indexOf('function readFileAsDataUrl('));
+class Client {
+ constructor(options){this.options=options;this.requests=[];this.open=true;window.chatClient=this;}
+ connect(){this.options.onMessage({phase:'ack',type:'session.auth.request'});}
+ isOpen(){return this.open;}
+ close(){this.open=false;}
+ sendRequest(type,room,payload){
+  if(failChunk&&type==='sandbox.attachment.chunk.publish')return null;
+  const id='test_'+this.requests.length;this.requests.push({id,type,room,payload});
+  if(type==='room.join.request')queueMicrotask(()=>this.options.onMessage({phase:'ack',type,id,room}));
+  return id;
+ }
+}
+const context={...attachments,buildChatPublishPayload,RealtimeSocketClient:Client,
+ appState:{helper:{createChatComposer,createChatUploadQueue}},ensureHelperUi:async()=>{},
+ normalizeChatMessages:()=>[],mountChatThread:()=>({update(){},destroy(){}}),
+ formatStatusLabel:String,formatAttachmentPolicyHelperText:()=> '2 attachments, 1 MB each',
+ parseRealtimeEnvelope:value=>value,buildRoomJoinPayload:()=>({}),showToast:message=>toasts.push(message),
+ readFileAsDataUrl:async file=>{if(delayRead)await new Promise(resolve=>window.completeRead=resolve);return await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file);});},
+ fetchJson:async()=>({token:'test',websocket_url:'ws://mock',room:'chat.thread.incident.31',
+  session:{attachment_policy:{max_attachment_count:2,max_attachment_bytes:1048576,max_total_bytes_per_message:1048576}}}),
+};
+const mount=new Function('context',`with(context){${composerSource}\n${mountSource}\nreturn mountRealtimeIncidentChat;}`)(context);
+window.chat=await mount({incidentId:31,viewerRole:'operator',admissionPath:'/mock',currentUserId:'3',
+ threadHost:document.querySelector('#thread'),composerHost:document.querySelector('#composer'),uploadQueueHost:document.querySelector('#queue'),
+ composerOptions:{accept:'image/*,video/*'},});
+chat.composerApi.setValue('Preserved draft');
+window.ready=true;
+</script></body>

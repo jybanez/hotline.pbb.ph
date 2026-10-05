@@ -37,7 +37,7 @@ const CALL_SESSION_KEEPALIVE_MS = 60 * 1000;
 const CALL_SESSION_OPERATOR_READY_RESEND_MS = 1500;
 const CALL_SESSION_OPERATOR_READY_RESEND_LIMIT = 8;
 const CALL_SESSION_QUEUED_SIGNAL_TYPES = new Set(['ready', 'offer', 'answer', 'ice-candidate', 'video-state']);
-const HELPER_VENDOR_REV = '7c43b7f';
+const HELPER_VENDOR_REV = '5c93ad2';
 const realtimeCallSessionRegistry = new Map();
 let accountSsoRedirectStarted = false;
 
@@ -3994,6 +3994,10 @@ async function mountRealtimeIncidentChat(options = {}) {
         helperText: 'Loading attachment policy...',
         placeholder: options.composerPlaceholder ?? 'Type a message...',
         ...(options.composerOptions ?? {}),
+        // Recording controls are enabled only after authenticated chat admission.
+        attachments: [],
+        allowAttachmentOnly: true,
+        attachmentLabel: 'Attach file',
     };
 
     let composerApi = null;
@@ -4129,6 +4133,7 @@ async function mountRealtimeIncidentChat(options = {}) {
 
     const syncUploadQueue = () => {
         uploadQueueApi?.setItems?.(uploadItems);
+        composerApi?.setAttachmentCount?.(uploadItems.length);
     };
 
     const releaseComposerBusy = () => {
@@ -4193,7 +4198,8 @@ async function mountRealtimeIncidentChat(options = {}) {
         })),
     });
 
-    const addDraftFiles = async (files) => {
+    const hydrateDraftFiles = async (files) => {
+        if (!active || !joinedRoom || pendingPublishIds.size > 0) return;
         const { accepted, rejected } = validateDraftAttachments({
             existingItems: uploadItems,
             files,
@@ -4206,38 +4212,57 @@ async function mountRealtimeIncidentChat(options = {}) {
             return;
         }
 
-        const hydration = Promise.all(Array.from(accepted).map(async (file, index) => {
-            const kind = inferAttachmentKind(file);
-            const previewCapable = shouldPreviewAttachmentFile(file);
-            const previewUrl = previewCapable ? URL.createObjectURL(file) : '';
-            const transportUrl = await readFileAsDataUrl(file);
-
-            return {
-                id: `${Date.now()}-${index}-${String(file.name || 'file').replace(/\s+/g, '-')}`,
-                transferId: `xfer_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`,
-                kind,
-                name: String(file.name || 'attachment'),
-                sizeLabel: formatAttachmentFileSize(file.size),
-                byteSize: Number(file.size) || 0,
-                status: 'queued',
-                progress: null,
-                progressLabel: '',
-                previewUrl,
-                transportUrl,
-                mimeType: String(file.type || getAttachmentMimeType(kind)),
-                file,
-            };
-        }));
-
-        uploadHydration = hydration;
-        const nextItems = await hydration;
-
-        if (uploadHydration === hydration) {
-            uploadHydration = null;
+        // Prepare sequentially so failure/disposal can release every owned URL.
+        const nextItems = [];
+        try {
+            for (const [index, file] of Array.from(accepted).entries()) {
+                const kind = inferAttachmentKind(file);
+                const previewCapable = shouldPreviewAttachmentFile(file) || kind === 'audio';
+                const previewUrl = previewCapable ? URL.createObjectURL(file) : '';
+                let transportUrl;
+                try {
+                    transportUrl = await readFileAsDataUrl(file);
+                } catch (error) {
+                    if (previewUrl) URL.revokeObjectURL(previewUrl);
+                    throw error;
+                }
+                nextItems.push({
+                    id: `${Date.now()}-${index}-${String(file.name || 'file').replace(/\s+/g, '-')}`,
+                    transferId: `xfer_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`,
+                    kind,
+                    name: String(file.name || 'attachment'),
+                    sizeLabel: formatAttachmentFileSize(file.size),
+                    byteSize: Number(file.size) || 0,
+                    status: 'queued',
+                    progress: null,
+                    progressLabel: '',
+                    previewUrl,
+                    transportUrl,
+                    mimeType: String(file.type || getAttachmentMimeType(kind)),
+                    file,
+                });
+                if (!active) break;
+            }
+            if (!active) {
+                nextItems.forEach(revokeItemPreview);
+                return;
+            }
+            uploadItems = uploadItems.concat(nextItems);
+            syncUploadQueue();
+        } catch (error) {
+            nextItems.forEach(revokeItemPreview);
+            if (active) showToast('Unable to prepare the attachment. Please select it again.', 'warn');
         }
+    };
 
-        uploadItems = uploadItems.concat(nextItems);
-        syncUploadQueue();
+    const addDraftFiles = (files) => {
+        const selectedFiles = Array.from(files ?? []);
+        // A second picker/paste batch validates against the first admitted batch.
+        const hydration = (uploadHydration ?? Promise.resolve()).then(() => hydrateDraftFiles(selectedFiles));
+        uploadHydration = hydration;
+        return hydration.finally(() => {
+            if (uploadHydration === hydration) uploadHydration = null;
+        });
     };
 
     let client = null;
@@ -4245,7 +4270,10 @@ async function mountRealtimeIncidentChat(options = {}) {
     const transferAttachment = async (item) => {
         const attachment = await transferAttachmentInChunks(item, {
             onChunk(chunkPayload) {
-                client?.sendRequest?.('sandbox.attachment.chunk.publish', roomName, chunkPayload);
+                if (!active || !client?.isOpen?.()
+                    || !client.sendRequest('sandbox.attachment.chunk.publish', roomName, chunkPayload)) {
+                    throw new Error('Attachment transfer stopped before message publication.');
+                }
             },
             onProgress(progress, progressLabel) {
                 updateUploadItem(item.id, {
@@ -4281,31 +4309,58 @@ async function mountRealtimeIncidentChat(options = {}) {
 
         return mountChatComposer(composerHost, {
             ...composerBaseOptions,
+            getAttachmentPolicy: () => ({
+                maxAttachments: attachmentPolicy.maxAttachmentCount || Infinity,
+                maxFileBytes: Math.min(attachmentPolicy.maxAttachmentBytes || Infinity, 50 * 1024 * 1024),
+                maxTotalBytes: attachmentPolicy.maxTotalBytesPerMessage || Infinity,
+                usedBytes: uploadItems.reduce((total, item) => total + item.byteSize, 0),
+                attachmentCount: uploadItems.length,
+            }),
+            attachmentOptions: {
+                files: { accept: composerBaseOptions.accept },
+                audios: { accept: 'audio/*' },
+                videos: { accept: 'video/*' },
+            },
+            onAttachmentError(error) { showToast(error?.message ?? 'Unable to attach the recording.', 'warn'); },
             async onSend({ text }) {
-                const trimmed = String(text ?? '').trim();
+                let trimmed = String(text ?? '').trim();
 
                 if (uploadHydration) {
                     await uploadHydration;
                 }
 
-                if (!joinedRoom || !client?.isOpen?.()) {
+                if (!active || !joinedRoom || !client?.isOpen?.()) {
                     showToast('Live chat is not connected yet.', 'warn');
                     return;
                 }
 
+                if (!trimmed && !uploadItems.length) return;
+
+                const validation = validateDraftAttachments({ files: uploadItems.map(item => item.file), policy: attachmentPolicy });
+                if (validation.rejected.length) {
+                    validation.rejected.forEach(message => showToast(message, 'warn'));
+                    return;
+                }
+                if (!trimmed) {
+                    const labels = { audio: 'Audio attachment', video: 'Video attachment', image: 'Image attachment' };
+                    trimmed = uploadItems.length === 1
+                        ? (labels[uploadItems[0].kind] ?? 'File attachment')
+                        : `${uploadItems.length} attachments`;
+                }
                 composerApi?.setBusy?.(true);
 
-                if (!trimmed) {
+                const transportAttachments = [];
+                try {
+                    for (const item of uploadItems) {
+                        transportAttachments.push(await transferAttachment(item));
+                    }
+                } catch (error) {
                     releaseComposerBusy();
-                    showToast('Attachment messages still require text.', 'warn');
+                    if (active) showToast('Attachment transfer could not be completed. Your draft has been kept.', 'warn');
                     return;
                 }
 
-                const transportAttachments = [];
-
-                for (const item of uploadItems) {
-                    transportAttachments.push(await transferAttachment(item));
-                }
+                if (!active) return;
 
                 const requestId = client.sendRequest(
                     'chat.message.publish',
@@ -4374,6 +4429,8 @@ async function mountRealtimeIncidentChat(options = {}) {
 
         attachmentPolicy.maxAttachmentCount = Number(admission?.session?.attachment_policy?.max_attachment_count ?? attachmentPolicy.maxAttachmentCount ?? 0) || 0;
         attachmentPolicy.maxAttachmentBytes = Number(admission?.session?.attachment_policy?.max_attachment_bytes ?? attachmentPolicy.maxAttachmentBytes ?? 0) || 0;
+        // The persisted attachment endpoint also has a 50 MiB per-file ceiling.
+        attachmentPolicy.maxAttachmentBytes = Math.min(attachmentPolicy.maxAttachmentBytes || Infinity, 50 * 1024 * 1024);
         attachmentPolicy.maxTotalBytesPerMessage = Number(admission?.session?.attachment_policy?.max_total_bytes_per_message ?? attachmentPolicy.maxTotalBytesPerMessage ?? 0) || 0;
 
         const requestedRooms = new Set();
@@ -4421,6 +4478,7 @@ async function mountRealtimeIncidentChat(options = {}) {
                         helperText: formatAttachmentPolicyHelperText(attachmentPolicy),
                         disabled: false,
                         showAttachmentButton: true,
+                        attachments: ['files', 'video', 'audio'],
                     });
                     return;
                 }
