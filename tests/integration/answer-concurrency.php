@@ -42,6 +42,31 @@ $check(config('database.default') === 'mysql'
 if ($worker) {
     $operator = User::query()->findOrFail((int) $argv[3]);
     $mode = $argv[6] ?? 'incoming';
+    if (in_array($mode, ['directed', 'new', 'reconnect', 'route-answer'], true)) {
+        $incident = Incident::findOrFail((int) $argv[4]);
+        $citizen = User::findOrFail($incident->citizen_id);
+        if ($mode === 'new') {
+            // Force a stale green preflight: the transactional reservation remains authoritative.
+            app()->instance(\App\Support\Sessions\AvailabilityService::class, new class($operator->id) extends \App\Support\Sessions\AvailabilityService {
+                public function __construct(private int $operatorId) {}
+                public function callerAvailability(): array { return ['status'=>'green']; }
+                public function operatorRuntimeState(?\App\Domain\Users\Models\User $user): string { return $user?->id === $this->operatorId ? 'available' : 'offline'; }
+            });
+        }
+        file_put_contents($argv[5], 'ready');
+        try {
+            $routing = app(CallRoutingService::class);
+            if ($mode === 'directed') $routing->startDirectedAttempt($operator, $citizen);
+            elseif ($mode === 'new') $routing->startNewAttempt($citizen);
+            elseif ($mode === 'reconnect') $routing->startReconnectAttempt($operator, $citizen, $incident);
+            else $routing->answerNewAttempt($operator, CallAttemptOperatorAttempt::where('operator_id', $operator->id)->where('status', CallStatus::Calling)->firstOrFail());
+            echo json_encode(['status'=>$mode === 'route-answer' ? 'answered' : 'created']);
+        } catch (RuntimeException $error) {
+            if (!in_array($error->getMessage(), ['A participant already has an active or pending call.', 'This call attempt is no longer answerable.', 'Reconnect is already in progress for this incident.'], true)) throw $error;
+            echo json_encode(['status'=>'conflict']);
+        }
+        exit;
+    }
     if ($mode !== 'incoming') {
         $request = \Illuminate\Http\Request::create('/', 'POST');
         $request->setUserResolver(fn () => $operator);
@@ -55,7 +80,7 @@ if ($worker) {
         file_put_contents($argv[5], 'ready');
         try {
             $controller->{$mode === 'create' ? 'store' : $mode}($request, $context);
-            echo json_encode(['status' => ['create'=>'created','answer'=>'answered','cancel'=>'cancelled'][$mode]]);
+            echo json_encode(['status' => ['create'=>'created','answer'=>'answered','cancel'=>'cancelled','status'=>'reconciled'][$mode]]);
         } catch (\Symfony\Component\HttpKernel\Exception\HttpException $error) {
             if ($error->getStatusCode() !== 409) throw $error;
             echo json_encode(['status'=>'conflict']);
@@ -167,7 +192,7 @@ try {
         $check($participants->count() === 2 && $participants->contains(fn ($p) => $p->user_id === $caller->id && $p->participant_role === 'citizen') && $participants->contains(fn ($p) => $p->user_id === $winner && $p->participant_role === 'operator'), 'Incorrect participants.');
         echo 'PASS concurrent answers ('.($differentOperators ? 'different operator routes' : 'same route').'): one incident/session, correct participants, safe conflict.'.PHP_EOL;
     }
-    foreach ([['create','create'], ['answer','answer'], ['answer','cancel']] as $modes) {
+    foreach ([['create','create'], ['answer','answer'], ['answer','cancel'], ['create','directed'], ['create','new'], ['create','reconnect'], ['answer','status'], ['answer','route-answer']] as $modes) {
         $citizen = User::factory()->create(['role'=>UserRole::Citizen]);
         $operator = User::factory()->create(['role'=>UserRole::Operator]);
         $incident = Incident::create(['citizen_id'=>$citizen->id,'operator_id'=>$operator->id,
@@ -176,7 +201,11 @@ try {
         $contextId = $incident->id;
         if ($modes[0] !== 'create') {
             $contextId = CallAttempt::create(['incident_id'=>$incident->id,'citizen_id'=>$citizen->id,
-                'callback'=>true,'status'=>CallStatus::Calling,'started_at'=>now()])->id;
+                'callback'=>true,'status'=>CallStatus::Calling,'started_at'=>$modes[1] === 'status' ? now()->subSeconds(61) : now()])->id;
+        }
+        if ($modes[1] === 'route-answer') {
+            $legacy = CallAttempt::create(['citizen_id'=>$citizen->id,'status'=>CallStatus::Calling,'started_at'=>now()]);
+            $legacy->operatorAttempts()->create(['operator_id'=>$operator->id,'status'=>CallStatus::Calling,'started_at'=>now(),'created_at'=>now()]);
         }
         DB::beginTransaction();
         Incident::whereKey($incident->id)->lockForUpdate()->firstOrFail();
@@ -185,7 +214,7 @@ try {
         foreach ($modes as $mode) {
             $marker = tempnam(sys_get_temp_dir(), 'hotline-callback-');
             $markers[] = $marker;
-            $process = proc_open([PHP_BINARY,__FILE__,'worker',$database,(string)$operator->id,(string)$contextId,$marker,$mode],
+            $process = proc_open([PHP_BINARY,__FILE__,'worker',$database,(string)$operator->id,(string)(in_array($mode, ['directed','new','reconnect','route-answer'],true) ? $incident->id : $contextId),$marker,$mode],
                 [0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$pipes,dirname(__DIR__,2));
             $check(is_resource($process),'Cannot start callback worker.');
             fclose($pipes[0]);
@@ -211,9 +240,11 @@ try {
         foreach ($markers as $marker) unlink($marker);
         $markers = [];
         sort($statuses);
-        $attempt = CallAttempt::where('incident_id',$incident->id)->sole();
+        $attempt = CallAttempt::where('citizen_id',$citizen->id)->when($modes[1]==='route-answer',fn($query)=>$query->where('callback',true))->sole();
         $sessions = CallSession::where('incident_id',$incident->id)->count();
         if ($modes[0]==='create') $check($statuses===['conflict','created'] && $sessions===0,'Concurrent callback creates must make one attempt.');
+        elseif ($modes[1]==='status') $check($statuses===['conflict','reconciled'] && $sessions===0 && $attempt->outcome->value==='timed_out','Expiry and late answer must commit one timeout without a session.');
+        elseif ($modes[1]==='route-answer') $check($statuses===['conflict','conflict'] && $sessions===0,'Legacy conflicting reservations must not both answer.');
         elseif ($modes[1]==='answer') $check($statuses===['answered','conflict'] && $sessions===1,'Concurrent callback answers must make one session.');
         else $check(($statuses===['answered','cancelled'] && $sessions===1 && $attempt->outcome->value==='answered')
             || ($statuses===['cancelled','conflict'] && $sessions===0 && $attempt->outcome->value==='cancelled_by_operator'), 'Answer/cancel must have one consistent winner.');

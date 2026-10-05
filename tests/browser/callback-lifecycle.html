@@ -1,0 +1,24 @@
+<!doctype html><meta charset="utf-8">
+<link rel="stylesheet" href="../../resources/css/shared.css">
+<link rel="stylesheet" href="../../resources/css/operator.css">
+<body><button id="call">Call back</button><script type="module">
+import {createUiLoader,DEFAULT_COMPONENT_REGISTRY} from '../../public/vendor/helpers.pbb.ph/js/ui/ui.loader.js';
+const loader=createUiLoader(DEFAULT_COMPONENT_REGISTRY,{preferBundles:location.search.includes('bundle')});
+const createActionModal=await loader.get('ui.action.modal');
+window.requests=[];window.signals=[];window.alerts=[];
+const source=await(await fetch('../../resources/js/surfaces/operatorSurface.js')).text();
+const code=source.slice(source.indexOf('function callbackCitizenIsOnline('),source.indexOf('function workbenchNavbarIcon('));
+const context={AbortController,Date,Number,String,window,document,console:{info(){},table(){}},
+ escapeHtml:String,createIconMarkup:()=>'<svg width="22" height="22" viewBox="0 0 24 24"><path d="M4 9h16v6H4z" fill="currentColor"/></svg>',
+ workbenchCallerName:()=> 'Citizen',workbenchCallerAvatar:()=>'',operatorIncidentCitizenId:()=>5,
+ operatorTransferPresenceRuntime:()=>({roster:{}}),operatorDiscoveryPresenceRuntime:()=>({joined:true}),
+ listPresenceRosterItems:()=>[{userId:5,meta:{role:'citizen'},state:'online',expiresAt:new Date(Date.now()+60000).toISOString()}],
+ OPERATOR_DISCOVERY_PRESENCE_HEARTBEAT_MS:60000,CALL_DISCOVERY_ROOM:'presence.global.hotline',
+ appState:{bootstrap:{user:{id:3}},runtime:{operatorRealtimeStream:{client:{isOpen:()=>true}}}},
+ fetchJson:async(url,options)=>{requests.push({url,options});if(url.endsWith('/callback-call'))return {attempt:{id:12},expires_at:new Date(Date.now()+60000).toISOString()};if(url.endsWith('/cancel'))throw Error('Simulated lost response');return {attempt:{id:12,status:'ended',outcome:'cancelled_by_operator'}};},
+ publishOperatorCallFlow:(type,payload)=>{signals.push({type,payload});return true;},showToast(){},
+};
+const open=new Function('context',`with(context){${code};return openCallbackAvailabilityModal;}`)(context);
+window.owner=open({createActionModal,uiAlert:async text=>alerts.push(text)},{id:31,citizen:{name:'Citizen'}},document.querySelector('#call'));
+window.ready=true;
+</script></body>
