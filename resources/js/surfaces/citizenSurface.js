@@ -4,6 +4,8 @@ import { buildAppEventPublishPayload, buildPresencePublishPayload, buildPresence
 import { mountRealtimeSignalStrength } from '../features/realtimeSignalStrength.js';
 import { citizenEventType, withCitizenRealtimePayloadAliases } from '../realtime/citizenEvents.js';
 
+import { citizenCallStopIntent as callerStopIntent } from '../features/citizenCallStopIntent.js';
+
 const CALL_DISCOVERY_ROOM = 'presence.global.hotline';
 const INCIDENT_MEDIA_ROOM_PREFIX = 'hotline.media.incident.';
 const INCIDENT_UPDATE_EVENT = 'hotline.incident.updated';
@@ -574,6 +576,7 @@ function patchIncidentCallSession(payload, callSessionId, patch = {}) {
 }
 
 function syncCallerCurrentIncident(nextIncident) {
+    nextIncident = callerStopIntent.reconcile(callerStopIntent.scope(), nextIncident);
     appState.runtime.callerHome = {
         ...(appState.runtime.callerHome ?? {}),
         current_open_incident: nextIncident ?? null,
@@ -866,8 +869,11 @@ async function reconcileCallerCurrentIncidentFromHome(incidentId, reason = 'post
         reason,
     });
 
+    const stopScope = callerStopIntent.scope();
     try {
         const home = await fetchJson('/api/citizen/home');
+        if (!callerStopIntent.isCurrent(stopScope) || Number(appState.runtime.callerHome?.current_open_incident?.id) !== expectedIncidentId) return false;
+        home.current_open_incident = callerStopIntent.reconcile(stopScope, home.current_open_incident);
         const serverIncident = home?.current_open_incident ?? null;
         const serverIncidentId = Number(serverIncident?.id ?? 0);
 
@@ -1889,6 +1895,7 @@ async function connectCallerRealtimeStream(options = {}) {
         return;
     }
 
+    const streamScope = callerStopIntent.scope();
     const reconnectRuntime = callerRealtimeReconnectRuntime();
 
     if (reconnectRuntime.connecting) {
@@ -1907,6 +1914,7 @@ async function connectCallerRealtimeStream(options = {}) {
             },
         });
 
+        if (!callerStopIntent.isCurrent(streamScope)) return;
         const rooms = Array.isArray(admission?.rooms) ? admission.rooms.filter(Boolean) : [];
 
         if (!admission?.token || !admission?.websocket_url || rooms.length === 0) {
@@ -1947,6 +1955,7 @@ async function connectCallerRealtimeStream(options = {}) {
                 scheduleCallerRealtimeReconnect();
             },
             onMessage(raw) {
+                if (!callerStopIntent.isCurrent(streamScope)) return;
                 let envelope;
 
                 try {
@@ -2324,6 +2333,7 @@ async function connectCallerRealtimeStream(options = {}) {
 
                     const currentIncident = appState.runtime.callerHome?.current_open_incident ?? null;
                     const callSessionId = Number(payload.call_session_id ?? 0);
+                    if (callerStopIntent.suppress(callerStopIntent.scope(), payload.incident_id, callSessionId)) return;
                     const nextIncident = payload.incident
                         ? payload.incident
                         : (
@@ -2364,6 +2374,7 @@ async function connectCallerRealtimeStream(options = {}) {
 
                     const currentIncident = appState.runtime.callerHome?.current_open_incident ?? null;
                     const callSessionId = Number(payload.call_session_id ?? 0);
+                    if (callerStopIntent.suppress(callerStopIntent.scope(), payload.incident_id, callSessionId)) return;
                     const nextIncident = payload.incident
                         ? payload.incident
                         : (
@@ -2402,6 +2413,7 @@ async function connectCallerRealtimeStream(options = {}) {
 
                 if (eventType === 'citizen.call.ready') {
                     const callSessionId = Number(payload.call_session_id ?? 0);
+                    if (callerStopIntent.suppress(callerStopIntent.scope(), payload.incident_id, callSessionId)) return;
                     const incidentId = Number(payload.incident_id ?? 0);
                     const answeredAt = String(payload.answered_at ?? '').trim() || new Date().toISOString();
                     logCallFlow('citizen', 'call-ready-event-handling', {
@@ -4031,7 +4043,10 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
         return;
     }
 
+    const stopScope = callerStopIntent.scope();
+    if (callerStopIntent.suppress(stopScope, payload.id, latestSession?.id)) return;
     await ensureHelperUi();
+    if (callerStopIntent.suppress(stopScope, payload.id, latestSession?.id)) return;
 
     const callSessionId = Number(latestSession?.id ?? 0);
     const activeLiveModal = appState.runtime.callerLiveModal ?? null;
@@ -4127,6 +4142,7 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
                     return;
                 }
 
+                if (!callerStopIntent.stop(stopScope, payload.id, callSessionId)) return;
                 runtime.disconnectRequested = true;
                 runtime.hangupConfirmReceived = false;
                 runtime.disconnectRequestedAt = new Date().toISOString();
@@ -4165,6 +4181,9 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
                         clearCallerLiveHangupTimers();
                         await close();
                         await renderSurface('citizen');
+                        if (callerStopIntent.uncertain(stopScope, payload.id, callSessionId)) {
+                            showToast('The call has closed on this device. Server confirmation is still pending; the call will not reopen automatically.', 'warn');
+                        }
                     })();
                 }, CALLER_HANGUP_COMPLETE_TIMEOUT_MS);
 
@@ -4173,7 +4192,7 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
                     requested_at: runtime.disconnectRequestedAt,
                 });
             } catch (error) {
-                showToast(error.response?.data?.message ?? 'Unable to hang up the active call.');
+                showToast(error.response?.data?.message ?? 'Unable to confirm the call ended. It will not reopen automatically; no request has been retried.');
             }
         })();
     });
@@ -4384,6 +4403,7 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
                 accept: 'image/*',
             },
             onMediaEvent(_eventType, eventPayload) {
+                if (!callerStopIntent.isCurrent(stopScope) || Number(appState.runtime.callerHome?.current_open_incident?.id) !== Number(payload.id)) return;
                 const nextMedia = eventPayload?.media && typeof eventPayload.media === 'object'
                     ? eventPayload.media
                     : null;
@@ -4443,6 +4463,10 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
 
         let callRuntimeUnavailable = false;
 
+        if (callerStopIntent.suppress(stopScope, payload.id, callSessionId) || !overlay.isConnected) {
+            liveConversation?.destroy?.();
+            return;
+        }
         logCallFlow('citizen', 'live-modal-call-runtime-mount', {
             incidentId: Number(payload.id ?? 0) || null,
             callSessionId: callSessionId || null,
@@ -4535,6 +4559,7 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
                     }
                 },
                 onHangupComplete() {
+                    if (!callerStopIntent.isCurrent(stopScope)) return;
                     void (async () => {
                         logCallFlow('citizen', 'live-call-hangup-complete-received', {
                             incidentId: Number(payload.id ?? 0) || null,
@@ -4547,6 +4572,7 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
                     })();
                 },
                 onHangup(eventPayload = {}) {
+                    if (!callerStopIntent.isCurrent(stopScope)) return;
                     void (async () => {
                         const endedAt = String(eventPayload?.meta?.ended_at ?? eventPayload?.ended_at ?? new Date().toISOString());
                         const callSessionIdForHangup = Number(latestSession.id ?? 0);
@@ -4581,6 +4607,11 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
         }
 
         const callRuntime = callRuntimePromise ? await callRuntimePromise : null;
+        if (callerStopIntent.suppress(stopScope, payload.id, callSessionId) || !overlay.isConnected) {
+            callRuntime?.destroy?.();
+            liveConversation?.destroy?.();
+            return;
+        }
         const existingLocationWatchStop = existingCallRuntime
             ? existingRuntime?.locationWatchStop ?? null
             : null;
@@ -4835,7 +4866,8 @@ function showCallerPendingOverlay(root, pending, incident = null, alertLevel = n
 }
 
 function renderCaller(root, bootstrap, home, primerReport) {
-    const currentIncident = home.current_open_incident ?? null;
+    const currentIncident = callerStopIntent.reconcile(callerStopIntent.scope(), home.current_open_incident ?? null);
+    home.current_open_incident = currentIncident;
     const pendingState = getCallerPendingState();
     const latestSession = latestCallSession(currentIncident);
     const newCallPendingPhases = ['discovering', 'operator_found', 'requesting', 'ringing', 'connecting', 'network_offline'];
@@ -4858,6 +4890,7 @@ function renderCaller(root, bootstrap, home, primerReport) {
             : null;
     const shouldMountLiveCall = currentIncident
         && latestSession?.status === 'in_progress'
+        && !callerStopIntent.suppress(callerStopIntent.scope(), currentIncident.id, latestSession.id)
         && (
             !activePendingState
             || String(activePendingState?.phase ?? '').trim() === 'connecting'
@@ -5232,7 +5265,10 @@ function renderCaller(root, bootstrap, home, primerReport) {
 
 export async function renderCitizenSurface(root, bootstrap) {
     const primerReport = evaluateDevicePrimer('citizen');
+    const stopScope = callerStopIntent.scope();
     const home = bootstrap?.surface_payload ?? await fetchJson('/api/citizen/home');
+    if (!callerStopIntent.isCurrent(stopScope)) return;
+    home.current_open_incident = callerStopIntent.reconcile(stopScope, home.current_open_incident);
     appState.runtime.callerRoot = root;
     appState.runtime.callerHome = home;
     appState.runtime.callerPrimerReport = primerReport;
