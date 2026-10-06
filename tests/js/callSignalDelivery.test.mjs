@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {createCallSignalDelivery} from '../../resources/js/media/callSignalDelivery.js';
+let count=0;
+const delivery=createCallSignalDelivery({send:()=>`signal-${++count}`,timeoutMs:20});
+let settled=false;const pending=delivery.publish('hangup',{}).then(r=>{settled=true;return r;});
+await Promise.resolve();assert.equal(settled,false,'Teardown waits for publish acknowledgment');
+assert.equal(delivery.handle({id:'other',type:'call.signal.publish',phase:'ack'}),false);
+delivery.handle({id:'signal-1',type:'call.signal.publish',phase:'ack'});assert.equal((await pending).accepted,true);
+const timeout=await delivery.publish('hangup-complete',{});assert.equal(timeout.reason,'ack-timeout');assert.equal(count,2,'No automatic terminal replay');
+assert.equal(delivery.handle({id:'signal-2',type:'call.signal.publish',phase:'ack'}),false,'Late acknowledgment is ignored');
+const cancelled=delivery.publish('hangup',{});delivery.destroy();assert.equal((await cancelled).reason,'runtime-closed');
+const unavailable=createCallSignalDelivery({send:()=>null});assert.equal((await unavailable.publish('hangup',{})).accepted,false);
+console.log('PASS terminal signaling acknowledgments, missing/late delivery, cancellation, and no replay');

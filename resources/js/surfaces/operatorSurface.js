@@ -4794,7 +4794,7 @@ async function mountWorkbenchNavbar(overlay, payload, stateOverride, close) {
                         callSessionId: activeCallSessionId || null,
                         endedAt: officialEndedAt,
                     });
-                    appState.runtime.operatorWorkbenchCallRuntime?.sendHangup?.({
+                    await appState.runtime.operatorWorkbenchCallRuntime?.sendHangup?.({
                         reason: 'ended-by-operator',
                         ended_at: officialEndedAt,
                     });
@@ -6679,7 +6679,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
             });
 
             const completeRemoteDisconnect = async (state = 'disconnected') => {
-                if (remoteDisconnectCompleting || !activeSessionId) {
+                if (remoteDisconnectCompleting || !activeSessionId || callRuntime?.getState?.().peerConnected) {
                     return;
                 }
 
@@ -6733,7 +6733,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                     dismissConnectionOverlay();
                     captureManager?.setOfficialEndedAt?.(officialEndedAt);
                     void captureManager?.finalizeAll?.()?.catch(handleOperatorCaptureFailure);
-                    callRuntime?.sendHangupComplete?.({
+                    await callRuntime?.sendHangupComplete?.({
                         reason: 'citizen-disconnected',
                         ended_at: officialEndedAt,
                     });
@@ -7122,10 +7122,43 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                 void liftConnectionGate();
             };
 
+            const handleWorkbenchPeerState = (nextState) => {
+                const normalizedState = String(nextState ?? '').trim();
+                readiness.peerConnected = ['connected', 'completed'].includes(normalizedState);
+                const active = ['connected', 'connecting'].includes(normalizedState);
+                logCallFlow('operator', 'peer-connection-state', {
+                    incidentId: Number(payload.id ?? 0) || null,
+                    callSessionId: activeSessionId,
+                    state: normalizedState,
+                    peerConnected: readiness.peerConnected,
+                });
+
+                if (normalizedState === 'connected') {
+                    clearRemoteDisconnectTimer();
+                } else if (['disconnected', 'failed'].includes(normalizedState)) {
+                    scheduleRemoteDisconnectCleanup(normalizedState);
+                }
+
+                callerGraphApi?.update({
+                    isActive: active,
+                    isPlaying: active,
+                });
+                operatorGraphApi?.update({
+                    isActive: active,
+                    isPlaying: active,
+                });
+                void liftConnectionGate();
+            };
+
             const reusingExistingCallRuntime = options.skipCallRuntime === true && options.existingCallRuntime;
 
             if (reusingExistingCallRuntime) {
                 callRuntime = options.existingCallRuntime;
+                callRuntime.setStateChangeHandler?.(handleWorkbenchPeerState);
+                callRuntime.setStreamHandlers?.({
+                    onLocalStream: attachLocalStreamToWorkbench,
+                    onRemoteStream: attachRemoteStreamToWorkbench,
+                });
                 const existingStreams = options.existingCallStreams ?? {};
                 callRuntime.attachRemoteVideoHost?.(videoPreviewHost);
 
@@ -7227,33 +7260,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                         updateWorkbenchCallerLocationView(overlay, payload);
                     });
                 },
-                onStateChange(nextState) {
-                    const normalizedState = String(nextState ?? '').trim();
-                    readiness.peerConnected = ['connected', 'completed'].includes(normalizedState);
-                    const active = ['connected', 'connecting'].includes(normalizedState);
-                    logCallFlow('operator', 'peer-connection-state', {
-                        incidentId: Number(payload.id ?? 0) || null,
-                        callSessionId: activeSessionId,
-                        state: normalizedState,
-                        peerConnected: readiness.peerConnected,
-                    });
-
-                    if (normalizedState === 'connected') {
-                        clearRemoteDisconnectTimer();
-                    } else if (['disconnected', 'failed'].includes(normalizedState)) {
-                        scheduleRemoteDisconnectCleanup(normalizedState);
-                    }
-
-                    callerGraphApi?.update({
-                        isActive: active,
-                        isPlaying: active,
-                    });
-                    operatorGraphApi?.update({
-                        isActive: active,
-                        isPlaying: active,
-                    });
-                    void liftConnectionGate();
-                },
+                onStateChange: handleWorkbenchPeerState,
                 onDisconnectRequest() {
                     void (async () => {
                         const requestedAt = new Date().toISOString();
@@ -7310,7 +7317,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                                 ended_at: officialEndedAt,
                                 updated_at: response?.call_session?.updated_at ?? officialEndedAt,
                             });
-                            callRuntime?.sendHangupComplete?.({
+                            await callRuntime?.sendHangupComplete?.({
                                 reason: 'ended-by-citizen',
                                 ended_at: officialEndedAt,
                             });
@@ -7606,17 +7613,6 @@ async function startOperatorAnsweredCallBridge(root, incidentPayload, callSessio
             });
             callRuntime?.setMediaMuted?.(false);
             callRuntime?.startSessionKeepalive?.();
-            const persistedLocationIncident = await flushDeferredOperatorCallerLocationPersist();
-
-            if (persistedLocationIncident) {
-                payload = {
-                    ...payload,
-                    latitude: persistedLocationIncident.latitude ?? payload.latitude ?? null,
-                    longitude: persistedLocationIncident.longitude ?? payload.longitude ?? null,
-                    caller_location: persistedLocationIncident.caller_location ?? payload.caller_location ?? null,
-                };
-                syncOperatorActiveIncident(currentOperatorRoot(), persistedLocationIncident);
-            }
             appState.runtime.operatorWorkbenchCallRuntime = callRuntime;
             appState.runtime.operatorIncomingCallPhase = null;
             appState.runtime.operatorConnectingModalClose?.();
@@ -7638,6 +7634,31 @@ async function startOperatorAnsweredCallBridge(root, incidentPayload, callSessio
             });
 
             await openConnectedWorkbench(answeredAt);
+
+            // Location is optional; finish the call handoff before saving it.
+            const connectedWorkbench = appState.runtime.operatorWorkbench;
+            void flushDeferredOperatorCallerLocationPersist().then((incident) => {
+                if (!incident) {
+                    return;
+                }
+
+                syncOperatorActiveIncident(currentOperatorRoot(), incident);
+                const currentWorkbench = appState.runtime.operatorWorkbench;
+                if (currentWorkbench !== connectedWorkbench
+                    || Number(currentWorkbench?.payload?.id ?? 0) !== incidentId) {
+                    return;
+                }
+
+                currentWorkbench.payload = {
+                    ...currentWorkbench.payload,
+                    latitude: incident.latitude ?? currentWorkbench.payload.latitude ?? null,
+                    longitude: incident.longitude ?? currentWorkbench.payload.longitude ?? null,
+                    caller_location: incident.caller_location ?? currentWorkbench.payload.caller_location ?? null,
+                };
+                updateWorkbenchCallerLocationView(appState.runtime.operatorWorkbenchOverlay, currentWorkbench.payload);
+            }).catch((error) => {
+                console.warn('Unable to finish optional caller location update.', error);
+            });
         } catch (error) {
             clearDeferredOperatorCallerLocationPersist(incidentId, callSessionId);
             logCallFlow('operator', 'answer-bridge-ready-api-error', {
@@ -7731,7 +7752,7 @@ async function startOperatorAnsweredCallBridge(root, incidentPayload, callSessio
                     const officialEndedAt = String(response?.call_session?.ended_at ?? endedAt);
                     appState.runtime.operatorWorkbenchCaptureManager?.setOfficialEndedAt?.(officialEndedAt);
                     void appState.runtime.operatorWorkbenchCaptureManager?.finalizeAll?.()?.catch(handleOperatorCaptureFailure);
-                    callRuntime?.sendHangupComplete?.({
+                    await callRuntime?.sendHangupComplete?.({
                         reason: 'ended-by-citizen',
                         ended_at: officialEndedAt,
                     });

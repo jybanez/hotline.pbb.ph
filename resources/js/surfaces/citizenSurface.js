@@ -4185,11 +4185,16 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
             : '';
     };
 
+    let callerPeerState = '';
+    const callerMediaConnected = () => appState.runtime.callerLiveModal?.callRuntime?.getState?.().peerConnected
+        ?? ['connected', 'completed'].includes(callerPeerState);
+
     const completeCallerOperatorDisconnect = async (state = 'disconnected') => {
         const runtime = appState.runtime.callerLiveModal ?? null;
 
         if (
-            appState.runtime.callerLiveRemoteDisconnectCompleting
+            callerMediaConnected()
+            || appState.runtime.callerLiveRemoteDisconnectCompleting
             || runtime?.disconnectRequested
             || Number(runtime?.latestSessionId ?? 0) !== callSessionId
             || !callSessionId
@@ -4283,7 +4288,8 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
         const runtime = appState.runtime.callerLiveModal ?? null;
 
         if (
-            appState.runtime.callerLiveRemoteDisconnectTimerId
+            callerMediaConnected()
+            || appState.runtime.callerLiveRemoteDisconnectTimerId
             || appState.runtime.callerLiveRemoteDisconnectCompleting
             || runtime?.disconnectRequested
             || Number(runtime?.latestSessionId ?? 0) !== callSessionId
@@ -4306,6 +4312,12 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
     };
 
     const cancelCallerOperatorDisconnectCleanup = (state = 'connected') => {
+        // Signaling can remain alive while the media connection has failed.
+        if (['heartbeat', 'browser-online'].includes(state)
+            && ['disconnected', 'failed'].includes(callerPeerState)) {
+            return;
+        }
+
         if (!appState.runtime.callerLiveRemoteDisconnectTimerId) {
             return;
         }
@@ -4458,6 +4470,7 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
                 },
                 onStateChange(nextState) {
                     const normalizedState = String(nextState ?? '').trim();
+                    callerPeerState = normalizedState;
                     logCallFlow('citizen', 'peer-connection-state', {
                         incidentId: Number(payload.id ?? 0) || null,
                         callSessionId: Number(latestSession.id ?? 0) || null,
