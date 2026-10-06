@@ -2264,6 +2264,8 @@ async function connectCallerRealtimeStream(options = {}) {
                         phase: 'requesting',
                     });
 
+                    rerenderCallerInPlace();
+
                     publishCallerCallFlow('citizen.reconnect.request', {
                         caller_id: Number(appState.bootstrap?.user?.id ?? 0),
                         incident_id: Number(payload.incident_id ?? 0),
@@ -3550,7 +3552,7 @@ function renderCallerPendingContent(pending, incident = null) {
     const statusText = phase === 'availability_check'
         ? 'Checking availability ...'
         : phase === 'requesting'
-        ? 'Requesting call ...'
+        ? 'Calling ...'
         : phase === 'incoming_callback'
         ? 'Incoming call'
         : phase === 'network_offline'
