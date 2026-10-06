@@ -174,7 +174,7 @@ export class Producer {
         }
 
         this.timesliceMs = nextTimesliceMs;
-        this.recordingStartedAt = this.captureReadyAt ?? Date.now();
+        this.recordingStartedAt = Date.now();
         try {
             this.mediaRecorder.start(nextTimesliceMs);
         } catch (error) {
@@ -524,6 +524,7 @@ export class Producer {
                     const durationSeconds = Math.max(0, Math.round((stoppedAt - recordingStartedAt) / 1000));
                     const closedRecord = {
                         ...this.mediaRecord,
+                        started_at: new Date(recordingStartedAt).toISOString(),
                         ended_at: new Date(stoppedAt).toISOString(),
                         duration_seconds: durationSeconds,
                         expected_chunk_count: this.nextChunkIndex,

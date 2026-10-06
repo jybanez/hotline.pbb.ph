@@ -381,6 +381,20 @@ class IncidentPayloadAndMediaTest extends TestCase
         }
     }
 
+    public function test_http_recording_creation_does_not_wait_for_realtime_processing_publish(): void
+    {
+        [$caller, $operator] = $this->seedIncidentFixture();
+        $this->mock(\App\Support\Realtime\RealtimeEventPublishService::class, function ($mock) {
+            $mock->shouldNotReceive('publishIncidentMediaProcessing');
+        });
+        $this->actingAs($operator)->postJson('/api/operator/call-sessions/1/media', [
+            'type' => 'audio_peer', 'track_kind' => 'audio',
+            'peer_user_id' => $operator->id, 'peer_role' => 'operator',
+            'extension' => 'weba', 'mime_type' => 'audio/webm;codecs=opus',
+            'metadata' => ['upload_mode' => 'http-batch'],
+        ])->assertCreated()->assertJsonPath('media.metadata.upload_mode', 'http-batch');
+    }
+
     public function test_http_recording_batches_preserve_boundaries_and_require_complete_finalization(): void
     {
         Storage::fake('local');

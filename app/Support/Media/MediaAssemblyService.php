@@ -54,7 +54,12 @@ class MediaAssemblyService
             'available_at' => null,
         ]);
 
-        $this->realtimeEvents->publishIncidentMediaProcessing($media);
+        // The HTTP recording owner receives this asset in the response and updates its
+        // workbench locally. Avoid blocking recorder creation on a redundant realtime
+        // processing notification; final media availability is still published.
+        if (Arr::get($metadata, 'upload_mode') !== 'http-batch') {
+            $this->realtimeEvents->publishIncidentMediaProcessing($media);
+        }
 
         return $media;
     }
