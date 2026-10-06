@@ -7284,7 +7284,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                                     incidentId: Number(payload.id ?? 0) || null,
                                     callSessionId: activeSessionId,
                                 });
-                                response = await fetchJson(`/api/operator/call-sessions/${activeSessionId}/hangup`, {
+                                response = await fetchJson(`/api/operator/call-sessions/${activeSessionId}/citizen-disconnect`, {
                                     method: 'post',
                                 });
                                 logCallFlow('operator', 'citizen-hangup-api-success', {
@@ -7737,7 +7737,7 @@ async function startOperatorAnsweredCallBridge(root, incidentPayload, callSessio
                     let response = null;
 
                     try {
-                        response = await fetchJson(`/api/operator/call-sessions/${callSessionId}/hangup`, {
+                        response = await fetchJson(`/api/operator/call-sessions/${callSessionId}/citizen-disconnect`, {
                             method: 'post',
                         });
                     } catch (error) {
