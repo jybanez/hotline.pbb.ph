@@ -3283,6 +3283,7 @@ async function ensureOperatorWorkbenchHelpers() {
         && appState.helper.createAudioCallSession
         && appState.helper.createAudioGraph
         && appState.helper.createMediaStrip
+        && appState.helper.createSplitter
     ) {
         return appState.helper;
     }
@@ -3293,12 +3294,14 @@ async function ensureOperatorWorkbenchHelpers() {
         createAudioCallSession,
         createAudioGraph,
         createMediaStrip,
+        createSplitter,
     ] = await Promise.all([
         appState.helper.uiLoader.get('incident.types'),
         appState.helper.uiLoader.get('incident.teams.assignments'),
         appState.helper.uiLoader.get('ui.audio.callSession'),
         appState.helper.uiLoader.get('ui.audio.audiograph'),
         appState.helper.uiLoader.get('ui.media.strip'),
+        appState.helper.uiLoader.get('ui.splitter'),
     ]);
 
     Object.assign(appState.helper, {
@@ -3307,6 +3310,7 @@ async function ensureOperatorWorkbenchHelpers() {
         createAudioCallSession,
         createAudioGraph,
         createMediaStrip,
+        createSplitter,
     });
 
     return appState.helper;
@@ -4941,6 +4945,29 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
     const helper = await ensureOperatorWorkbenchHelpers();
     const lookups = await loadSharedWorkbenchLookups();
     const instances = [];
+    const columnsHost = overlay?.querySelector('.operator-workbench-body');
+    const columns = Array.from(columnsHost?.children ?? []);
+    if (columnsHost && columns.length === 5 && helper.createSplitter) {
+        const weights = [0.75, 1.45, 1.45, 1.25, 0.85];
+        const mountColumns = (host, index) => {
+            const remainingHost = document.createElement('div');
+            remainingHost.className = 'operator-workbench-splitter-host';
+            const remainingWeight = weights.slice(index).reduce((sum, weight) => sum + weight, 0);
+            const splitter = helper.createSplitter(host, {
+                chrome: false,
+                panePadding: 0,
+                initialRatio: weights[index] / remainingWeight,
+                minRatio: 0.1,
+                maxRatio: index === columns.length - 2 ? 0.85 : 0.65,
+                paneA: columns[index],
+                paneB: index === columns.length - 2 ? columns[index + 1] : remainingHost,
+            });
+            instances.push(splitter);
+            if (index < columns.length - 2) mountColumns(remainingHost, index + 1);
+        };
+        columnsHost.classList.add('has-splitters');
+        mountColumns(columnsHost, 0);
+    }
     const callState = workbenchCallState(payload, stateOverride);
     const isActive = callState === 'active';
     const canEditIncidentDetails = workbenchIncidentEditable(payload);
@@ -5691,6 +5718,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
     const buildTeamAssignmentsOptions = () => ({
         editable: canEditIncidentDetails,
         headerText: 'Dispatch',
+        chrome: false,
         categories: teamCategories,
         teams,
         noticeAlreadyExist: () => {},
@@ -5984,6 +6012,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
     const audioCallSessionOptions = () => ({
         className: 'operator-workbench-audio-session',
         chrome: false,
+        compact: true,
         autoplay: false,
         showMute: true,
         audiographStyle: currentAudioGraphStyle(),
@@ -6131,6 +6160,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
         const options = {
             ariaLabel: 'Incident call sessions timeline',
             className: 'operator-workbench-call-timeline',
+            collapsible: true,
             density: 'compact',
             emptyText: 'No call sessions recorded yet.',
             groupByDate: true,
@@ -6194,6 +6224,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
         fieldLayout: 'horizontal',
         fieldLayoutDensity: 'compact',
         headerText: 'Incident Types',
+        chrome: false,
         categories: incidentTypeCategories,
         incidentTypes: incidentTypeCatalog,
         lookups: {

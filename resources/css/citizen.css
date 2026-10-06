@@ -1339,7 +1339,7 @@
 }
 .caller-live-action-button.caller-callback-answer:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.caller-pending-actions:has([data-decline-callback]) { gap: 18px; }
+.caller-pending-actions:has([data-decline-callback]) { gap: 18px; margin-top: 1rem; }
 .caller-ringing-stage .caller-pending-actions:has([data-decline-callback]) .caller-live-action-button {
     width: 52px;
     height: 52px;
