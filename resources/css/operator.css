@@ -2238,3 +2238,81 @@
         grid-template-columns: 1fr;
     }
 }
+
+.operator-callback-modal .ui-modal-busy {
+    position: relative;
+    inset: auto;
+    min-height: 340px;
+    gap: 18px;
+}
+.operator-callback-modal .ui-modal-body,
+.operator-callback-modal .ui-modal-busy-overlay,
+.operator-callback-modal .ui-modal-busy-spinner {
+    display: none;
+}
+.operator-callback-identity {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    text-align: center;
+}
+.operator-callback-identity strong { font-size: 1.25rem; }
+.operator-callback-avatar {
+    width: 112px;
+    height: 112px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--ui-border, #2b3750);
+}
+.operator-callback-avatar-fallback {
+    display: grid;
+    place-items: center;
+    background: var(--ui-bg, #0d1523);
+    font-size: 2rem;
+}
+
+.operator-callback-modal .ui-modal {
+    background: #06141d;
+    border-radius: 28px;
+    border-color: rgba(109, 164, 185, 0.25);
+}
+.operator-callback-modal .ui-modal-busy { min-height: 496px; gap: 18px; }
+.operator-callback-identity.operator-incoming-modal {
+    width: 100%;
+    min-height: 0;
+    padding: 0;
+    gap: 0;
+}
+.operator-callback-modal .ui-modal-busy-message {
+    font-weight: 400;
+    color: rgba(223, 236, 250, 0.82);
+}
+.operator-callback-modal .ui-modal-busy-cancel {
+    width: 52px;
+    height: 52px;
+    padding: 0;
+    border-radius: 50%;
+    background: linear-gradient(180deg, rgba(198, 66, 66, 0.95), rgba(145, 32, 32, 0.96));
+    color: #fff4f4;
+}
+.operator-callback-modal .ui-modal-busy-cancel svg { transform: rotate(135deg); }
+@media (prefers-reduced-motion: reduce) {
+    .operator-callback-modal .ring { animation: none; }
+}
+
+.operator-callback-modal .ui-modal-header[hidden] { display: none; }
+.operator-callback-modal .ui-modal-busy-cancel.ui-button,
+.operator-callback-modal .ui-modal-busy-cancel.ui-button:hover:not(:disabled) {
+    background: linear-gradient(180deg, rgba(198, 66, 66, 0.95), rgba(145, 32, 32, 0.96));
+    border: 0;
+    color: #fff4f4;
+}
+.operator-callback-modal .operator-incoming-modal .ring {
+    inset: auto;
+    top: 50%;
+    left: 50%;
+    animation: operatorIncomingRingPulse 2.1s ease-out infinite;
+}
+.operator-callback-modal .operator-incoming-modal .ring-b { animation-delay: 0.45s; }
+.operator-callback-modal .operator-incoming-modal .ring-c { animation-delay: 0.9s; }

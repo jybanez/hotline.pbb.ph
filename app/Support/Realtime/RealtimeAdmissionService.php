@@ -39,6 +39,7 @@ class RealtimeAdmissionService
                     'room.join',
                     'event.publish',
                     'presence.subscribe',
+                    'presence.publish',
                 ],
             ),
             'settings_stream' => $this->buildSettingsRoomAdmission(
@@ -83,6 +84,7 @@ class RealtimeAdmissionService
                     'room.join',
                     'event.publish',
                     'presence.subscribe',
+                    'presence.publish',
                 ],
             ),
             default => throw new AuthorizationException('Realtime citizen admission is not allowed for this context.'),

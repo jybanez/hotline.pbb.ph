@@ -24,6 +24,7 @@ class CallRoutingService
     public function __construct(
         private readonly AvailabilityService $availability,
         private readonly SettingsService $settings,
+        private readonly CallParticipantReservation $reservations,
     ) {}
 
     /**
@@ -56,6 +57,9 @@ class CallRoutingService
         }
 
         return DB::transaction(function () use ($caller, $latitude, $longitude, $operator) {
+            $this->reservations->lock((int) $operator->id, (int) $caller->id);
+            $this->reservations->expire((int) $operator->id, (int) $caller->id);
+            $this->reservations->assertAvailable((int) $operator->id, (int) $caller->id, callbacksOnly: true);
             $attempt = CallAttempt::query()->create([
                 'citizen_id' => $caller->id,
                 'status' => CallStatus::Calling,
@@ -92,6 +96,9 @@ class CallRoutingService
         }
 
         return DB::transaction(function () use ($caller, $latitude, $longitude, $operator) {
+            $this->reservations->lock((int) $operator->id, (int) $caller->id);
+            $this->reservations->expire((int) $operator->id, (int) $caller->id);
+            $this->reservations->assertAvailable((int) $operator->id, (int) $caller->id, callbacksOnly: true);
             $attempt = CallAttempt::query()->create([
                 'citizen_id' => $caller->id,
                 'status' => CallStatus::Calling,
@@ -119,45 +126,53 @@ class CallRoutingService
      */
     public function startReconnectAttempt(User $operator, User $caller, Incident $incident): array
     {
-        if ($operator->role !== UserRole::Operator || $operator->status !== UserStatus::Active) {
-            throw new RuntimeException('Operator is not eligible to receive calls.');
-        }
-
-        if (! $caller->role->isCitizen() || $caller->status !== UserStatus::Active) {
-            throw new RuntimeException('Caller is not eligible to start a reconnect call.');
-        }
-
-        if ((int) $incident->operator_id !== (int) $operator->id) {
-            throw new RuntimeException('Operator is not assigned to this incident.');
-        }
-
-        if ((int) $incident->citizen_id !== (int) $caller->id) {
-            throw new RuntimeException('Caller does not match this incident.');
-        }
-
-        if (! in_array($incident->status, [IncidentStatus::Active, IncidentStatus::Deferred], true)) {
-            throw new RuntimeException('This incident is no longer open for reconnect.');
-        }
-
-        $hasOpenAttempt = CallAttempt::query()
-            ->where('incident_id', $incident->id)
-            ->where('status', CallStatus::Calling)
-            ->exists();
-
-        if ($hasOpenAttempt) {
-            throw new RuntimeException('Reconnect is already in progress for this incident.');
-        }
-
-        $hasOpenSession = CallSession::query()
-            ->where('incident_id', $incident->id)
-            ->whereIn('status', [CallStatus::Calling, CallStatus::InProgress])
-            ->exists();
-
-        if ($hasOpenSession) {
-            throw new RuntimeException('Reconnect is already in progress for this incident.');
-        }
-
         return DB::transaction(function () use ($caller, $incident, $operator) {
+            $this->reservations->lock((int) $operator->id, (int) $caller->id);
+            $this->reservations->expire((int) $operator->id, (int) $caller->id);
+            $this->reservations->assertAvailable((int) $operator->id, (int) $caller->id, callbacksOnly: true);
+            // Re-read and serialize eligibility with attempt creation. A caller's
+            // previously loaded incident cannot authorize after reassignment.
+            $operator = User::query()->findOrFail($operator->id);
+            $caller = User::query()->findOrFail($caller->id);
+            $incident = Incident::query()->lockForUpdate()->findOrFail($incident->id);
+            if ($operator->role !== UserRole::Operator || $operator->status !== UserStatus::Active) {
+                throw new RuntimeException('Operator is not eligible to receive calls.');
+            }
+
+            if (! $caller->role->isCitizen() || $caller->status !== UserStatus::Active) {
+                throw new RuntimeException('Caller is not eligible to start a reconnect call.');
+            }
+
+            if ((int) $incident->operator_id !== (int) $operator->id) {
+                throw new RuntimeException('Operator is not assigned to this incident.');
+            }
+
+            if ((int) $incident->citizen_id !== (int) $caller->id) {
+                throw new RuntimeException('Caller does not match this incident.');
+            }
+
+            if (! in_array($incident->status, [IncidentStatus::Active, IncidentStatus::Deferred], true)) {
+                throw new RuntimeException('This incident is no longer open for reconnect.');
+            }
+
+            $hasOpenAttempt = CallAttempt::query()
+                ->where('incident_id', $incident->id)
+                ->where('status', CallStatus::Calling)
+                ->exists();
+
+            if ($hasOpenAttempt) {
+                throw new RuntimeException('Reconnect is already in progress for this incident.');
+            }
+
+            $hasOpenSession = CallSession::query()
+                ->where('incident_id', $incident->id)
+                ->whereIn('status', [CallStatus::Calling, CallStatus::InProgress])
+                ->exists();
+
+            if ($hasOpenSession) {
+                throw new RuntimeException('Reconnect is already in progress for this incident.');
+            }
+
             $attempt = CallAttempt::query()->create([
                 'citizen_id' => $caller->id,
                 'incident_id' => $incident->id,
@@ -346,9 +361,14 @@ class CallRoutingService
     {
         $operatorAttemptId = $operatorAttempt->getKey();
 
-        return DB::transaction(function () use ($operator, $operatorAttemptId) {
-            // All answerers lock the parent first, including routes to different operators.
-            // Request-bound models and loaded relations may predate another answer.
+        // Resolve immutable routing IDs outside the transaction so a MySQL snapshot
+        // cannot predate waiting for the shared participant locks.
+        $route = CallAttemptOperatorAttempt::query()->findOrFail($operatorAttemptId);
+        $citizenId = (int) CallAttempt::query()->findOrFail($route->call_attempt_id)->citizen_id;
+
+        return DB::transaction(function () use ($operator, $operatorAttemptId, $citizenId) {
+            $this->reservations->lock((int) $operator->id, $citizenId);
+            $this->reservations->expire((int) $operator->id, $citizenId);
             $route = CallAttemptOperatorAttempt::query()->findOrFail($operatorAttemptId);
             $attempt = CallAttempt::query()->whereKey($route->call_attempt_id)->lockForUpdate()->first();
             $operatorAttempt = CallAttemptOperatorAttempt::query()->whereKey($operatorAttemptId)->lockForUpdate()->firstOrFail();
@@ -362,6 +382,7 @@ class CallRoutingService
                 throw new RuntimeException('This call attempt is no longer answerable.');
             }
 
+            $this->reservations->assertAvailable((int) $operator->id, (int) $attempt->citizen_id, (int) $attempt->id, callbacksOnly: true);
             $caller = User::query()->findOrFail($attempt->citizen_id);
             $incident = $attempt->incident_id
                 ? Incident::query()->findOrFail($attempt->incident_id)
