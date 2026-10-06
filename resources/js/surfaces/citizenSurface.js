@@ -3547,7 +3547,11 @@ function callerNavbarStatusContent(primerReport) {
 function renderCallerPendingContent(pending, incident = null) {
     const operator = pendingOperatorIdentity(pending, incident);
     const phase = String(pending?.phase ?? '').trim();
-    const statusText = phase === 'incoming_callback'
+    const statusText = phase === 'availability_check'
+        ? 'Checking availability ...'
+        : phase === 'requesting'
+        ? 'Requesting call ...'
+        : phase === 'incoming_callback'
         ? 'Incoming call'
         : phase === 'network_offline'
         ? 'Waiting for network ...'
@@ -4675,6 +4679,9 @@ async function runCallerReconnect(root, incidentId, noticeTarget = null) {
         created_at: new Date().toISOString(),
     });
 
+    // Show the existing reconnect screen and bind cancellation before signaling.
+    rerenderCallerInPlace();
+
     publishCallerCallFlow('citizen.reconnect.availability.request', {
         caller_id: Number(appState.bootstrap?.user?.id ?? 0),
         incident_id: nextIncidentId,
@@ -4778,7 +4785,7 @@ function renderCaller(root, bootstrap, home, primerReport) {
     const hasNewCallPending = pendingState?.kind === 'new_call'
         && newCallPendingPhases.includes(String(pendingState?.phase ?? '').trim());
     const reconnectPendingPhases = ['availability_check', 'requesting', 'ringing', 'connecting'];
-    const reconnectOverlayPhases = ['ringing', 'connecting'];
+    const reconnectOverlayPhases = reconnectPendingPhases;
     const hasReconnectPending = currentIncident
         && pendingState?.kind === 'reconnect'
         && Number(pendingState?.incident_id) === Number(currentIncident.id)
