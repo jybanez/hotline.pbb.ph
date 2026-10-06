@@ -141,7 +141,8 @@ assert.match(operatorFactorySource, /drainConsumers\(options = \{\}\) \{\s+retur
 assert.match(operatorSurfaceSource, /void mediaManagers\.scanConsumers\?\.\(\);/);
 assert.doesNotMatch(operatorSurfaceSource, /onMediaFinalized\(media\)/);
 assert.doesNotMatch(operatorSurfaceSource, /await mediaManagers\.drainConsumers/);
-assert.doesNotMatch(operatorSurfaceSource, /createOperatorMediaBatchChunkTransport/);
+assert.match(operatorSurfaceSource, /createOperatorMediaBatchChunkTransport/);
+assert.doesNotMatch(operatorSurfaceSource, /createRealtimeOperatorMediaChunkTransport/);
 assert.doesNotMatch(operatorFactorySource, /flushChunks/);
 assert.doesNotMatch(consumerSource, /flushChunksAndFinalize/);
 assert.match(consumerSource, /finalizeAndDelete\(record, \{ finalChunks: chunks \}\)/);

@@ -7,6 +7,7 @@ use App\Domain\Shared\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
@@ -345,6 +346,63 @@ class IncidentPayloadAndMediaTest extends TestCase
             ->assertJsonCount(2, 'items')
             ->assertJsonPath('items.0.metadata.segment_key', 'caller-cam-1')
             ->assertJsonPath('items.1.metadata.segment_key', 'caller-cam-2');
+    }
+
+    public function test_audio_duration_trim_preserves_opus_packets_without_reencoding(): void
+    {
+        $resolver = app(\App\Support\Media\MediaBinaryResolver::class);
+        $service = app(\App\Support\Media\MediaAssemblyService::class);
+        $path = tempnam(sys_get_temp_dir(), 'hotline-audio-trim-');
+        try {
+            $create = new \Symfony\Component\Process\Process([
+                $resolver->ffmpeg(), '-y', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=8',
+                '-c:a', 'libopus', '-f', 'webm', $path,
+            ]);
+            $create->mustRun();
+            $probe = fn () => new \Symfony\Component\Process\Process([
+                $resolver->ffprobe(), '-v', 'error', '-show_packets', '-show_data_hash', 'sha256',
+                '-show_entries', 'packet=data_hash:format=duration', '-of', 'json', $path,
+            ]);
+            $before = $probe();
+            $before->mustRun();
+            $original = json_decode($before->getOutput(), true);
+            (new \ReflectionMethod($service, 'trimFinalMediaToDuration'))->invoke($service, $path, 'webm', 4, true);
+            $after = $probe();
+            $after->mustRun();
+            $trimmed = json_decode($after->getOutput(), true);
+            $this->assertGreaterThan(3.9, (float) $trimmed['format']['duration']);
+            $this->assertLessThan(4.1, (float) $trimmed['format']['duration']);
+            $this->assertNotEmpty($trimmed['packets']);
+            $this->assertSame(array_slice($original['packets'], 0, count($trimmed['packets'])), $trimmed['packets']);
+            $this->assertFileDoesNotExist($path.'.trimmed.webm');
+        } finally {
+            @unlink($path);
+            @unlink($path.'.trimmed.webm');
+        }
+    }
+
+    public function test_http_recording_batches_preserve_boundaries_and_require_complete_finalization(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+        [$caller, $operator, $otherOperator, $incidentId] = $this->seedIncidentFixture();
+        $created = $this->actingAs($operator)->postJson('/api/operator/call-sessions/1/media', [
+            'type' => 'audio_peer', 'extension' => 'weba', 'peer_role' => 'citizen',
+            'metadata' => ['upload_mode' => 'http-batch'],
+        ])->assertCreated();
+        $id = $created->json('media.id');
+        $manifest = json_encode([['chunk_index' => 0, 'size' => 3], ['chunk_index' => 1, 'size' => 4]]);
+        $upload = fn () => ['batch' => UploadedFile::fake()->createWithContent('recording.batch', 'abcdefg'), 'manifest' => $manifest];
+        $this->post('/api/operator/media/'.$id.'/batches', $upload(), ['Accept' => 'application/json'])
+            ->assertCreated()->assertJson(['chunk_indices' => [0, 1]]);
+        $this->post('/api/operator/media/'.$id.'/batches', $upload(), ['Accept' => 'application/json'])->assertCreated();
+        Storage::disk('local')->assertExists('media-processing/'.$incidentId.'/1/'.$id.'/chunks/000001.chunk');
+        $this->assertSame('defg', Storage::disk('local')->get('media-processing/'.$incidentId.'/1/'.$id.'/chunks/000001.chunk'));
+        $this->postJson('/api/operator/media/'.$id.'/finalize', ['expected_chunk_count' => 3])->assertStatus(409);
+        $this->post('/api/operator/media/'.$id.'/batches', [
+            'batch' => UploadedFile::fake()->createWithContent('bad.batch', 'abc'), 'manifest' => $manifest,
+        ], ['Accept' => 'application/json'])->assertStatus(409);
+        $this->actingAs($otherOperator)->post('/api/operator/media/'.$id.'/batches', $upload(), ['Accept' => 'application/json'])->assertNotFound();
     }
 
     public function test_operator_can_create_upload_and_finalize_processing_media_asset(): void

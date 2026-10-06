@@ -3,8 +3,7 @@ import { openOperatorMediaStreamTestTool } from '../media/operatorMediaStreamTes
 import { renderSurface } from './renderSurface.js';
 import { createOperatorMediaManagers } from '../media/operator.js';
 import { createOperatorMediaFinalizer } from '../media/finalizers/operatorMediaFinalizer.js';
-import { createOperatorMediaBootstrapTransport } from '../media/transports/bootstrapChunkTransport.js';
-import { createRealtimeOperatorMediaChunkTransport } from '../media/transports/realtimeChunkTransport.js';
+import { createOperatorMediaBatchChunkTransport } from '../media/transports/batchChunkTransport.js';
 import { createDashboardMap } from '../maps/dashboardMap.js';
 import { createWorkbenchLocationMap } from '../maps/workbenchLocationMap.js';
 import { buildAppEventPublishPayload, buildPresencePublishPayload, buildPresenceSubscribePayload, buildRoomJoinPayload, listPresenceRosterItems, parseRealtimeEnvelope, reducePresenceRosterEvent, RealtimeSocketClient } from '../vendor/pbb-realtime-sdk/index.js';
@@ -22,7 +21,7 @@ const OPERATOR_REMOTE_DISCONNECT_CLEANUP_TIMEOUT_MS = 10000;
 const OPERATOR_MEDIA_CONSUMER_ENABLED = true;
 // Temporarily hidden for the presentation; restore when callback work is complete.
 const OPERATOR_CALLBACKS_ENABLED = false;
-const OPERATOR_MEDIA_CHUNK_TRANSPORT = 'realtime-binary';
+const OPERATOR_MEDIA_CHUNK_TRANSPORT = 'http-batch';
 const OPERATOR_RAIL_COLLAPSED_STORAGE_KEY = 'pbb.hotline.operator.railCollapsed';
 
 function isDebugFlagEnabled(storageKey, globalKey) {
@@ -2493,18 +2492,15 @@ function buildCaptureSegmentKey(prefix) {
 const OPERATOR_MEDIA_QUEUE_CONSUMER_POLL_MS = 500;
 
 function createOperatorMediaTransportAdapter() {
-    const chunkTransport = createRealtimeOperatorMediaChunkTransport({
-        mode: OPERATOR_MEDIA_CHUNK_TRANSPORT,
-    });
-    const bootstrapTransport = createOperatorMediaBootstrapTransport();
+    const chunkTransport = createOperatorMediaBatchChunkTransport();
     const finalizer = createOperatorMediaFinalizer();
 
     return {
         enabled: OPERATOR_MEDIA_CONSUMER_ENABLED,
         transportMode: OPERATOR_MEDIA_CHUNK_TRANSPORT,
         pollMs: OPERATOR_MEDIA_QUEUE_CONSUMER_POLL_MS,
-        publishChunk: chunkTransport.publishChunk,
-        publishBootstrapChunk: bootstrapTransport.publishChunk,
+        publishBatch: chunkTransport.publishBatch,
+        batchMaxBytes: chunkTransport.batchMaxBytes,
         finalizeRecord: finalizer.finalizeRecord,
         destroyCallSession(callSessionId) {
             chunkTransport.destroy?.(callSessionId);
@@ -2678,6 +2674,7 @@ function createOperatorCallCaptureManager({
                 track_kind: trackKind,
                 extension,
                 mime_type: mimeType,
+                metadata: { upload_mode: 'http-batch' },
                 segment_key: segmentKey,
                 started_at: startedAt,
             },

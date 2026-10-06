@@ -67,6 +67,40 @@ export class Consumer {
                 source: 'consumer-manager',
             });
 
+            if (typeof this.transport.publishBatch === 'function') {
+                if (Date.now() < (this.nextRetryAt ?? 0)) return;
+                if (record.skip_finalize && record.status === 'closed') {
+                    await this.deleteRecord(record);
+                    return;
+                }
+                const ordered = [...chunks].sort((a, b) => Number(a.chunk_index) - Number(b.chunk_index));
+                const limit = this.transport.batchMaxBytes;
+                while (ordered.length) {
+                    const total = ordered.reduce((bytes, chunk) => bytes + Number(chunk?.payload?.chunk_blob?.size ?? 0), 0);
+                    if (record.status !== 'closed' && total < limit) break;
+                    const batch = [];
+                    let bytes = 0;
+                    for (const chunk of ordered) {
+                        const size = Number(chunk?.payload?.chunk_blob?.size ?? 0);
+                        if (!size || size > limit) throw new Error('Recording chunk is invalid or exceeds the batch limit; retained locally.');
+                        if (bytes + size > limit) break;
+                        batch.push(chunk);
+                        bytes += size;
+                    }
+                    await this.transport.publishBatch(record, batch);
+                    for (const chunk of batch) await this.storage.deleteChunk(this.mediaId, Number(chunk.chunk_index));
+                    ordered.splice(0, batch.length);
+                    this.retryCount = 0;
+                    this.nextRetryAt = 0;
+                }
+                const latest = await this.storage.getRecord(this.mediaId);
+                if (latest?.status === 'closed' && (await this.storage.listChunks(this.mediaId)).length === 0) {
+                    await this.finalizeAndDelete(latest);
+                }
+                this.state = 'idle';
+                return;
+            }
+
             if (chunks.length === 0) {
                 if (String(record?.status ?? '') === 'closed') {
                     if (Boolean(record?.skip_finalize)) {
@@ -168,21 +202,6 @@ export class Consumer {
             return;
         }
 
-        if (this.isRemoteMediaMissing(error)) {
-            await this.deleteRecord({
-                ...record,
-                failure_reason: 'remote_media_missing',
-            });
-            this.state = 'discarded';
-            this.debug?.('consumer-record-remote-missing-discarded', {
-                debugSource: 'Consumer',
-                mediaId: this.mediaId,
-                status: Number(error?.response?.status ?? 0),
-                source: 'consumer-manager',
-            });
-            return;
-        }
-
         const chunks = await this.storage.listChunks(this.mediaId);
         const chunk = chunks.at(0) ?? null;
 
@@ -193,24 +212,15 @@ export class Consumer {
             source: 'consumer-manager',
         });
 
+        this.retryCount = Number(this.retryCount ?? 0) + 1;
+        this.nextRetryAt = Date.now() + Math.min(60000, 1000 * (2 ** Math.min(this.retryCount, 6)));
+
         if (!chunk) {
             return;
         }
 
         const retryCount = Number(chunk?.retry_count ?? 0) + 1;
         const chunkIndex = Number(chunk?.chunk_index ?? 0);
-
-        if (retryCount >= 3) {
-            await this.storage.deleteChunk(this.mediaId, chunkIndex);
-            this.debug?.('consumer-chunk-discarded', {
-                debugSource: 'Consumer',
-                mediaId: this.mediaId,
-                chunkIndex,
-                retryCount,
-                source: 'consumer-manager',
-            });
-            return;
-        }
 
         await this.storage.updateChunkMeta(this.mediaId, chunkIndex, {
             retry_count: retryCount,
@@ -233,6 +243,9 @@ export class Consumer {
         }
 
         const result = await this.finalizer.finalizeRecord?.(record, options);
+        if (typeof this.transport.publishBatch === 'function' && result?.ok !== true) {
+            throw new Error('Recording finalization was not confirmed; local record retained.');
+        }
 
         await this.storage.deleteChunksFor(nextMediaId);
         await this.storage.deleteRecord(nextMediaId);

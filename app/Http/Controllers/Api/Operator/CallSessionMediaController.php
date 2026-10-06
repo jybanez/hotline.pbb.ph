@@ -74,6 +74,25 @@ class CallSessionMediaController extends Controller
         ], 201);
     }
 
+    public function storeBatch(Request $request, Media $media): JsonResponse
+    {
+        abort_unless($this->canAccessMedia($request, $media), 404);
+        $validated = $request->validate([
+            'batch' => ['required', 'file', 'max:1536'],
+            'manifest' => ['required', 'string', 'json', 'max:262144'],
+        ]);
+        try {
+            $indices = $this->mediaAssembly->storeBatch(
+                $media,
+                file_get_contents($validated['batch']->getRealPath()) ?: '',
+                json_decode($validated['manifest'], true),
+            );
+        } catch (RuntimeException $exception) {
+            return response()->json(['ok' => false, 'message' => $exception->getMessage()], 409);
+        }
+        return response()->json(['ok' => true, 'chunk_indices' => $indices], 201);
+    }
+
     public function finalize(Request $request, Media $media): JsonResponse
     {
         abort_unless($this->canAccessMedia($request, $media), 404);
@@ -82,6 +101,7 @@ class CallSessionMediaController extends Controller
             'duration_seconds' => ['nullable', 'integer', 'min:0'],
             'ended_at' => ['nullable', 'date'],
             'extension' => ['nullable', 'string', 'max:16'],
+            'expected_chunk_count' => ['nullable', 'integer', 'min:0'],
             'final_chunks' => ['nullable', 'array', 'max:256'],
             'final_chunks.*.chunk_index' => ['required_with:final_chunks', 'integer', 'min:0'],
             'final_chunks.*.chunk' => ['required_with:final_chunks', 'file', 'max:51200'],

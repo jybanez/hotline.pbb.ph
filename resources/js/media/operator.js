@@ -26,6 +26,8 @@ export function createOperatorMediaManagers(services = {}) {
         enabled: services.enabled,
         pollMs: services.pollMs,
         transport: {
+            publishBatch: services.publishBatch,
+            batchMaxBytes: services.batchMaxBytes,
             publishChunk: services.publishChunk,
             publishBootstrapChunk: services.publishBootstrapChunk,
         },
