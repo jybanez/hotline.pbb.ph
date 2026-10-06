@@ -1187,8 +1187,9 @@
 }
 
 .operator-workbench-navbar .ui-navbar-action .ui-nav-icon {
-    width: 1.25rem;
-    height: 1.25rem;
+    width: 1.5rem;
+    height: 1.5rem;
+    flex: 0 0 1.5rem;
 }
 
 .operator-workbench-navbar .ui-navbar-action .ui-nav-icon svg {
@@ -1339,6 +1340,59 @@
     padding-right: 0.1rem;
 }
 
+.operator-workbench-body.has-splitters {
+    display: block;
+}
+
+.operator-workbench-splitter-host,
+.operator-workbench-body.has-splitters .operator-workbench-column {
+    height: 100%;
+    min-height: 0;
+}
+
+.operator-workbench-body :is(.operator-workbench-incident-column, .operator-workbench-dispatch-column) {
+    overflow: hidden;
+    align-content: stretch;
+    grid-template-rows: minmax(0, 1fr);
+}
+
+.operator-workbench-body :is(.operator-workbench-incident-column, .operator-workbench-dispatch-column) .operator-workbench-helper-host {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.operator-workbench-helper-host > :is(.hh-incident-types, .hh-incident-teams-assignments) {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    height: 100%;
+    min-height: 0;
+    padding: 8px;
+}
+
+.operator-workbench-helper-host :is(.hh-incident-types-header, .hh-team-list-header) {
+    position: static;
+    margin: 0;
+    padding: 4px 0 8px;
+}
+
+.operator-workbench-helper-host :is(.hh-incident-types-header, .hh-team-list-header) > .hh-title {
+    margin: 0;
+}
+
+.operator-workbench-helper-host :is(.hh-incident-types-details-editor, .hh-incident-types-details-viewer, .hh-incident-teams-assignments-editor, .hh-incident-teams-assignments-viewer) {
+    padding: 10px;
+}
+
+.operator-workbench-incident-column .hh-incident-types-details-editor :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+    background-color: var(--hh-bg);
+}
+
+.operator-workbench-helper-host :is(.hh-incident-types-body, .hh-team-list-body) {
+    min-height: 0;
+    overflow: auto;
+}
+
 .operator-workbench-media-column {
     grid-template-rows: auto auto;
 }
@@ -1364,6 +1418,22 @@
 .operator-workbench-fill-card {
     min-height: 100%;
     align-content: start;
+}
+
+/* Splitters separate columns; nested containers do not need additional frames. */
+.operator-workbench-body .operator-workbench-card {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    padding: 8px;
+}
+
+/* Keep one visual boundary per incident/team within the otherwise flat panels. */
+.operator-workbench-helper-host :is(.hh-incident-types, .hh-incident-teams-assignments).is-chrome-less .hh-list > .hh-item {
+    border: 1px solid var(--hh-border);
+    border-radius: 8px;
+    background: var(--hh-bg-soft);
 }
 
 .operator-workbench-card-head {
@@ -1838,48 +1908,6 @@
 .operator-workbench-call-timeline-host {
     min-height: 0;
     overflow: auto;
-}
-
-.operator-workbench-call-timeline.ui-timeline {
-    gap: 0.45rem;
-}
-
-.operator-workbench-call-timeline .ui-timeline-group {
-    gap: 0.45rem;
-}
-
-.operator-workbench-call-timeline .ui-timeline-list {
-    gap: 0.65rem;
-}
-
-.operator-workbench-call-timeline.ui-timeline--vertical .ui-timeline-item {
-    grid-template-columns: 1.35rem minmax(0, 1fr);
-    gap: 0.55rem;
-}
-
-.operator-workbench-call-timeline.ui-timeline--vertical .ui-timeline-marker {
-    left: 0.58rem;
-}
-
-.operator-workbench-call-timeline .ui-timeline-body {
-    min-width: 0;
-    border-color: rgba(82, 125, 173, 0.28);
-    background: rgba(13, 23, 36, 0.72);
-}
-
-.operator-workbench-call-timeline .ui-timeline-title {
-    font-size: 0.8rem;
-}
-
-.operator-workbench-call-timeline .ui-timeline-subtitle,
-.operator-workbench-call-timeline .ui-timeline-description,
-.operator-workbench-call-timeline .ui-timeline-time,
-.operator-workbench-call-timeline .ui-timeline-group-label {
-    font-size: 0.68rem;
-}
-
-.operator-workbench-call-timeline .ui-timeline-custom-content {
-    margin-top: 0.55rem;
 }
 
 .operator-workbench-call-session-card {

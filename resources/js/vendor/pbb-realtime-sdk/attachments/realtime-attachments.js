@@ -99,7 +99,7 @@ export function validateDraftAttachments({ existingItems = [], files = [], polic
 }
 
 export function splitDataUrlIntoChunks(transportUrl, fallbackKind, chunkSize = 48 * 1024) {
-    const match = String(transportUrl || "").match(/^data:([^;,]+)?;base64,(.+)$/);
+    const match = String(transportUrl || "").match(/^data:([^,]*?);base64,(.+)$/);
     const mimeType = match?.[1] || getAttachmentMimeType(fallbackKind);
     const base64 = match?.[2] || "";
     const chunks = base64 !== ""
