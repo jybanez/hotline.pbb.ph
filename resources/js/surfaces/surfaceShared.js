@@ -1,3 +1,4 @@
+import { createCallSignalDelivery } from '../media/callSignalDelivery.js';
 import '../bootstrap.js';
 import { resolveChatSenderAvatar } from './chatSenderAvatar.js';
 import {
@@ -3212,7 +3213,7 @@ async function mountRealtimeCallSession(options = {}) {
             return;
         }
 
-        state.client.sendRequest(
+        return state.client.sendRequest(
             'call.signal.publish',
             state.callRoom,
             buildCallSignalPayload(signalType, {
@@ -3223,9 +3224,13 @@ async function mountRealtimeCallSession(options = {}) {
         );
     };
 
-    const sendHangupSignal = (meta = {}) => {
-        sendCallSignal('hangup', { meta });
-    };
+    const terminalSignalDelivery = createCallSignalDelivery({
+        send: (type, payload) => sendCallSignal(type, payload),
+        onResult: (result) => logCallFlow(viewerRole, 'call-terminal-signal-publish-result', {
+            callSessionId,
+            ...result,
+        }),
+    });
 
     const stopCallHeartbeat = () => {
         if (!state.heartbeatTimerId) {
@@ -3350,6 +3355,13 @@ async function mountRealtimeCallSession(options = {}) {
             const peerConnection = await ensurePeerConnectionWithLocalAudio(remoteUserId);
 
             if (!peerConnection) {
+                state.startedOffer = false;
+                return;
+            }
+
+            // Ready signals may be resent or delayed after the first negotiation.
+            // Only an explicit media change should renegotiate an established peer.
+            if (!force && peerConnection.remoteDescription) {
                 state.startedOffer = false;
                 return;
             }
@@ -3630,6 +3642,17 @@ async function mountRealtimeCallSession(options = {}) {
         }
 
         if (signalType === 'answer') {
+            // An answer is valid only while this peer has an outstanding offer.
+            if (peerConnection.signalingState !== 'have-local-offer') {
+                logCallFlow(viewerRole, 'call-session-answer-ignored', {
+                    callSessionId,
+                    remoteId: senderUserId,
+                    signalingState: peerConnection.signalingState,
+                    reason: 'no-pending-local-offer',
+                });
+                return;
+            }
+
             try {
                 await peerConnection.setRemoteDescription({
                     type: 'answer',
@@ -3744,6 +3767,8 @@ async function mountRealtimeCallSession(options = {}) {
                     return;
                 }
 
+                if (terminalSignalDelivery.handle(envelope)) return;
+
                 if (envelope?.phase === 'ack' && envelope?.type === 'session.auth.request') {
                     logCallFlow(viewerRole, 'call-session-auth-ack', {
                         callSessionId,
@@ -3828,6 +3853,7 @@ async function mountRealtimeCallSession(options = {}) {
 
     const runtimeApi = {
         destroy() {
+            terminalSignalDelivery.destroy();
             state.active = false;
             stopOperatorReadyResend();
             stopCallHeartbeat();
@@ -3885,7 +3911,7 @@ async function mountRealtimeCallSession(options = {}) {
             }
         },
         sendHangup(meta = {}) {
-            sendHangupSignal(meta);
+            return terminalSignalDelivery.publish('hangup', { meta });
         },
         sendDisconnectRequest(meta = {}) {
             sendCallSignal('disconnect-request', { meta });
@@ -3894,7 +3920,7 @@ async function mountRealtimeCallSession(options = {}) {
             sendCallSignal('hangup-confirm', { meta });
         },
         sendHangupComplete(meta = {}) {
-            sendCallSignal('hangup-complete', { meta });
+            return terminalSignalDelivery.publish('hangup-complete', { meta });
         },
         sendSignal(signalType, payload = {}) {
             sendCallSignal(signalType, payload && typeof payload === 'object' ? payload : {});
@@ -3912,8 +3938,16 @@ async function mountRealtimeCallSession(options = {}) {
             syncRemoteVideoStream(state.remoteStream);
         },
         updateLocalVideoStream,
+        setStateChangeHandler(handler) {
+            options.onStateChange = handler;
+        },
+        setStreamHandlers({ onLocalStream, onRemoteStream }) {
+            options.onLocalStream = onLocalStream;
+            options.onRemoteStream = onRemoteStream;
+        },
         getState() {
             return {
+                peerConnected: state.peerConnected,
                 joinedRoom: state.joinedRoom,
                 callRoom: state.callRoom,
                 hasLocalAudio: state.localStream instanceof MediaStream,
@@ -4754,7 +4788,7 @@ async function openCommandBroadcastNotice({ title, message, tone, createdBy, pub
 
     const meta = [createdBy ? `From ${createdBy}` : '', publishedAt ? formatDateTime(publishedAt) : '']
         .filter(Boolean)
-        .join(' â€¢ ');
+        .join(' • ');
     const normalizedTone = normalizeBroadcastTone(tone);
 
     await appState.helper.uiAlert(message, {
