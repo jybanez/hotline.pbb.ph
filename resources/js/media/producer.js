@@ -526,6 +526,7 @@ export class Producer {
                         ...this.mediaRecord,
                         ended_at: new Date(stoppedAt).toISOString(),
                         duration_seconds: durationSeconds,
+                        expected_chunk_count: this.nextChunkIndex,
                         status: 'closed',
                         updated_at: new Date().toISOString(),
                     };

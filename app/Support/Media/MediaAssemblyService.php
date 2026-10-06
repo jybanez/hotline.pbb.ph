@@ -11,6 +11,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use RuntimeException;
 use Symfony\Component\Process\Process;
@@ -114,6 +115,44 @@ class MediaAssemblyService
         ];
     }
 
+    public function storeBatch(Media $media, string $contents, mixed $manifest): array
+    {
+        if (! is_array($manifest) || ! array_is_list($manifest) || $manifest === [] || count($manifest) > 10000) {
+            throw new RuntimeException('Invalid recording batch manifest.');
+        }
+        $offset = 0;
+        $previous = null;
+        foreach ($manifest as $item) {
+            if (! is_array($item) || ! is_int($item['chunk_index'] ?? null) || $item['chunk_index'] < 0
+                || ! is_int($item['size'] ?? null) || $item['size'] <= 0
+                || ($previous !== null && $item['chunk_index'] !== $previous + 1)) {
+                throw new RuntimeException('Recording batch must contain consecutive chunks with valid sizes.');
+            }
+            $offset += $item['size'];
+            $previous = $item['chunk_index'];
+        }
+        if ($offset !== strlen($contents) || $offset > 1536 * 1024) {
+            throw new RuntimeException('Recording batch size does not match its manifest.');
+        }
+        return DB::transaction(function () use ($media, $contents, $manifest) {
+            $locked = Media::query()->lockForUpdate()->findOrFail($media->id);
+            $offset = 0;
+            $indices = [];
+            foreach ($manifest as $item) {
+                $chunk = substr($contents, $offset, $item['size']);
+                $path = $this->chunkPath($locked, $item['chunk_index']);
+                if (Storage::disk('local')->exists($path)
+                    && Storage::disk('local')->get($path) !== $chunk) {
+                    throw new RuntimeException('Recording chunk conflicts with previously stored data.');
+                }
+                $this->storeChunk($locked, $chunk, $item['chunk_index']);
+                $offset += $item['size'];
+                $indices[] = $item['chunk_index'];
+            }
+            return $indices;
+        });
+    }
+
     public function finalizeProcessingAsset(Media $media, array $payload = []): Media
     {
         if ($media->available_at !== null) {
@@ -123,6 +162,16 @@ class MediaAssemblyService
         $metadata = $media->metadata_json ?? [];
         $metadata['ended_at'] = Arr::get($payload, 'ended_at', $metadata['ended_at'] ?? now()->toIso8601String());
         $chunkPaths = $this->chunkPaths($media);
+
+        if (array_key_exists('expected_chunk_count', $payload)) {
+            $expected = (int) $payload['expected_chunk_count'];
+            $indices = array_map(fn ($path) => (int) pathinfo($path, PATHINFO_FILENAME), $chunkPaths);
+            if ($indices !== ($expected > 0 ? range(0, $expected - 1) : [])) {
+                throw new RuntimeException('Recording is incomplete. Upload all chunks before finalizing.');
+            }
+        } elseif (($metadata['upload_mode'] ?? '') === 'http-batch') {
+            throw new RuntimeException('Recording chunk count is required before finalizing.');
+        }
 
         if ($chunkPaths === []) {
             $metadata['processing'] = false;
@@ -258,6 +307,10 @@ class MediaAssemblyService
         ];
 
         foreach ($assets as $media) {
+            if (($media->metadata_json['upload_mode'] ?? '') === 'http-batch') {
+                $summary['skipped_not_ended']++;
+                continue; // The client must confirm the final chunk count first.
+            }
             $callSession = $media->callSession;
 
             if (
@@ -483,7 +536,9 @@ class MediaAssemblyService
         ];
 
         if ($audioOnly) {
-            array_push($command, '-vn', '-c:a', 'libopus', '-b:a', '48k');
+            // The recorder already produced Opus. Trim by copying packets; do not
+            // encode the entire call again during an HTTP finalization request.
+            array_push($command, '-vn', '-c:a', 'copy');
         } else {
             array_push($command, '-c', 'copy');
         }
@@ -491,18 +546,19 @@ class MediaAssemblyService
         array_push($command, '-f', $outputFormat, $temporaryPath);
 
         $process = new Process($command);
-        $process->run();
-
-        if (! $process->isSuccessful()) {
-            @unlink($temporaryPath);
-
-            throw new RuntimeException(trim($process->getErrorOutput() ?: 'Unable to trim finalized media duration.'));
-        }
-
-        if (! @rename($temporaryPath, $targetPath)) {
-            @unlink($temporaryPath);
-
-            throw new RuntimeException('Unable to replace finalized media with duration-trimmed output.');
+        try {
+            $process->run();
+            if (! $process->isSuccessful()) {
+                throw new RuntimeException(trim($process->getErrorOutput() ?: 'Unable to trim finalized media duration.'));
+            }
+            if (! @rename($temporaryPath, $targetPath)) {
+                throw new RuntimeException('Unable to replace finalized media with duration-trimmed output.');
+            }
+        } finally {
+            // Also clean up when Symfony throws on a process timeout.
+            if (is_file($temporaryPath)) {
+                @unlink($temporaryPath);
+            }
         }
     }
 

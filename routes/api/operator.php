@@ -55,6 +55,7 @@ Route::middleware(['auth', 'role:operator'])->prefix('/operator')->group(functio
     Route::post('/call-sessions/{callSession}/citizen-disconnect', [CallSessionController::class, 'citizenDisconnect']);
     Route::post('/call-sessions/{callSession}/media', [CallSessionMediaController::class, 'store']);
     Route::post('/media/{media}/chunks', [CallSessionMediaController::class, 'storeChunk']);
+    Route::post('/media/{media}/batches', [CallSessionMediaController::class, 'storeBatch']);
     Route::post('/media/{media}/finalize', [CallSessionMediaController::class, 'finalize']);
     Route::post('/media-tests', [MediaTestController::class, 'store']);
     Route::post('/media-tests/{media}/chunks', [MediaTestController::class, 'storeChunk']);
