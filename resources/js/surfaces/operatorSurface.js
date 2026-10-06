@@ -6500,7 +6500,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
                 placeholder: 'Reply to caller...',
                 helperText: '',
                 showAttachmentButton: true,
-                accept: 'image/*,video/*',
+                accept: 'image/*',
             },
             persistMessage: async (messagePayload) => {
                 const response = await fetchJson(`/api/incidents/${payload.id}/messages`, {
@@ -6556,7 +6556,7 @@ async function mountWorkbenchHelpers(overlay, payload, stateOverride, options = 
             instances.push(mountChatComposer(chatComposerHost, {
                 showAttachmentButton: true,
                 helperText: '',
-                accept: 'image/*,video/*',
+                accept: 'image/*',
                 onSend() {
                     showToast('Live chat is unavailable right now.', 'warn');
                 },

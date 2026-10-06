@@ -3721,7 +3721,7 @@ function mountCallerConversation(host, incident, emptyText, includeComposer = fa
 
     if (includeComposer && callerComposerHost) {
         composerApi = trackSurfaceInstance(mountChatComposer(callerComposerHost, {
-            accept: 'image/*,video/*',
+            accept: 'image/*',
             helperText: 'Photos and videos only. Transport is still pending in this build.',
             onSend() {
                 showToast('Live-call chat transport is still pending in this build.', 'info');
@@ -4374,7 +4374,7 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
                 placeholder: 'Type a message...',
                 helperText: '',
                 showAttachmentButton: true,
-                accept: 'image/*,video/*',
+                accept: 'image/*',
             },
             onMediaEvent(_eventType, eventPayload) {
                 const nextMedia = eventPayload?.media && typeof eventPayload.media === 'object'
@@ -4412,7 +4412,7 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
                 showAttachmentButton: true,
                 helperText: '',
                 placeholder: 'Type a message...',
-                accept: 'image/*,video/*',
+                accept: 'image/*',
                 onSend() {
                     showToast('Live chat is unavailable right now.', 'warn');
                 },
