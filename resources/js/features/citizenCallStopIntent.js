@@ -2,13 +2,16 @@
 export function createCitizenCallStopIntent() {
     let citizen = '';
     let generation = 0;
+    let transitioning = false;
     const sessions = new Map();
     const key = (incidentId, sessionId) => `${Number(incidentId)}:${Number(sessionId)}`;
-    const valid = (scope) => Boolean(citizen) && scope?.citizen === citizen && scope?.generation === generation;
+    const valid = (scope) => !transitioning && Boolean(citizen) && scope?.citizen === citizen && scope?.generation === generation;
     return {
+        beginTransition() { generation++; transitioning = true; },
         setCitizen(id) {
             const next = String(id ?? '').trim();
             if (next !== citizen) { citizen = next; generation++; sessions.clear(); }
+            transitioning = false;
             return this.scope();
         },
         scope() { return {citizen, generation}; },

@@ -1891,17 +1891,23 @@ async function connectCallerRealtimeStream(options = {}) {
         return;
     }
 
-    if (appState.runtime.callerRealtimeStream?.client) {
-        return;
-    }
-
     const streamScope = callerStopIntent.scope();
+    if (!callerStopIntent.isCurrent(streamScope)) return;
+    const existingStream = appState.runtime.callerRealtimeStream;
+    if (existingStream?.client) {
+        if (existingStream.stopScope?.citizen === streamScope.citizen) {
+            existingStream.stopScope = streamScope;
+            return;
+        }
+        existingStream.destroy?.();
+    }
     const reconnectRuntime = callerRealtimeReconnectRuntime();
 
-    if (reconnectRuntime.connecting) {
+    if (reconnectRuntime.connecting && callerStopIntent.isCurrent(reconnectRuntime.stopScope)) {
         return;
     }
 
+    reconnectRuntime.stopScope = streamScope;
     reconnectRuntime.connecting = true;
     appState.runtime.callerRealtimeSignal?.setReconnectRuntime?.(reconnectRuntime);
 
@@ -1931,6 +1937,7 @@ async function connectCallerRealtimeStream(options = {}) {
             token: admission.token,
             requestPrefix: 'citizen_surface',
             onOpen() {
+                if (!callerStopIntent.isCurrent(streamRef?.stopScope ?? streamScope)) return;
                 reconnectRuntime.connecting = false;
                 reconnectRuntime.attempts = 0;
                 clearCallerRealtimeReconnectTimer();
@@ -1941,6 +1948,7 @@ async function connectCallerRealtimeStream(options = {}) {
                 }
             },
             onClose() {
+                if (!callerStopIntent.isCurrent(streamRef?.stopScope ?? streamScope)) return;
                 reconnectRuntime.connecting = false;
 
                 if (streamRef?.destroyed) {
@@ -1955,7 +1963,8 @@ async function connectCallerRealtimeStream(options = {}) {
                 scheduleCallerRealtimeReconnect();
             },
             onMessage(raw) {
-                if (!callerStopIntent.isCurrent(streamScope)) return;
+                const messageScope = streamRef?.stopScope ?? streamScope;
+                if (!callerStopIntent.isCurrent(messageScope)) return;
                 let envelope;
 
                 try {
@@ -2462,6 +2471,7 @@ async function connectCallerRealtimeStream(options = {}) {
 
                     void (async () => {
                         await closeCallerPendingOverlay(appState.runtime.callerRoot);
+                        if (!callerStopIntent.isCurrent(messageScope)) return;
                         clearCallerPendingState();
 
                         if (String(pendingState.phase ?? '').trim() === 'ringing' || String(pendingState.phase ?? '').trim() === 'connecting') {
@@ -2478,6 +2488,7 @@ async function connectCallerRealtimeStream(options = {}) {
 
                     void (async () => {
                         await closeCallerPendingOverlay(appState.runtime.callerRoot);
+                        if (!callerStopIntent.isCurrent(messageScope)) return;
                         clearCallerPendingState();
 
                         if (String(pendingState.phase ?? '').trim() === 'ringing' || String(pendingState.phase ?? '').trim() === 'connecting') {
@@ -2512,6 +2523,7 @@ async function connectCallerRealtimeStream(options = {}) {
                         void (async () => {
                             clearCallerCallRoutingTimers();
                             await closeCallerPendingOverlay(appState.runtime.callerRoot);
+                        if (!callerStopIntent.isCurrent(messageScope)) return;
                             clearCallerPendingState();
                             rerenderCallerInPlace();
                         })();
@@ -2531,6 +2543,7 @@ async function connectCallerRealtimeStream(options = {}) {
 
         streamRef = {
             client,
+            stopScope: streamScope,
             destroyed: false,
             destroy() {
                 this.destroyed = true;
@@ -2548,6 +2561,7 @@ async function connectCallerRealtimeStream(options = {}) {
         appState.runtime.callerRealtimeSignal?.bindClient?.(client);
         client.connect();
     } catch (error) {
+        if (!callerStopIntent.isCurrent(streamScope)) return;
         reconnectRuntime.connecting = false;
         appState.runtime.callerRealtimeSignal?.setReconnectRuntime?.(reconnectRuntime);
         if (appState.runtime.callerRealtimeStream?.client && !appState.runtime.callerRealtimeStream.client.isOpen?.()) {
@@ -4161,6 +4175,7 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
                 clearCallerLiveHangupTimers();
 
                 appState.runtime.callerLiveModalHangupConfirmTimer = window.setTimeout(() => {
+                    if (!callerStopIntent.isCurrent(stopScope)) return;
                     if (!appState.runtime.callerLiveModal?.hangupConfirmReceived) {
                         console.warn('Caller hangup confirm timeout.', {
                             callSessionId: Number(latestSession?.id ?? 0),
@@ -4171,6 +4186,7 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
                 }, CALLER_HANGUP_CONFIRM_TIMEOUT_MS);
 
                 appState.runtime.callerLiveModalHangupCompleteTimer = window.setTimeout(() => {
+                    if (!callerStopIntent.isCurrent(stopScope)) return;
                     console.warn('Caller hangup complete timeout. Disconnecting anyway.', {
                         callSessionId: Number(latestSession?.id ?? 0),
                         incidentId: Number(payload?.id ?? 0),
@@ -4180,8 +4196,10 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
                     void (async () => {
                         clearCallerLiveHangupTimers();
                         await close();
+                        if (!callerStopIntent.isCurrent(stopScope)) return;
                         await renderSurface('citizen');
-                        if (callerStopIntent.uncertain(stopScope, payload.id, callSessionId)) {
+                        const nextScope = callerStopIntent.scope();
+                        if (nextScope.citizen === stopScope.citizen && callerStopIntent.uncertain(nextScope, payload.id, callSessionId)) {
                             showToast('The call has closed on this device. Server confirmation is still pending; the call will not reopen automatically.', 'warn');
                         }
                     })();
@@ -4554,6 +4572,7 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
                     }
                 },
                 onHangupConfirm() {
+                    if (!callerStopIntent.isCurrent(stopScope) || Number(appState.runtime.callerLiveModal?.latestSessionId) !== callSessionId) return;
                     if (appState.runtime.callerLiveModal) {
                         appState.runtime.callerLiveModal.hangupConfirmReceived = true;
                     }
@@ -4568,6 +4587,7 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
                         scheduleCallerPostCallIncidentReconciliation(payload.id, 'hangup-complete');
                         clearCallerLiveHangupTimers();
                         await close();
+                        if (!callerStopIntent.isCurrent(stopScope)) return;
                         await renderSurface('citizen');
                     })();
                 },
@@ -4593,6 +4613,7 @@ async function openCallerLiveModal(root, payload, latestSession, { transportOnly
                             syncCallerCurrentIncident(payload);
                         }
                         await close();
+                        if (!callerStopIntent.isCurrent(stopScope)) return;
                         await renderSurface('citizen');
                     })();
                 },

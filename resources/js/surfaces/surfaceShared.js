@@ -1,3 +1,4 @@
+import { citizenCallStopIntent } from '../features/citizenCallStopIntent.js';
 import { createCallSignalDelivery } from '../media/callSignalDelivery.js';
 import '../bootstrap.js';
 import { resolveChatSenderAvatar } from './chatSenderAvatar.js';
@@ -312,6 +313,7 @@ function touchSessionActivityClock() {
 }
 
 function clearClientSessionState() {
+    citizenCallStopIntent.setCitizen(null);
     appState.bootstrap = {
         ...(appState.bootstrap ?? {}),
         authenticated: false,
@@ -1308,6 +1310,7 @@ function mountSurfaceChrome(root, surface, bootstrap) {
 }
 
 async function logoutCurrentUser() {
+    citizenCallStopIntent.beginTransition();
     const accountSso = accountSsoConfig();
     if (accountSso.enabled && accountSso.logout_url) {
         clearClientSessionState();
@@ -1323,6 +1326,8 @@ async function logoutCurrentUser() {
         showToast('Signed out.', 'success');
         window.location.assign('/');
     } catch (error) {
+        const scope = citizenCallStopIntent.setCitizen(appState.activeSurface === 'citizen' && appState.bootstrap?.authenticated ? appState.bootstrap?.user?.id : null);
+        if (appState.runtime.callerRealtimeStream?.stopScope?.citizen === scope.citizen) appState.runtime.callerRealtimeStream.stopScope = scope;
         showToast(error.response?.data?.message ?? 'Unable to sign out.');
     }
 }
@@ -1564,6 +1569,7 @@ async function handleAccountSessionLogout() {
     if (!appState.bootstrap?.authenticated) {
         return;
     }
+    citizenCallStopIntent.beginTransition();
 
     try {
         await fetchJson('/api/logout', { method: 'post' });
