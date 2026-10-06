@@ -1027,6 +1027,7 @@ function collapseCallerConnectingState(callSessionId, incidentId, answeredAt) {
     }
 
     const root = appState.runtime.callerRoot;
+    stopCitizenIncomingRingtone();
     root?.querySelector?.('[data-caller-pending-overlay]')?.remove?.();
     markCallerLiveConnectionReady(nextCallSessionId, nextAnsweredAt);
 }
@@ -4751,11 +4752,65 @@ async function showCallerIncidentOverlay(root, payload) {
     });
 }
 
+function stopCitizenIncomingRingtone() {
+    const audio = appState.runtime.citizenIncomingRingtone;
+
+    if (!(audio instanceof Audio)) {
+        appState.runtime.citizenIncomingRingtone = null;
+        return;
+    }
+
+    try {
+        audio.pause();
+        audio.currentTime = 0;
+    } catch {
+        // Ignore audio teardown failures.
+    }
+
+    appState.runtime.citizenIncomingRingtone = null;
+}
+
+function playCitizenIncomingRingtone() {
+    stopCitizenIncomingRingtone();
+
+    if (typeof window === 'undefined' || typeof Audio !== 'function') {
+        return null;
+    }
+
+    try {
+        const audio = new Audio('/audio/ringtone.mp3');
+        audio.loop = true;
+        audio.preload = 'auto';
+        audio.volume = 1;
+        appState.runtime.citizenIncomingRingtone = audio;
+
+        const playback = audio.play();
+
+        if (playback && typeof playback.catch === 'function') {
+            playback.catch(() => {
+                if (appState.runtime.citizenIncomingRingtone === audio) {
+                    appState.runtime.citizenIncomingRingtone = null;
+                }
+            });
+        }
+
+        return audio;
+    } catch {
+        return null;
+    }
+}
+
 function closeCallerPendingOverlay(root) {
+    stopCitizenIncomingRingtone();
     return fadeOutAndRemove(root.querySelector('[data-caller-pending-overlay]'));
 }
 
 function showCallerPendingOverlay(root, pending, incident = null, alertLevel = null) {
+    if (pending?.phase === 'incoming_callback') {
+        if (!appState.runtime.citizenIncomingRingtone) playCitizenIncomingRingtone();
+    } else {
+        stopCitizenIncomingRingtone();
+    }
     const existingOverlay = root.querySelector('[data-caller-pending-overlay]');
 
     if (existingOverlay) {
