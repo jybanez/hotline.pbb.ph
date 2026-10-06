@@ -38,7 +38,7 @@ const CALL_SESSION_KEEPALIVE_MS = 60 * 1000;
 const CALL_SESSION_OPERATOR_READY_RESEND_MS = 1500;
 const CALL_SESSION_OPERATOR_READY_RESEND_LIMIT = 8;
 const CALL_SESSION_QUEUED_SIGNAL_TYPES = new Set(['ready', 'offer', 'answer', 'ice-candidate', 'video-state']);
-const HELPER_VENDOR_REV = '26a2356';
+const HELPER_VENDOR_REV = '18d9430';
 const realtimeCallSessionRegistry = new Map();
 let accountSsoRedirectStarted = false;
 
