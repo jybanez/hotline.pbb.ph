@@ -1027,6 +1027,7 @@ function collapseCallerConnectingState(callSessionId, incidentId, answeredAt) {
     }
 
     const root = appState.runtime.callerRoot;
+    stopCitizenIncomingRingtone();
     root?.querySelector?.('[data-caller-pending-overlay]')?.remove?.();
     markCallerLiveConnectionReady(nextCallSessionId, nextAnsweredAt);
 }
@@ -2263,6 +2264,8 @@ async function connectCallerRealtimeStream(options = {}) {
                         operator_avatar: String(payload.operator_avatar ?? ''),
                         phase: 'requesting',
                     });
+
+                    rerenderCallerInPlace();
 
                     publishCallerCallFlow('citizen.reconnect.request', {
                         caller_id: Number(appState.bootstrap?.user?.id ?? 0),
@@ -3547,7 +3550,11 @@ function callerNavbarStatusContent(primerReport) {
 function renderCallerPendingContent(pending, incident = null) {
     const operator = pendingOperatorIdentity(pending, incident);
     const phase = String(pending?.phase ?? '').trim();
-    const statusText = phase === 'incoming_callback'
+    const statusText = phase === 'availability_check'
+        ? 'Checking availability ...'
+        : phase === 'requesting'
+        ? 'Calling ...'
+        : phase === 'incoming_callback'
         ? 'Incoming call'
         : phase === 'network_offline'
         ? 'Waiting for network ...'
@@ -4675,6 +4682,9 @@ async function runCallerReconnect(root, incidentId, noticeTarget = null) {
         created_at: new Date().toISOString(),
     });
 
+    // Show the existing reconnect screen and bind cancellation before signaling.
+    rerenderCallerInPlace();
+
     publishCallerCallFlow('citizen.reconnect.availability.request', {
         caller_id: Number(appState.bootstrap?.user?.id ?? 0),
         incident_id: nextIncidentId,
@@ -4742,11 +4752,65 @@ async function showCallerIncidentOverlay(root, payload) {
     });
 }
 
+function stopCitizenIncomingRingtone() {
+    const audio = appState.runtime.citizenIncomingRingtone;
+
+    if (!(audio instanceof Audio)) {
+        appState.runtime.citizenIncomingRingtone = null;
+        return;
+    }
+
+    try {
+        audio.pause();
+        audio.currentTime = 0;
+    } catch {
+        // Ignore audio teardown failures.
+    }
+
+    appState.runtime.citizenIncomingRingtone = null;
+}
+
+function playCitizenIncomingRingtone() {
+    stopCitizenIncomingRingtone();
+
+    if (typeof window === 'undefined' || typeof Audio !== 'function') {
+        return null;
+    }
+
+    try {
+        const audio = new Audio('/audio/ringtone.mp3');
+        audio.loop = true;
+        audio.preload = 'auto';
+        audio.volume = 1;
+        appState.runtime.citizenIncomingRingtone = audio;
+
+        const playback = audio.play();
+
+        if (playback && typeof playback.catch === 'function') {
+            playback.catch(() => {
+                if (appState.runtime.citizenIncomingRingtone === audio) {
+                    appState.runtime.citizenIncomingRingtone = null;
+                }
+            });
+        }
+
+        return audio;
+    } catch {
+        return null;
+    }
+}
+
 function closeCallerPendingOverlay(root) {
+    stopCitizenIncomingRingtone();
     return fadeOutAndRemove(root.querySelector('[data-caller-pending-overlay]'));
 }
 
 function showCallerPendingOverlay(root, pending, incident = null, alertLevel = null) {
+    if (pending?.phase === 'incoming_callback') {
+        if (!appState.runtime.citizenIncomingRingtone) playCitizenIncomingRingtone();
+    } else {
+        stopCitizenIncomingRingtone();
+    }
     const existingOverlay = root.querySelector('[data-caller-pending-overlay]');
 
     if (existingOverlay) {
@@ -4778,7 +4842,7 @@ function renderCaller(root, bootstrap, home, primerReport) {
     const hasNewCallPending = pendingState?.kind === 'new_call'
         && newCallPendingPhases.includes(String(pendingState?.phase ?? '').trim());
     const reconnectPendingPhases = ['availability_check', 'requesting', 'ringing', 'connecting'];
-    const reconnectOverlayPhases = ['ringing', 'connecting'];
+    const reconnectOverlayPhases = reconnectPendingPhases;
     const hasReconnectPending = currentIncident
         && pendingState?.kind === 'reconnect'
         && Number(pendingState?.incident_id) === Number(currentIncident.id)

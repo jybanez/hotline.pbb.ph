@@ -1110,6 +1110,11 @@ function resetSurfaceRuntime(nextSurface = null) {
         }
     }
     appState.runtime.operatorIncomingRingtone = null;
+    const citizenRingtone = appState.runtime.citizenIncomingRingtone;
+    if (citizenRingtone) {
+        try { citizenRingtone.pause(); citizenRingtone.currentTime = 0; } catch {}
+    }
+    appState.runtime.citizenIncomingRingtone = null;
     appState.runtime.operatorDiscoveryClaimed = false;
     appState.runtime.operatorIncomingCallItem = null;
 
