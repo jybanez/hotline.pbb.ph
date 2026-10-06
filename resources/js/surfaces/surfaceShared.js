@@ -4029,7 +4029,7 @@ async function mountRealtimeIncidentChat(options = {}) {
         helperText: 'Loading attachment policy...',
         placeholder: options.composerPlaceholder ?? 'Type a message...',
         ...(options.composerOptions ?? {}),
-        // Recording controls are enabled only after authenticated chat admission.
+        // File attachments are enabled only after authenticated chat admission.
         attachments: [],
         allowAttachmentOnly: true,
         attachmentLabel: 'Attach file',
@@ -4235,9 +4235,16 @@ async function mountRealtimeIncidentChat(options = {}) {
 
     const hydrateDraftFiles = async (files) => {
         if (!active || !joinedRoom || pendingPublishIds.size > 0) return;
+        const allowedFiles = Array.from(files ?? []).filter((file) => {
+            if (['audio', 'video'].includes(inferAttachmentKind(file))) {
+                showToast('Audio and video chat attachments are disabled.', 'warn');
+                return false;
+            }
+            return true;
+        });
         const { accepted, rejected } = validateDraftAttachments({
             existingItems: uploadItems,
-            files,
+            files: allowedFiles,
             policy: attachmentPolicy,
         });
 
@@ -4353,8 +4360,6 @@ async function mountRealtimeIncidentChat(options = {}) {
             }),
             attachmentOptions: {
                 files: { accept: composerBaseOptions.accept },
-                audios: { accept: 'audio/*' },
-                videos: { accept: 'video/*' },
             },
             onAttachmentError(error) { showToast(error?.message ?? 'Unable to attach the recording.', 'warn'); },
             async onSend({ text }) {
@@ -4513,7 +4518,7 @@ async function mountRealtimeIncidentChat(options = {}) {
                         helperText: formatAttachmentPolicyHelperText(attachmentPolicy),
                         disabled: false,
                         showAttachmentButton: true,
-                        attachments: ['files', 'video', 'audio'],
+                        attachments: ['files'],
                     });
                     return;
                 }
@@ -4788,7 +4793,7 @@ async function openCommandBroadcastNotice({ title, message, tone, createdBy, pub
 
     const meta = [createdBy ? `From ${createdBy}` : '', publishedAt ? formatDateTime(publishedAt) : '']
         .filter(Boolean)
-        .join(' • ');
+        .join(' â€¢ ');
     const normalizedTone = normalizeBroadcastTone(tone);
 
     await appState.helper.uiAlert(message, {

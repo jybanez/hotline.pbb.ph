@@ -41,7 +41,7 @@ const context={...attachments,buildChatPublishPayload,RealtimeSocketClient:Clien
 const mount=new Function('context',`with(context){${composerSource}\n${mountSource}\nreturn mountRealtimeIncidentChat;}`)(context);
 window.chat=await mount({incidentId:31,viewerRole:'operator',admissionPath:'/mock',currentUserId:'3',
  threadHost:document.querySelector('#thread'),composerHost:document.querySelector('#composer'),uploadQueueHost:document.querySelector('#queue'),
- composerOptions:{accept:'image/*,video/*'},});
+ composerOptions:{accept:'image/*'},});
 chat.composerApi.setValue('Preserved draft');
 window.ready=true;
 </script></body>
