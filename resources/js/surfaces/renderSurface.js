@@ -1,4 +1,7 @@
+import { citizenCallStopIntent } from '../features/citizenCallStopIntent.js';
 import { appState, ensureHelperUi, fetchJson, initAccountSessionSdk, openLoginModal, resetSurfaceRuntime, syncBootstrapSessionState } from './surfaceShared.js';
+
+let surfaceRenderGeneration = 0;
 
 const AUTH_REQUIRED_SURFACES = new Set(['public', 'citizen', 'operator', 'command', 'admin']);
 
@@ -9,13 +12,20 @@ export async function renderSurface(surface, options = {}) {
         return;
     }
 
+    const renderGeneration = ++surfaceRenderGeneration;
+    citizenCallStopIntent.beginTransition();
+    const transitionGeneration = citizenCallStopIntent.scope().generation;
     resetSurfaceRuntime(surface);
 
     const bootstrapUrl = root.dataset.apiBootstrapUrl;
     const bootstrap = options?.bootstrap ?? await fetchJson(bootstrapUrl);
+    if (renderGeneration !== surfaceRenderGeneration || citizenCallStopIntent.scope().generation !== transitionGeneration) return;
+    citizenCallStopIntent.setCitizen(surface === 'citizen' && bootstrap?.authenticated ? bootstrap?.user?.id : null);
+    const acceptedGeneration = citizenCallStopIntent.scope().generation;
     appState.bootstrap = bootstrap;
     appState.activeSurface = surface;
     await ensureHelperUi();
+    if (renderGeneration !== surfaceRenderGeneration || citizenCallStopIntent.scope().generation !== acceptedGeneration) return;
     syncBootstrapSessionState(bootstrap);
     initAccountSessionSdk();
 
@@ -33,6 +43,7 @@ export async function renderSurface(surface, options = {}) {
 
     if (surface === 'citizen') {
         const { renderCitizenSurface } = await import('./citizenSurface.js');
+        if (renderGeneration !== surfaceRenderGeneration || citizenCallStopIntent.scope().generation !== acceptedGeneration) return;
         await renderCitizenSurface(root, bootstrap, options);
         return;
     }
